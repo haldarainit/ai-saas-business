@@ -1,55 +1,66 @@
-"use client"
+"use client";
 
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
-import StructuredData from "@/components/structured-data"
-import Image from "next/image"
-import { motion } from "framer-motion"
-import { ArrowRight, CheckCircle } from "lucide-react"
-import Link from "next/link"
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
+import StructuredData from "@/components/structured-data";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { ArrowRight, CheckCircle } from "lucide-react";
+import Link from "next/link";
 
 export default function Features() {
-
   const features = [
     {
-      image: "https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+      image:
+        "https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
       title: "Landing Page Builder",
-      description: "Create stunning, high-converting landing pages with our drag-and-drop builder. No coding required.",
+      description:
+        "Create stunning, high-converting landing pages with our drag-and-drop builder. No coding required.",
       benefits: ["Drag & Drop Interface", "Mobile Responsive", "A/B Testing"],
       accentColor: "rgba(36, 101, 237, 0.5)",
       iconColor: "text-blue-500",
       link: "/landing-page-builder",
     },
     {
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+      image:
+        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
       title: "Marketing",
-      description: "Comprehensive marketing tools to grow your business. From email campaigns to social media management.",
-      benefits: ["Email Automation", "Social Media Tools", "Analytics Dashboard"],
+      description:
+        "Comprehensive marketing tools to grow your business. From email campaigns to social media management.",
+      benefits: [
+        "Email Automation",
+        "Social Media Tools",
+        "Analytics Dashboard",
+      ],
       accentColor: "rgba(236, 72, 153, 0.5)",
       iconColor: "text-pink-500",
       link: "/marketing-ai",
     },
     {
-      image: "https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+      image:
+        "https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
       title: "Sales & Communication",
-      description: "AI-powered sales acceleration with intelligent scripts, automated calling, and deal closing assistance.",
+      description:
+        "AI-powered sales acceleration with intelligent scripts, automated calling, and deal closing assistance.",
       benefits: ["Sales Scripts", "Calling Agent", "Deal Closing"],
       accentColor: "rgba(34, 211, 238, 0.5)",
       iconColor: "text-cyan-500",
       link: "/sales-ai",
     },
     {
-      image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2011&q=80",
-      title: "Expense Management",
-      description: "Complete financial management solution with automated expense tracking, invoicing, and investment analytics.",
-      benefits: ["Invoice Generation", "Expense Tracking", "ROI Analytics"],
-      accentColor: "rgba(132, 204, 22, 0.5)",
-      iconColor: "text-green-500",
-      link: "/expense-management",
+      image:
+        "https://images.unsplash.com/photo-1557200134-90327ee9fafa?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+      title: "Email Automation",
+      description:
+        "Automate your email campaigns with AI-powered templates, personalization, and analytics to engage your audience effectively.",
+      benefits: ["AI Templates", "Personalization", "Campaign Analytics"],
+      accentColor: "rgba(249, 115, 22, 0.5)",
+      iconColor: "text-orange-500",
+      link: "/get-started/email-automation",
     },
-  ]
+  ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -59,12 +70,12 @@ export default function Features() {
         staggerChildren: 0.2,
       },
     },
-  }
+  };
 
   const cardVariants = {
     hidden: { opacity: 0, y: 50 },
     visible: { opacity: 1, y: 0 },
-  }
+  };
 
   return (
     <>
@@ -100,8 +111,9 @@ export default function Features() {
                 </h1>
 
                 <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mb-12 leading-relaxed">
-                  Discover our comprehensive suite of AI-powered tools designed to streamline operations,
-                  boost productivity, and drive unprecedented growth for your business.
+                  Discover our comprehensive suite of AI-powered tools designed
+                  to streamline operations, boost productivity, and drive
+                  unprecedented growth for your business.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4">
@@ -109,7 +121,11 @@ export default function Features() {
                     Get Started Free
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
-                  <Button variant="outline" size="lg" className="text-lg px-8 py-6 h-auto">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="text-lg px-8 py-6 h-auto"
+                  >
                     Watch Demo
                   </Button>
                 </div>
@@ -118,11 +134,15 @@ export default function Features() {
                 <div className="grid grid-cols-3 gap-8 mt-16 w-full max-w-2xl">
                   <div className="text-center">
                     <div className="text-3xl font-bold text-primary">10K+</div>
-                    <div className="text-sm text-muted-foreground">Active Users</div>
+                    <div className="text-sm text-muted-foreground">
+                      Active Users
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-3xl font-bold text-primary">500+</div>
-                    <div className="text-sm text-muted-foreground">Companies</div>
+                    <div className="text-sm text-muted-foreground">
+                      Companies
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-3xl font-bold text-primary">99.9%</div>
@@ -141,7 +161,8 @@ export default function Features() {
                   Everything You Need to Succeed
                 </h2>
                 <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                  Powerful features designed to help your business grow and thrive in today's competitive market.
+                  Powerful features designed to help your business grow and
+                  thrive in today's competitive market.
                 </p>
               </div>
 
@@ -190,12 +211,19 @@ export default function Features() {
 
                               {/* Benefits */}
                               <div className="space-y-2 mb-4">
-                                {feature.benefits.map((benefit, benefitIndex) => (
-                                  <div key={benefitIndex} className="flex items-center text-xs text-muted-foreground group-hover:text-white/90 transition-colors duration-300">
-                                    <CheckCircle className={`w-3 h-3 mr-2 ${feature.iconColor} group-hover:text-white/80`} />
-                                    {benefit}
-                                  </div>
-                                ))}
+                                {feature.benefits.map(
+                                  (benefit, benefitIndex) => (
+                                    <div
+                                      key={benefitIndex}
+                                      className="flex items-center text-xs text-muted-foreground group-hover:text-white/90 transition-colors duration-300"
+                                    >
+                                      <CheckCircle
+                                        className={`w-3 h-3 mr-2 ${feature.iconColor} group-hover:text-white/80`}
+                                      />
+                                      {benefit}
+                                    </div>
+                                  )
+                                )}
                               </div>
 
                               {/* CTA Button */}
@@ -203,7 +231,9 @@ export default function Features() {
                                 variant="ghost"
                                 className="w-full justify-between group/btn hover:bg-primary hover:text-primary-foreground transition-all duration-300 text-sm py-3 h-auto font-medium"
                               >
-                                {feature.title === "Landing Page Builder" ? "Try Builder" : "Learn More"}
+                                {feature.title === "Landing Page Builder"
+                                  ? "Try Builder"
+                                  : "Learn More"}
                                 <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform duration-300" />
                               </Button>
                             </div>
@@ -246,8 +276,13 @@ export default function Features() {
                             {/* Benefits */}
                             <div className="space-y-2 mb-4">
                               {feature.benefits.map((benefit, benefitIndex) => (
-                                <div key={benefitIndex} className="flex items-center text-xs text-muted-foreground group-hover:text-white/90 transition-colors duration-300">
-                                  <CheckCircle className={`w-3 h-3 mr-2 ${feature.iconColor} group-hover:text-white/80`} />
+                                <div
+                                  key={benefitIndex}
+                                  className="flex items-center text-xs text-muted-foreground group-hover:text-white/90 transition-colors duration-300"
+                                >
+                                  <CheckCircle
+                                    className={`w-3 h-3 mr-2 ${feature.iconColor} group-hover:text-white/80`}
+                                  />
                                   {benefit}
                                 </div>
                               ))}
@@ -278,16 +313,23 @@ export default function Features() {
                 className="text-center mt-20"
               >
                 <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-3xl p-12 border border-primary/20">
-                  <h3 className="text-3xl font-bold mb-4">Ready to Transform Your Business?</h3>
+                  <h3 className="text-3xl font-bold mb-4">
+                    Ready to Transform Your Business?
+                  </h3>
                   <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                    Join thousands of businesses already using our platform to achieve their goals.
+                    Join thousands of businesses already using our platform to
+                    achieve their goals.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Button size="lg" className="text-lg px-8 py-6 h-auto">
                       Start Free Trial
                       <ArrowRight className="ml-2 w-5 h-5" />
                     </Button>
-                    <Button variant="outline" size="lg" className="text-lg px-8 py-6 h-auto">
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="text-lg px-8 py-6 h-auto"
+                    >
                       Schedule Demo
                     </Button>
                   </div>
@@ -300,5 +342,5 @@ export default function Features() {
         <Footer />
       </div>
     </>
-  )
+  );
 }
