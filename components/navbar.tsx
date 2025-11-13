@@ -82,13 +82,27 @@ export default function Navbar() {
             <ThemeToggle />
 
             {user ? (
-              <Link href="/profile" aria-label="Go to profile">
-                <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                    {getInitials(user.name, user.email)}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
+              <>
+                <Button
+                  asChild
+                  className="hidden md:flex items-center gap-3 px-4 py-2 bg-[#1a1d21] hover:bg-[#2a2d31] text-white rounded-xl border-0 h-auto dark:bg-primary dark:hover:bg-primary/90 dark:shadow-[0_0_10px_rgba(36,101,237,0.4)]"
+                >
+                  <Link href="/get-started">
+                    <Zap className="h-4 w-4 text-white" />
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-medium">Get Started</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-300 -mt-0.5"></span>
+                    </div>
+                  </Link>
+                </Button>
+                <Link href="/profile" aria-label="Go to profile">
+                  <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                      {getInitials(user.name, user.email)}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+              </>
             ) : (
               <Button
                 onClick={() => setAuthModalOpen(true)}
@@ -127,25 +141,44 @@ export default function Navbar() {
                   <div className="flex items-center gap-4 mt-4">
                     <ThemeToggle />
                     {user ? (
-                      <Link
-                        href="/profile"
-                        onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-3"
-                      >
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                            {getInitials(user.name, user.email)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">
-                            {user.name || "Profile"}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            View Profile
-                          </span>
-                        </div>
-                      </Link>
+                      <>
+                        <Button
+                          asChild
+                          className="flex-1 flex items-center gap-3 px-4 py-2 bg-[#1a1d21] hover:bg-[#2a2d31] text-white rounded-xl border-0 h-auto dark:bg-primary dark:hover:bg-primary/90 dark:shadow-[0_0_10px_rgba(36,101,237,0.4)]"
+                        >
+                          <Link
+                            href="/get-started"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            <Zap className="h-4 w-4 text-white" />
+                            <div className="flex flex-col items-start">
+                              <span className="text-sm font-medium">
+                                Get Started
+                              </span>
+                              <span className="text-xs text-gray-400 dark:text-gray-300 -mt-0.5"></span>
+                            </div>
+                          </Link>
+                        </Button>
+                        <Link
+                          href="/profile"
+                          onClick={() => setIsOpen(false)}
+                          className="flex items-center gap-3"
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                              {getInitials(user.name, user.email)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">
+                              {user.name || "Profile"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              View Profile
+                            </span>
+                          </div>
+                        </Link>
+                      </>
                     ) : (
                       <Button
                         onClick={() => {
