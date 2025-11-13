@@ -1,8 +1,17 @@
 import { useState, useRef } from "react";
-import { Upload, FileText, X, Users, Mail, BarChart3 } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  X,
+  Users,
+  Mail,
+  BarChart3,
+  Database,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
+import FrostedGlassIcon from "@/components/frosted-glass-icon";
 
 export function EmailUploader({
   onEmailsUploaded,
@@ -156,14 +165,21 @@ export function EmailUploader({
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="p-6 bg-white border border-gray-200 shadow-sm">
+    <div className="space-y-8">
+      <Card className="p-6 bg-background/60 backdrop-blur-sm border transition-all duration-300 hover:shadow-lg dark:bg-background/80">
         <div className="space-y-4">
-          <div>
-            <h3 className="text-gray-900 mb-1">Upload Recipients</h3>
-            <p className="text-sm text-gray-600">
-              Upload a CSV file containing email addresses (required)
-            </p>
+          <div className="flex items-center gap-3 mb-4">
+            <FrostedGlassIcon
+              icon={<Database className="w-5 h-5" />}
+              color="rgba(36, 101, 237, 0.5)"
+              className="self-start"
+            />
+            <div>
+              <h3 className="text-xl font-bold">Upload Recipients</h3>
+              <p className="text-sm text-muted-foreground">
+                Upload a CSV file containing email addresses (required)
+              </p>
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -182,31 +198,33 @@ export function EmailUploader({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={disabled}
-                className="w-full p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 hover:border-emerald-400 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full p-8 border-2 border-dashed border-muted-foreground/25 rounded-xl bg-background/40 hover:bg-background/60 hover:border-primary/50 transition-all group disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
               >
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
-                    <Upload className="w-6 h-6 text-emerald-600" />
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <Upload className="w-8 h-8 text-primary" />
                   </div>
-                  <div>
-                    <p className="text-gray-700 text-sm">Click to upload CSV</p>
-                    <p className="text-xs text-gray-500">
+                  <div className="text-center">
+                    <p className="text-foreground text-lg font-medium">
+                      Click to upload CSV
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
                       Email column is required
                     </p>
                   </div>
                 </div>
               </button>
             ) : (
-              <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                <div className="w-9 h-9 bg-emerald-600 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-white" />
+              <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-xl border border-primary/20">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-primary" />
                 </div>
-                <span className="text-sm flex-1 truncate text-gray-700">
+                <span className="text-sm flex-1 truncate text-foreground font-medium">
                   {fileName}
                 </span>
                 <button
                   onClick={handleClear}
-                  className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                  className="text-muted-foreground hover:text-destructive transition-colors p-2 hover:bg-destructive/10 rounded-lg"
                   disabled={disabled}
                 >
                   <X className="w-5 h-5" />
@@ -216,7 +234,10 @@ export function EmailUploader({
           </div>
 
           {error && (
-            <Alert variant="destructive">
+            <Alert
+              variant="destructive"
+              className="border-destructive/20 bg-destructive/5"
+            >
               <p className="text-sm">{error}</p>
             </Alert>
           )}
@@ -225,36 +246,45 @@ export function EmailUploader({
 
       {/* CSV Data Visualization Card */}
       {csvData && (
-        <Card className="p-6 bg-white border border-gray-200 shadow-sm">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
-              <h3 className="text-gray-900 font-medium">Data Overview</h3>
+        <Card className="p-6 bg-background/60 backdrop-blur-sm border transition-all duration-300 hover:shadow-lg dark:bg-background/80">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <FrostedGlassIcon
+                icon={<BarChart3 className="w-5 h-5" />}
+                color="rgba(236, 72, 153, 0.5)"
+                className="self-start"
+              />
+              <div>
+                <h3 className="text-xl font-bold">Data Overview</h3>
+                <p className="text-sm text-muted-foreground">
+                  CSV file analysis and statistics
+                </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Total Rows */}
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div className="bg-primary/5 p-4 rounded-xl border border-primary/20">
                 <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-800">
+                  <Users className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">
                     Total Rows
                   </span>
                 </div>
-                <p className="text-2xl font-bold text-blue-900">
+                <p className="text-2xl font-bold text-foreground">
                   {csvData.totalRows}
                 </p>
               </div>
 
               {/* Total Emails */}
-              <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
+              <div className="bg-green-500/5 p-4 rounded-xl border border-green-500/20">
                 <div className="flex items-center gap-2 mb-2">
-                  <Mail className="w-4 h-4 text-emerald-600" />
-                  <span className="text-sm font-medium text-emerald-800">
+                  <Mail className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-medium text-foreground">
                     Valid Emails
                   </span>
                 </div>
-                <p className="text-2xl font-bold text-emerald-900">
+                <p className="text-2xl font-bold text-foreground">
                   {
                     csvData.data.filter(
                       (row) => row.email && row.email.includes("@")
@@ -264,66 +294,68 @@ export function EmailUploader({
               </div>
 
               {/* Column Statistics */}
-              {Object.entries(getColumnStats()).map(([column, stats]) => {
-                if (column.toLowerCase() === "email") return null; // Skip email as it's shown above
+              {Object.entries(getColumnStats())
+                .slice(0, 2)
+                .map(([column, stats]) => {
+                  if (column.toLowerCase() === "email") return null; // Skip email as it's shown above
 
-                return (
-                  <div
-                    key={column}
-                    className="bg-gray-50 p-4 rounded-lg border border-gray-200"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm font-medium text-gray-700 capitalize">
-                        {column}
-                      </span>
+                  return (
+                    <div
+                      key={column}
+                      className="bg-muted/50 p-4 rounded-xl border border-muted-foreground/20"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-medium text-foreground capitalize">
+                          {column}
+                        </span>
+                      </div>
+                      <p className="text-lg font-bold text-foreground">
+                        {stats.filled}/{stats.total}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {stats.percentage}% complete
+                      </p>
                     </div>
-                    <p className="text-lg font-bold text-gray-900">
-                      {stats.filled}/{stats.total}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {stats.percentage}% complete
-                    </p>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
 
             {/* Column Details */}
             <div className="mt-6">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">
+              <h4 className="text-sm font-medium text-foreground mb-4">
                 Column Breakdown
               </h4>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {Object.entries(getColumnStats()).map(([column, stats]) => (
                   <div
                     key={column}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-muted-foreground/10"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-gray-700 capitalize min-w-20">
+                      <span className="text-sm font-medium text-foreground capitalize min-w-20">
                         {column}
                       </span>
                       {column.toLowerCase() === "email" && (
-                        <span className="px-2 py-1 bg-emerald-100 text-emerald-800 text-xs rounded-full font-medium">
+                        <span className="px-2 py-1 bg-green-500/10 text-green-600 text-xs rounded-full font-medium border border-green-500/20">
                           Required
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <span className="text-sm font-medium text-gray-900">
+                        <span className="text-sm font-medium text-foreground">
                           {stats.filled}/{stats.total}
                         </span>
-                        <span className="text-xs text-gray-500 ml-2">
+                        <span className="text-xs text-muted-foreground ml-2">
                           ({stats.percentage}%)
                         </span>
                       </div>
-                      <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full ${
                             column.toLowerCase() === "email"
-                              ? "bg-emerald-500"
-                              : "bg-blue-500"
+                              ? "bg-green-500"
+                              : "bg-primary"
                           }`}
                           style={{ width: `${stats.percentage}%` }}
                         />

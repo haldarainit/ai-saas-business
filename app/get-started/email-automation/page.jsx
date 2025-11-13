@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Mail, TestTube } from "lucide-react";
+import { Mail, TestTube, Zap, Sparkles } from "lucide-react";
 import { EmailUploader } from "../../components/EmailUploader";
 import { EmailTemplateEditor } from "../../components/EmailTemplateEditor";
 import { RecipientsList } from "../../components/RecipientsList";
@@ -12,6 +12,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
+import CssGridBackground from "@/components/css-grid-background";
+import FramerSpotlight from "@/components/framer-spotlight";
+import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
 
 export default function EmailAutomationPage() {
   const [emails, setEmails] = useState([]);
@@ -382,32 +386,53 @@ export default function EmailAutomationPage() {
   const canEditTemplate = !isRunning;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Toaster position="top-right" />
+    <>
+      <Navbar />
+      <div className="min-h-screen relative overflow-hidden bg-background">
+        <CssGridBackground />
+        <FramerSpotlight />
+        <Toaster position="top-right" />
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-emerald-600 rounded-lg flex items-center justify-center">
-              <Mail className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-gray-900">Email Campaign Manager</h1>
-              <p className="text-sm text-gray-500">
-                Bulk email automation system
+        {/* Hero Section */}
+        <section className="relative min-h-[60vh] flex items-center justify-center overflow-hidden">
+          <div className="container px-4 md:px-6 py-16 md:py-20">
+            <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
+              <div className="inline-block rounded-lg bg-primary px-3 py-1 text-sm text-primary-foreground mb-6">
+                Email Automation
+              </div>
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter mb-6">
+                Professional Email Campaigns Made Simple
+              </h1>
+              <p className="text-xl text-muted-foreground md:text-2xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed max-w-2xl mb-12">
+                Create, manage, and automate your email marketing campaigns with
+                AI-powered templates and enterprise-grade delivery.
               </p>
+
+              <div className="flex flex-wrap justify-center gap-3 mt-8">
+                <Button className="flex items-center gap-3 px-5 py-6 h-[60px] bg-[#1a1d21] hover:bg-[#2a2d31] text-white rounded-xl border-0 dark:bg-primary dark:hover:bg-primary/90 dark:shadow-[0_0_15px_rgba(36,101,237,0.5)] relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0 dark:opacity-30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform translate-x-[-100%] group-hover:translate-x-[100%]"></div>
+                  <Zap className="h-5 w-5 text-white relative z-10" />
+                  <div className="flex flex-col items-start relative z-10">
+                    <span className="text-[15px] font-medium">
+                      Start Campaign
+                    </span>
+                    <span className="text-xs text-gray-400 dark:text-gray-300 -mt-0.5">
+                      AI-Powered
+                    </span>
+                  </div>
+                </Button>
+                <Button className="px-5 py-6 h-[60px] rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-[15px] font-medium text-foreground">
+                  Learn More
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </section>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-6 py-8">
         {/* Status Bar */}
         {campaignStatus && (
-          <div className="mb-6">
-            <Card className="p-4 bg-blue-50 border-blue-200">
+          <div className="container mx-auto px-6 mb-8">
+            <Card className="p-6 bg-background/60 backdrop-blur-sm border transition-all duration-300 hover:shadow-lg dark:bg-background/80">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <Badge
@@ -425,7 +450,7 @@ export default function EmailAutomationPage() {
                       ? "Paused"
                       : "Inactive"}
                   </Badge>
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-muted-foreground">
                     Today: {campaignStatus.todaysCount}/
                     {campaignStatus.maxEmailsPerDay} emails sent
                   </span>
@@ -440,82 +465,92 @@ export default function EmailAutomationPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Upload & Controls */}
-          <div className="space-y-6">
-            {/* Email Test Section */}
-            <Card className="p-6 bg-white border border-gray-200 shadow-sm">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-gray-900 mb-1">
-                    Email Configuration Test
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Test your email settings before starting campaign
-                  </p>
+        {/* Main Content */}
+        <main className="container mx-auto px-6 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column - Upload & Controls */}
+            <div className="space-y-8">
+              {/* Email Test Section */}
+              <Card className="p-6 bg-background/60 backdrop-blur-sm border transition-all duration-300 hover:shadow-lg dark:bg-background/80">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <TestTube className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold">
+                        Email Configuration Test
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Test your email settings before starting campaign
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={testEmail}
+                      onChange={(e) => setTestEmail(e.target.value)}
+                      placeholder="Enter test email address..."
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handleTestEmail}
+                      disabled={isTestingEmail}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    >
+                      <TestTube className="w-4 h-4 mr-2" />
+                      {isTestingEmail ? "Testing..." : "Test"}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Input
-                    value={testEmail}
-                    onChange={(e) => setTestEmail(e.target.value)}
-                    placeholder="Enter test email address..."
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={handleTestEmail}
-                    disabled={isTestingEmail}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <TestTube className="w-4 h-4 mr-2" />
-                    {isTestingEmail ? "Testing..." : "Test"}
-                  </Button>
-                </div>
-              </div>
-            </Card>
+              </Card>
 
-            <EmailUploader
-              onEmailsUploaded={handleEmailsUploaded}
-              onCsvDataUploaded={handleCsvDataUploaded}
-              disabled={isRunning}
-            />
+              <EmailUploader
+                onEmailsUploaded={handleEmailsUploaded}
+                onCsvDataUploaded={handleCsvDataUploaded}
+                disabled={isRunning}
+              />
 
-            <CampaignControls
-              isRunning={isRunning}
-              isPaused={isPaused}
-              totalEmails={emails.length}
-              sentCount={sentCount}
-              onStart={handleStart}
-              onStop={handleStop}
-              onReset={handleReset}
-              disabled={emails.length === 0}
-              campaignStatus={campaignStatus}
-            />
+              <CampaignControls
+                isRunning={isRunning}
+                isPaused={isPaused}
+                totalEmails={emails.length}
+                sentCount={sentCount}
+                onStart={handleStart}
+                onStop={handleStop}
+                onReset={handleReset}
+                disabled={emails.length === 0}
+                campaignStatus={campaignStatus}
+              />
+            </div>
+
+            {/* Middle Column - Email Template */}
+            <div>
+              <EmailTemplateEditor
+                subject={subject}
+                content={content}
+                onSubjectChange={setSubject}
+                onContentChange={setContent}
+                disabled={!canEditTemplate}
+                csvData={csvData}
+                onEnabledColumnsChange={handleEnabledColumnsChange}
+              />
+            </div>
+
+            {/* Right Column - Recipients List */}
+            <div>
+              <RecipientsList
+                emails={emails}
+                sentCount={sentCount}
+                onDeleteEmail={handleDeleteEmail}
+                disabled={false}
+              />
+            </div>
           </div>
+        </main>
 
-          {/* Middle Column - Email Template */}
-          <div>
-            <EmailTemplateEditor
-              subject={subject}
-              content={content}
-              onSubjectChange={setSubject}
-              onContentChange={setContent}
-              disabled={!canEditTemplate}
-              csvData={csvData}
-              onEnabledColumnsChange={handleEnabledColumnsChange}
-            />
-          </div>
-
-          {/* Right Column - Recipients List */}
-          <div>
-            <RecipientsList
-              emails={emails}
-              sentCount={sentCount}
-              onDeleteEmail={handleDeleteEmail}
-              disabled={false}
-            />
-          </div>
-        </div>
-      </main>
-    </div>
+        <Footer />
+      </div>
+    </>
   );
 }

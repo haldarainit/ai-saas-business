@@ -14,6 +14,7 @@ import {
   Sparkles,
   Wand2,
   RefreshCw,
+  Edit3,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import FrostedGlassIcon from "@/components/frosted-glass-icon";
 
 export function EmailTemplateEditor({
   subject,
@@ -203,15 +205,24 @@ export function EmailTemplateEditor({
   ];
 
   return (
-    <Card className="p-6 bg-white border border-gray-200 shadow-sm">
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-gray-900 mb-1">Email Template</h3>
-          <p className="text-sm text-gray-600">Compose your message</p>
+    <Card className="p-6 bg-background/60 backdrop-blur-sm border transition-all duration-300 hover:shadow-lg dark:bg-background/80">
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 mb-4">
+          <FrostedGlassIcon
+            icon={<Edit3 className="w-5 h-5" />}
+            color="rgba(249, 115, 22, 0.5)"
+            className="self-start"
+          />
+          <div>
+            <h3 className="text-xl font-bold">Email Template</h3>
+            <p className="text-sm text-muted-foreground">
+              Compose your message
+            </p>
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="subject" className="text-gray-700">
+        <div className="space-y-3">
+          <Label htmlFor="subject" className="text-foreground font-medium">
             Subject
           </Label>
           <Input
@@ -220,22 +231,22 @@ export function EmailTemplateEditor({
             onChange={(e) => onSubjectChange(e.target.value)}
             placeholder="Enter email subject..."
             disabled={disabled}
-            className="border border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
+            className="border-muted-foreground/20 focus:border-primary focus:ring-primary/20"
           />
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-gray-700">Message</Label>
+        <div className="space-y-3">
+          <Label className="text-foreground font-medium">Message</Label>
 
           {/* Toolbar */}
-          <div className="flex flex-wrap gap-1 p-2 border border-gray-300 rounded-lg bg-gray-50">
+          <div className="flex flex-wrap gap-2 p-3 border border-muted-foreground/20 rounded-xl bg-muted/30">
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => execCommand("bold")}
               disabled={disabled}
-              className="h-8 w-8 p-0 hover:bg-emerald-100 hover:text-emerald-700"
+              className="h-9 w-9 p-0 hover:bg-primary/10 hover:text-primary"
             >
               <Bold className="w-4 h-4" />
             </Button>
@@ -245,7 +256,7 @@ export function EmailTemplateEditor({
               size="sm"
               onClick={() => execCommand("italic")}
               disabled={disabled}
-              className="h-8 w-8 p-0 hover:bg-emerald-100 hover:text-emerald-700"
+              className="h-9 w-9 p-0 hover:bg-primary/10 hover:text-primary"
             >
               <Italic className="w-4 h-4" />
             </Button>
@@ -255,10 +266,12 @@ export function EmailTemplateEditor({
               size="sm"
               onClick={() => execCommand("underline")}
               disabled={disabled}
-              className="h-8 w-8 p-0 hover:bg-emerald-100 hover:text-emerald-700"
+              className="h-9 w-9 p-0 hover:bg-primary/10 hover:text-primary"
             >
               <Underline className="w-4 h-4" />
             </Button>
+
+            <div className="w-px h-8 bg-muted-foreground/20 mx-1" />
 
             <Button
               type="button"
@@ -266,15 +279,15 @@ export function EmailTemplateEditor({
               size="sm"
               onClick={() => setShowChecklistDialog(true)}
               disabled={disabled || !csvData}
-              className={`h-8 px-2 hover:bg-emerald-100 hover:text-emerald-700 ${
+              className={`h-9 px-3 hover:bg-primary/10 hover:text-primary ${
                 csvData
-                  ? "bg-blue-50 border border-blue-200 text-blue-600"
-                  : "text-gray-400"
+                  ? "bg-primary/5 border border-primary/20 text-primary"
+                  : "text-muted-foreground"
               }`}
               title="Insert template variables"
             >
-              <FileText className="w-4 h-4 mr-1" />
-              <span className="text-xs">Vars</span>
+              <FileText className="w-4 h-4 mr-2" />
+              <span className="text-xs font-medium">Vars</span>
             </Button>
 
             <Button
@@ -283,14 +296,14 @@ export function EmailTemplateEditor({
               size="sm"
               onClick={() => setShowAIDialog(true)}
               disabled={disabled}
-              className="h-8 px-2 bg-purple-50 border border-purple-200 text-purple-600 hover:bg-purple-100 hover:text-purple-700"
+              className="h-9 px-3 bg-purple-500/5 border border-purple-500/20 text-purple-600 hover:bg-purple-500/10 hover:text-purple-700"
               title="Generate template with AI"
             >
-              <Sparkles className="w-4 h-4 mr-1" />
-              <span className="text-xs">AI</span>
+              <Sparkles className="w-4 h-4 mr-2" />
+              <span className="text-xs font-medium">AI</span>
             </Button>
 
-            <div className="w-px h-8 bg-gray-300 mx-1" />
+            <div className="w-px h-8 bg-muted-foreground/20 mx-1" />
 
             <Button
               type="button"
@@ -298,7 +311,7 @@ export function EmailTemplateEditor({
               size="sm"
               onClick={() => execCommand("justifyLeft")}
               disabled={disabled}
-              className="h-8 w-8 p-0 hover:bg-emerald-100 hover:text-emerald-700"
+              className="h-9 w-9 p-0 hover:bg-primary/10 hover:text-primary"
             >
               <AlignLeft className="w-4 h-4" />
             </Button>
@@ -308,7 +321,7 @@ export function EmailTemplateEditor({
               size="sm"
               onClick={() => execCommand("justifyCenter")}
               disabled={disabled}
-              className="h-8 w-8 p-0 hover:bg-emerald-100 hover:text-emerald-700"
+              className="h-9 w-9 p-0 hover:bg-primary/10 hover:text-primary"
             >
               <AlignCenter className="w-4 h-4" />
             </Button>
@@ -318,12 +331,12 @@ export function EmailTemplateEditor({
               size="sm"
               onClick={() => execCommand("justifyRight")}
               disabled={disabled}
-              className="h-8 w-8 p-0 hover:bg-emerald-100 hover:text-emerald-700"
+              className="h-9 w-9 p-0 hover:bg-primary/10 hover:text-primary"
             >
               <AlignRight className="w-4 h-4" />
             </Button>
 
-            <div className="w-px h-8 bg-gray-300 mx-1" />
+            <div className="w-px h-8 bg-muted-foreground/20 mx-1" />
 
             <Button
               type="button"
@@ -331,7 +344,7 @@ export function EmailTemplateEditor({
               size="sm"
               onClick={() => setShowImageDialog(true)}
               disabled={disabled}
-              className="h-8 w-8 p-0 hover:bg-emerald-100 hover:text-emerald-700"
+              className="h-9 w-9 p-0 hover:bg-primary/10 hover:text-primary"
             >
               <Image className="w-4 h-4" />
             </Button>
@@ -341,7 +354,7 @@ export function EmailTemplateEditor({
               size="sm"
               onClick={() => setShowLinkDialog(true)}
               disabled={disabled}
-              className="h-8 w-8 p-0 hover:bg-emerald-100 hover:text-emerald-700"
+              className="h-9 w-9 p-0 hover:bg-primary/10 hover:text-primary"
             >
               <Link className="w-4 h-4" />
             </Button>
@@ -352,7 +365,7 @@ export function EmailTemplateEditor({
             ref={contentEditableRef}
             contentEditable={!disabled}
             onBlur={handleContentChange}
-            className="min-h-[350px] p-4 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            className="min-h-[350px] p-4 border border-muted-foreground/20 rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
             style={{
               opacity: disabled ? 0.6 : 1,
               cursor: disabled ? "not-allowed" : "text",

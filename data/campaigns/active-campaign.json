@@ -1,0 +1,57 @@
+{
+  "id": "1763064999428",
+  "emails": [
+    "gauravtechnosquare@gmail.com",
+    "surajsantra3@gmail.com",
+    "surajsantra88@gmail.com",
+    "haldarainit@gmail.com",
+    "surajsantra081@gmail.com"
+  ],
+  "subject": "Welcome, {{name}}! Your Exclusive 20% Off Awaits",
+  "content": "<p>Dear {{name}},</p><p>A warm welcome to the <strong>[Company Name]</strong> family! We're absolutely thrilled to have you join us and look forward to helping you discover the unique value we bring.</p><p>At [Company Name], we're committed to delivering <em>exceptional quality and innovative solutions</em> to enhance your [mention specific area, e.g., 'daily routine', 'business operations', 'creative projects']. We believe you'll love what you find here.</p><p>To celebrate your arrival and help you get started on your journey with us, we'd like to offer you a special welcome gift:</p><p><strong>Enjoy 20% OFF your very first purchase!</strong></p><p>It's our way of saying thank you for choosing us. To redeem your discount, simply use the code below at checkout:</p><p><strong>WELCOME20</strong></p><p>Ready to explore our curated collections? Click the link below to browse our products and discover something new. Your exclusive 20% discount awaits!</p><p><a href=\"[Link to your website/shop]\">Shop Now and Save 20%</a></p><p>We're here to make your experience enjoyable and seamless. If you have any questions, please don't hesitate to reach out to our friendly support team.</p><p>Best regards,<br><strong>The Team</strong><br>[Company Name]</p>",
+  "csvData": {
+    "headers": [
+      "email",
+      "name",
+      "company"
+    ],
+    "data": [
+      {
+        "email": "gauravtechnosquare@gmail.com",
+        "name": "Gaurav Haldar",
+        "company": "Haldar AI and IT Pvt Ltd"
+      },
+      {
+        "email": "surajsantra3@gmail.com",
+        "name": "Jane Smith",
+        "company": "XYZ Corp"
+      },
+      {
+        "email": "surajsantra88@gmail.com",
+        "name": "Mike Johnson",
+        "company": "Tech Solutions"
+      },
+      {
+        "email": "haldarainit@gmail.com",
+        "name": "Sarah Wilson",
+        "company": "Marketing Inc"
+      },
+      {
+        "email": "surajsantra081@gmail.com",
+        "name": "David Brown",
+        "company": "Consulting LLC"
+      }
+    ],
+    "totalRows": 5
+  },
+  "enabledColumns": [
+    "name"
+  ],
+  "currentIndex": 1,
+  "isActive": false,
+  "createdAt": "2025-11-13T20:16:39.428Z",
+  "totalEmails": 5,
+  "updatedAt": "2025-11-13T20:17:28.697Z",
+  "lastEmailSentAt": "2025-11-13T20:17:21.003Z",
+  "stoppedAt": "2025-11-13T20:17:28.697Z"
+}
