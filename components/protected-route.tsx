@@ -1,36 +1,24 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
-import { AuthModal } from "@/components/auth-modal"
-import { Loader2 } from "lucide-react"
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
+import { AuthModal } from "@/components/auth-modal";
+import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading } = useAuth()
-  const [showAuth, setShowAuth] = useState(false)
-  const router = useRouter()
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
-  // Check for demo auth on mount
   useEffect(() => {
-    const demoAuth = localStorage.getItem("demo-auth")
-    if (demoAuth === "true") {
-      return // Allow access for demo
-    }
-
     if (!loading && !user) {
-      setShowAuth(true)
+      // User will be redirected by the profile page itself
     }
-  }, [user, loading])
-
-  // Handle successful authentication
-  const handleAuthSuccess = () => {
-    setShowAuth(false)
-  }
+  }, [user, loading]);
 
   if (loading) {
     return (
@@ -40,21 +28,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
-    )
+    );
   }
 
-  // Check demo auth or real user auth
-  const demoAuth = localStorage.getItem("demo-auth")
-  const isAuthenticated = user || demoAuth === "true"
-
-  if (!isAuthenticated) {
-    return (
-      <AuthModal
-        isOpen={showAuth}
-        onClose={() => router.push("/")}
-      />
-    )
+  if (!user) {
+    return <AuthModal isOpen={true} onClose={() => router.push("/")} />;
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }

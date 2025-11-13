@@ -1,16 +1,19 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+import type React from "react";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/contexts/auth-context";
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Enterprise AI Platform | Secure AI Solutions for Business & Government",
+  title:
+    "Enterprise AI Platform | Secure AI Solutions for Business & Government",
   description:
     "Enterprise-grade AI platform with LLM conversations, customizable agents, secure knowledge base, and MCP server support for businesses and government agencies.",
-  keywords: "enterprise AI, secure AI, government AI solutions, LLM, knowledge base, AI agents, MCP server",
+  keywords:
+    "enterprise AI, secure AI, government AI solutions, LLM, knowledge base, AI agents, MCP server",
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -31,28 +34,34 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Enterprise AI Platform | Secure AI Solutions",
-    description: "Enterprise-grade AI platform with advanced security, customization, and control.",
+    description:
+      "Enterprise-grade AI platform with advanced security, customization, and control.",
     images: ["https://your-domain.com/twitter-image.jpg"],
   },
   robots: {
     index: true,
     follow: true,
   },
-    generator: 'v0.app'
-}
+  generator: "v0.app",
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }

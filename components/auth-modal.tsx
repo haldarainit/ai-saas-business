@@ -1,62 +1,62 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useAuth } from "@/contexts/auth-context"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Eye, EyeOff } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import { useAuth } from "@/contexts/auth-context";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface AuthModalProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [activeTab, setActiveTab] = useState("signin")
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [activeTab, setActiveTab] = useState("signin");
 
-  const { signIn, signUp, loading, error, clearError } = useAuth()
-  const router = useRouter()
+  const { signIn, signUp, loading, error, clearError } = useAuth();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    clearError()
+    e.preventDefault();
+    clearError();
 
     try {
       if (activeTab === "signin") {
-        // Handle demo login
-        if (email === "admin" && password === "admin123") {
-          // Simulate successful login for demo
-          localStorage.setItem("demo-auth", "true")
-          onClose()
-          router.push("/get-started")
-          return
-        }
-        await signIn(email, password)
+        await signIn(email, password);
       } else {
-        await signUp(email, password)
+        await signUp(email, password, name);
       }
 
-      onClose()
-      router.push("/get-started")
+      onClose();
+      router.push("/profile");
     } catch (error) {
       // Error is handled by the auth context
     }
-  }
+  };
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value)
-    clearError()
-    setEmail("")
-    setPassword("")
-  }
+    setActiveTab(value);
+    clearError();
+    setEmail("");
+    setPassword("");
+    setName("");
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -68,7 +68,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="signin">Sign In</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -77,11 +81,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <TabsContent value="signin" className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="signin-email">Email or Username</Label>
+                <Label htmlFor="signin-email">Email</Label>
                 <Input
                   id="signin-email"
-                  type="text"
-                  placeholder="Enter admin or your email"
+                  type="email"
+                  placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -93,7 +97,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   <Input
                     id="signin-password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter admin123 or your password"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -116,6 +120,16 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </TabsContent>
 
             <TabsContent value="signup" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="signup-name">Name (Optional)</Label>
+                <Input
+                  id="signup-name"
+                  type="text"
+                  placeholder="Enter your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="signup-email">Email</Label>
                 <Input
@@ -162,25 +176,23 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </Alert>
             )}
 
-            <div className="bg-muted/50 p-3 rounded-lg text-sm text-muted-foreground">
-              <strong>Demo Credentials:</strong><br />
-              Username: admin<br />
-              Password: admin123
-            </div>
-
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {activeTab === "signin" ? "Signing In..." : "Creating Account..."}
+                  {activeTab === "signin"
+                    ? "Signing In..."
+                    : "Creating Account..."}
                 </>
+              ) : activeTab === "signin" ? (
+                "Sign In"
               ) : (
-                activeTab === "signin" ? "Sign In" : "Create Account"
+                "Create Account"
               )}
             </Button>
           </form>
         </Tabs>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
