@@ -1,7 +1,22 @@
-import campaignScheduler from "../../../lib/email/CampaignScheduler.js";
+import { createCampaignScheduler } from "../../../lib/email/CampaignScheduler";
+import { extractUserFromRequest } from "../../../lib/auth-utils";
 
 export async function POST(request) {
   try {
+    // Extract user information from authentication token (optional for development)
+    let userId = null;
+    const authResult = extractUserFromRequest(request);
+    if (authResult.success) {
+      userId = authResult.user.id;
+    } else {
+      // For development: use a default user ID when no auth token
+      userId =
+        "dev-user-" +
+        (process.env.NODE_ENV === "development" ? "default" : "anonymous");
+      console.log("🔧 Development mode: using default user ID:", userId);
+    }
+    const campaignScheduler = createCampaignScheduler(userId);
+
     const { action, campaignData } = await request.json();
 
     switch (action) {
@@ -30,6 +45,23 @@ export async function POST(request) {
       case "resume":
         const resumeResult = await campaignScheduler.resumeCampaign();
         return Response.json(resumeResult);
+
+      case "deleteAll":
+        const deleteAllResult = await campaignScheduler.deleteAllCampaigns();
+        return Response.json(deleteAllResult);
+
+      case "clearLogs":
+        const clearLogsResult = await campaignScheduler.clearAllLogs();
+        return Response.json(clearLogsResult);
+
+      case "clearAll":
+        const clearAllResult = await campaignScheduler.clearAll();
+        return Response.json(clearAllResult);
+
+      case "updateCampaignData":
+        const updateCampaignDataResult =
+          await campaignScheduler.updateCampaignData(campaignData);
+        return Response.json(updateCampaignDataResult);
 
       case "generateTemplate":
         try {
@@ -107,6 +139,20 @@ export async function POST(request) {
 
 export async function GET(request) {
   try {
+    // Extract user information from authentication token (optional for development)
+    let userId = null;
+    const authResult = extractUserFromRequest(request);
+    if (authResult.success) {
+      userId = authResult.user.id;
+    } else {
+      // For development: use a default user ID when no auth token
+      userId =
+        "dev-user-" +
+        (process.env.NODE_ENV === "development" ? "default" : "anonymous");
+      console.log("🔧 Development mode: using default user ID:", userId);
+    }
+    const campaignScheduler = createCampaignScheduler(userId);
+
     const statusResult = await campaignScheduler.getCampaignStatus();
     return Response.json(statusResult);
   } catch (error) {

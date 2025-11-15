@@ -31,33 +31,151 @@ export default function EmailAutomationPage() {
   const [campaignStatus, setCampaignStatus] = useState(null);
   const [testEmail, setTestEmail] = useState("");
   const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
   const intervalRef = useRef(null);
 
-  // Load emails from localStorage on component mount
-  useEffect(() => {
-    const savedEmails = localStorage.getItem("campaign-emails");
-    if (savedEmails) {
-      try {
-        const parsedEmails = JSON.parse(savedEmails);
-        if (Array.isArray(parsedEmails) && parsedEmails.length > 0) {
-          setEmails(parsedEmails);
+  // Auto-save subject changes to database
+  const handleSubjectChange = useCallback(
+    async (newSubject) => {
+      setSubject(newSubject);
+
+      // Debounce the save operation
+      clearTimeout(window.subjectSaveTimeout);
+      window.subjectSaveTimeout = setTimeout(async () => {
+        try {
+          await fetch("/api/email-campaign", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "updateCampaignData",
+              campaignData: {
+                emails,
+                subject: newSubject,
+                content,
+                csvData,
+                enabledColumns,
+              },
+            }),
+          });
+        } catch (error) {
+          console.error("Error saving subject:", error);
         }
-      } catch (error) {
-        console.error("Failed to load emails from localStorage:", error);
-      }
-    }
+      }, 1000); // Wait 1 second after user stops typing
+    },
+    [emails, content, csvData, enabledColumns]
+  );
+
+  // Auto-save content changes to database
+  const handleContentChange = useCallback(
+    async (newContent) => {
+      setContent(newContent);
+
+      // Debounce the save operation
+      clearTimeout(window.contentSaveTimeout);
+      window.contentSaveTimeout = setTimeout(async () => {
+        try {
+          await fetch("/api/email-campaign", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "updateCampaignData",
+              campaignData: {
+                emails,
+                subject,
+                content: newContent,
+                csvData,
+                enabledColumns,
+              },
+            }),
+          });
+        } catch (error) {
+          console.error("Error saving content:", error);
+        }
+      }, 1000); // Wait 1 second after user stops typing
+    },
+    [emails, subject, csvData, enabledColumns]
+  );
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(window.subjectSaveTimeout);
+      clearTimeout(window.contentSaveTimeout);
+    };
   }, []);
 
-  // Save emails to localStorage whenever emails change
+  // Load campaign data from database on component mount (only once)
   useEffect(() => {
-    if (emails.length > 0) {
-      localStorage.setItem("campaign-emails", JSON.stringify(emails));
-    } else {
-      localStorage.removeItem("campaign-emails");
-    }
-  }, [emails]);
+    if (hasLoadedInitialData) return; // Prevent re-loading
 
-  // Fetch campaign status periodically
+    const loadCampaignData = async () => {
+      try {
+        const response = await fetch("/api/email-campaign");
+        const result = await response.json();
+
+        if (result.success && result.data && result.data.campaign) {
+          const campaign = result.data.campaign;
+
+          console.log("📥 Loading campaign data from database:", {
+            recipientsCount: campaign.recipients?.length || 0,
+            hasCsvData: !!campaign.csvData,
+            enabledColumns: campaign.enabledColumns?.length || 0,
+          });
+
+          // Load emails from the campaign recipients
+          if (campaign.recipients && campaign.recipients.length > 0) {
+            const campaignEmails = campaign.recipients.map((r) => r.email);
+            setEmails(campaignEmails);
+          }
+
+          // Load CSV data if available
+          if (campaign.csvData) {
+            setCsvData(campaign.csvData);
+            console.log(
+              "📊 CSV data loaded:",
+              campaign.csvData.data?.length,
+              "rows"
+            );
+          }
+
+          // Load enabled columns
+          if (campaign.enabledColumns && campaign.enabledColumns.length > 0) {
+            setEnabledColumns(campaign.enabledColumns);
+            console.log("✅ Enabled columns loaded:", campaign.enabledColumns);
+          }
+
+          // Load template data (only if it's not the default values)
+          if (
+            campaign.subject &&
+            campaign.subject !== "Welcome to Our Newsletter!"
+          ) {
+            setSubject(campaign.subject);
+          }
+          if (
+            campaign.template &&
+            campaign.template !==
+              "<p>Hi there!</p><p>Thank you for subscribing to our newsletter. We're excited to have you on board!</p><p>Best regards,<br/>The Team</p>"
+          ) {
+            setContent(campaign.template);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load campaign data:", error);
+      } finally {
+        setHasLoadedInitialData(true);
+      }
+    };
+
+    loadCampaignData();
+  }, [hasLoadedInitialData]);
+
+  // No longer saving to localStorage - everything goes to database
+
+  // Fetch campaign status periodically (but don't override local state)
   useEffect(() => {
     const fetchStatus = async () => {
       try {
@@ -70,11 +188,16 @@ export default function EmailAutomationPage() {
           const campaign = result.data.campaign;
           if (campaign) {
             setIsRunning(result.data.isRunning);
-            setIsPaused(!result.data.isRunning && campaign.isActive);
+            setIsPaused(
+              !result.data.isRunning &&
+                (campaign.status === "paused" || campaign.status === "active")
+            );
             setSentCount(campaign.currentIndex || 0);
 
-            // NEVER override local email state from server polling
-            // Local changes should always take priority
+            // Only update local state if we don't have data locally yet
+            if (!hasLoadedInitialData) {
+              // This will be handled by the loadCampaignData effect above
+            }
           }
         }
       } catch (error) {
@@ -82,14 +205,13 @@ export default function EmailAutomationPage() {
       }
     };
 
-    // Fetch status immediately
-    fetchStatus();
-
-    // Set up polling every 5 seconds when campaign is running
-    const interval = setInterval(fetchStatus, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
+    // Only start polling after initial data has been loaded
+    if (hasLoadedInitialData) {
+      fetchStatus();
+      const interval = setInterval(fetchStatus, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [hasLoadedInitialData]);
 
   const handleStart = async () => {
     if (!subject.trim()) {
@@ -258,45 +380,112 @@ export default function EmailAutomationPage() {
       if (uploadedEmails.length > 0) {
         toast.success(`${uploadedEmails.length} recipients loaded!`);
 
-        // Update the campaign data on server if there's an active campaign
+        // Always create or update campaign data on server to persist the data
         try {
-          if (campaignStatus?.campaign?.isActive) {
-            const response = await fetch("/api/email-campaign", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
+          const response = await fetch("/api/email-campaign", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "updateCampaignData",
+              campaignData: {
+                emails: uploadedEmails,
+                subject,
+                content,
+                csvData,
+                enabledColumns,
               },
-              body: JSON.stringify({
-                action: "updateEmails",
-                campaignData: {
-                  emails: uploadedEmails,
-                },
-              }),
-            });
+            }),
+          });
 
-            const result = await response.json();
-            if (!result.success) {
-              console.error("Failed to update campaign emails:", result.error);
-              toast.warning(
-                "Recipients loaded locally, but failed to sync with active campaign"
-              );
-            }
+          const result = await response.json();
+          if (!result.success) {
+            console.error("Failed to save campaign data:", result.error);
+            toast.warning(
+              "Recipients loaded locally, but failed to save to database"
+            );
           }
         } catch (error) {
-          console.error("Error updating campaign emails:", error);
+          console.error("Error saving campaign data:", error);
         }
       }
     },
-    [campaignStatus]
+    [subject, content, csvData, enabledColumns]
   );
 
-  const handleCsvDataUploaded = useCallback((uploadedCsvData) => {
-    setCsvData(uploadedCsvData);
-  }, []);
+  const handleCsvDataUploaded = useCallback(
+    async (uploadedCsvData) => {
+      setCsvData(uploadedCsvData);
 
-  const handleEnabledColumnsChange = useCallback((columns) => {
-    setEnabledColumns(columns);
-  }, []);
+      // Save CSV data to database immediately
+      if (uploadedCsvData) {
+        try {
+          const response = await fetch("/api/email-campaign", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "updateCampaignData",
+              campaignData: {
+                emails,
+                subject,
+                content,
+                csvData: uploadedCsvData,
+                enabledColumns,
+              },
+            }),
+          });
+
+          const result = await response.json();
+          if (!result.success) {
+            console.error("Failed to save CSV data:", result.error);
+            toast.warning(
+              "CSV data loaded locally, but failed to save to database"
+            );
+          }
+        } catch (error) {
+          console.error("Error saving CSV data:", error);
+        }
+      }
+    },
+    [emails, subject, content, enabledColumns]
+  );
+
+  const handleEnabledColumnsChange = useCallback(
+    async (columns) => {
+      setEnabledColumns(columns);
+
+      // Save enabled columns to database immediately
+      try {
+        const response = await fetch("/api/email-campaign", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "updateCampaignData",
+            campaignData: {
+              emails,
+              subject,
+              content,
+              csvData,
+              enabledColumns: columns,
+            },
+          }),
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          console.error("Failed to save enabled columns:", result.error);
+        }
+      } catch (error) {
+        console.error("Error saving enabled columns:", error);
+      }
+    },
+    [emails, subject, content, csvData]
+  );
 
   const handleDeleteEmail = useCallback(
     async (indexOrAll) => {
@@ -305,28 +494,24 @@ export default function EmailAutomationPage() {
         setEmails([]);
         setSentCount(0);
         setCsvData(null);
+        setEnabledColumns([]);
 
-        // Clear localStorage immediately
-        localStorage.removeItem("campaign-emails");
-
-        // If there's an active campaign, reset it completely
-        if (campaignStatus?.campaign?.isActive) {
-          try {
-            await fetch("/api/email-campaign", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                action: "reset",
-              }),
-            });
-            setCampaignStatus(null);
-            setIsRunning(false);
-            setIsPaused(false);
-          } catch (error) {
-            console.error("Error resetting campaign:", error);
-          }
+        // Always reset the campaign completely in the database
+        try {
+          await fetch("/api/email-campaign", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "reset",
+            }),
+          });
+          setCampaignStatus(null);
+          setIsRunning(false);
+          setIsPaused(false);
+        } catch (error) {
+          console.error("Error resetting campaign:", error);
         }
 
         toast.info("All recipients cleared and campaign reset");
@@ -343,40 +528,35 @@ export default function EmailAutomationPage() {
         const newEmails = emails.filter((_, i) => i !== indexOrAll);
         setEmails(newEmails);
 
-        // Update localStorage immediately for individual deletions
-        if (newEmails.length > 0) {
-          localStorage.setItem("campaign-emails", JSON.stringify(newEmails));
-        } else {
-          localStorage.removeItem("campaign-emails");
-        }
-
         toast.info("Recipient removed");
 
-        // Update the campaign data on server if there's an active campaign
+        // Always update the campaign data in the database
         try {
-          if (campaignStatus?.campaign?.isActive) {
-            const response = await fetch("/api/email-campaign", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
+          const response = await fetch("/api/email-campaign", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "updateCampaignData",
+              campaignData: {
+                emails: newEmails,
+                subject,
+                content,
+                csvData,
+                enabledColumns,
               },
-              body: JSON.stringify({
-                action: "updateEmails",
-                campaignData: {
-                  emails: newEmails,
-                },
-              }),
-            });
+            }),
+          });
 
-            const result = await response.json();
-            if (!result.success) {
-              console.error("Failed to update campaign emails:", result.error);
-              toast.error("Failed to sync changes with server");
-            }
+          const result = await response.json();
+          if (!result.success) {
+            console.error("Failed to update campaign data:", result.error);
+            toast.error("Failed to sync changes with database");
           }
         } catch (error) {
-          console.error("Error updating campaign emails:", error);
-          toast.error("Failed to sync changes with server");
+          console.error("Error updating campaign data:", error);
+          toast.error("Failed to sync changes with database");
         }
       }
     },
@@ -529,8 +709,8 @@ export default function EmailAutomationPage() {
               <EmailTemplateEditor
                 subject={subject}
                 content={content}
-                onSubjectChange={setSubject}
-                onContentChange={setContent}
+                onSubjectChange={handleSubjectChange}
+                onContentChange={handleContentChange}
                 disabled={!canEditTemplate}
                 csvData={csvData}
                 onEnabledColumnsChange={handleEnabledColumnsChange}
