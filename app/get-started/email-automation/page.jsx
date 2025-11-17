@@ -374,51 +374,21 @@ export default function EmailAutomationPage() {
     }
   };
 
-  const handleEmailsUploaded = useCallback(
-    async (uploadedEmails) => {
-      setEmails(uploadedEmails);
-      if (uploadedEmails.length > 0) {
-        toast.success(`${uploadedEmails.length} recipients loaded!`);
-
-        // Always create or update campaign data on server to persist the data
-        try {
-          const response = await fetch("/api/email-campaign", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              action: "updateCampaignData",
-              campaignData: {
-                emails: uploadedEmails,
-                subject,
-                content,
-                csvData,
-                enabledColumns,
-              },
-            }),
-          });
-
-          const result = await response.json();
-          if (!result.success) {
-            console.error("Failed to save campaign data:", result.error);
-            toast.warning(
-              "Recipients loaded locally, but failed to save to database"
-            );
-          }
-        } catch (error) {
-          console.error("Error saving campaign data:", error);
-        }
-      }
-    },
-    [subject, content, csvData, enabledColumns]
-  );
+  const handleEmailsUploaded = useCallback(async (uploadedEmails) => {
+    setEmails(uploadedEmails);
+    if (uploadedEmails.length > 0) {
+      toast.success(`${uploadedEmails.length} recipients loaded!`);
+      // Note: Data will be saved when handleCsvDataUploaded is called
+      // This prevents duplicate saves since EmailUploader calls both handlers
+    }
+  }, []);
 
   const handleCsvDataUploaded = useCallback(
     async (uploadedCsvData) => {
       setCsvData(uploadedCsvData);
 
-      // Save CSV data to database immediately
+      // Save complete campaign data (emails + CSV) to database
+      // This is called after handleEmailsUploaded, so we have all data
       if (uploadedCsvData) {
         try {
           const response = await fetch("/api/email-campaign", {
@@ -439,7 +409,9 @@ export default function EmailAutomationPage() {
           });
 
           const result = await response.json();
-          if (!result.success) {
+          if (result.success) {
+            console.log("✅ Campaign data saved successfully");
+          } else {
             console.error("Failed to save CSV data:", result.error);
             toast.warning(
               "CSV data loaded locally, but failed to save to database"
