@@ -1,23 +1,36 @@
-"use client"
+"use client";
 
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
-import StructuredData from "@/components/structured-data"
-import Image from "next/image"
-import { motion } from "framer-motion"
-import { ArrowRight, PenTool, FileText, Sparkles, Target, Zap } from "lucide-react"
-import Link from "next/link"
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
+import StructuredData from "@/components/structured-data";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  PenTool,
+  FileText,
+  Sparkles,
+  Target,
+  Zap,
+} from "lucide-react";
+import Link from "next/link";
 
 export default function MarketingAI() {
   const marketingTools = [
     {
       icon: <PenTool className="w-8 h-8" />,
       title: "Ads Copy",
-      description: "Generate compelling ad copy that converts. Our AI analyzes your target audience and creates persuasive copy for Facebook, Google, and Instagram ads.",
-      features: ["Multi-platform optimization", "A/B testing suggestions", "Brand voice matching"],
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+      description:
+        "Generate compelling ad copy that converts. Our AI analyzes your target audience and creates persuasive copy for Facebook, Google, and Instagram ads.",
+      features: [
+        "Multi-platform optimization",
+        "A/B testing suggestions",
+        "Brand voice matching",
+      ],
+      image:
+        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
       accentColor: "rgba(236, 72, 153, 0.5)",
       iconColor: "text-pink-500",
       gradient: "from-pink-500/20 to-rose-500/20",
@@ -25,14 +38,36 @@ export default function MarketingAI() {
     {
       icon: <Sparkles className="w-8 h-8" />,
       title: "Creative Generator",
-      description: "Create stunning visuals and graphics for your marketing campaigns. From social media posts to email banners, our AI generates professional designs instantly.",
-      features: ["Brand-consistent designs", "Multiple format support", "Instant customization"],
-      image: "https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+      description:
+        "Create stunning visuals and graphics for your marketing campaigns. From social media posts to email banners, our AI generates professional designs instantly.",
+      features: [
+        "Brand-consistent designs",
+        "Multiple format support",
+        "Instant customization",
+      ],
+      image:
+        "https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
       accentColor: "rgba(34, 211, 238, 0.5)",
       iconColor: "text-cyan-500",
       gradient: "from-cyan-500/20 to-blue-500/20",
     },
-  ]
+    {
+      icon: <Target className="w-8 h-8" />,
+      title: "Campaign Planner AI",
+      description:
+        "Strategically plan and optimize your marketing campaigns with AI-driven insights. Analyze market trends, set goals, and create comprehensive campaign strategies that maximize ROI.",
+      features: [
+        "Strategic planning",
+        "Timeline management",
+        "Performance tracking",
+      ],
+      image:
+        "https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+      accentColor: "rgba(168, 85, 247, 0.5)",
+      iconColor: "text-purple-500",
+      gradient: "from-purple-500/20 to-indigo-500/20",
+    },
+  ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -42,12 +77,12 @@ export default function MarketingAI() {
         staggerChildren: 0.3,
       },
     },
-  }
+  };
 
   const cardVariants = {
     hidden: { opacity: 0, y: 50 },
     visible: { opacity: 1, y: 0 },
-  }
+  };
 
   return (
     <>
@@ -82,8 +117,9 @@ export default function MarketingAI() {
                 </h1>
 
                 <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mb-12 leading-relaxed">
-                  Transform your marketing efforts with AI-powered tools that create compelling copy and stunning visuals.
-                  Boost engagement, increase conversions, and grow your business faster.
+                  Transform your marketing efforts with AI-powered tools that
+                  create compelling copy and stunning visuals. Boost engagement,
+                  increase conversions, and grow your business faster.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -91,7 +127,11 @@ export default function MarketingAI() {
                     Start Creating
                     <Zap className="ml-2 w-5 h-5" />
                   </Button>
-                  <Button variant="outline" size="lg" className="text-lg px-8 py-6 h-auto">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="text-lg px-8 py-6 h-auto"
+                  >
                     View Examples
                   </Button>
                 </div>
@@ -113,7 +153,8 @@ export default function MarketingAI() {
                   Powerful Marketing Tools
                 </h2>
                 <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                  Choose from our comprehensive suite of AI marketing tools designed to boost your brand presence and drive results.
+                  Choose from our comprehensive suite of AI marketing tools
+                  designed to boost your brand presence and drive results.
                 </p>
               </motion.div>
 
@@ -126,7 +167,9 @@ export default function MarketingAI() {
               >
                 {marketingTools.map((tool, index) => (
                   <motion.div key={index} variants={cardVariants}>
-                    <Card className={`group relative h-full overflow-hidden bg-gradient-to-br ${tool.gradient} backdrop-blur-sm border border-border/50 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 hover:border-primary/20 hover:-translate-y-2 pt-0`}>
+                    <Card
+                      className={`group relative h-full overflow-hidden bg-gradient-to-br ${tool.gradient} backdrop-blur-sm border border-border/50 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 hover:border-primary/20 hover:-translate-y-2 pt-0`}
+                    >
                       {/* Background gradient on hover */}
                       <div
                         className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
@@ -147,7 +190,9 @@ export default function MarketingAI() {
                           />
                           {/* Icon Overlay */}
                           <div className="absolute top-4 right-4">
-                            <div className={`p-3 rounded-xl bg-background/90 backdrop-blur-sm shadow-lg ${tool.iconColor} group-hover:scale-110 transition-transform duration-300`}>
+                            <div
+                              className={`p-3 rounded-xl bg-background/90 backdrop-blur-sm shadow-lg ${tool.iconColor} group-hover:scale-110 transition-transform duration-300`}
+                            >
                               {tool.icon}
                             </div>
                           </div>
@@ -169,9 +214,19 @@ export default function MarketingAI() {
                           {/* Features */}
                           <div className="space-y-2 mb-6">
                             {tool.features.map((feature, featureIndex) => (
-                              <div key={featureIndex} className="flex items-center text-sm">
-                                <div className={`w-2 h-2 rounded-full mr-3 ${tool.iconColor.replace('text-', 'bg-')} group-hover:bg-white/80`} />
-                                <span className="text-muted-foreground group-hover:text-white/90 transition-colors duration-300">{feature}</span>
+                              <div
+                                key={featureIndex}
+                                className="flex items-center text-sm"
+                              >
+                                <div
+                                  className={`w-2 h-2 rounded-full mr-3 ${tool.iconColor.replace(
+                                    "text-",
+                                    "bg-"
+                                  )} group-hover:bg-white/80`}
+                                />
+                                <span className="text-muted-foreground group-hover:text-white/90 transition-colors duration-300">
+                                  {feature}
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -202,7 +257,8 @@ export default function MarketingAI() {
                 <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-3xl p-12 border border-primary/20">
                   <h3 className="text-3xl font-bold mb-4">See It In Action</h3>
                   <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                    Experience the power of our AI marketing tools with interactive demos and real-time generation.
+                    Experience the power of our AI marketing tools with
+                    interactive demos and real-time generation.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Button size="lg" className="text-lg px-8 py-6 h-auto">
@@ -210,7 +266,11 @@ export default function MarketingAI() {
                       <ArrowRight className="ml-2 w-5 h-5" />
                     </Button>
                     <Link href="/get-started">
-                      <Button variant="outline" size="lg" className="text-lg px-8 py-6 h-auto">
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="text-lg px-8 py-6 h-auto"
+                      >
                         Back to Get Started
                       </Button>
                     </Link>
@@ -224,5 +284,5 @@ export default function MarketingAI() {
         <Footer />
       </div>
     </>
-  )
+  );
 }
