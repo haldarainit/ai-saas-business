@@ -232,13 +232,22 @@ export default function MarketingAI() {
                           </div>
 
                           {/* CTA Button */}
-                          <Button
-                            variant="ghost"
-                            className="w-full justify-between group/btn hover:bg-primary/10 hover:text-primary transition-all duration-300 text-sm py-2 h-auto"
+                          <Link
+                            href={
+                              tool.title === "Campaign Planner AI"
+                                ? "/marketing-ai/campaign-planner"
+                                : "#"
+                            }
+                            className="block"
                           >
-                            Try {tool.title}
-                            <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform duration-300" />
-                          </Button>
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-between group/btn hover:bg-primary/10 hover:text-primary transition-all duration-300 text-sm py-2 h-auto"
+                            >
+                              Try {tool.title}
+                              <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform duration-300" />
+                            </Button>
+                          </Link>
                         </div>
                       </div>
                     </Card>
