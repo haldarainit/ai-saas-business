@@ -147,10 +147,10 @@ export default function CampaignPlannerAI() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="flex min-h-screen flex-col">
       <Navbar />
 
-      <main className="flex-1 py-12">
+      <main className="flex-1 py-12 bg-muted/30 dark:bg-background">
         <AnimatePresence mode="wait">
           {stage === "input" && (
             <motion.div
@@ -193,30 +193,30 @@ export default function CampaignPlannerAI() {
               </div>
 
               {/* Input Form */}
-              <Card className="bg-slate-800/50 border-purple-500/30 backdrop-blur-sm">
+              <Card className="bg-card border-border shadow-lg">
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                   <div>
                     <Textarea
                       value={userPrompt}
                       onChange={(e) => setUserPrompt(e.target.value)}
                       placeholder="I want to create a campaign that helps people..."
-                      className="min-h-[150px] bg-slate-900/50 border-purple-500/20 text-white placeholder:text-purple-300/50 text-lg resize-none focus:border-purple-500/50"
+                      className="min-h-[150px] bg-background border-border text-lg resize-none focus:border-primary"
                     />
-                    <p className="text-sm text-purple-300/70 mt-2 flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground mt-2 flex items-center gap-2">
                       <Sparkles className="w-4 h-4" />
-                      The more detail, the better. Add an image if you need to
-                      explain something visually.
+                      The more detail, the better. Add URLs for competitor
+                      analysis.
                     </p>
                   </div>
 
                   {/* URL Input Section */}
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-purple-300">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Link2 className="w-4 h-4" />
                       <span className="font-medium">
                         Reference URLs (Optional)
                       </span>
-                      <span className="text-xs text-purple-400">
+                      <span className="text-xs">
                         - Add competitor sites or articles for analysis
                       </span>
                     </div>
@@ -226,7 +226,7 @@ export default function CampaignPlannerAI() {
                         {urls.map((url, index) => (
                           <div
                             key={index}
-                            className="inline-flex items-center gap-2 bg-purple-500/20 text-purple-200 px-3 py-1.5 rounded-full text-sm border border-purple-500/30"
+                            className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm border border-primary/20"
                           >
                             <Link2 className="w-3 h-3" />
                             <span className="max-w-[200px] truncate">
@@ -234,7 +234,7 @@ export default function CampaignPlannerAI() {
                             </span>
                             <button
                               onClick={() => handleRemoveUrl(index)}
-                              className="hover:bg-purple-500/30 rounded-full p-0.5 transition-colors"
+                              className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
                               type="button"
                             >
                               <X className="w-3 h-3" />
@@ -249,7 +249,7 @@ export default function CampaignPlannerAI() {
                         value={urlInput}
                         onChange={(e) => setUrlInput(e.target.value)}
                         placeholder="https://example.com/competitor-analysis"
-                        className="flex-1 bg-slate-900/50 border-purple-500/20 text-white placeholder:text-purple-300/50"
+                        className="flex-1 bg-background border-border"
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
@@ -264,7 +264,6 @@ export default function CampaignPlannerAI() {
                         disabled={
                           !urlInput.trim() || !isValidUrl(urlInput.trim())
                         }
-                        className="bg-purple-500/10 border-purple-500/30 text-purple-200 hover:bg-purple-500/20"
                       >
                         <Plus className="w-4 h-4 mr-1" />
                         Add URL
@@ -276,7 +275,7 @@ export default function CampaignPlannerAI() {
                     type="submit"
                     size="lg"
                     disabled={!userPrompt.trim()}
-                    className="w-full bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white text-lg py-6 shadow-lg shadow-purple-500/50"
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-6 shadow-lg dark:shadow-[0_0_15px_rgba(36,101,237,0.5)]"
                   >
                     <Sparkles className="w-5 h-5 mr-2" />
                     Unlock Campaign Genius
@@ -294,10 +293,10 @@ export default function CampaignPlannerAI() {
               exit={{ opacity: 0 }}
               className="container px-4 md:px-6 max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[70vh]"
             >
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 text-center">
+              <h2 className="text-4xl md:text-5xl font-bold mb-4 text-center">
                 Unlocking AI's campaign genius...
               </h2>
-              <p className="text-xl text-purple-300 mb-16 text-center">
+              <p className="text-xl text-muted-foreground mb-16 text-center">
                 Eight AI stages are crafting your exceptional results
               </p>
 
@@ -311,18 +310,16 @@ export default function CampaignPlannerAI() {
                       opacity: loadingStage >= index ? 1 : 0.3,
                     }}
                     className={`flex flex-col items-center ${
-                      loadingStage === index
-                        ? "text-purple-400"
-                        : "text-purple-600"
+                      loadingStage === index ? "text-primary" : "text-muted"
                     }`}
                   >
                     <div
                       className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border-2 ${
                         loadingStage === index
-                          ? "border-purple-400 bg-purple-500/20 shadow-lg shadow-purple-500/50"
+                          ? "border-primary bg-primary/20 shadow-lg dark:shadow-[0_0_15px_rgba(36,101,237,0.5)]"
                           : loadingStage > index
-                          ? "border-purple-500 bg-purple-500/10"
-                          : "border-purple-700 bg-transparent"
+                          ? "border-primary bg-primary/10"
+                          : "border-border bg-transparent"
                       }`}
                     >
                       {stageItem.icon}
@@ -336,7 +333,7 @@ export default function CampaignPlannerAI() {
                   key={loadingStage}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-2xl font-semibold text-purple-300"
+                  className="text-2xl font-semibold text-foreground"
                 >
                   {loadingStages[loadingStage].text}
                 </motion.div>
@@ -346,17 +343,17 @@ export default function CampaignPlannerAI() {
                       key={index}
                       className={`h-2 rounded-full transition-all duration-300 ${
                         index === loadingStage
-                          ? "w-8 bg-purple-400"
+                          ? "w-8 bg-primary"
                           : index < loadingStage
-                          ? "w-2 bg-purple-500"
-                          : "w-2 bg-purple-800"
+                          ? "w-2 bg-primary/70"
+                          : "w-2 bg-muted"
                       }`}
                     />
                   ))}
                 </div>
               </div>
 
-              <p className="text-sm text-purple-400 mt-12 text-center">
+              <p className="text-sm text-muted-foreground mt-12 text-center">
                 <Sparkles className="w-4 h-4 inline mr-2" />
                 Tip: You can generate 4 additional strategies with
                 industry-leading AI models.
@@ -375,23 +372,18 @@ export default function CampaignPlannerAI() {
               {/* Header */}
               <div className="flex justify-between items-center mb-8">
                 <div>
-                  <h2 className="text-3xl font-bold text-white mb-2">
+                  <h2 className="text-3xl font-bold mb-2">
                     Your Campaign Strategies
                   </h2>
-                  <p className="text-purple-300">
+                  <p className="text-muted-foreground">
                     {strategies.length} breakthrough strategies generated
                   </p>
                 </div>
                 <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="bg-slate-800/50 border-purple-500/30 text-purple-200 hover:bg-purple-500/20"
-                  >
-                    Copy All
-                  </Button>
+                  <Button variant="outline">Copy All</Button>
                   <Button
                     onClick={handleStartOver}
-                    className="bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Start Over
@@ -408,7 +400,7 @@ export default function CampaignPlannerAI() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <Card className="bg-slate-800/50 border-purple-500/30 backdrop-blur-sm hover:border-purple-500/50 transition-all duration-300 h-full">
+                    <Card className="bg-card border-border hover:border-primary/50 transition-all duration-300 h-full shadow-lg">
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center gap-3">
@@ -418,25 +410,25 @@ export default function CampaignPlannerAI() {
                               {strategy.icon}
                             </div>
                             <div>
-                              <div className="text-sm text-purple-400 font-semibold">
+                              <div className="text-sm text-primary font-semibold">
                                 Ranked #{index + 1}
                               </div>
-                              <h3 className="text-xl font-bold text-white">
+                              <h3 className="text-xl font-bold">
                                 {strategy.title}
                               </h3>
                             </div>
                           </div>
                         </div>
 
-                        <p className="text-purple-200 mb-4 leading-relaxed">
+                        <p className="text-muted-foreground mb-4 leading-relaxed">
                           {strategy.description}
                         </p>
 
-                        <div className="bg-purple-500/10 border-l-4 border-purple-500 p-4 mb-4 rounded">
-                          <h4 className="text-sm font-bold text-purple-300 mb-2">
+                        <div className="bg-primary/10 border-l-4 border-primary p-4 mb-4 rounded">
+                          <h4 className="text-sm font-bold text-primary mb-2">
                             Why It Stands Out
                           </h4>
-                          <p className="text-sm text-purple-200 leading-relaxed">
+                          <p className="text-sm text-foreground leading-relaxed">
                             {strategy.whyItStandsOut}
                           </p>
                         </div>
@@ -445,7 +437,7 @@ export default function CampaignPlannerAI() {
                           {strategy.tags.map((tag, tagIndex) => (
                             <span
                               key={tagIndex}
-                              className="px-3 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-500/30"
+                              className="px-3 py-1 bg-primary/10 text-primary text-xs rounded-full border border-primary/20"
                             >
                               {tag}
                             </span>
@@ -453,14 +445,11 @@ export default function CampaignPlannerAI() {
                         </div>
 
                         <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            className="flex-1 bg-purple-500/10 border-purple-500/30 text-purple-200 hover:bg-purple-500/20"
-                          >
+                          <Button variant="outline" className="flex-1">
                             <Eye className="w-4 h-4 mr-2" />
                             Review Solution
                           </Button>
-                          <Button className="flex-1 bg-gradient-to-r from-purple-500 to-cyan-500 text-white hover:from-purple-600 hover:to-cyan-600">
+                          <Button className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground">
                             <BarChart3 className="w-4 h-4 mr-2" />
                             Generate Plan
                           </Button>
