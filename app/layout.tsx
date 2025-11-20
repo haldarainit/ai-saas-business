@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
+import { GoogleSessionProvider } from "@/components/session-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -59,7 +60,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>{children}</AuthProvider>
+          <GoogleSessionProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </GoogleSessionProvider>
         </ThemeProvider>
       </body>
     </html>

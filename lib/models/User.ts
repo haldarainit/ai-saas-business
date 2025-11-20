@@ -2,8 +2,11 @@ import mongoose from "mongoose";
 
 export interface IUser extends mongoose.Document {
   email: string;
-  password: string;
+  password?: string;
   name?: string;
+  googleId?: string;
+  authProvider?: "local" | "google";
+  image?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,11 +22,24 @@ const UserSchema = new mongoose.Schema<IUser>(
     },
     password: {
       type: String,
-      required: true,
+      required: false, // Not required for Google OAuth users
     },
     name: {
       type: String,
       trim: true,
+    },
+    googleId: {
+      type: String,
+      sparse: true, // Allows null values while maintaining uniqueness for non-null values
+      unique: true,
+    },
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
+    image: {
+      type: String,
     },
   },
   {

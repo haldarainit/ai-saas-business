@@ -1,12 +1,14 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 interface User {
   id: string;
   email: string;
   name?: string;
-  createdAt: string;
+  image?: string;
+  createdAt?: string;
 }
 
 interface AuthContextType {
@@ -17,18 +19,36 @@ interface AuthContextType {
   logout: () => Promise<void>;
   error: string | null;
   clearError: () => void;
+  authToken: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   useEffect(() => {
-    checkAuthStatus();
-  }, []);
+    // Handle Google OAuth session
+    if (status === "authenticated" && session) {
+      setUser({
+        id: (session as any).userId || "",
+        email: session.user?.email || "",
+        name: session.user?.name || "",
+        image: session.user?.image || "",
+      });
+      setAuthToken((session as any).authToken || null);
+      setLoading(false);
+    } else if (status === "unauthenticated") {
+      // Check for traditional auth
+      checkAuthStatus();
+    } else if (status === "loading") {
+      setLoading(true);
+    }
+  }, [session, status]);
 
   const checkAuthStatus = async () => {
     try {
@@ -133,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     error,
     clearError,
+    authToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
