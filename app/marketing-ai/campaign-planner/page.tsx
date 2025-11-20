@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,350 +10,469 @@ import Footer from "@/components/footer";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Target,
-  Send,
-  Loader2,
-  MessageSquare,
   Sparkles,
   ArrowLeft,
-  CheckCircle2,
+  Link2,
+  X,
+  Plus,
+  Zap,
+  TrendingUp,
+  Mail,
+  Share2,
+  BarChart3,
+  Users,
+  DollarSign,
+  Eye,
+  RefreshCw,
+  Megaphone,
+  LineChart,
+  Globe,
+  ShoppingCart,
 } from "lucide-react";
 import Link from "next/link";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  isQuestion?: boolean;
+interface CampaignStrategy {
+  id: number;
+  title: string;
+  description: string;
+  whyItStandsOut: string;
+  tags: string[];
+  icon: React.ReactNode;
+  gradient: string;
 }
 
 export default function CampaignPlannerAI() {
-  const [messages, setMessages] = useState<Message[]>([
+  const [stage, setStage] = useState<"input" | "loading" | "results">("input");
+  const [userPrompt, setUserPrompt] = useState("");
+  const [urls, setUrls] = useState<string[]>([]);
+  const [urlInput, setUrlInput] = useState("");
+  const [strategies, setStrategies] = useState<CampaignStrategy[]>([]);
+  const [loadingStage, setLoadingStage] = useState(0);
+
+  const loadingStages = [
+    { icon: <Sparkles className="w-8 h-8" />, text: "Analyzing your prompt" },
+    { icon: <Zap className="w-8 h-8" />, text: "Researching market trends" },
     {
-      role: "assistant",
-      content:
-        "👋 Welcome to the Campaign Planner AI! I'm here to help you create a comprehensive marketing campaign strategy. Let's start by understanding your goals.\n\nWhat type of marketing campaign are you planning? (e.g., product launch, brand awareness, lead generation, seasonal promotion)",
-      isQuestion: true,
+      icon: <TrendingUp className="w-8 h-8" />,
+      text: "Identifying opportunities",
     },
-  ]);
-  const [userInput, setUserInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [conversationComplete, setConversationComplete] = useState(false);
+    { icon: <Target className="w-8 h-8" />, text: "Crafting strategies" },
+    { icon: <BarChart3 className="w-8 h-8" />, text: "Optimizing campaigns" },
+    { icon: <Users className="w-8 h-8" />, text: "Analyzing audience" },
+    { icon: <DollarSign className="w-8 h-8" />, text: "Calculating ROI" },
+    { icon: <Eye className="w-8 h-8" />, text: "Finalizing strategies" },
+  ];
+
+  useEffect(() => {
+    if (stage === "loading") {
+      const interval = setInterval(() => {
+        setLoadingStage((prev) => {
+          if (prev < loadingStages.length - 1) {
+            return prev + 1;
+          }
+          return prev;
+        });
+      }, 800);
+
+      return () => clearInterval(interval);
+    }
+  }, [stage, loadingStages.length]);
+
+  const handleAddUrl = () => {
+    if (urlInput.trim() && isValidUrl(urlInput.trim())) {
+      setUrls((prev) => [...prev, urlInput.trim()]);
+      setUrlInput("");
+    }
+  };
+
+  const handleRemoveUrl = (index: number) => {
+    setUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const isValidUrl = (string: string) => {
+    try {
+      new URL(string);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!userInput.trim() || isLoading) return;
+    if (!userPrompt.trim()) return;
 
-    const userMessage: Message = {
-      role: "user",
-      content: userInput,
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setUserInput("");
-    setIsLoading(true);
+    setStage("loading");
+    setLoadingStage(0);
 
     try {
-      const response = await fetch("/api/campaign-planner", {
+      const response = await fetch("/api/generate-strategies", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          conversationHistory: [...messages, userMessage],
+          prompt: userPrompt,
+          urls: urls.length > 0 ? urls : undefined,
         }),
       });
 
       const data = await response.json();
 
-      if (data.success) {
-        const aiMessage: Message = {
-          role: "assistant",
-          content: data.response,
-          isQuestion: data.isQuestion,
-        };
-
-        setMessages((prev) => [...prev, aiMessage]);
-
-        if (data.isComplete) {
-          setConversationComplete(true);
-        }
+      if (data.success && data.strategies) {
+        // Simulate loading completion
+        setTimeout(() => {
+          setStrategies(data.strategies);
+          setStage("results");
+        }, 2000);
       } else {
-        const errorMessage: Message = {
-          role: "assistant",
-          content: "I apologize, but I encountered an error. Please try again.",
-          isQuestion: false,
-        };
-        setMessages((prev) => [...prev, errorMessage]);
+        alert("Failed to generate strategies. Please try again.");
+        setStage("input");
       }
     } catch (error) {
       console.error("Error:", error);
-      const errorMessage: Message = {
-        role: "assistant",
-        content:
-          "Sorry, there was a problem connecting to the AI. Please try again.",
-        isQuestion: false,
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
+      alert("An error occurred. Please try again.");
+      setStage("input");
     }
   };
 
-  const handleReset = () => {
-    setMessages([
-      {
-        role: "assistant",
-        content:
-          "👋 Welcome to the Campaign Planner AI! I'm here to help you create a comprehensive marketing campaign strategy. Let's start by understanding your goals.\n\nWhat type of marketing campaign are you planning? (e.g., product launch, brand awareness, lead generation, seasonal promotion)",
-        isQuestion: true,
-      },
-    ]);
-    setUserInput("");
-    setConversationComplete(false);
+  const handleStartOver = () => {
+    setStage("input");
+    setUserPrompt("");
+    setUrls([]);
+    setUrlInput("");
+    setStrategies([]);
+    setLoadingStage(0);
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <Navbar />
 
-      <main className="flex-1 py-12 bg-gradient-to-br from-purple-50/50 via-background to-indigo-50/50 dark:from-purple-950/20 dark:via-background dark:to-indigo-950/20">
-        <div className="container px-4 md:px-6 max-w-5xl mx-auto">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-8"
-          >
-            <Link
-              href="/marketing-ai"
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4 transition-colors"
+      <main className="flex-1 py-12">
+        <AnimatePresence mode="wait">
+          {stage === "input" && (
+            <motion.div
+              key="input"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="container px-4 md:px-6 max-w-4xl mx-auto"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Marketing AI
-            </Link>
+              {/* Header */}
+              <div className="text-center mb-12">
+                <Link
+                  href="/marketing-ai"
+                  className="inline-flex items-center text-sm text-purple-300 hover:text-purple-100 mb-6 transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Marketing AI
+                </Link>
 
-            <div className="inline-flex items-center justify-center p-2 bg-purple-500/10 rounded-full mb-4">
-              <Target className="w-8 h-8 text-purple-500" />
-            </div>
+                <motion.div
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="inline-flex items-center justify-center p-4 bg-purple-500/20 rounded-full mb-6 border border-purple-500/30"
+                >
+                  <Target className="w-12 h-12 text-purple-400" />
+                </motion.div>
 
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-              Campaign Planner AI
-            </h1>
+                <h1 className="text-5xl md:text-6xl font-bold mb-6 text-white">
+                  What's your{" "}
+                  <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                    one thought
+                  </span>
+                  ?
+                </h1>
 
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Let our AI guide you through creating a comprehensive marketing
-              campaign strategy tailored to your business needs.
-            </p>
-          </motion.div>
-
-          {/* Chat Interface */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="overflow-hidden border-2 shadow-xl">
-              {/* Messages Container */}
-              <div className="h-[600px] overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-background to-muted/20">
-                <AnimatePresence mode="popLayout">
-                  {messages.map((message, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.3 }}
-                      className={`flex ${
-                        message.role === "user"
-                          ? "justify-end"
-                          : "justify-start"
-                      }`}
-                    >
-                      <div
-                        className={`flex items-start gap-3 max-w-[85%] ${
-                          message.role === "user"
-                            ? "flex-row-reverse"
-                            : "flex-row"
-                        }`}
-                      >
-                        {/* Avatar */}
-                        <div
-                          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                            message.role === "user"
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-gradient-to-br from-purple-500 to-indigo-500 text-white"
-                          }`}
-                        >
-                          {message.role === "user" ? (
-                            <MessageSquare className="w-5 h-5" />
-                          ) : (
-                            <Sparkles className="w-5 h-5" />
-                          )}
-                        </div>
-
-                        {/* Message Bubble */}
-                        <div
-                          className={`rounded-2xl px-5 py-4 ${
-                            message.role === "user"
-                              ? "bg-primary text-primary-foreground"
-                              : message.isQuestion
-                              ? "bg-gradient-to-br from-purple-500/10 to-indigo-500/10 border-2 border-purple-500/20"
-                              : "bg-muted"
-                          }`}
-                        >
-                          <div className="whitespace-pre-wrap leading-relaxed">
-                            {message.content}
-                          </div>
-                          {message.isQuestion &&
-                            message.role === "assistant" && (
-                              <div className="mt-2 flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400 font-medium">
-                                <MessageSquare className="w-4 h-4" />
-                                <span>Please provide your answer below</span>
-                              </div>
-                            )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-
-                  {isLoading && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex justify-start"
-                    >
-                      <div className="flex items-start gap-3 max-w-[85%]">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 text-white flex items-center justify-center">
-                          <Sparkles className="w-5 h-5" />
-                        </div>
-                        <div className="rounded-2xl px-5 py-4 bg-muted">
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
-                            <span className="text-muted-foreground">
-                              Analyzing your response...
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {conversationComplete && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-center pt-4"
-                  >
-                    <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-2 border-green-500/20 rounded-xl px-6 py-4 flex items-center gap-3">
-                      <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
-                      <div>
-                        <p className="font-semibold text-green-900 dark:text-green-100">
-                          Campaign Strategy Complete!
-                        </p>
-                        <p className="text-sm text-green-700 dark:text-green-300">
-                          Your personalized marketing plan has been generated.
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Input Area */}
-              <div className="border-t bg-background p-4">
-                {conversationComplete ? (
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={handleReset}
-                      className="flex-1"
-                      variant="outline"
-                    >
-                      <Target className="w-4 h-4 mr-2" />
-                      Start New Campaign
-                    </Button>
-                    <Link href="/marketing-ai" className="flex-1">
-                      <Button className="w-full" variant="default">
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back to Marketing AI
-                      </Button>
-                    </Link>
-                  </div>
-                ) : (
-                  <form onSubmit={handleSubmit} className="flex gap-3">
-                    <Textarea
-                      value={userInput}
-                      onChange={(e) => setUserInput(e.target.value)}
-                      placeholder="Type your answer here..."
-                      className="min-h-[60px] resize-none"
-                      disabled={isLoading}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSubmit(e);
-                        }
-                      }}
-                    />
-                    <Button
-                      type="submit"
-                      size="icon"
-                      className="h-[60px] w-[60px] flex-shrink-0"
-                      disabled={isLoading || !userInput.trim()}
-                    >
-                      {isLoading ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <Send className="w-5 h-5" />
-                      )}
-                    </Button>
-                  </form>
-                )}
-
-                <p className="text-xs text-muted-foreground mt-3 text-center">
-                  Press Enter to send • Shift + Enter for new line
+                <p className="text-xl text-purple-200 max-w-2xl mx-auto">
+                  Describe your marketing goal or challenge. Our AI will
+                  generate and rank breakthrough campaign strategies in seconds.
                 </p>
               </div>
-            </Card>
-          </motion.div>
 
-          {/* Info Cards */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="grid md:grid-cols-3 gap-4 mt-8"
-          >
-            <Card className="p-4 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30 border-purple-200 dark:border-purple-800">
-              <h3 className="font-semibold mb-2 text-purple-900 dark:text-purple-100">
-                📊 Strategic Insights
-              </h3>
-              <p className="text-sm text-purple-700 dark:text-purple-300">
-                Get AI-powered recommendations based on market trends and your
-                business goals.
-              </p>
-            </Card>
+              {/* Input Form */}
+              <Card className="bg-slate-800/50 border-purple-500/30 backdrop-blur-sm">
+                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                  <div>
+                    <Textarea
+                      value={userPrompt}
+                      onChange={(e) => setUserPrompt(e.target.value)}
+                      placeholder="I want to create a campaign that helps people..."
+                      className="min-h-[150px] bg-slate-900/50 border-purple-500/20 text-white placeholder:text-purple-300/50 text-lg resize-none focus:border-purple-500/50"
+                    />
+                    <p className="text-sm text-purple-300/70 mt-2 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      The more detail, the better. Add an image if you need to
+                      explain something visually.
+                    </p>
+                  </div>
 
-            <Card className="p-4 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 border-indigo-200 dark:border-indigo-800">
-              <h3 className="font-semibold mb-2 text-indigo-900 dark:text-indigo-100">
-                🎯 Personalized Plans
-              </h3>
-              <p className="text-sm text-indigo-700 dark:text-indigo-300">
-                Every campaign strategy is tailored to your specific needs and
-                target audience.
-              </p>
-            </Card>
+                  {/* URL Input Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-purple-300">
+                      <Link2 className="w-4 h-4" />
+                      <span className="font-medium">
+                        Reference URLs (Optional)
+                      </span>
+                      <span className="text-xs text-purple-400">
+                        - Add competitor sites or articles for analysis
+                      </span>
+                    </div>
 
-            <Card className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 border-blue-200 dark:border-blue-800">
-              <h3 className="font-semibold mb-2 text-blue-900 dark:text-blue-100">
-                ⚡ Quick Results
-              </h3>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                Get comprehensive campaign strategies in minutes, not days or
-                weeks.
+                    {urls.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {urls.map((url, index) => (
+                          <div
+                            key={index}
+                            className="inline-flex items-center gap-2 bg-purple-500/20 text-purple-200 px-3 py-1.5 rounded-full text-sm border border-purple-500/30"
+                          >
+                            <Link2 className="w-3 h-3" />
+                            <span className="max-w-[200px] truncate">
+                              {url}
+                            </span>
+                            <button
+                              onClick={() => handleRemoveUrl(index)}
+                              className="hover:bg-purple-500/30 rounded-full p-0.5 transition-colors"
+                              type="button"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Input
+                        value={urlInput}
+                        onChange={(e) => setUrlInput(e.target.value)}
+                        placeholder="https://example.com/competitor-analysis"
+                        className="flex-1 bg-slate-900/50 border-purple-500/20 text-white placeholder:text-purple-300/50"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddUrl();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleAddUrl}
+                        disabled={
+                          !urlInput.trim() || !isValidUrl(urlInput.trim())
+                        }
+                        className="bg-purple-500/10 border-purple-500/30 text-purple-200 hover:bg-purple-500/20"
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add URL
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    size="lg"
+                    disabled={!userPrompt.trim()}
+                    className="w-full bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white text-lg py-6 shadow-lg shadow-purple-500/50"
+                  >
+                    <Sparkles className="w-5 h-5 mr-2" />
+                    Unlock Campaign Genius
+                  </Button>
+                </form>
+              </Card>
+            </motion.div>
+          )}
+
+          {stage === "loading" && (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="container px-4 md:px-6 max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[70vh]"
+            >
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 text-center">
+                Unlocking AI's campaign genius...
+              </h2>
+              <p className="text-xl text-purple-300 mb-16 text-center">
+                Eight AI stages are crafting your exceptional results
               </p>
-            </Card>
-          </motion.div>
-        </div>
+
+              <div className="flex items-center justify-center gap-8 w-full max-w-4xl mb-8">
+                {loadingStages.map((stageItem, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ scale: 0.8, opacity: 0.3 }}
+                    animate={{
+                      scale: loadingStage === index ? 1.2 : 0.9,
+                      opacity: loadingStage >= index ? 1 : 0.3,
+                    }}
+                    className={`flex flex-col items-center ${
+                      loadingStage === index
+                        ? "text-purple-400"
+                        : "text-purple-600"
+                    }`}
+                  >
+                    <div
+                      className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border-2 ${
+                        loadingStage === index
+                          ? "border-purple-400 bg-purple-500/20 shadow-lg shadow-purple-500/50"
+                          : loadingStage > index
+                          ? "border-purple-500 bg-purple-500/10"
+                          : "border-purple-700 bg-transparent"
+                      }`}
+                    >
+                      {stageItem.icon}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="text-center">
+                <motion.div
+                  key={loadingStage}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-2xl font-semibold text-purple-300"
+                >
+                  {loadingStages[loadingStage].text}
+                </motion.div>
+                <div className="flex items-center gap-1 justify-center mt-4">
+                  {loadingStages.map((_, index) => (
+                    <div
+                      key={index}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        index === loadingStage
+                          ? "w-8 bg-purple-400"
+                          : index < loadingStage
+                          ? "w-2 bg-purple-500"
+                          : "w-2 bg-purple-800"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-sm text-purple-400 mt-12 text-center">
+                <Sparkles className="w-4 h-4 inline mr-2" />
+                Tip: You can generate 4 additional strategies with
+                industry-leading AI models.
+              </p>
+            </motion.div>
+          )}
+
+          {stage === "results" && (
+            <motion.div
+              key="results"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="container px-4 md:px-6 max-w-7xl mx-auto"
+            >
+              {/* Header */}
+              <div className="flex justify-between items-center mb-8">
+                <div>
+                  <h2 className="text-3xl font-bold text-white mb-2">
+                    Your Campaign Strategies
+                  </h2>
+                  <p className="text-purple-300">
+                    {strategies.length} breakthrough strategies generated
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="bg-slate-800/50 border-purple-500/30 text-purple-200 hover:bg-purple-500/20"
+                  >
+                    Copy All
+                  </Button>
+                  <Button
+                    onClick={handleStartOver}
+                    className="bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Start Over
+                  </Button>
+                </div>
+              </div>
+
+              {/* Strategy Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                {strategies.map((strategy, index) => (
+                  <motion.div
+                    key={strategy.id}
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card className="bg-slate-800/50 border-purple-500/30 backdrop-blur-sm hover:border-purple-500/50 transition-all duration-300 h-full">
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br ${strategy.gradient}`}
+                            >
+                              {strategy.icon}
+                            </div>
+                            <div>
+                              <div className="text-sm text-purple-400 font-semibold">
+                                Ranked #{index + 1}
+                              </div>
+                              <h3 className="text-xl font-bold text-white">
+                                {strategy.title}
+                              </h3>
+                            </div>
+                          </div>
+                        </div>
+
+                        <p className="text-purple-200 mb-4 leading-relaxed">
+                          {strategy.description}
+                        </p>
+
+                        <div className="bg-purple-500/10 border-l-4 border-purple-500 p-4 mb-4 rounded">
+                          <h4 className="text-sm font-bold text-purple-300 mb-2">
+                            Why It Stands Out
+                          </h4>
+                          <p className="text-sm text-purple-200 leading-relaxed">
+                            {strategy.whyItStandsOut}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {strategy.tags.map((tag, tagIndex) => (
+                            <span
+                              key={tagIndex}
+                              className="px-3 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-500/30"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            className="flex-1 bg-purple-500/10 border-purple-500/30 text-purple-200 hover:bg-purple-500/20"
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            Review Solution
+                          </Button>
+                          <Button className="flex-1 bg-gradient-to-r from-purple-500 to-cyan-500 text-white hover:from-purple-600 hover:to-cyan-600">
+                            <BarChart3 className="w-4 h-4 mr-2" />
+                            Generate Plan
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       <Footer />
