@@ -181,10 +181,9 @@ export default function CampaignPlannerAI() {
               <div className="text-center mb-12">
                 <Link
                   href="/marketing-ai"
-                  className="inline-flex items-center text-sm text-purple-300 hover:text-purple-100 mb-6 transition-colors"
+                  className=" items-center text-sm text-purple-300 hover:text-purple-100 mb-20 transition-colors"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Marketing AI
                 </Link>
 
                 <motion.div
