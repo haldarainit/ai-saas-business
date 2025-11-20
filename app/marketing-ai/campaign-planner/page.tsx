@@ -37,7 +37,7 @@ interface CampaignStrategy {
   description: string;
   whyItStandsOut: string;
   tags: string[];
-  icon: React.ReactNode;
+  icon: string;
   gradient: string;
 }
 
@@ -96,6 +96,23 @@ export default function CampaignPlannerAI() {
     } catch (_) {
       return false;
     }
+  };
+
+  const getStrategyIcon = (iconName: string) => {
+    const iconMap: { [key: string]: React.ReactNode } = {
+      Share2: <Share2 className="w-6 h-6" />,
+      Megaphone: <Megaphone className="w-6 h-6" />,
+      Mail: <Mail className="w-6 h-6" />,
+      Globe: <Globe className="w-6 h-6" />,
+      LineChart: <LineChart className="w-6 h-6" />,
+      TrendingUp: <TrendingUp className="w-6 h-6" />,
+      Target: <Target className="w-6 h-6" />,
+      BarChart3: <BarChart3 className="w-6 h-6" />,
+      ShoppingCart: <ShoppingCart className="w-6 h-6" />,
+      Users: <Users className="w-6 h-6" />,
+      DollarSign: <DollarSign className="w-6 h-6" />,
+    };
+    return iconMap[iconName] || <Target className="w-6 h-6" />;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -392,40 +409,41 @@ export default function CampaignPlannerAI() {
               </div>
 
               {/* Strategy Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 {strategies.map((strategy, index) => (
                   <motion.div
                     key={strategy.id}
                     initial={{ opacity: 0, y: 50 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
+                    className="h-full"
                   >
-                    <Card className="bg-card border-border hover:border-primary/50 transition-all duration-300 h-full shadow-lg">
-                      <div className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center gap-3">
+                    <Card className="bg-card border-border hover:border-primary/50 hover:shadow-xl transition-all duration-300 h-full flex flex-col">
+                      <div className="p-6 flex flex-col h-full">
+                        <div className="flex items-start gap-4 mb-5">
+                          <div className="flex-shrink-0">
                             <div
-                              className={`w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br ${strategy.gradient}`}
+                              className={`w-14 h-14 rounded-xl flex items-center justify-center bg-gradient-to-br ${strategy.gradient} text-white shadow-md`}
                             >
-                              {strategy.icon}
+                              {getStrategyIcon(strategy.icon)}
                             </div>
-                            <div>
-                              <div className="text-sm text-primary font-semibold">
-                                Ranked #{index + 1}
-                              </div>
-                              <h3 className="text-xl font-bold">
-                                {strategy.title}
-                              </h3>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary mb-2">
+                              Ranked #{index + 1}
                             </div>
+                            <h3 className="text-xl font-bold mb-1 break-words leading-tight">
+                              {strategy.title}
+                            </h3>
                           </div>
                         </div>
 
-                        <p className="text-muted-foreground mb-4 leading-relaxed">
+                        <p className="text-muted-foreground mb-5 leading-relaxed text-sm flex-grow">
                           {strategy.description}
                         </p>
 
-                        <div className="bg-primary/10 border-l-4 border-primary p-4 mb-4 rounded">
-                          <h4 className="text-sm font-bold text-primary mb-2">
+                        <div className="bg-primary/5 border-l-4 border-primary p-3.5 mb-5 rounded-md">
+                          <h4 className="text-xs font-bold text-primary mb-1.5 uppercase tracking-wider">
                             Why It Stands Out
                           </h4>
                           <p className="text-sm text-foreground leading-relaxed">
@@ -433,23 +451,31 @@ export default function CampaignPlannerAI() {
                           </p>
                         </div>
 
-                        <div className="flex flex-wrap gap-2 mb-4">
+                        <div className="flex flex-wrap gap-2 mb-5">
                           {strategy.tags.map((tag, tagIndex) => (
                             <span
                               key={tagIndex}
-                              className="px-3 py-1 bg-primary/10 text-primary text-xs rounded-full border border-primary/20"
+                              className="px-2.5 py-1 bg-primary/10 text-primary text-xs font-medium rounded-md border border-primary/20 whitespace-nowrap"
                             >
                               {tag}
                             </span>
                           ))}
+                          \n{" "}
                         </div>
 
-                        <div className="flex gap-2">
-                          <Button variant="outline" className="flex-1">
+                        <div className="flex gap-3 mt-auto pt-4 border-t border-border">
+                          <Button
+                            variant="outline"
+                            className="flex-1"
+                            size="sm"
+                          >
                             <Eye className="w-4 h-4 mr-2" />
-                            Review Solution
+                            Review
                           </Button>
-                          <Button className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground">
+                          <Button
+                            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                            size="sm"
+                          >
                             <BarChart3 className="w-4 h-4 mr-2" />
                             Generate Plan
                           </Button>
