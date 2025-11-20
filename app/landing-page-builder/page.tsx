@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Spinner } from "@/components/ui/spinner"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
+import LoadingAnimation from "@/components/loading-animation"
 import StructuredData from "@/components/structured-data"
 import { ArrowRight, Monitor, Sparkles, Download, Eye, Wand2, CheckCircle, AlertCircle, Target, Palette, Users } from "lucide-react"
 import Link from "next/link"
@@ -22,19 +22,16 @@ export default function LandingPageBuilder() {
   const [showPreview, setShowPreview] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const [showAnimation, setShowAnimation] = useState(false)
+  const [animationComplete, setAnimationComplete] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
     setSuccess(false)
-    setProgress(0)
-
-    // Simulate progress
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 10, 90))
-    }, 200)
+    setAnimationComplete(false)
+    setShowAnimation(true)
 
     try {
       const response = await fetch('/api/generate-landing-page', {
@@ -54,24 +51,28 @@ export default function LandingPageBuilder() {
 
       if (data.success) {
         setGeneratedHTML(data.html)
-        setProgress(100)
         setSuccess(true)
-        // Delay showing preview to allow success animation
-        setTimeout(() => {
-          setShowPreview(true)
-          setSuccess(false)
-        }, 1000)
+        setAnimationComplete(true) // Signal animation to complete
+        // Animation will call onComplete which shows preview
       } else {
         setError(data.error || 'Failed to generate landing page')
-        setProgress(0)
+        setShowAnimation(false)
       }
     } catch (error) {
       console.error('Error generating landing page:', error)
       setError('An error occurred while generating your landing page. Please try again.')
-      setProgress(0)
+      setShowAnimation(false)
     } finally {
-      clearInterval(progressInterval)
-      setTimeout(() => setIsLoading(false), 1000)
+      setIsLoading(false)
+    }
+  }
+
+  const handleAnimationComplete = () => {
+    setShowAnimation(false)
+    setAnimationComplete(false)
+    if (success) {
+      setShowPreview(true)
+      setSuccess(false)
     }
   }
 
@@ -141,38 +142,7 @@ export default function LandingPageBuilder() {
                     </div>
                   )}
 
-                  {/* Success Animation */}
-                  {success && (
-                    <div className="mb-6 p-6 bg-green-50 border border-green-200 rounded-lg text-center">
-                      <div className="flex items-center justify-center gap-3 mb-2">
-                        <CheckCircle className="w-8 h-8 text-green-500 animate-pulse" />
-                        <span className="text-green-700 font-medium">Landing page generated successfully!</span>
-                      </div>
-                      <div className="w-full bg-green-200 rounded-full h-2 mb-2">
-                        <div className="bg-green-500 h-2 rounded-full animate-pulse" style={{ width: '100%' }}></div>
-                      </div>
-                      <p className="text-green-600 text-sm">Opening preview...</p>
-                    </div>
-                  )}
 
-                  {/* Progress Bar */}
-                  {isLoading && !success && (
-                    <div className="mb-6">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Spinner className="w-5 h-5 text-blue-500" />
-                        <span className="text-sm font-medium">Generating your landing page...</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300 ease-out"
-                          style={{ width: `${progress}%` }}
-                        ></div>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        This usually takes 10-15 seconds
-                      </p>
-                    </div>
-                  )}
 
                   <form onSubmit={handleSubmit} className="space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -261,7 +231,6 @@ export default function LandingPageBuilder() {
                       >
                         {isLoading ? (
                           <>
-                            <Spinner className="w-6 h-6 mr-3" />
                             Creating Your Website...
                           </>
                         ) : (
@@ -388,6 +357,13 @@ export default function LandingPageBuilder() {
 
         <Footer />
       </div>
+
+      {/* Loading Animation */}
+      <LoadingAnimation
+        isVisible={showAnimation}
+        isComplete={animationComplete}
+        onComplete={handleAnimationComplete}
+      />
     </>
   )
 }
