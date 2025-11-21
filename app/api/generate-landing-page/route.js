@@ -1,6 +1,14 @@
+import { writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
+
 export async function POST(request) {
   try {
-    const { businessName, businessDescription, targetAudience, colorScheme, logoUrl } = await request.json();
+    const formData = await request.formData();
+    const businessName = formData.get('businessName');
+    const businessDescription = formData.get('businessDescription');
+    const targetAudience = formData.get('targetAudience');
+    const colorScheme = formData.get('colorScheme');
+    const companyLogo = formData.get('companyLogo');
 
     if (!businessName || !businessDescription) {
       return Response.json(
@@ -10,6 +18,37 @@ export async function POST(request) {
         },
         { status: 400 }
       );
+    }
+
+    let logoUrl = null;
+
+    // Handle logo upload if provided
+    if (companyLogo && companyLogo instanceof File) {
+      try {
+        // Create uploads directory if it doesn't exist
+        const uploadsDir = join(process.cwd(), 'public', 'uploads');
+        await mkdir(uploadsDir, { recursive: true });
+
+        // Generate unique filename
+        const timestamp = Date.now();
+        const originalName = companyLogo.name;
+        const extension = originalName.split('.').pop();
+        const filename = `${businessName.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.${extension}`;
+        const filepath = join(uploadsDir, filename);
+
+        // Convert file to buffer and save
+        const bytes = await companyLogo.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        await writeFile(filepath, buffer);
+
+        // Set the logo URL
+        logoUrl = `/uploads/${filename}`;
+
+        console.log(`Logo uploaded successfully: ${logoUrl}`);
+      } catch (uploadError) {
+        console.error('Error uploading logo:', uploadError);
+        // Continue without logo if upload fails
+      }
     }
 
     console.log("Generating landing page for:", {

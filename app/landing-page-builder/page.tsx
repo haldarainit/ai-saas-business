@@ -8,7 +8,7 @@ import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 import LoadingAnimation from "@/components/loading-animation"
 import StructuredData from "@/components/structured-data"
-import { ArrowRight, Monitor, Sparkles, Download, Eye, Wand2, CheckCircle, AlertCircle, Target, Palette, Users } from "lucide-react"
+import { ArrowRight, Monitor, Sparkles, Download, Eye, Wand2, CheckCircle, AlertCircle, Target, Palette, Users, Upload } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
@@ -17,6 +17,7 @@ export default function LandingPageBuilder() {
   const [businessDescription, setBusinessDescription] = useState("")
   const [targetAudience, setTargetAudience] = useState("")
   const [colorScheme, setColorScheme] = useState("blue")
+  const [companyLogo, setCompanyLogo] = useState<File | null>(null)
   const [generatedHTML, setGeneratedHTML] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
@@ -34,17 +35,19 @@ export default function LandingPageBuilder() {
     setShowAnimation(true)
 
     try {
+      const formData = new FormData()
+      formData.append('businessName', businessName)
+      formData.append('businessDescription', businessDescription)
+      formData.append('targetAudience', targetAudience)
+      formData.append('colorScheme', colorScheme)
+
+      if (companyLogo) {
+        formData.append('companyLogo', companyLogo)
+      }
+
       const response = await fetch('/api/generate-landing-page', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          businessName,
-          businessDescription,
-          targetAudience,
-          colorScheme,
-        }),
+        body: formData,
       })
 
       const data = await response.json()
@@ -220,6 +223,27 @@ export default function LandingPageBuilder() {
                         <option value="orange">Orange (Friendly & Approachable)</option>
                         <option value="teal">Teal (Modern & Clean)</option>
                       </select>
+                    </div>
+
+                    {/* Company Logo */}
+                    <div className="space-y-3">
+                      <label htmlFor="company-logo" className="text-lg font-semibold text-foreground flex items-center">
+                        <Upload className="w-5 h-5 mr-2 text-cyan-500" />
+                        Company Logo (Optional)
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="company-logo"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setCompanyLogo(e.target.files?.[0] || null)}
+                          className="w-full text-lg py-6 px-4 rounded-xl border-2 border-border/50 focus:border-cyan-500/50 transition-all duration-200 hover:border-cyan-500/30 bg-background file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        💡 Upload your company logo to include it in the generated landing page (PNG, JPG, SVG recommended)
+                      </p>
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-4 pt-6">
