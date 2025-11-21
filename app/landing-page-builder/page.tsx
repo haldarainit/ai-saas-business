@@ -3,23 +3,80 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
+import LoadingAnimation from "@/components/loading-animation"
 import StructuredData from "@/components/structured-data"
-import { ArrowRight, Monitor, Sparkles } from "lucide-react"
+import { ArrowRight, Monitor, Sparkles, Download, Eye, Wand2, CheckCircle, AlertCircle, Target, Palette, Users, Upload } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
 export default function LandingPageBuilder() {
   const [businessName, setBusinessName] = useState("")
   const [businessDescription, setBusinessDescription] = useState("")
+  const [targetAudience, setTargetAudience] = useState("")
+  const [colorScheme, setColorScheme] = useState("blue")
+  const [companyLogo, setCompanyLogo] = useState<File | null>(null)
+  const [generatedHTML, setGeneratedHTML] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
+  const [showAnimation, setShowAnimation] = useState(false)
+  const [animationComplete, setAnimationComplete] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle form submission here
-    console.log("Business Name:", businessName)
-    console.log("Business Description:", businessDescription)
-    // You can add your form submission logic here
+    setIsLoading(true)
+    setError("")
+    setSuccess(false)
+    setAnimationComplete(false)
+    setShowAnimation(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('businessName', businessName)
+      formData.append('businessDescription', businessDescription)
+      formData.append('targetAudience', targetAudience)
+      formData.append('colorScheme', colorScheme)
+
+      if (companyLogo) {
+        formData.append('companyLogo', companyLogo)
+      }
+
+      const response = await fetch('/api/generate-landing-page', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setGeneratedHTML(data.html)
+        setSuccess(true)
+        setAnimationComplete(true) // Signal animation to complete
+        // Animation will call onComplete which shows preview
+      } else {
+        setError(data.error || 'Failed to generate landing page')
+        setShowAnimation(false)
+      }
+    } catch (error) {
+      console.error('Error generating landing page:', error)
+      setError('An error occurred while generating your landing page. Please try again.')
+      setShowAnimation(false)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAnimationComplete = () => {
+    setShowAnimation(false)
+    setAnimationComplete(false)
+    if (success) {
+      setShowPreview(true)
+      setSuccess(false)
+    }
   }
 
   return (
@@ -60,70 +117,234 @@ export default function LandingPageBuilder() {
           {/* Form Section */}
           <section className="py-24">
             <div className="container px-4 md:px-6">
-              <div className="max-w-2xl mx-auto">
-                <div className="bg-gradient-to-br from-background to-background/80 backdrop-blur-sm border border-border/50 rounded-3xl p-12 shadow-2xl">
+              <div className="max-w-4xl mx-auto">
+                <div className="bg-gradient-to-br from-background to-background/80 backdrop-blur-sm border border-border/50 rounded-3xl p-8 md:p-12 shadow-2xl">
                   <div className="text-center mb-8">
+                    <div className="inline-flex items-center rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 px-4 py-2 text-sm font-medium text-blue-600 mb-6">
+                      <Wand2 className="w-4 h-4 mr-2" />
+                      AI-Powered Builder
+                    </div>
                     <h2 className="text-3xl font-bold mb-4">Create Your Landing Page</h2>
-                    <p className="text-muted-foreground">
-                      Fill out the details below and we'll generate a beautiful landing page for your business.
+                    <p className="text-muted-foreground max-w-2xl mx-auto">
+                      Fill out the details below and our AI will create a stunning, conversion-optimized landing page
+                      tailored to your business needs.
                     </p>
                   </div>
 
+                  {/* Error Alert */}
+                  {error && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+                      <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                      <p className="text-red-700 text-sm">{error}</p>
+                      <button
+                        onClick={() => setError("")}
+                        className="ml-auto text-red-500 hover:text-red-700"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+
+
+
                   <form onSubmit={handleSubmit} className="space-y-8">
-                    <div className="space-y-3">
-                      <label htmlFor="business-name" className="text-lg font-semibold text-foreground flex items-center">
-                        <Sparkles className="w-5 h-5 mr-2 text-blue-500" />
-                        Business Name
-                      </label>
-                      <Input
-                        id="business-name"
-                        placeholder="Enter your business name"
-                        value={businessName}
-                        onChange={(e) => setBusinessName(e.target.value)}
-                        className="w-full text-lg py-6 px-4 rounded-xl border-2 border-border/50 focus:border-primary/50 transition-colors"
-                        required
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Business Name */}
+                      <div className="space-y-3">
+                        <label htmlFor="business-name" className="text-lg font-semibold text-foreground flex items-center">
+                          <Sparkles className="w-5 h-5 mr-2 text-blue-500" />
+                          Business Name
+                        </label>
+                        <Input
+                          id="business-name"
+                          placeholder="e.g., TechStart Solutions"
+                          value={businessName}
+                          onChange={(e) => setBusinessName(e.target.value)}
+                          className="w-full text-lg py-6 px-4 rounded-xl border-2 border-border/50 focus:border-blue-500/50 transition-all duration-200 hover:border-blue-500/30"
+                          required
+                          disabled={isLoading}
+                        />
+                      </div>
+
+                      {/* Target Audience */}
+                      <div className="space-y-3">
+                        <label htmlFor="target-audience" className="text-lg font-semibold text-foreground flex items-center">
+                          <Users className="w-5 h-5 mr-2 text-green-500" />
+                          Target Audience
+                        </label>
+                        <Input
+                          id="target-audience"
+                          placeholder="e.g., Small business owners, millennials"
+                          value={targetAudience}
+                          onChange={(e) => setTargetAudience(e.target.value)}
+                          className="w-full text-lg py-6 px-4 rounded-xl border-2 border-border/50 focus:border-green-500/50 transition-all duration-200 hover:border-green-500/30"
+                          disabled={isLoading}
+                        />
+                      </div>
                     </div>
 
+                    {/* Business Description */}
                     <div className="space-y-3">
                       <label htmlFor="business-description" className="text-lg font-semibold text-foreground flex items-center">
-                        <Monitor className="w-5 h-5 mr-2 text-cyan-500" />
-                        Describe Your Business
+                        <Monitor className="w-5 h-5 mr-2 text-purple-500" />
+                        Business Description
                       </label>
                       <Textarea
                         id="business-description"
-                        placeholder="Tell us about your business, what you do, who your target audience is, and what makes you unique..."
+                        placeholder="Describe your business, what you do, your unique value proposition, and what makes you different from competitors. The more details you provide, the better your landing page will be!"
                         value={businessDescription}
                         onChange={(e) => setBusinessDescription(e.target.value)}
-                        className="w-full text-lg py-6 px-4 rounded-xl border-2 border-border/50 focus:border-primary/50 transition-colors min-h-[160px] resize-none"
+                        className="w-full text-lg py-6 px-4 rounded-xl border-2 border-border/50 focus:border-purple-500/50 transition-all duration-200 hover:border-purple-500/30 min-h-[140px] resize-none"
                         required
+                        disabled={isLoading}
                       />
                       <p className="text-sm text-muted-foreground">
-                        The more details you provide, the better we can customize your landing page.
+                        💡 Tip: Include your main services, target market, and key benefits
                       </p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                    {/* Color Scheme */}
+                    <div className="space-y-3">
+                      <label htmlFor="color-scheme" className="text-lg font-semibold text-foreground flex items-center">
+                        <Palette className="w-5 h-5 mr-2 text-orange-500" />
+                        Preferred Color Scheme
+                      </label>
+                      <select
+                        id="color-scheme"
+                        value={colorScheme}
+                        onChange={(e) => setColorScheme(e.target.value)}
+                        className="w-full text-lg py-6 px-4 rounded-xl border-2 border-border/50 focus:border-orange-500/50 transition-all duration-200 hover:border-orange-500/30 bg-background"
+                        disabled={isLoading}
+                      >
+                        <option value="blue">Blue (Professional & Trust)</option>
+                        <option value="green">Green (Growth & Nature)</option>
+                        <option value="purple">Purple (Creativity & Luxury)</option>
+                        <option value="red">Red (Energy & Passion)</option>
+                        <option value="orange">Orange (Friendly & Approachable)</option>
+                        <option value="teal">Teal (Modern & Clean)</option>
+                      </select>
+                    </div>
+
+                    {/* Company Logo */}
+                    <div className="space-y-3">
+                      <label htmlFor="company-logo" className="text-lg font-semibold text-foreground flex items-center">
+                        <Upload className="w-5 h-5 mr-2 text-cyan-500" />
+                        Company Logo (Optional)
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="company-logo"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setCompanyLogo(e.target.files?.[0] || null)}
+                          className="w-full text-lg py-6 px-4 rounded-xl border-2 border-border/50 focus:border-cyan-500/50 transition-all duration-200 hover:border-cyan-500/30 bg-background file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        💡 Upload your company logo to include it in the generated landing page (PNG, JPG, SVG recommended)
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-4 pt-6">
                       <Button
                         type="submit"
                         size="lg"
-                        className="flex-1 text-xl py-8 h-auto rounded-xl"
+                        className="flex-1 text-xl py-8 h-auto rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                        disabled={isLoading || !businessName.trim() || !businessDescription.trim()}
                       >
-                        Create My Website
-                        <ArrowRight className="ml-3 w-6 h-6" />
+                        {isLoading ? (
+                          <>
+                            Creating Your Website...
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="w-6 h-6 mr-3" />
+                            Generate Landing Page
+                            <ArrowRight className="ml-3 w-6 h-6" />
+                          </>
+                        )}
                       </Button>
 
                       <Link href="/get-started" className="flex-1">
                         <Button
                           variant="outline"
                           size="lg"
-                          className="w-full text-xl py-8 h-auto rounded-xl"
+                          className="w-full text-xl py-8 h-auto rounded-xl border-2 hover:bg-gray-50 transition-all duration-200"
+                          disabled={isLoading}
                         >
                           Back to Features
                         </Button>
                       </Link>
                     </div>
                   </form>
+
+                  {/* Preview Dialog */}
+                  <Dialog open={showPreview} onOpenChange={setShowPreview}>
+                    <DialogContent className="max-w-[2560px] h-[90vh] p-0">
+                      <div className="flex flex-col h-full">
+                        <DialogHeader className="px-6 py-4 border-b bg-muted/30">
+                          <div className="flex items-center justify-between w-full">
+                            <div>
+                              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                                <Eye className="w-5 h-5 text-blue-500" />
+                                Landing Page Preview
+                              </DialogTitle>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Preview your AI-generated landing page below
+                              </p>
+                            </div>
+                            <div className="flex gap-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const newWindow = window.open('', '_blank')
+                                  if (newWindow) {
+                                    newWindow.document.write(generatedHTML)
+                                    newWindow.document.close()
+                                  }
+                                }}
+                                className="flex items-center gap-2"
+                              >
+                                <Monitor className="w-4 h-4" />
+                                Open in New Tab
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const blob = new Blob([generatedHTML], { type: 'text/html' })
+                                  const url = URL.createObjectURL(blob)
+                                  const a = document.createElement('a')
+                                  a.href = url
+                                  a.download = `${businessName.replace(/\s+/g, '_')}_landing_page.html`
+                                  document.body.appendChild(a)
+                                  a.click()
+                                  document.body.removeChild(a)
+                                  URL.revokeObjectURL(url)
+                                }}
+                                className="flex items-center gap-2 bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download HTML
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogHeader>
+                        <div className="flex-1 p-4 bg-background">
+                          <div className="bg-card rounded-lg shadow-lg h-full overflow-hidden border border-border">
+                            <iframe
+                              srcDoc={generatedHTML}
+                              className="w-full h-full border-0 rounded-lg"
+                              title="Landing Page Preview"
+                              sandbox="allow-same-origin"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
 
                   {/* Features Preview */}
                   <div className="mt-12 pt-8 border-t border-border/50">
@@ -160,6 +381,13 @@ export default function LandingPageBuilder() {
 
         <Footer />
       </div>
+
+      {/* Loading Animation */}
+      <LoadingAnimation
+        isVisible={showAnimation}
+        isComplete={animationComplete}
+        onComplete={handleAnimationComplete}
+      />
     </>
   )
 }

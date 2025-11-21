@@ -187,13 +187,23 @@ export default function SalesAI() {
                           </div>
 
                           {/* CTA Button */}
-                          <Button
-                            variant="ghost"
-                            className="w-full justify-between group/btn hover:bg-primary/10 hover:text-primary transition-all duration-300 text-sm py-2 h-auto"
-                          >
-                            Try {tool.title}
-                            <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform duration-300" />
-                          </Button>
+                          {tool.title === "Sales Script" ? (
+                            <Link href="/sales-script">
+                              <Button className="w-full justify-between group/btn bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white transition-all duration-300 text-sm py-3 h-auto shadow-lg hover:shadow-xl">
+                                Try {tool.title}
+                                <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform duration-300" />
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-between group/btn hover:bg-primary/10 hover:text-primary transition-all duration-300 text-sm py-2 h-auto"
+                            >
+                              Try {tool.title}
+                              <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform duration-300" />
+                            </Button>
+                          )}
+
                         </div>
                       </div>
                     </Card>
