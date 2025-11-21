@@ -24,38 +24,55 @@ export async function POST(request) {
     const gemini = geminiModule.default || geminiModule;
 
     // Build the prompt with conversation context
-    const systemPrompt = `You are an expert React/Next.js developer specializing in creating beautiful, modern landing pages using Tailwind CSS and Shadcn UI components.
+    const systemPrompt = `You are an expert React developer creating production-ready landing pages like Lovable.dev.
 
-CRITICAL REQUIREMENTS:
-1. Return ONLY valid React/JSX code that can be directly rendered
-2. DO NOT include imports, exports, or function declarations
-3. DO NOT wrap the code in markdown code blocks  
-4. Use ONLY these Shadcn components (they are already available): Button, Card, Input, Textarea, Badge, Avatar, AvatarImage, AvatarFallback, Separator, ScrollArea
-5. Use Lucide React icons (all icons available: ArrowRight, Star, CheckCircle, Sparkles, Users, Target, etc.)
-6. Use Tailwind CSS for styling - make it modern and beautiful
-7. Make it responsive and mobile-friendly
-8. Include semantic HTML and proper accessibility
-9. The code should be a complete, self-contained component that renders immediately
+CRITICAL FILE STRUCTURE - ALWAYS INCLUDE ALL FILES:
+1. "/package.json" - Dependencies (react, react-dom, react-scripts, lucide-react)
+2. "/public/index.html" - HTML template with Tailwind CDN
+3. "/index.js" - React entry point
+4. "/styles.css" - Global styles
+5. "/App.js" - Main app component that imports and orchestrates all sections
+6. "/components/Hero.js" - Hero section component
+7. "/components/Features.js" - Features section
+8. "/components/Testimonials.js" - Testimonials section  
+9. "/components/CTA.js" - Call-to-action section
+10. Additional components as needed (Navbar, Footer, Pricing, etc.)
 
-DESIGN GUIDELINES:
-- Use modern gradients and glassmorphism effects
-- Include smooth animations and transitions
-- Create a professional hero section with CTA
-- Add features/benefits section
-- Include testimonials or social proof if relevant
-- Add a clear call-to-action footer
-- Use the specified color scheme as the primary color
+CRITICAL CODE RULES - READ CAREFULLY:
+- USE ONLY these HTML elements: div, section, h1, h2, h3, p, span, button, img, a, ul, li, nav, footer, header
+- DO NOT use ANY UI component libraries (NO Badge, Card, Button, Input components)
+- DO NOT import or use Shadcn components
+- ONLY use lucide-react for icons: import { IconName } from 'lucide-react'
+- Use Tailwind CSS classes for ALL styling
+- Every component must be a vanilla React function component
+- NO external dependencies except react, react-dom, lucide-react
 
-EXAMPLE OUTPUT FORMAT (return ONLY code like this):
-<div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
-  <div className="container mx-auto px-4 py-16">
-    <h1 className="text-5xl font-bold text-center mb-8">Welcome to {businessName}</h1>
-    <p className="text-xl text-center text-gray-600 mb-12">{tagline}</p>
-    <Button className="mx-auto block bg-blue-500 hover:bg-blue-600">
-      Get Started <ArrowRight className="ml-2" />
-    </Button>
-  </div>
-</div>`;
+DESIGN REQUIREMENTS FOR EACH SECTION:
+- Hero: Full-screen gradient background, large h1 heading, p subheading, button with icon
+- Features: Grid of feature cards using div elements with icons, h3 titles, p descriptions
+- Testimonials: Customer reviews in div cards with quote text, names (no Badge components)
+- CTA: Compelling section with h2 heading, p text, button
+- Use modern design: gradients, shadows, rounded corners, hover effects
+
+TAILWIND CSS USAGE:
+- bg-gradient-to-br, bg-gradient-to-r for gradients
+- shadow-lg, shadow-xl for depth
+- rounded-lg, rounded-xl for corners
+- hover:scale-105, transition-all for animations
+- Use flex, grid for layouts
+- Responsive: sm:, md:, lg:, xl:
+
+EXAMPLE STRUCTURE (return as JSON):
+{
+  "/package.json": "{\\"name\\":\\"landing-page\\",\\"version\\":\\"1.0.0\\",\\"scripts\\":{\\"start\\":\\"react-scripts start\\",\\"build\\":\\"react-scripts build\\"},\\"dependencies\\":{\\"react\\":\\"^18.2.0\\",\\"react-dom\\":\\"^18.2.0\\",\\"react-scripts\\":\\"5.0.1\\",\\"lucide-react\\":\\"latest\\"}}",
+  "/public/index.html": "<!DOCTYPE HTML>\\n<html lang=\\"en\\">\\n<head>\\n  <meta charset=\\"utf-8\\" />\\n  <meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1\\" />\\n  <title>Landing Page</title>\\n  <script src=\\"https://cdn.tailwindcss.com\\"></script>\\n</head>\\n<body>\\n  <div id=\\"root\\"></div>\\n</body>\\n</html>",
+  "/index.js": "import React from 'react';\\nimport { createRoot } from 'react-dom/client';\\nimport './styles.css';\\nimport App from './App';\\nconst root = createRoot(document.getElementById('root'));\\nroot.render(<App />);",
+  "/styles.css": "* { margin: 0; padding: 0; box-sizing: border-box; }\\nbody { font-family: system-ui, sans-serif; }",
+  "/App.js": "import React from 'react';\\nimport Hero from './components/Hero';\\nimport Features from './components/Features';\\nimport CTA from './components/CTA';\\n\\nexport default function App() {\\n  return (\\n    <div>\\n      <Hero />\\n      <Features />\\n      <CTA />\\n    </div>\\n  );\\n}",
+  "/components/Hero.js": "import React from 'react';\\nimport { ArrowRight } from 'lucide-react';\\n\\nexport default function Hero() {\\n  return (\\n    <section className=\\"min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700 text-white px-4\\">\\n      <div className=\\"max-w-4xl text-center\\">\\n        <h1 className=\\"text-6xl font-bold mb-6\\">Build Amazing Products</h1>\\n        <p className=\\"text-2xl mb-8 text-blue-100\\">Transform your ideas into reality</p>\\n        <button className=\\"bg-white text-blue-600 px-8 py-4 rounded-full font-semibold flex items-center gap-2 mx-auto hover:scale-105 transition-transform shadow-xl\\">\\n          Get Started <ArrowRight className=\\"w-5 h-5\\" />\\n        </button>\\n      </div>\\n    </section>\\n  );\\n}"
+}
+
+CRITICAL: Return ONLY the JSON object. NO markdown, NO explanations. NO Badge, Card, or other UI components.`;
 
     let userPrompt;
     const lastMessage = messages[messages.length - 1];
@@ -72,33 +89,22 @@ Primary Color Scheme: "${businessDetails.colorScheme}"
     }
 
     if (!currentCode) {
-      // First message - generate new landing page
-      userPrompt = `Create a complete, professional landing page with the following details:
+      userPrompt = `Create a complete, multi-file landing page with the following details:
 ${businessContext}
 
 User's request: "${lastMessage.content}"
 
-Remember to return ONLY the JSX code - no imports, no exports, no function wrappers, no markdown formatting.
-Create a beautiful, modern design with:
-- Hero section with compelling headline and CTA
-- Features/benefits section
-- Social proof or testimonials
-- Clear call-to-action
-- Mobile responsive design
-- Use the ${businessDetails?.colorScheme || "blue"} color scheme`;
+Return ONLY the JSON object with the file structure.`;
     } else {
-      // Subsequent messages - refine existing code
-      userPrompt = `Current landing page code:
-\`\`\`jsx
-${currentCode}
-\`\`\`
+      userPrompt = `Current file structure (keys only):
+${Object.keys(currentCode?.files || {}).join(", ")}
 
 Business context:
 ${businessContext}
 
 User's new request: "${lastMessage.content}"
 
-Please update the code based on the user's request. Keep all existing content and structure unless the user specifically asks to change or remove it. Return ONLY the updated JSX code - no imports, no exports, no function wrappers, no markdown formatting.`;
+Please update the code based on the user's request. Return the FULL set of files for the application.`;
     }
 
     const fullPrompt = `${systemPrompt}
@@ -108,32 +114,54 @@ ${userPrompt}`;
     const result = await gemini.generateAIResponse(fullPrompt);
 
     if (result && !result.includes("Error")) {
-      // Clean up the response - remove any markdown code blocks
-      let cleanedCode = result.trim();
+      try {
+        let cleanedResult = result.trim();
 
-      // Remove markdown code blocks if present
-      cleanedCode = cleanedCode.replace(/^```[\w]*\n?/gm, '');
-      cleanedCode = cleanedCode.replace(/\n?```$/gm, '');
+        // Remove markdown
+        cleanedResult = cleanedResult.replace(/^```json\n?/gm, '');
+        cleanedResult = cleanedResult.replace(/^```\n?/gm, '');
+        cleanedResult = cleanedResult.replace(/\n?```$/gm, '');
+        cleanedResult = cleanedResult.trim();
 
-      // Remove any import statements
-      cleanedCode = cleanedCode.replace(/^import\s+.*?from\s+['"].*?['"];?\s*$/gm, '');
+        //  Replace literal control characters with escaped versions
+        const lines = cleanedResult.split('\n');
+        const fixedLines = lines.map(line => {
+          // Fix lines within string values  
+          if (line.includes('":')) {
+            return line.replace(/(?<!\\)[\n\r\t]/g, (match) => {
+              if (match === '\n') return '\\n';
+              if (match === '\r') return '\\r';
+              if (match === '\t') return '\\t';
+              return match;
+            });
+          }
+          return line;
+        });
 
-      // Remove export statements
-      cleanedCode = cleanedCode.replace(/^export\s+(default\s+)?/gm, '');
+        cleanedResult = fixedLines.join('\n');
 
-      // Remove function declarations wrapping the JSX
-      cleanedCode = cleanedCode.replace(/^(export\s+)?(default\s+)?function\s+\w+\([^)]*\)\s*\{?\s*/gm, '');
-      cleanedCode = cleanedCode.replace(/^\s*return\s*\(/gm, '');
-      cleanedCode = cleanedCode.replace(/\)\s*;?\s*}\s*$/gm, '');
+        const generatedFiles = JSON.parse(cleanedResult);
 
-      // Trim extra whitespace
-      cleanedCode = cleanedCode.trim();
+        const formattedFiles = {};
+        Object.entries(generatedFiles).forEach(([path, content]) => {
+          formattedFiles[path] = { code: content };
+        });
 
-      return Response.json({
-        success: true,
-        code: cleanedCode,
-        message: currentCode ? "Landing page updated successfully!" : "Landing page generated successfully!",
-      });
+        return Response.json({
+          success: true,
+          files: formattedFiles,
+          message: currentCode ? "Landing page updated successfully!" : "Landing page generated successfully!",
+        });
+      } catch (parseError) {
+        console.error("Error parsing AI response:", parseError);
+        return Response.json(
+          {
+            success: false,
+            error: "Failed to parse AI response. Please try generating again.",
+          },
+          { status: 500 }
+        );
+      }
     } else {
       return Response.json(
         {
