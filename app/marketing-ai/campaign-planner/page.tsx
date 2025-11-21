@@ -28,6 +28,12 @@ import {
   LineChart,
   Globe,
   ShoppingCart,
+  Lightbulb,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Code,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -48,6 +54,13 @@ export default function CampaignPlannerAI() {
   const [urlInput, setUrlInput] = useState("");
   const [strategies, setStrategies] = useState<CampaignStrategy[]>([]);
   const [loadingStage, setLoadingStage] = useState(0);
+  const [selectedStrategy, setSelectedStrategy] =
+    useState<CampaignStrategy | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [showActionPlan, setShowActionPlan] = useState(false);
+  const [actionPlanStrategy, setActionPlanStrategy] =
+    useState<CampaignStrategy | null>(null);
+  const [actionPlanLoading, setActionPlanLoading] = useState(false);
 
   const loadingStages = [
     { icon: <Sparkles className="w-8 h-8" />, text: "Analyzing your prompt" },
@@ -161,6 +174,35 @@ export default function CampaignPlannerAI() {
     setUrlInput("");
     setStrategies([]);
     setLoadingStage(0);
+    setShowModal(false);
+    setSelectedStrategy(null);
+  };
+
+  const handleReviewSolution = (strategy: CampaignStrategy) => {
+    setSelectedStrategy(strategy);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedStrategy(null);
+  };
+
+  const handleGeneratePlan = async (strategy: CampaignStrategy) => {
+    setActionPlanStrategy(strategy);
+    setShowActionPlan(true);
+    setActionPlanLoading(true);
+
+    // Simulate loading for action plan generation
+    setTimeout(() => {
+      setActionPlanLoading(false);
+    }, 2000);
+  };
+
+  const handleCloseActionPlan = () => {
+    setShowActionPlan(false);
+    setActionPlanStrategy(null);
+    setActionPlanLoading(false);
   };
 
   return (
@@ -467,6 +509,7 @@ export default function CampaignPlannerAI() {
                             variant="outline"
                             className="flex-1"
                             size="sm"
+                            onClick={() => handleReviewSolution(strategy)}
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             Review
@@ -474,6 +517,7 @@ export default function CampaignPlannerAI() {
                           <Button
                             className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                             size="sm"
+                            onClick={() => handleGeneratePlan(strategy)}
                           >
                             <BarChart3 className="w-4 h-4 mr-2" />
                             Generate Plan
@@ -488,6 +532,980 @@ export default function CampaignPlannerAI() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Action Plan Modal */}
+      {showActionPlan && actionPlanStrategy && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={handleCloseActionPlan}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-gradient-to-br from-slate-900 via-blue-900/20 to-slate-900 border border-blue-700/50 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 relative">
+              <button
+                onClick={handleCloseActionPlan}
+                className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-xl flex items-center justify-center bg-white/20 backdrop-blur-sm text-white shadow-lg">
+                  <FileText className="w-8 h-8" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-white mb-1">
+                    Action Plan & Strategy Guide
+                  </h2>
+                  <p className="text-blue-100">{actionPlanStrategy.title}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            {actionPlanLoading ? (
+              <div className="flex flex-col items-center justify-center p-20">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full mb-4"
+                />
+                <h3 className="text-2xl font-bold text-white mb-2">
+                  Generating action plan for "{actionPlanStrategy.title}"...
+                </h3>
+                <p className="text-slate-400">
+                  Analyzing your breakthrough solution...
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-y-auto max-h-[calc(90vh-180px)] p-6 space-y-6">
+                {/* Project Brief */}
+                <div className="bg-slate-800/50 border border-blue-700/30 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                      <Target className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        Project Brief
+                      </h3>
+                      <p className="text-sm text-slate-400">
+                        Strategic overview and objectives
+                      </p>
+                    </div>
+                  </div>
+                  <h4 className="text-2xl font-bold text-blue-300 mb-4">
+                    {actionPlanStrategy.title} Launch
+                  </h4>
+                  <p className="text-slate-300 leading-relaxed mb-6">
+                    {actionPlanStrategy.description} The campaign will be
+                    designed to create memorable brand experiences and drive
+                    engagement through strategic execution across multiple
+                    touchpoints.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h5 className="text-sm font-bold text-blue-400 mb-3 uppercase tracking-wider">
+                        Key Objectives
+                      </h5>
+                      <ul className="space-y-2 text-sm text-slate-300">
+                        <li className="flex items-start gap-2">
+                          <Sparkles className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                          <span>
+                            Increase brand awareness by 25% within the target
+                            demographic.
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Sparkles className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                          <span>
+                            Generate 10,000+ leads through event registrations
+                            and interactions.
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Sparkles className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                          <span>
+                            Achieve a Net Promoter Score (NPS) of 60 or higher
+                            from event attendees.
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="text-sm font-bold text-cyan-400 mb-3 uppercase tracking-wider">
+                        Success Metrics
+                      </h5>
+                      <ul className="space-y-2 text-sm text-slate-300">
+                        <li className="flex items-start gap-2">
+                          <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                          <span>Number of attendees at each pop-up event.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                          <span>
+                            Social media engagement (likes, shares, comments)
+                            per event.
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                          <span>
+                            Lead generation through event registrations and data
+                            capture.
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                          <span>
+                            Post-event survey responses (NPS, feedback).
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Strategic Analysis */}
+                <div className="bg-gradient-to-br from-purple-900/30 to-slate-800/50 border border-purple-700/30 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                      <Lightbulb className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        Strategic Analysis
+                      </h3>
+                      <p className="text-sm text-slate-400">
+                        Market insights and competitive positioning
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-purple-900/20 border border-purple-700/30 rounded-lg p-4">
+                      <h5 className="text-sm font-bold text-purple-300 mb-2 uppercase tracking-wider">
+                        Market Opportunity
+                      </h5>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        The market for experiential marketing is growing
+                        rapidly, with consumers increasingly seeking authentic
+                        and engaging brand experiences. This campaign offers a
+                        cost-effective way to reach a targeted audience and
+                        create buzz.
+                      </p>
+                    </div>
+                    <div className="bg-emerald-900/20 border border-emerald-700/30 rounded-lg p-4">
+                      <h5 className="text-sm font-bold text-emerald-300 mb-2 uppercase tracking-wider">
+                        Competitive Advantage
+                      </h5>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        Our strategy will differentiate through: 1) Highly
+                        interactive and shareable experiences; 2) Integration of
+                        sustainable practices and materials; 3) Strategic
+                        location selection; 4) Strong social media integration
+                        with influencer partnerships.
+                      </p>
+                    </div>
+                    <div className="bg-red-900/20 border border-red-700/30 rounded-lg p-4">
+                      <h5 className="text-sm font-bold text-red-300 mb-2 uppercase tracking-wider">
+                        Risk Assessment
+                      </h5>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        Risks include: 1) Low attendance; mitigation: targeted
+                        marketing campaigns. 2) Weather dependencies;
+                        mitigation: backup indoor locations. 3) Budget overruns;
+                        mitigation: detailed cost planning.
+                      </p>
+                    </div>
+                    <div className="bg-amber-900/20 border border-amber-700/30 rounded-lg p-4">
+                      <h5 className="text-sm font-bold text-amber-300 mb-2 uppercase tracking-wider">
+                        Resource Requirements
+                      </h5>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        Resources include: Budget ($50,000 - $100,000 depending
+                        on scale); Team (5-7 staff); Vendors (contractors, AV,
+                        catering); Technology (registration platform, CRM);
+                        Timeline (3-4 months planning to execution).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Execution Plan */}
+                <div className="bg-slate-800/50 border border-orange-700/30 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+                      <Calendar className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        Execution Plan
+                      </h3>
+                      <p className="text-sm text-slate-400">
+                        Phased implementation timeline
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Phase 1 */}
+                  <div className="bg-gradient-to-br from-orange-900/20 to-slate-800/30 border border-orange-700/30 rounded-lg p-5 mb-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold">
+                        1
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-orange-300">
+                          Phase 1: Planning and Design (4 weeks)
+                        </h4>
+                        <p className="text-xs text-slate-400">4 weeks</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-300 mb-4 leading-relaxed">
+                      Define event concept, themes, and activities. Secure
+                      locations and vendors. Develop event branding and
+                      marketing materials.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
+                          Deliverables
+                        </h5>
+                        <ul className="space-y-1.5 text-sm text-slate-300">
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
+                            Event concept and design document
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
+                            Venue contracts and permits
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
+                            Vendor agreements
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
+                            Marketing plan and budget
+                          </li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
+                          Milestones
+                        </h5>
+                        <ul className="space-y-1.5 text-sm text-slate-300">
+                          <li className="flex items-center gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                            Concept finalized and approved (Week 1)
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                            Venue and vendors secured (Week 2)
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                            Marketing plan approved (Week 3)
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                            Detailed budget finalized (Week 4)
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Phase 2 */}
+                  <div className="bg-gradient-to-br from-orange-900/20 to-slate-800/30 border border-orange-700/30 rounded-lg p-5 mb-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold">
+                        2
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-orange-300">
+                          Phase 2: Content Creation and Production (6 weeks)
+                        </h4>
+                        <p className="text-xs text-slate-400">6 weeks</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-300 mb-4 leading-relaxed">
+                      Develop interactive exhibits, create content (videos,
+                      graphics, etc.), and produce all necessary event
+                      materials. Build out event website and social media
+                      presence.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
+                          Deliverables
+                        </h5>
+                        <ul className="space-y-1.5 text-sm text-slate-300">
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
+                            Interactive exhibit prototypes
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
+                            Event website and landing pages
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
+                            Social media content calendar
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
+                            Promotional videos and graphics
+                          </li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
+                          Milestones
+                        </h5>
+                        <ul className="space-y-1.5 text-sm text-slate-300">
+                          <li className="flex items-center gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                            Exhibit prototypes approved (Week 6)
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                            Website and landing pages launched (Week 8)
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                            Social media content calendar finalized (Week 9)
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                            Promotional materials finalized (Week 10)
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Phase 3 */}
+                  <div className="bg-gradient-to-br from-orange-900/20 to-slate-800/30 border border-orange-700/30 rounded-lg p-5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold">
+                        3
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-orange-300">
+                          Phase 3: Pre-Event Marketing and Promotion (4 weeks)
+                        </h4>
+                        <p className="text-xs text-slate-400">4 weeks</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-300 mb-4 leading-relaxed">
+                      Launch pre-event marketing campaigns, build anticipation,
+                      and drive registrations. Secure media and influencer
+                      partnerships.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action Items Checklist */}
+                <div className="bg-slate-800/50 border border-emerald-700/30 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center">
+                      <CheckCircle2 className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        Action Items Checklist
+                      </h3>
+                      <p className="text-sm text-slate-400">
+                        Prioritized tasks to get started
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      {
+                        priority: "High",
+                        time: "Week 1",
+                        task: "Finalize event concept and theme, including interactive elements, brand integration, and overall user experience.",
+                      },
+                      {
+                        priority: "High",
+                        time: "Weeks 2-6",
+                        task: "Design and build interactive exhibits and activities, ensuring they align with the brand narrative and are visually appealing and engaging.",
+                      },
+                      {
+                        priority: "High",
+                        time: "Weeks 3-4",
+                        task: "Develop a comprehensive social media marketing plan, including content calendars, influencer outreach strategies, and paid advertising campaigns.",
+                      },
+                    ].map((item, index) => (
+                      <div
+                        key={index}
+                        className="bg-slate-700/30 border border-slate-600 rounded-lg p-4 hover:border-emerald-500/50 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            className="mt-1 w-4 h-4 rounded border-slate-500"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="px-2 py-0.5 bg-red-500/20 text-red-300 text-xs font-semibold rounded">
+                                {item.priority}
+                              </span>
+                              <span className="px-2 py-0.5 bg-slate-600 text-slate-300 text-xs rounded">
+                                {item.time}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-300 leading-relaxed">
+                              {item.task}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Ready-to-Use Resources */}
+                <div className="bg-slate-800/50 border border-cyan-700/30 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
+                      <Zap className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        Ready-to-Use Resources
+                      </h3>
+                      <p className="text-sm text-slate-400">
+                        Content, code, and tools to jumpstart your project
+                      </p>
+                    </div>
+                  </div>
+                  <h4 className="text-lg font-bold text-cyan-300 mb-4">
+                    Content & Templates
+                  </h4>
+                  <div className="space-y-4">
+                    {[
+                      {
+                        title: "Event Landing Page Template",
+                        description:
+                          "A basic template for an event landing page, optimized for lead capture and registration.",
+                        code: '<!DOCTYPE html>\n<html>\n<head>\n  <title>[Brand Name] Pop-Up Event</title>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n</head>\n<body>\n  <!-- Event content here -->\n</body>\n</html>',
+                      },
+                      {
+                        title: "Social Media Post Template (Instagram)",
+                        description:
+                          "Template for an Instagram post to promote the pop-up event.",
+                        code: "🎉 You're Invited! 🎉\n\nJoin us at the [Brand Name] Pop-Up Event! Experience [brief description of event highlights].\n\n📍 [Location]\n📅 [Date]\n🕐 [Time]\n\nTap the link in bio to register and secure your spot! #BrandName #PopUpEvent #[RelevantHashtag] #[CityName]",
+                      },
+                      {
+                        title: "Email Invitation Template",
+                        description:
+                          "Template for an email invitation to the pop-up event.",
+                        code: "Subject: You're Invited! [Brand Name] Pop-Up Event\n\nHi [Name],\n\nYou're invited to an exclusive experience with [Brand Name]!\n\nJoin us for our Pop-Up Event where you can [brief description of event highlights].\n\n[Date] at [Time] at [Location].\n\nRegister now: [Link to registration]\n\nWe can't wait to see you there!\n\nBest,\nThe [Brand Name] Team",
+                      },
+                      {
+                        title: "Influencer Outreach Email Template",
+                        description: "Template for contacting influencers.",
+                        code: "Subject: Invitation to the [Brand Name] Pop-Up Event!\n\nHi [Influencer Name],\n\nWe're hosting a unique pop-up event in [City Name] on [Date] to showcase [Brand's core offering]. We'd be honored if you could attend and share your experience with your audience.\n\nWe would love to offer you [Complimentary offer such as VIP access].\n\nLet us know if you're interested!\n\nBest,\nThe [Brand Name] Team",
+                      },
+                      {
+                        title: "Post-Event Survey Questions",
+                        description:
+                          "Sample questions for a post-event survey.",
+                        code: "How would you rate your overall experience at the event?\nWhat did you enjoy most about the event?\nWhat could we improve?\nWould you recommend this event to a friend?\nHow likely are you to purchase [Brand's product/service] after attending this event?\nWhat is your email address?",
+                      },
+                      {
+                        title: "QR Code Generator Link",
+                        description:
+                          "Link to a QR code generator for easy lead capture.",
+                        code: "www.qrcode-monkey.com",
+                      },
+                    ].map((resource, index) => (
+                      <div
+                        key={index}
+                        className="bg-cyan-900/20 border border-cyan-700/30 rounded-lg p-4"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Code className="w-5 h-5 text-cyan-400" />
+                            <h5 className="font-bold text-cyan-300">
+                              {resource.title}
+                            </h5>
+                          </div>
+                          <button className="text-cyan-400 hover:text-cyan-300 text-xs font-semibold">
+                            COPY
+                          </button>
+                        </div>
+                        <p className="text-sm text-slate-400 mb-3">
+                          {resource.description}
+                        </p>
+                        {resource.code && (
+                          <div className="bg-black/50 rounded p-3 overflow-x-auto">
+                            <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">
+                              {resource.code}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <h4 className="text-lg font-bold text-cyan-300 mb-4 mt-6">
+                    Recommended Tools
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      {
+                        name: "Canva",
+                        description:
+                          "Graphic design and content creation for social media, event materials, and presentations.",
+                        details:
+                          "Easy-to-use platform with pre-designed templates and drag-and-drop functionality for creating visually appealing content.",
+                      },
+                      {
+                        name: "Google Analytics",
+                        description:
+                          "Track website traffic and user behavior on event landing pages.",
+                        details:
+                          "Set up goals and track conversions to measure the effectiveness of marketing campaigns.",
+                      },
+                      {
+                        name: "Eventbrite/Similar Platform",
+                        description: "Event registration and ticketing.",
+                        details:
+                          "Use Eventbrite or a similar platform to manage event registrations, send out email reminders, and collect attendee data.",
+                      },
+                      {
+                        name: "Hootsuite/Buffer",
+                        description: "Social media scheduling and management.",
+                        details:
+                          "Schedule social media posts in advance, monitor social media activity, and track engagement metrics.",
+                      },
+                    ].map((tool, index) => (
+                      <div
+                        key={index}
+                        className="bg-cyan-900/20 border border-cyan-700/30 rounded-lg p-4"
+                      >
+                        <h5 className="font-bold text-cyan-300 mb-1">
+                          {tool.name}
+                        </h5>
+                        <p className="text-xs text-slate-400 mb-2">
+                          {tool.description}
+                        </p>
+                        <p className="text-xs text-slate-300">{tool.details}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Next Steps Timeline */}
+                <div className="bg-gradient-to-br from-indigo-900/30 to-slate-800/50 border border-indigo-700/30 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                      <Clock className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        Next Steps Timeline
+                      </h3>
+                      <p className="text-sm text-slate-400">
+                        Your roadmap to getting started
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-indigo-900/20 border border-indigo-700/30 rounded-lg p-4">
+                      <h5 className="text-sm font-bold text-indigo-300 mb-3 uppercase tracking-wider">
+                        Immediate (Today)
+                      </h5>
+                      <ul className="space-y-2 text-sm text-slate-300">
+                        <li className="flex items-start gap-2">
+                          <Sparkles className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
+                          <span>Finalize event concept document.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Sparkles className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
+                          <span>Secure the first event location.</span>
+                        </li>
+                      </ul>
+                    </div>
+                    <div className="bg-cyan-900/20 border border-cyan-700/30 rounded-lg p-4">
+                      <h5 className="text-sm font-bold text-cyan-300 mb-3 uppercase tracking-wider">
+                        Week 1
+                      </h5>
+                      <ul className="space-y-2 text-sm text-slate-300">
+                        <li className="flex items-start gap-2">
+                          <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                          <span>Create a detailed budget.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                          <span>
+                            Begin designing event branding & initial marketing
+                            assets.
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                    <div className="bg-purple-900/20 border border-purple-700/30 rounded-lg p-4">
+                      <h5 className="text-sm font-bold text-purple-300 mb-3 uppercase tracking-wider">
+                        Month 1
+                      </h5>
+                      <ul className="space-y-2 text-sm text-slate-300">
+                        <li className="flex items-start gap-2">
+                          <BarChart3 className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                          <span>
+                            Launch social media campaigns and start influencer
+                            outreach.
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <BarChart3 className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                          <span>
+                            Confirm event vendors and finalize contracts.
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div className="bg-slate-800/50 border-t border-blue-700/30 p-4 flex items-center justify-between">
+              <p className="text-sm text-slate-400">
+                Comprehensive action plan by Latent Genius • Ready for immediate
+                implementation
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="border-emerald-500 text-emerald-400 hover:bg-emerald-500/10"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Email Action Plan
+                </Button>
+                <Button
+                  onClick={handleCloseActionPlan}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                >
+                  Close Action Plan
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Review Solution Modal */}
+      {showModal && selectedStrategy && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={handleCloseModal}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700 rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-cyan-600 p-6 relative">
+              <button
+                onClick={handleCloseModal}
+                className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <div className="flex items-center gap-4">
+                <div
+                  className={`w-16 h-16 rounded-xl flex items-center justify-center bg-gradient-to-br ${selectedStrategy.gradient} text-white shadow-lg`}
+                >
+                  {getStrategyIcon(selectedStrategy.icon)}
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-white mb-1">
+                    Solution #{selectedStrategy.id} Deep Dive
+                  </h2>
+                  <p className="text-purple-100">{selectedStrategy.title}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="overflow-y-auto max-h-[calc(90vh-180px)] p-6 space-y-6">
+              {/* Identified Top Result */}
+              <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center">
+                    <Target className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      Identified Top Result
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Refined through 8-stage AI process
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-purple-400 mb-1 uppercase tracking-wider">
+                      Headline
+                    </h4>
+                    <p className="text-white text-lg">
+                      {selectedStrategy.title}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-cyan-400 mb-1 uppercase tracking-wider">
+                      Pitch
+                    </h4>
+                    <p className="text-slate-300 leading-relaxed">
+                      {selectedStrategy.description}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-pink-400 mb-1 uppercase tracking-wider">
+                      Why It Stands Out
+                    </h4>
+                    <p className="text-slate-300 leading-relaxed">
+                      {selectedStrategy.whyItStandsOut}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Innovation Category */}
+              <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 border border-emerald-700/50 rounded-xl p-6">
+                <h3 className="text-xl font-bold text-cyan-400 mb-4">
+                  Innovation Category
+                </h3>
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-full font-semibold">
+                  <Sparkles className="w-4 h-4" />
+                  Core Bet{" "}
+                  <span className="text-emerald-100 text-sm">
+                    (High Impact + High Feasibility)
+                  </span>
+                </div>
+              </div>
+
+              {/* AI-Generated Insights */}
+              <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                    <Sparkles className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      AI-Generated Insights
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Intelligent categorization and attributes
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedStrategy.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className={`px-4 py-2 rounded-lg font-medium text-sm ${
+                        index % 3 === 0
+                          ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                          : index % 3 === 1
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                          : "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                      }`}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* AI Strategic Evaluation */}
+              <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                    <LineChart className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      AI Strategic Evaluation
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Comprehensive effectiveness analysis
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-lg font-semibold text-white">
+                        Overall Effectiveness
+                      </h4>
+                      <span className="text-3xl font-bold text-emerald-400">
+                        85%
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-slate-300">
+                            Market Opportunity
+                          </span>
+                          <span className="text-sm font-semibold text-emerald-400">
+                            90%
+                          </span>
+                        </div>
+                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-emerald-500 to-green-400"
+                            style={{ width: "90%" }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-slate-300">
+                            Implementation Feasibility
+                          </span>
+                          <span className="text-sm font-semibold text-blue-400">
+                            80%
+                          </span>
+                        </div>
+                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                            style={{ width: "80%" }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-slate-300">
+                            Competitive Advantage
+                          </span>
+                          <span className="text-sm font-semibold text-purple-400">
+                            85%
+                          </span>
+                        </div>
+                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-purple-500 to-pink-400"
+                            style={{ width: "85%" }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-slate-300">
+                            Revenue Potential
+                          </span>
+                          <span className="text-sm font-semibold text-cyan-400">
+                            85%
+                          </span>
+                        </div>
+                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-cyan-500 to-teal-400"
+                            style={{ width: "85%" }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-emerald-900/30 to-green-900/20 border border-emerald-700/50 rounded-xl p-5">
+                    <h4 className="text-sm font-bold text-emerald-400 mb-3 uppercase tracking-wider">
+                      Key Strength
+                    </h4>
+                    <p className="text-slate-200 italic leading-relaxed">
+                      "Strong market demand with clear monetization path"
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Complete API Response */}
+              <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center">
+                    <Target className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      Complete API Response
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Full raw data for this solution
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-black rounded-lg p-4 overflow-x-auto">
+                  <pre className="text-xs text-green-400 font-mono">
+                    {`{
+  "solutionIndex": ${selectedStrategy.id - 1},
+  "finalResult": {
+    "headline": "${selectedStrategy.title}",
+    "pitch": "${selectedStrategy.description}",
+    "whyItStandsOut": "${selectedStrategy.whyItStandsOut}",
+    "category": "Core Bet"
+  },
+  "aiTags": {
+    "index": ${selectedStrategy.id - 1},
+    "tags": [${selectedStrategy.tags.map((tag) => `"${tag}"`).join(", ")}]
+  },
+  "evaluation": {
+    "overallEffectiveness": 85,
+    "marketOpportunity": 90,
+    "implementationFeasibility": 80,
+    "competitiveAdvantage": 85,
+    "revenuePotential": 85,
+    "keyStrength": "Strong market demand with clear monetization path"
+  }
+}`}
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-800/50 border-t border-slate-700 p-4 flex items-center justify-between">
+              <p className="text-sm text-slate-400">
+                Solution #{selectedStrategy.id} • Generated through 8-stage AI
+                synthesis • Full transparency view
+              </p>
+              <Button
+                onClick={handleCloseModal}
+                className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white"
+              >
+                Close Solution Review
+              </Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       <Footer />
     </div>
