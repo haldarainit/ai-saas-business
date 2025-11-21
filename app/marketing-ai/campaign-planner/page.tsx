@@ -64,7 +64,8 @@ export default function CampaignPlannerAI() {
 
   const loadingStages = [
     { icon: <Sparkles className="w-8 h-8" />, text: "Analyzing your prompt" },
-    { icon: <Zap className="w-8 h-8" />, text: "Researching market trends" },
+    { icon: <Globe className="w-8 h-8" />, text: "Scraping your website" },
+    { icon: <Zap className="w-8 h-8" />, text: "Understanding your business" },
     {
       icon: <TrendingUp className="w-8 h-8" />,
       text: "Identifying opportunities",
@@ -262,20 +263,20 @@ export default function CampaignPlannerAI() {
                     />
                     <p className="text-sm text-muted-foreground mt-2 flex items-center gap-2">
                       <Sparkles className="w-4 h-4" />
-                      The more detail, the better. Add URLs for competitor
-                      analysis.
+                      The more detail, the better. Add your website URL below
+                      for AI to learn about your business.
                     </p>
                   </div>
-
                   {/* URL Input Section */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Link2 className="w-4 h-4" />
+                      <Globe className="w-4 h-4" />
                       <span className="font-medium">
-                        Reference URLs (Optional)
+                        Your Website URL (Optional)
                       </span>
                       <span className="text-xs">
-                        - Add competitor sites or articles for analysis
+                        - AI will analyze your landing page to create
+                        personalized strategies
                       </span>
                     </div>
 
@@ -306,7 +307,7 @@ export default function CampaignPlannerAI() {
                       <Input
                         value={urlInput}
                         onChange={(e) => setUrlInput(e.target.value)}
-                        placeholder="https://example.com/competitor-analysis"
+                        placeholder="https://your-company-website.com"
                         className="flex-1 bg-background border-border"
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
@@ -327,8 +328,13 @@ export default function CampaignPlannerAI() {
                         Add URL
                       </Button>
                     </div>
-                  </div>
-
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Globe className="w-3 h-3" />
+                      AI will scrape your website to understand your business,
+                      products, and value proposition for personalized campaign
+                      strategies
+                    </p>
+                  </div>{" "}
                   <Button
                     type="submit"
                     size="lg"
@@ -413,8 +419,11 @@ export default function CampaignPlannerAI() {
 
               <p className="text-sm text-muted-foreground mt-12 text-center">
                 <Sparkles className="w-4 h-4 inline mr-2" />
-                Tip: You can generate 4 additional strategies with
-                industry-leading AI models.
+                {urls.length > 0
+                  ? `Analyzing ${urls.length} website${
+                      urls.length > 1 ? "s" : ""
+                    } to understand your business and create personalized strategies...`
+                  : "Tip: Add your website URL for AI to create highly personalized campaign strategies"}
               </p>
             </motion.div>
           )}

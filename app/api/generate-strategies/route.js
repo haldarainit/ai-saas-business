@@ -15,56 +15,116 @@ export async function POST(request) {
     console.log("Generating strategies with:", {
       prompt,
       urlCount: urls.length,
+      urls: urls,
     });
 
-    // Import Gemini AI
+    // STEP 1: Complete ALL scraping FIRST before generating AI content
+    let urlContext = "";
+    if (urls && urls.length > 0) {
+      console.log(`🌐 Starting web scraping for ${urls.length} URL(s)...`);
+      urlContext = "\n\n--- BUSINESS/PRODUCT CONTEXT FROM YOUR WEBSITE ---\n";
+
+      // Scrape all URLs sequentially and wait for completion
+      for (const url of urls) {
+        try {
+          console.log(`📡 Scraping website: ${url}`);
+
+          // Use our web scraper API internally
+          const scrapeResponse = await fetch(
+            `${
+              process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+            }/api/scrape-website`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ url }),
+            }
+          );
+
+          if (scrapeResponse.ok) {
+            const scrapeData = await scrapeResponse.json();
+
+            if (scrapeData.success && scrapeData.data) {
+              const data = scrapeData.data;
+              console.log(`✅ Successfully scraped: ${url}`);
+              console.log(`   - Title: ${data.title}`);
+              console.log(
+                `   - Content length: ${data.summary?.length || 0} chars`
+              );
+
+              urlContext += `\n\n📊 WEBSITE CONTENT FROM: ${url}\n`;
+              urlContext += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+              urlContext += `Page Title: ${data.title}\n`;
+              urlContext += `Meta Description: ${data.metaDescription}\n\n`;
+
+              if (data.headings && data.headings.length > 0) {
+                urlContext += `Main Headings & Sections:\n${data.headings
+                  .slice(0, 15)
+                  .join("\n")}\n\n`;
+              }
+
+              urlContext += `Detailed Website Analysis:\n${data.summary}\n`;
+              urlContext += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+            } else {
+              console.log(`⚠️ Could not fully analyze ${url}`);
+              urlContext += `\n\n⚠️ Could not fully analyze ${url}\n`;
+            }
+          } else {
+            console.error(
+              `❌ Scraper API failed for ${url}: ${scrapeResponse.status}`
+            );
+            urlContext += `\n\n⚠️ Unable to scrape ${url}\n`;
+          }
+        } catch (error) {
+          console.error(`❌ Error scraping URL ${url}:`, error);
+          urlContext += `\n\n⚠️ Error analyzing ${url}: ${error.message}\n`;
+        }
+      }
+      urlContext += "\n--- END OF WEBSITE CONTEXT ---\n\n";
+      console.log(
+        `✅ Scraping complete. Total context length: ${urlContext.length} chars`
+      );
+    } else {
+      console.log("ℹ️ No URLs provided - generating generic strategies");
+    }
+
+    // STEP 2: Now that scraping is COMPLETE, import Gemini and generate AI response
+    console.log("🤖 Starting AI strategy generation...");
     const geminiModule = await import("../../../utils/gemini.js");
     const gemini = geminiModule.default || geminiModule;
 
-    // Fetch URL content if provided
-    let urlContext = "";
-    if (urls && urls.length > 0) {
-      urlContext = "\n\n--- ADDITIONAL CONTEXT FROM PROVIDED URLS ---\n";
-      for (const url of urls) {
-        try {
-          const response = await fetch(url, {
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            },
-          });
-          if (response.ok) {
-            const html = await response.text();
-            // Simple HTML text extraction
-            let text = html
-              .replace(/<script[^>]*>.*?<\/script>/gis, "")
-              .replace(/<style[^>]*>.*?<\/style>/gis, "")
-              .replace(/<[^>]+>/g, " ")
-              .replace(/\s+/g, " ")
-              .trim()
-              .substring(0, 5000); // Limit length
-
-            urlContext += `\n\nContent from ${url}:\n${text}\n`;
-          }
-        } catch (error) {
-          console.error(`Error fetching URL ${url}:`, error);
-          urlContext += `\n\nNote: Could not fetch content from ${url}\n`;
-        }
-      }
-      urlContext += "\n--- END OF URL CONTENT ---\n\n";
-    }
-
     // Create the prompt for generating multiple strategies
-    const systemPrompt = `You are a world-class marketing strategist AI. Analyze this marketing challenge and generate 4-6 DISTINCT, creative campaign strategies.
-
-User's Goal/Challenge:
-${prompt}
-${urlContext}
+    const systemPrompt = `You are a world-class marketing strategist AI. Your task is to analyze the business/product information provided and create 4-6 HIGHLY PERSONALIZED marketing campaign strategies.
 
 ${
   urlContext
-    ? "**IMPORTANT**: Incorporate competitive insights and industry trends from the provided URLs throughout your strategies.\n"
-    : ""
+    ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 CRITICAL CONTEXT - READ CAREFULLY 🎯
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The user has provided their website URL, and we have scraped comprehensive information about their business. Below is DETAILED INFORMATION about their business, products, services, value proposition, and target audience.
+
+**YOUR PRIMARY TASK**: Use this scraped website data to create SPECIFIC, PERSONALIZED marketing strategies that are tailored to THIS EXACT BUSINESS. Do NOT create generic strategies. Reference their specific products, services, value propositions, and target audiences from the website content below.
+
+${urlContext}
+
+USER'S SPECIFIC MARKETING GOAL/CHALLENGE:
+${prompt}
+
+**MANDATORY REQUIREMENTS**:
+1. Every strategy MUST reference specific elements from the website content above
+2. Tailor strategies to their actual products/services mentioned in the scraped content
+3. Address their specific target audience identified in the website
+4. Leverage their unique value propositions and differentiators
+5. Make strategies actionable based on their current offerings and positioning
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+    : `USER'S MARKETING GOAL/CHALLENGE:
+${prompt}
+
+**NOTE**: No website URL was provided. Create strategies based on the user's prompt, but keep them adaptable and broadly applicable.`
 }
 
 Generate 4-6 diverse marketing campaign strategies. Each strategy should be DISTINCTLY DIFFERENT and cover various marketing channels/approaches.
@@ -97,8 +157,16 @@ Example format:
   }
 ]`;
 
+    console.log("📝 AI Prompt created. Length:", systemPrompt.length, "chars");
+    if (urlContext) {
+      console.log("   ✅ Includes scraped website data");
+    }
+    console.log("🚀 Sending to Gemini AI...");
+
     // Generate AI response
     const aiResponse = await gemini.generateAIResponse(systemPrompt);
+
+    console.log("✅ AI Response received. Length:", aiResponse.length, "chars");
 
     console.log("Raw AI response:", aiResponse);
 
