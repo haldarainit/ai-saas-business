@@ -8,7 +8,7 @@ import {
 } from "@codesandbox/sandpack-react";
 import Lookup from "@/data/Lookup";
 import SandpackPreviewClient from "./SandpackPreviewClient";
-import { Loader2, Code2, Eye, Download, Upload } from "lucide-react";
+import { Loader2, Code2, Eye, Download, Upload, Trash2 } from "lucide-react";
 import { ActionContext } from "@/contexts/ActionContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -19,13 +19,15 @@ interface CodeViewWorkspaceProps {
     generatedCode?: any;
     isGenerating?: boolean;
     onCodeChange?: (files: any) => void;
+    onDelete?: () => void;
 }
 
 export default function CodeViewWorkspace({
     workspaceId,
     generatedCode,
     isGenerating,
-    onCodeChange
+    onCodeChange,
+    onDelete
 }: CodeViewWorkspaceProps) {
     const [activeTab, setActiveTab] = useState<"code" | "preview">("preview");
     const [files, setFiles] = useState(Lookup.DEFAULT_FILE);
@@ -89,6 +91,12 @@ export default function CodeViewWorkspace({
         toast.success("Deploying to CodeSandbox...");
     };
 
+    const handleDelete = () => {
+        if (confirm("Are you sure you want to delete this workspace? This action cannot be undone.")) {
+            onDelete?.();
+        }
+    };
+
     return (
         <div className="relative h-full flex flex-col">
             {/* Header with tabs and actions */}
@@ -120,6 +128,16 @@ export default function CodeViewWorkspace({
 
                     {/* Action Buttons */}
                     <div className="flex items-center gap-2">
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleDelete}
+                            className="gap-2 bg-red-600 hover:bg-red-700 text-white"
+                            disabled={loading || isGenerating}
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                        </Button>
                         <Button
                             variant="outline"
                             size="sm"

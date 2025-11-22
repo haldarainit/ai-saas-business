@@ -317,6 +317,33 @@ export default function LandingPageBuilder() {
     }
   }
 
+  const handleDeleteWorkspace = async () => {
+    if (!workspaceId) return
+    await handleDeleteWorkspaceById(workspaceId)
+  }
+
+  const handleDeleteWorkspaceById = async (id: string) => {
+    try {
+      const response = await fetch(`/api/workspace/${id}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        toast.success("Workspace deleted successfully")
+        if (workspaceId === id) {
+          setWorkspaceId(null)
+          setShowForm(false)
+          router.push("/landing-page-builder")
+        }
+      } else {
+        toast.error("Failed to delete workspace")
+      }
+    } catch (error) {
+      console.error("Error deleting workspace:", error)
+      toast.error("Failed to delete workspace")
+    }
+  }
+
   // Render logic
   if (showForm) {
     return (
@@ -342,6 +369,7 @@ export default function LandingPageBuilder() {
             userId={CURRENT_USER_ID}
             onSelectWorkspace={handleSwitchWorkspace}
             onCreateNew={handleNewWorkspace}
+            onDeleteWorkspace={handleDeleteWorkspaceById}
           />
         </main>
         <Footer />
@@ -409,6 +437,7 @@ export default function LandingPageBuilder() {
                 generatedCode={currentCode}
                 isGenerating={isLoading}
                 onCodeChange={handleCodeChange}
+                onDelete={handleDeleteWorkspace}
               />
             </div>
           </div>

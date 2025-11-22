@@ -1,6 +1,5 @@
-"use client";
 import React, { useEffect, useState } from 'react';
-import { Plus, Folder, ArrowRight, Clock, Loader2 } from 'lucide-react';
+import { Plus, Folder, ArrowRight, Clock, Loader2, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from 'date-fns';
@@ -10,15 +9,17 @@ interface Workspace {
     name: string;
     createdAt: string;
     updatedAt: string;
+    fileData?: any;
 }
 
 interface DashboardProps {
     userId: string;
     onSelectWorkspace: (id: string) => void;
     onCreateNew: () => void;
+    onDeleteWorkspace: (id: string) => void;
 }
 
-export default function Dashboard({ userId, onSelectWorkspace, onCreateNew }: DashboardProps) {
+export default function Dashboard({ userId, onSelectWorkspace, onCreateNew, onDeleteWorkspace }: DashboardProps) {
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -38,6 +39,31 @@ export default function Dashboard({ userId, onSelectWorkspace, onCreateNew }: Da
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleDelete = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (confirm("Are you sure you want to delete this workspace?")) {
+            onDeleteWorkspace(id);
+            // Optimistically remove from list
+            setWorkspaces(prev => prev.filter(w => w._id !== id));
+        }
+    };
+
+    const getPreviewContent = (files: any) => {
+        if (!files) return null;
+
+        // Try to find Hero.js or App.js
+        const heroFile = files['/components/Hero.js']?.code || files['/App.js']?.code;
+        if (!heroFile) return null;
+
+        // Extract h1 text using regex
+        const h1Match = heroFile.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+        if (h1Match && h1Match[1]) {
+            return h1Match[1].trim();
+        }
+
+        return null;
     };
 
     if (loading) {
@@ -74,29 +100,51 @@ export default function Dashboard({ userId, onSelectWorkspace, onCreateNew }: Da
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {workspaces.map((workspace) => (
-                        <Card
-                            key={workspace._id}
-                            className="bg-gray-900 border-gray-800 hover:border-blue-500/50 transition-all cursor-pointer group"
-                            onClick={() => onSelectWorkspace(workspace._id)}
-                        >
-                            <CardHeader>
-                                <CardTitle className="text-white flex items-center justify-between">
-                                    <span className="truncate">{workspace.name}</span>
-                                    <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
-                                </CardTitle>
-                                <CardDescription className="flex items-center gap-2 text-gray-400">
-                                    <Clock className="w-3 h-3" />
-                                    {formatDistanceToNow(new Date(workspace.updatedAt), { addSuffix: true })}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="h-24 bg-gray-950/50 rounded-md flex items-center justify-center border border-gray-800/50">
-                                    <span className="text-xs text-gray-600 font-mono">Preview</span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                    {workspaces.map((workspace) => {
+                        const previewText = getPreviewContent(workspace.fileData);
+                        return (
+                            <Card
+                                key={workspace._id}
+                                className="bg-gray-900 border-gray-800 hover:border-blue-500/50 transition-all cursor-pointer group relative"
+                                onClick={() => onSelectWorkspace(workspace._id)}
+                            >
+                                <CardHeader>
+                                    <CardTitle className="text-white flex items-center justify-between">
+                                        <span className="truncate max-w-[180px]">{workspace.name}</span>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-gray-500 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                                            onClick={(e) => handleDelete(e, workspace._id)}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </CardTitle>
+                                    <CardDescription className="flex items-center gap-2 text-gray-400">
+                                        <Clock className="w-3 h-3" />
+                                        {formatDistanceToNow(new Date(workspace.updatedAt), { addSuffix: true })}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="h-32 bg-gray-950/50 rounded-md flex items-center justify-center border border-gray-800/50 overflow-hidden relative group-hover:border-blue-500/20 transition-colors p-4">
+                                        {previewText ? (
+                                            <div className="text-center">
+                                                <p className="text-sm font-medium text-gray-300 line-clamp-2">"{previewText}"</p>
+                                                <span className="text-xs text-gray-600 mt-2 block">Landing Page</span>
+                                            </div>
+                                        ) : (
+                                            <div className="text-center">
+                                                <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-2">
+                                                    <Folder className="w-5 h-5 text-gray-500" />
+                                                </div>
+                                                <span className="text-xs text-gray-600 font-mono">No Preview</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                 </div>
             )}
         </div>
