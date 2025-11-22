@@ -63,6 +63,7 @@ export default function CampaignPlannerAI() {
   const [actionPlanLoading, setActionPlanLoading] = useState(false);
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [actionPlanData, setActionPlanData] = useState<any>(null);
 
   const loadingStages = [
     { icon: <Sparkles className="w-8 h-8" />, text: "Analyzing your prompt" },
@@ -181,6 +182,10 @@ export default function CampaignPlannerAI() {
     setSelectedStrategy(null);
     setAnalysisData(null);
     setAnalysisLoading(false);
+    setShowActionPlan(false);
+    setActionPlanStrategy(null);
+    setActionPlanData(null);
+    setActionPlanLoading(false);
   };
 
   const handleReviewSolution = async (strategy: CampaignStrategy) => {
@@ -227,17 +232,40 @@ export default function CampaignPlannerAI() {
     setActionPlanStrategy(strategy);
     setShowActionPlan(true);
     setActionPlanLoading(true);
+    setActionPlanData(null);
 
-    // Simulate loading for action plan generation
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/generate-action-plan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          strategy: strategy,
+          prompt: userPrompt,
+          websiteContext: urls.length > 0 ? urls.join(", ") : null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.actionPlan) {
+        setActionPlanData(data.actionPlan);
+      } else {
+        console.error("Failed to fetch action plan:", data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching action plan:", error);
+    } finally {
       setActionPlanLoading(false);
-    }, 2000);
+    }
   };
 
   const handleCloseActionPlan = () => {
     setShowActionPlan(false);
     setActionPlanStrategy(null);
     setActionPlanLoading(false);
+    setActionPlanData(null);
   };
 
   return (
@@ -628,7 +656,7 @@ export default function CampaignPlannerAI() {
                   Analyzing your breakthrough solution...
                 </p>
               </div>
-            ) : (
+            ) : actionPlanData ? (
               <div className="overflow-y-auto max-h-[calc(90vh-180px)] p-6 space-y-6">
                 {/* Project Brief */}
                 <div className="bg-slate-800/50 border border-blue-700/30 rounded-xl p-6">
@@ -646,13 +674,10 @@ export default function CampaignPlannerAI() {
                     </div>
                   </div>
                   <h4 className="text-2xl font-bold text-blue-300 mb-4">
-                    {actionPlanStrategy.title} Launch
+                    {actionPlanData.projectBrief.title}
                   </h4>
                   <p className="text-slate-300 leading-relaxed mb-6">
-                    {actionPlanStrategy.description} The campaign will be
-                    designed to create memorable brand experiences and drive
-                    engagement through strategic execution across multiple
-                    touchpoints.
+                    {actionPlanData.projectBrief.overview}
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -660,27 +685,14 @@ export default function CampaignPlannerAI() {
                         Key Objectives
                       </h5>
                       <ul className="space-y-2 text-sm text-slate-300">
-                        <li className="flex items-start gap-2">
-                          <Sparkles className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                          <span>
-                            Increase brand awareness by 25% within the target
-                            demographic.
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <Sparkles className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                          <span>
-                            Generate 10,000+ leads through event registrations
-                            and interactions.
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <Sparkles className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                          <span>
-                            Achieve a Net Promoter Score (NPS) of 60 or higher
-                            from event attendees.
-                          </span>
-                        </li>
+                        {actionPlanData.projectBrief.keyObjectives.map(
+                          (objective: string, index: number) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <Sparkles className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                              <span>{objective}</span>
+                            </li>
+                          )
+                        )}
                       </ul>
                     </div>
                     <div>
@@ -688,30 +700,14 @@ export default function CampaignPlannerAI() {
                         Success Metrics
                       </h5>
                       <ul className="space-y-2 text-sm text-slate-300">
-                        <li className="flex items-start gap-2">
-                          <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-                          <span>Number of attendees at each pop-up event.</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-                          <span>
-                            Social media engagement (likes, shares, comments)
-                            per event.
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-                          <span>
-                            Lead generation through event registrations and data
-                            capture.
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-                          <span>
-                            Post-event survey responses (NPS, feedback).
-                          </span>
-                        </li>
+                        {actionPlanData.projectBrief.successMetrics.map(
+                          (metric: string, index: number) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                              <span>{metric}</span>
+                            </li>
+                          )
+                        )}
                       </ul>
                     </div>
                   </div>
@@ -738,11 +734,7 @@ export default function CampaignPlannerAI() {
                         Market Opportunity
                       </h5>
                       <p className="text-sm text-slate-300 leading-relaxed">
-                        The market for experiential marketing is growing
-                        rapidly, with consumers increasingly seeking authentic
-                        and engaging brand experiences. This campaign offers a
-                        cost-effective way to reach a targeted audience and
-                        create buzz.
+                        {actionPlanData.strategicAnalysis.marketOpportunity}
                       </p>
                     </div>
                     <div className="bg-emerald-900/20 border border-emerald-700/30 rounded-lg p-4">
@@ -750,11 +742,7 @@ export default function CampaignPlannerAI() {
                         Competitive Advantage
                       </h5>
                       <p className="text-sm text-slate-300 leading-relaxed">
-                        Our strategy will differentiate through: 1) Highly
-                        interactive and shareable experiences; 2) Integration of
-                        sustainable practices and materials; 3) Strategic
-                        location selection; 4) Strong social media integration
-                        with influencer partnerships.
+                        {actionPlanData.strategicAnalysis.competitiveAdvantage}
                       </p>
                     </div>
                     <div className="bg-red-900/20 border border-red-700/30 rounded-lg p-4">
@@ -762,10 +750,7 @@ export default function CampaignPlannerAI() {
                         Risk Assessment
                       </h5>
                       <p className="text-sm text-slate-300 leading-relaxed">
-                        Risks include: 1) Low attendance; mitigation: targeted
-                        marketing campaigns. 2) Weather dependencies;
-                        mitigation: backup indoor locations. 3) Budget overruns;
-                        mitigation: detailed cost planning.
+                        {actionPlanData.strategicAnalysis.riskAssessment}
                       </p>
                     </div>
                     <div className="bg-amber-900/20 border border-amber-700/30 rounded-lg p-4">
@@ -773,10 +758,7 @@ export default function CampaignPlannerAI() {
                         Resource Requirements
                       </h5>
                       <p className="text-sm text-slate-300 leading-relaxed">
-                        Resources include: Budget ($50,000 - $100,000 depending
-                        on scale); Team (5-7 staff); Vendors (contractors, AV,
-                        catering); Technology (registration platform, CRM);
-                        Timeline (3-4 months planning to execution).
+                        {actionPlanData.strategicAnalysis.resourceRequirements}
                       </p>
                     </div>
                   </div>
@@ -798,162 +780,83 @@ export default function CampaignPlannerAI() {
                     </div>
                   </div>
 
-                  {/* Phase 1 */}
-                  <div className="bg-gradient-to-br from-orange-900/20 to-slate-800/30 border border-orange-700/30 rounded-lg p-5 mb-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold">
-                        1
+                  {/* Dynamic Phases */}
+                  {actionPlanData.executionPhases.map(
+                    (phase: any, index: number) => (
+                      <div
+                        key={phase.phaseNumber}
+                        className={`bg-gradient-to-br from-orange-900/20 to-slate-800/30 border border-orange-700/30 rounded-lg p-5 ${
+                          index < actionPlanData.executionPhases.length - 1
+                            ? "mb-4"
+                            : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold">
+                            {phase.phaseNumber}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-lg font-bold text-orange-300">
+                              {phase.title}
+                            </h4>
+                            <p className="text-xs text-slate-400">
+                              {phase.duration}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-sm text-slate-300 mb-4 leading-relaxed">
+                          {phase.description}
+                        </p>
+                        {(phase.deliverables?.length > 0 ||
+                          phase.milestones?.length > 0) && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {phase.deliverables &&
+                              phase.deliverables.length > 0 && (
+                                <div>
+                                  <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
+                                    Deliverables
+                                  </h5>
+                                  <ul className="space-y-1.5 text-sm text-slate-300">
+                                    {phase.deliverables.map(
+                                      (deliverable: string, idx: number) => (
+                                        <li
+                                          key={idx}
+                                          className="flex items-center gap-2"
+                                        >
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
+                                          <span>{deliverable}</span>
+                                        </li>
+                                      )
+                                    )}
+                                  </ul>
+                                </div>
+                              )}
+                            {phase.milestones &&
+                              phase.milestones.length > 0 && (
+                                <div>
+                                  <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
+                                    Milestones
+                                  </h5>
+                                  <ul className="space-y-1.5 text-sm text-slate-300">
+                                    {phase.milestones.map(
+                                      (milestone: string, idx: number) => (
+                                        <li
+                                          key={idx}
+                                          className="flex items-center gap-2"
+                                        >
+                                          <Sparkles className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
+                                          <span>{milestone}</span>
+                                        </li>
+                                      )
+                                    )}
+                                  </ul>
+                                </div>
+                              )}
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <h4 className="text-lg font-bold text-orange-300">
-                          Phase 1: Planning and Design (4 weeks)
-                        </h4>
-                        <p className="text-xs text-slate-400">4 weeks</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-300 mb-4 leading-relaxed">
-                      Define event concept, themes, and activities. Secure
-                      locations and vendors. Develop event branding and
-                      marketing materials.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
-                          Deliverables
-                        </h5>
-                        <ul className="space-y-1.5 text-sm text-slate-300">
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
-                            Event concept and design document
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
-                            Venue contracts and permits
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
-                            Vendor agreements
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
-                            Marketing plan and budget
-                          </li>
-                        </ul>
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
-                          Milestones
-                        </h5>
-                        <ul className="space-y-1.5 text-sm text-slate-300">
-                          <li className="flex items-center gap-2">
-                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                            Concept finalized and approved (Week 1)
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                            Venue and vendors secured (Week 2)
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                            Marketing plan approved (Week 3)
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                            Detailed budget finalized (Week 4)
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Phase 2 */}
-                  <div className="bg-gradient-to-br from-orange-900/20 to-slate-800/30 border border-orange-700/30 rounded-lg p-5 mb-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold">
-                        2
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-bold text-orange-300">
-                          Phase 2: Content Creation and Production (6 weeks)
-                        </h4>
-                        <p className="text-xs text-slate-400">6 weeks</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-300 mb-4 leading-relaxed">
-                      Develop interactive exhibits, create content (videos,
-                      graphics, etc.), and produce all necessary event
-                      materials. Build out event website and social media
-                      presence.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
-                          Deliverables
-                        </h5>
-                        <ul className="space-y-1.5 text-sm text-slate-300">
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
-                            Interactive exhibit prototypes
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
-                            Event website and landing pages
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
-                            Social media content calendar
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
-                            Promotional videos and graphics
-                          </li>
-                        </ul>
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
-                          Milestones
-                        </h5>
-                        <ul className="space-y-1.5 text-sm text-slate-300">
-                          <li className="flex items-center gap-2">
-                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                            Exhibit prototypes approved (Week 6)
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                            Website and landing pages launched (Week 8)
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                            Social media content calendar finalized (Week 9)
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                            Promotional materials finalized (Week 10)
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Phase 3 */}
-                  <div className="bg-gradient-to-br from-orange-900/20 to-slate-800/30 border border-orange-700/30 rounded-lg p-5">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold">
-                        3
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-bold text-orange-300">
-                          Phase 3: Pre-Event Marketing and Promotion (4 weeks)
-                        </h4>
-                        <p className="text-xs text-slate-400">4 weeks</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-300 mb-4 leading-relaxed">
-                      Launch pre-event marketing campaigns, build anticipation,
-                      and drive registrations. Secure media and influencer
-                      partnerships.
-                    </p>
-                  </div>
+                    )
+                  )}
                 </div>
 
                 {/* Action Items Checklist */}
@@ -972,48 +875,42 @@ export default function CampaignPlannerAI() {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    {[
-                      {
-                        priority: "High",
-                        time: "Week 1",
-                        task: "Finalize event concept and theme, including interactive elements, brand integration, and overall user experience.",
-                      },
-                      {
-                        priority: "High",
-                        time: "Weeks 2-6",
-                        task: "Design and build interactive exhibits and activities, ensuring they align with the brand narrative and are visually appealing and engaging.",
-                      },
-                      {
-                        priority: "High",
-                        time: "Weeks 3-4",
-                        task: "Develop a comprehensive social media marketing plan, including content calendars, influencer outreach strategies, and paid advertising campaigns.",
-                      },
-                    ].map((item, index) => (
-                      <div
-                        key={index}
-                        className="bg-slate-700/30 border border-slate-600 rounded-lg p-4 hover:border-emerald-500/50 transition-colors"
-                      >
-                        <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            className="mt-1 w-4 h-4 rounded border-slate-500"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="px-2 py-0.5 bg-red-500/20 text-red-300 text-xs font-semibold rounded">
-                                {item.priority}
-                              </span>
-                              <span className="px-2 py-0.5 bg-slate-600 text-slate-300 text-xs rounded">
-                                {item.time}
-                              </span>
+                    {actionPlanData.actionItems.map(
+                      (item: any, index: number) => (
+                        <div
+                          key={index}
+                          className="bg-slate-700/30 border border-slate-600 rounded-lg p-4 hover:border-emerald-500/50 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              className="mt-1 w-4 h-4 rounded border-slate-500"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span
+                                  className={`px-2 py-0.5 text-xs font-semibold rounded ${
+                                    item.priority === "High"
+                                      ? "bg-red-500/20 text-red-300"
+                                      : item.priority === "Medium"
+                                      ? "bg-yellow-500/20 text-yellow-300"
+                                      : "bg-blue-500/20 text-blue-300"
+                                  }`}
+                                >
+                                  {item.priority}
+                                </span>
+                                <span className="px-2 py-0.5 bg-slate-600 text-slate-300 text-xs rounded">
+                                  {item.timeframe}
+                                </span>
+                              </div>
+                              <p className="text-sm text-slate-300 leading-relaxed">
+                                {item.task}
+                              </p>
                             </div>
-                            <p className="text-sm text-slate-300 leading-relaxed">
-                              {item.task}
-                            </p>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    )}
                   </div>
                 </div>
 
@@ -1036,117 +933,65 @@ export default function CampaignPlannerAI() {
                     Content & Templates
                   </h4>
                   <div className="space-y-4">
-                    {[
-                      {
-                        title: "Event Landing Page Template",
-                        description:
-                          "A basic template for an event landing page, optimized for lead capture and registration.",
-                        code: '<!DOCTYPE html>\n<html>\n<head>\n  <title>[Brand Name] Pop-Up Event</title>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n</head>\n<body>\n  <!-- Event content here -->\n</body>\n</html>',
-                      },
-                      {
-                        title: "Social Media Post Template (Instagram)",
-                        description:
-                          "Template for an Instagram post to promote the pop-up event.",
-                        code: "🎉 You're Invited! 🎉\n\nJoin us at the [Brand Name] Pop-Up Event! Experience [brief description of event highlights].\n\n📍 [Location]\n📅 [Date]\n🕐 [Time]\n\nTap the link in bio to register and secure your spot! #BrandName #PopUpEvent #[RelevantHashtag] #[CityName]",
-                      },
-                      {
-                        title: "Email Invitation Template",
-                        description:
-                          "Template for an email invitation to the pop-up event.",
-                        code: "Subject: You're Invited! [Brand Name] Pop-Up Event\n\nHi [Name],\n\nYou're invited to an exclusive experience with [Brand Name]!\n\nJoin us for our Pop-Up Event where you can [brief description of event highlights].\n\n[Date] at [Time] at [Location].\n\nRegister now: [Link to registration]\n\nWe can't wait to see you there!\n\nBest,\nThe [Brand Name] Team",
-                      },
-                      {
-                        title: "Influencer Outreach Email Template",
-                        description: "Template for contacting influencers.",
-                        code: "Subject: Invitation to the [Brand Name] Pop-Up Event!\n\nHi [Influencer Name],\n\nWe're hosting a unique pop-up event in [City Name] on [Date] to showcase [Brand's core offering]. We'd be honored if you could attend and share your experience with your audience.\n\nWe would love to offer you [Complimentary offer such as VIP access].\n\nLet us know if you're interested!\n\nBest,\nThe [Brand Name] Team",
-                      },
-                      {
-                        title: "Post-Event Survey Questions",
-                        description:
-                          "Sample questions for a post-event survey.",
-                        code: "How would you rate your overall experience at the event?\nWhat did you enjoy most about the event?\nWhat could we improve?\nWould you recommend this event to a friend?\nHow likely are you to purchase [Brand's product/service] after attending this event?\nWhat is your email address?",
-                      },
-                      {
-                        title: "QR Code Generator Link",
-                        description:
-                          "Link to a QR code generator for easy lead capture.",
-                        code: "www.qrcode-monkey.com",
-                      },
-                    ].map((resource, index) => (
-                      <div
-                        key={index}
-                        className="bg-cyan-900/20 border border-cyan-700/30 rounded-lg p-4"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Code className="w-5 h-5 text-cyan-400" />
-                            <h5 className="font-bold text-cyan-300">
-                              {resource.title}
-                            </h5>
+                    {actionPlanData.templates.map(
+                      (template: any, index: number) => (
+                        <div
+                          key={index}
+                          className="bg-cyan-900/20 border border-cyan-700/30 rounded-lg p-4"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Code className="w-5 h-5 text-cyan-400" />
+                              <h5 className="font-bold text-cyan-300">
+                                {template.title}
+                              </h5>
+                            </div>
+                            <button
+                              onClick={() =>
+                                navigator.clipboard.writeText(template.content)
+                              }
+                              className="text-cyan-400 hover:text-cyan-300 text-xs font-semibold"
+                            >
+                              COPY
+                            </button>
                           </div>
-                          <button className="text-cyan-400 hover:text-cyan-300 text-xs font-semibold">
-                            COPY
-                          </button>
+                          <p className="text-sm text-slate-400 mb-3">
+                            {template.description}
+                          </p>
+                          {template.content && (
+                            <div className="bg-black/50 rounded p-3 overflow-x-auto">
+                              <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">
+                                {template.content}
+                              </pre>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-sm text-slate-400 mb-3">
-                          {resource.description}
-                        </p>
-                        {resource.code && (
-                          <div className="bg-black/50 rounded p-3 overflow-x-auto">
-                            <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">
-                              {resource.code}
-                            </pre>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      )
+                    )}
                   </div>
 
                   <h4 className="text-lg font-bold text-cyan-300 mb-4 mt-6">
                     Recommended Tools
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {[
-                      {
-                        name: "Canva",
-                        description:
-                          "Graphic design and content creation for social media, event materials, and presentations.",
-                        details:
-                          "Easy-to-use platform with pre-designed templates and drag-and-drop functionality for creating visually appealing content.",
-                      },
-                      {
-                        name: "Google Analytics",
-                        description:
-                          "Track website traffic and user behavior on event landing pages.",
-                        details:
-                          "Set up goals and track conversions to measure the effectiveness of marketing campaigns.",
-                      },
-                      {
-                        name: "Eventbrite/Similar Platform",
-                        description: "Event registration and ticketing.",
-                        details:
-                          "Use Eventbrite or a similar platform to manage event registrations, send out email reminders, and collect attendee data.",
-                      },
-                      {
-                        name: "Hootsuite/Buffer",
-                        description: "Social media scheduling and management.",
-                        details:
-                          "Schedule social media posts in advance, monitor social media activity, and track engagement metrics.",
-                      },
-                    ].map((tool, index) => (
-                      <div
-                        key={index}
-                        className="bg-cyan-900/20 border border-cyan-700/30 rounded-lg p-4"
-                      >
-                        <h5 className="font-bold text-cyan-300 mb-1">
-                          {tool.name}
-                        </h5>
-                        <p className="text-xs text-slate-400 mb-2">
-                          {tool.description}
-                        </p>
-                        <p className="text-xs text-slate-300">{tool.details}</p>
-                      </div>
-                    ))}
+                    {actionPlanData.recommendedTools.map(
+                      (tool: any, index: number) => (
+                        <div
+                          key={index}
+                          className="bg-cyan-900/20 border border-cyan-700/30 rounded-lg p-4"
+                        >
+                          <h5 className="font-bold text-cyan-300 mb-1">
+                            {tool.name}
+                          </h5>
+                          <p className="text-xs text-slate-400 mb-2">
+                            {tool.description}
+                          </p>
+                          <p className="text-xs text-slate-300">
+                            {tool.details}
+                          </p>
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
 
@@ -1171,14 +1016,14 @@ export default function CampaignPlannerAI() {
                         Immediate (Today)
                       </h5>
                       <ul className="space-y-2 text-sm text-slate-300">
-                        <li className="flex items-start gap-2">
-                          <Sparkles className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                          <span>Finalize event concept document.</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <Sparkles className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                          <span>Secure the first event location.</span>
-                        </li>
+                        {actionPlanData.nextSteps.immediate.map(
+                          (step: string, index: number) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <Sparkles className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
+                              <span>{step}</span>
+                            </li>
+                          )
+                        )}
                       </ul>
                     </div>
                     <div className="bg-cyan-900/20 border border-cyan-700/30 rounded-lg p-4">
@@ -1186,17 +1031,14 @@ export default function CampaignPlannerAI() {
                         Week 1
                       </h5>
                       <ul className="space-y-2 text-sm text-slate-300">
-                        <li className="flex items-start gap-2">
-                          <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-                          <span>Create a detailed budget.</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-                          <span>
-                            Begin designing event branding & initial marketing
-                            assets.
-                          </span>
-                        </li>
+                        {actionPlanData.nextSteps.week1.map(
+                          (step: string, index: number) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                              <span>{step}</span>
+                            </li>
+                          )
+                        )}
                       </ul>
                     </div>
                     <div className="bg-purple-900/20 border border-purple-700/30 rounded-lg p-4">
@@ -1204,23 +1046,22 @@ export default function CampaignPlannerAI() {
                         Month 1
                       </h5>
                       <ul className="space-y-2 text-sm text-slate-300">
-                        <li className="flex items-start gap-2">
-                          <BarChart3 className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                          <span>
-                            Launch social media campaigns and start influencer
-                            outreach.
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <BarChart3 className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                          <span>
-                            Confirm event vendors and finalize contracts.
-                          </span>
-                        </li>
+                        {actionPlanData.nextSteps.month1.map(
+                          (step: string, index: number) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <BarChart3 className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                              <span>{step}</span>
+                            </li>
+                          )
+                        )}
                       </ul>
                     </div>
                   </div>
                 </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center p-12">
+                <p className="text-slate-400">No action plan data available</p>
               </div>
             )}
 
