@@ -5,10 +5,13 @@ import { NextResponse } from 'next/server';
 // GET - Get all workspaces for a user
 export async function GET(request) {
     try {
+        console.log("GET /api/workspace - Connecting to DB...");
         await dbConnect();
+        console.log("GET /api/workspace - Connected to DB");
 
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
+        console.log("GET /api/workspace - userId:", userId);
 
         if (!userId) {
             return NextResponse.json(
@@ -21,6 +24,7 @@ export async function GET(request) {
             .sort({ createdAt: -1 })
             .lean();
 
+        console.log(`GET /api/workspace - Found ${workspaces.length} workspaces`);
         return NextResponse.json({ workspaces });
     } catch (error) {
         console.error('Error fetching workspaces:', error);
@@ -34,10 +38,13 @@ export async function GET(request) {
 // POST - Create a new workspace
 export async function POST(request) {
     try {
+        console.log("POST /api/workspace - Connecting to DB...");
         await dbConnect();
+        console.log("POST /api/workspace - Connected to DB");
 
         const body = await request.json();
         const { name, userId } = body;
+        console.log("POST /api/workspace - Creating workspace:", { name, userId });
 
         if (!name || !userId) {
             return NextResponse.json(
@@ -53,6 +60,7 @@ export async function POST(request) {
             fileData: {}
         });
 
+        console.log("POST /api/workspace - Workspace created:", workspace._id);
         return NextResponse.json({
             success: true,
             workspace: workspace.toObject()

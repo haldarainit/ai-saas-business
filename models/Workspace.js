@@ -3,8 +3,7 @@ import mongoose from 'mongoose';
 const MessageSchema = new mongoose.Schema({
     role: {
         type: String,
-        required: true,
-        enum: ['user', 'ai', 'model', 'assistant']
+        required: true
     },
     content: {
         type: String,

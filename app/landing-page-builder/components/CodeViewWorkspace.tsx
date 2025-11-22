@@ -12,17 +12,20 @@ import { Loader2, Code2, Eye, Download, Upload } from "lucide-react";
 import { ActionContext } from "@/contexts/ActionContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import SandpackListener from "./SandpackListener";
 
 interface CodeViewWorkspaceProps {
     workspaceId: string;
     generatedCode?: any;
     isGenerating?: boolean;
+    onCodeChange?: (files: any) => void;
 }
 
 export default function CodeViewWorkspace({
     workspaceId,
     generatedCode,
-    isGenerating
+    isGenerating,
+    onCodeChange
 }: CodeViewWorkspaceProps) {
     const [activeTab, setActiveTab] = useState<"code" | "preview">("preview");
     const [files, setFiles] = useState(Lookup.DEFAULT_FILE);
@@ -160,6 +163,7 @@ export default function CodeViewWorkspace({
                         recompileDelay: 200,
                     }}
                 >
+                    {onCodeChange && <SandpackListener onCodeChange={onCodeChange} />}
                     <SandpackLayout style={{ height: "100%", width: "100%", display: "flex", flex: 1 }}>
                         <div style={{ display: activeTab === "code" ? "flex" : "none", height: "100%", width: "100%", flex: 1 }}>
                             <SandpackFileExplorer style={{ height: "100%", minHeight: "100%" }} />

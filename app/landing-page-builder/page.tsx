@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import ChatInterface from "./components/ChatInterface"
 import CodeViewWorkspace from "./components/CodeViewWorkspace"
@@ -49,7 +49,6 @@ export default function LandingPageBuilder() {
       loadWorkspace(workspaceIdFromUrl)
     } else {
       setWorkspaceId(null)
-      setShowForm(false)
     }
   }, [searchParams])
 
@@ -91,7 +90,9 @@ export default function LandingPageBuilder() {
     router.push("/landing-page-builder")
   }
 
-  const createWorkspace = async (name: string, userId: string = "default-user") => {
+  const CURRENT_USER_ID = "user-123"
+
+  const createWorkspace = async (name: string, userId: string = CURRENT_USER_ID) => {
     try {
       const response = await fetch("/api/workspace", {
         method: "POST",
@@ -113,24 +114,51 @@ export default function LandingPageBuilder() {
     return null
   }
 
-  const updateWorkspaceMessages = async (newMessages: Message[], newCode?: any) => {
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const updateWorkspaceMessages = useCallback(async (newMessages: Message[], newCode?: any) => {
     if (!workspaceId) return
 
-    try {
-      const body: any = { messages: newMessages }
-      if (newCode && newCode.files) {
-        body.fileData = newCode.files
-      }
-
-      await fetch(`/api/workspace/${workspaceId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-    } catch (error) {
-      console.error("Error updating workspace:", error)
+    // Debounce to prevent duplicate simultaneous updates
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current)
     }
-  }
+
+    updateTimeoutRef.current = setTimeout(async () => {
+      try {
+        const body: any = {}
+
+        // Only include messages if provided
+        if (newMessages && newMessages.length > 0) {
+          body.messages = newMessages
+        }
+
+        // Only include fileData if provided
+        if (newCode && newCode.files && Object.keys(newCode.files).length > 0) {
+          body.fileData = newCode.files
+        }
+
+        // Don't send empty requests
+        if (Object.keys(body).length === 0) {
+          console.log("Skipping empty update")
+          return
+        }
+
+        await fetch(`/api/workspace/${workspaceId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+      } catch (error) {
+        console.error("Error updating workspace:", error)
+      }
+    }, 500) // 500ms debounce
+  }, [workspaceId])
+
+  const handleCodeChange = useCallback(async (files: any) => {
+    setCurrentCode({ files })
+    await updateWorkspaceMessages(messages, { files })
+  }, [messages, updateWorkspaceMessages])
 
   const handleFormSubmit = async (details: BusinessDetails) => {
     setBusinessDetails(details)
@@ -141,6 +169,10 @@ export default function LandingPageBuilder() {
     if (!wsId) {
       wsId = await createWorkspace(details.businessName)
       if (!wsId) return
+
+      // Update URL with new workspace ID without reloading
+      const newUrl = `/landing-page-builder?workspace=${wsId}`
+      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl)
     }
 
     // Generate initial landing page based on form data
@@ -285,8 +317,6 @@ export default function LandingPageBuilder() {
     }
   }
 
-
-
   // Render logic
   if (showForm) {
     return (
@@ -309,7 +339,7 @@ export default function LandingPageBuilder() {
         <Navbar />
         <main className="flex-1">
           <Dashboard
-            userId="user-123"
+            userId={CURRENT_USER_ID}
             onSelectWorkspace={handleSwitchWorkspace}
             onCreateNew={handleNewWorkspace}
           />
@@ -378,6 +408,7 @@ export default function LandingPageBuilder() {
                 workspaceId={workspaceId}
                 generatedCode={currentCode}
                 isGenerating={isLoading}
+                onCodeChange={handleCodeChange}
               />
             </div>
           </div>

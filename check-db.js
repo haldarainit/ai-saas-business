@@ -1,5 +1,6 @@
 const { MongoClient } = require("mongodb");
-require("dotenv").config({ path: ".env.local" });
+require("dotenv").config(); // Load .env by default
+require("dotenv").config({ path: ".env.local", override: true }); // Override with .env.local if exists
 
 async function checkDatabase() {
   console.log("🔍 Checking MongoDB database...");

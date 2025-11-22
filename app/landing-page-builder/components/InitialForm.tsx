@@ -17,9 +17,10 @@ interface BusinessDetails {
 
 interface InitialFormProps {
     onSubmit: (details: BusinessDetails) => void
+    onCancel?: () => void
 }
 
-export default function InitialForm({ onSubmit }: InitialFormProps) {
+export default function InitialForm({ onSubmit, onCancel }: InitialFormProps) {
     const [businessName, setBusinessName] = useState("")
     const [targetAudience, setTargetAudience] = useState("")
     const [businessDescription, setBusinessDescription] = useState("")

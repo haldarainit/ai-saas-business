@@ -5,19 +5,22 @@ import { NextResponse } from 'next/server';
 // GET - Get a specific workspace by ID
 export async function GET(request, { params }) {
     try {
-        await dbConnect();
-
         const { id } = await params;
+        console.log(`GET /api/workspace/${id} - Connecting to DB...`);
+        await dbConnect();
+        console.log(`GET /api/workspace/${id} - Connected`);
 
         const workspace = await Workspace.findById(id).lean();
 
         if (!workspace) {
+            console.log(`GET /api/workspace/${id} - Not found`);
             return NextResponse.json(
                 { error: 'Workspace not found' },
                 { status: 404 }
             );
         }
 
+        console.log(`GET /api/workspace/${id} - Found`);
         return NextResponse.json({ workspace });
     } catch (error) {
         console.error('Error fetching workspace:', error);
@@ -31,15 +34,41 @@ export async function GET(request, { params }) {
 // PUT - Update workspace (messages and/or files)
 export async function PUT(request, { params }) {
     try {
-        await dbConnect();
-
         const { id } = await params;
-        const body = await request.json();
+        console.log(`PUT /api/workspace/${id} - Connecting to DB...`);
+        await dbConnect();
+        console.log(`PUT /api/workspace/${id} - Connected`);
+
+        let body;
+        try {
+            body = await request.json();
+        } catch (jsonError) {
+            console.error(`PUT /api/workspace/${id} - Invalid JSON:`, jsonError);
+            return NextResponse.json(
+                { error: 'Invalid request body' },
+                { status: 400 }
+            );
+        }
+
         const { messages, fileData } = body;
+        console.log(`PUT /api/workspace/${id} - Updating:`, {
+            hasMessages: !!messages,
+            messageCount: messages?.length,
+            hasFileData: !!fileData
+        });
 
         const updateData = {};
         if (messages !== undefined) updateData.messages = messages;
         if (fileData !== undefined) updateData.fileData = fileData;
+
+        // Don't update if nothing to update
+        if (Object.keys(updateData).length === 0) {
+            console.log(`PUT /api/workspace/${id} - Nothing to update`);
+            return NextResponse.json({
+                success: true,
+                message: 'No changes to save'
+            });
+        }
 
         const workspace = await Workspace.findByIdAndUpdate(
             id,
@@ -48,12 +77,14 @@ export async function PUT(request, { params }) {
         ).lean();
 
         if (!workspace) {
+            console.log(`PUT /api/workspace/${id} - Not found`);
             return NextResponse.json(
                 { error: 'Workspace not found' },
                 { status: 404 }
             );
         }
 
+        console.log(`PUT /api/workspace/${id} - Updated successfully`);
         return NextResponse.json({
             success: true,
             workspace
