@@ -152,7 +152,7 @@ export default function LandingPageBuilder() {
       } catch (error) {
         console.error("Error updating workspace:", error)
       }
-    }, 500) // 500ms debounce
+    }, 2000) // 2 second debounce to reduce server load
   }, [workspaceId])
 
   const handleCodeChange = useCallback(async (files: any) => {

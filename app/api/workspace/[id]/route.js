@@ -51,14 +51,25 @@ export async function PUT(request, { params }) {
         }
 
         const { messages, fileData } = body;
+
+        // Sanitize messages to fix validation errors with cached schema
+        // This maps 'model' -> 'ai' to ensure it passes the old enum validation
+        let sanitizedMessages = messages;
+        if (messages && Array.isArray(messages)) {
+            sanitizedMessages = messages.map(msg => ({
+                ...msg,
+                role: msg.role === 'model' ? 'ai' : msg.role
+            }));
+        }
+
         console.log(`PUT /api/workspace/${id} - Updating:`, {
-            hasMessages: !!messages,
-            messageCount: messages?.length,
+            hasMessages: !!sanitizedMessages,
+            messageCount: sanitizedMessages?.length,
             hasFileData: !!fileData
         });
 
         const updateData = {};
-        if (messages !== undefined) updateData.messages = messages;
+        if (sanitizedMessages !== undefined) updateData.messages = sanitizedMessages;
         if (fileData !== undefined) updateData.fileData = fileData;
 
         // Don't update if nothing to update

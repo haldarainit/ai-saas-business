@@ -173,6 +173,7 @@ ${userPrompt}`;
           success: true,
           files: formattedFiles,
           message: currentCode ? "Landing page updated successfully!" : "Landing page generated successfully!",
+          role: "ai"
         });
       } catch (parseError) {
         console.error("Error parsing AI response:", parseError);
