@@ -61,6 +61,8 @@ export default function CampaignPlannerAI() {
   const [actionPlanStrategy, setActionPlanStrategy] =
     useState<CampaignStrategy | null>(null);
   const [actionPlanLoading, setActionPlanLoading] = useState(false);
+  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
   const loadingStages = [
     { icon: <Sparkles className="w-8 h-8" />, text: "Analyzing your prompt" },
@@ -177,16 +179,48 @@ export default function CampaignPlannerAI() {
     setLoadingStage(0);
     setShowModal(false);
     setSelectedStrategy(null);
+    setAnalysisData(null);
+    setAnalysisLoading(false);
   };
 
-  const handleReviewSolution = (strategy: CampaignStrategy) => {
+  const handleReviewSolution = async (strategy: CampaignStrategy) => {
     setSelectedStrategy(strategy);
     setShowModal(true);
+    setAnalysisLoading(true);
+    setAnalysisData(null);
+
+    try {
+      const response = await fetch("/api/analyze-strategy", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          strategy: strategy,
+          prompt: userPrompt,
+          websiteContext: urls.length > 0 ? urls.join(", ") : null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.analysis) {
+        setAnalysisData(data.analysis);
+      } else {
+        console.error("Failed to fetch analysis:", data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching analysis:", error);
+    } finally {
+      setAnalysisLoading(false);
+    }
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedStrategy(null);
+    setAnalysisData(null);
+    setAnalysisLoading(false);
   };
 
   const handleGeneratePlan = async (strategy: CampaignStrategy) => {
@@ -1301,18 +1335,37 @@ export default function CampaignPlannerAI() {
               </div>
 
               {/* Innovation Category */}
-              <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 border border-emerald-700/50 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-cyan-400 mb-4">
-                  Innovation Category
-                </h3>
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-full font-semibold">
-                  <Sparkles className="w-4 h-4" />
-                  Core Bet{" "}
-                  <span className="text-emerald-100 text-sm">
-                    (High Impact + High Feasibility)
+              {analysisLoading ? (
+                <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 border border-emerald-700/50 rounded-xl p-6 flex items-center justify-center">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="w-8 h-8 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full"
+                  />
+                  <span className="ml-3 text-slate-300">
+                    Analyzing innovation category...
                   </span>
                 </div>
-              </div>
+              ) : analysisData?.innovationCategory ? (
+                <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 border border-emerald-700/50 rounded-xl p-6">
+                  <h3 className="text-xl font-bold text-cyan-400 mb-4">
+                    Innovation Category
+                  </h3>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-full font-semibold">
+                    <Sparkles className="w-4 h-4" />
+                    {analysisData.innovationCategory.name}{" "}
+                    {analysisData.innovationCategory.description && (
+                      <span className="text-emerald-100 text-sm">
+                        ({analysisData.innovationCategory.description})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : null}
 
               {/* AI-Generated Insights */}
               <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
@@ -1363,140 +1416,221 @@ export default function CampaignPlannerAI() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-lg font-semibold text-white">
-                        Overall Effectiveness
+                {analysisLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 1,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                      className="w-12 h-12 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full"
+                    />
+                    <span className="ml-4 text-slate-300 text-lg">
+                      Generating strategic evaluation...
+                    </span>
+                  </div>
+                ) : analysisData?.evaluation ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-lg font-semibold text-white">
+                          Overall Effectiveness
+                        </h4>
+                        <span className="text-3xl font-bold text-emerald-400">
+                          {analysisData.evaluation.overallEffectiveness}%
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm text-slate-300">
+                              Market Opportunity
+                            </span>
+                            <span className="text-sm font-semibold text-emerald-400">
+                              {analysisData.evaluation.marketOpportunity}%
+                            </span>
+                          </div>
+                          <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-emerald-500 to-green-400"
+                              style={{
+                                width: `${analysisData.evaluation.marketOpportunity}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm text-slate-300">
+                              Implementation Feasibility
+                            </span>
+                            <span className="text-sm font-semibold text-blue-400">
+                              {
+                                analysisData.evaluation
+                                  .implementationFeasibility
+                              }
+                              %
+                            </span>
+                          </div>
+                          <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                              style={{
+                                width: `${analysisData.evaluation.implementationFeasibility}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm text-slate-300">
+                              Competitive Advantage
+                            </span>
+                            <span className="text-sm font-semibold text-purple-400">
+                              {analysisData.evaluation.competitiveAdvantage}%
+                            </span>
+                          </div>
+                          <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-purple-500 to-pink-400"
+                              style={{
+                                width: `${analysisData.evaluation.competitiveAdvantage}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm text-slate-300">
+                              Revenue Potential
+                            </span>
+                            <span className="text-sm font-semibold text-cyan-400">
+                              {analysisData.evaluation.revenuePotential}%
+                            </span>
+                          </div>
+                          <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-cyan-500 to-teal-400"
+                              style={{
+                                width: `${analysisData.evaluation.revenuePotential}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-emerald-900/30 to-green-900/20 border border-emerald-700/50 rounded-xl p-5">
+                      <h4 className="text-sm font-bold text-emerald-400 mb-3 uppercase tracking-wider">
+                        Key Strength
                       </h4>
-                      <span className="text-3xl font-bold text-emerald-400">
-                        85%
-                      </span>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm text-slate-300">
-                            Market Opportunity
-                          </span>
-                          <span className="text-sm font-semibold text-emerald-400">
-                            90%
-                          </span>
-                        </div>
-                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-emerald-500 to-green-400"
-                            style={{ width: "90%" }}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm text-slate-300">
-                            Implementation Feasibility
-                          </span>
-                          <span className="text-sm font-semibold text-blue-400">
-                            80%
-                          </span>
-                        </div>
-                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-blue-500 to-cyan-400"
-                            style={{ width: "80%" }}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm text-slate-300">
-                            Competitive Advantage
-                          </span>
-                          <span className="text-sm font-semibold text-purple-400">
-                            85%
-                          </span>
-                        </div>
-                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-purple-500 to-pink-400"
-                            style={{ width: "85%" }}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm text-slate-300">
-                            Revenue Potential
-                          </span>
-                          <span className="text-sm font-semibold text-cyan-400">
-                            85%
-                          </span>
-                        </div>
-                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-cyan-500 to-teal-400"
-                            style={{ width: "85%" }}
-                          />
-                        </div>
-                      </div>
+                      <p className="text-slate-200 italic leading-relaxed">
+                        "{analysisData.evaluation.keyStrength}"
+                      </p>
                     </div>
                   </div>
-
-                  <div className="bg-gradient-to-br from-emerald-900/30 to-green-900/20 border border-emerald-700/50 rounded-xl p-5">
-                    <h4 className="text-sm font-bold text-emerald-400 mb-3 uppercase tracking-wider">
-                      Key Strength
-                    </h4>
-                    <p className="text-slate-200 italic leading-relaxed">
-                      "Strong market demand with clear monetization path"
-                    </p>
+                ) : (
+                  <div className="text-center py-8 text-slate-400">
+                    <p>No evaluation data available</p>
                   </div>
-                </div>
+                )}
               </div>
 
-              {/* Complete API Response */}
-              <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center">
-                    <Target className="w-6 h-6 text-white" />
+              {/* Strategic Analysis Details */}
+              {analysisData?.strategicAnalysis && (
+                <div className="bg-gradient-to-br from-purple-900/30 to-slate-800/50 border border-purple-700/30 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                      <Lightbulb className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        Strategic Analysis
+                      </h3>
+                      <p className="text-sm text-slate-400">
+                        Market insights and competitive positioning
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">
-                      Complete API Response
-                    </h3>
-                    <p className="text-sm text-slate-400">
-                      Full raw data for this solution
-                    </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-purple-900/20 border border-purple-700/30 rounded-lg p-4">
+                      <h5 className="text-sm font-bold text-purple-300 mb-2 uppercase tracking-wider">
+                        Market Opportunity
+                      </h5>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        {analysisData.strategicAnalysis.marketOpportunity}
+                      </p>
+                    </div>
+                    <div className="bg-emerald-900/20 border border-emerald-700/30 rounded-lg p-4">
+                      <h5 className="text-sm font-bold text-emerald-300 mb-2 uppercase tracking-wider">
+                        Competitive Advantage
+                      </h5>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        {analysisData.strategicAnalysis.competitiveAdvantage}
+                      </p>
+                    </div>
+                    <div className="bg-red-900/20 border border-red-700/30 rounded-lg p-4">
+                      <h5 className="text-sm font-bold text-red-300 mb-2 uppercase tracking-wider">
+                        Risk Assessment
+                      </h5>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        {analysisData.strategicAnalysis.riskAssessment}
+                      </p>
+                    </div>
+                    <div className="bg-amber-900/20 border border-amber-700/30 rounded-lg p-4">
+                      <h5 className="text-sm font-bold text-amber-300 mb-2 uppercase tracking-wider">
+                        Resource Requirements
+                      </h5>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        {analysisData.strategicAnalysis.resourceRequirements}
+                      </p>
+                    </div>
                   </div>
                 </div>
-                <div className="bg-black rounded-lg p-4 overflow-x-auto">
-                  <pre className="text-xs text-green-400 font-mono">
-                    {`{
-  "solutionIndex": ${selectedStrategy.id - 1},
-  "finalResult": {
-    "headline": "${selectedStrategy.title}",
-    "pitch": "${selectedStrategy.description}",
-    "whyItStandsOut": "${selectedStrategy.whyItStandsOut}",
-    "category": "Core Bet"
-  },
-  "aiTags": {
-    "index": ${selectedStrategy.id - 1},
-    "tags": [${selectedStrategy.tags.map((tag) => `"${tag}"`).join(", ")}]
-  },
-  "evaluation": {
-    "overallEffectiveness": 85,
-    "marketOpportunity": 90,
-    "implementationFeasibility": 80,
-    "competitiveAdvantage": 85,
-    "revenuePotential": 85,
-    "keyStrength": "Strong market demand with clear monetization path"
-  }
-}`}
-                  </pre>
+              )}
+
+              {/* Complete Analysis Data */}
+              {analysisData && (
+                <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center">
+                      <Target className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        Complete Analysis Data
+                      </h3>
+                      <p className="text-sm text-slate-400">
+                        Full AI-generated analysis for this solution
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-black rounded-lg p-4 overflow-x-auto">
+                    <pre className="text-xs text-green-400 font-mono">
+                      {JSON.stringify(
+                        {
+                          strategy: {
+                            id: selectedStrategy.id,
+                            title: selectedStrategy.title,
+                            description: selectedStrategy.description,
+                            whyItStandsOut: selectedStrategy.whyItStandsOut,
+                            tags: selectedStrategy.tags,
+                          },
+                          analysis: analysisData,
+                        },
+                        null,
+                        2
+                      )}
+                    </pre>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Modal Footer */}
