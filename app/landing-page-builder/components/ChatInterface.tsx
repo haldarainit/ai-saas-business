@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Send, Sparkles, User, Bot, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -59,7 +58,11 @@ export default function ChatInterface({ messages, onSendMessage, isLoading }: Ch
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 p-6" ref={scrollRef}>
+            <div
+                ref={scrollRef}
+                className="flex-1 p-6 overflow-y-auto scroll-smooth"
+                style={{ scrollBehavior: 'smooth' }}
+            >
                 <div className="space-y-6">
                     {messages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full py-12 text-center">
@@ -140,7 +143,7 @@ export default function ChatInterface({ messages, onSendMessage, isLoading }: Ch
                         </div>
                     )}
                 </div>
-            </ScrollArea>
+            </div>
 
             {/* Input */}
             <div className="p-4 border-t border-border bg-background/80 backdrop-blur-sm">

@@ -144,7 +144,6 @@ export default function CodeViewWorkspace({
             {/* Sandpack Content */}
             <div className="flex-1 overflow-hidden bg-[#1e1e1e]" style={{ display: "flex", flexDirection: "column" }}>
                 <SandpackProvider
-                    key={`sandpack-${activeTab}`}
                     files={files}
                     template="react"
                     theme="dark"
@@ -162,21 +161,18 @@ export default function CodeViewWorkspace({
                     }}
                 >
                     <SandpackLayout style={{ height: "100%", width: "100%", display: "flex", flex: 1 }}>
-                        {activeTab === "code" ? (
-                            <>
-                                <SandpackFileExplorer style={{ height: "100%", minHeight: "100%" }} />
-                                <SandpackCodeEditor
-                                    style={{ height: "100%", minHeight: "100%" }}
-                                    showTabs
-                                    showLineNumbers
-                                    showInlineErrors
-                                />
-                            </>
-                        ) : (
-                            <div style={{ height: "100%", width: "100%", display: "flex", flex: 1, flexDirection: "column" }}>
-                                <SandpackPreviewClient />
-                            </div>
-                        )}
+                        <div style={{ display: activeTab === "code" ? "flex" : "none", height: "100%", width: "100%", flex: 1 }}>
+                            <SandpackFileExplorer style={{ height: "100%", minHeight: "100%" }} />
+                            <SandpackCodeEditor
+                                style={{ height: "100%", minHeight: "100%", flex: 1 }}
+                                showTabs
+                                showLineNumbers
+                                showInlineErrors
+                            />
+                        </div>
+                        <div style={{ display: activeTab === "preview" ? "flex" : "none", height: "100%", width: "100%", flex: 1, flexDirection: "column" }}>
+                            <SandpackPreviewClient />
+                        </div>
                     </SandpackLayout>
                 </SandpackProvider>
 

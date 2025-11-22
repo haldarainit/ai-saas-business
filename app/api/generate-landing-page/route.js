@@ -46,6 +46,8 @@ CRITICAL CODE RULES - READ CAREFULLY:
 - Use Tailwind CSS classes for ALL styling
 - Every component must be a vanilla React function component
 - NO external dependencies except react, react-dom, lucide-react
+- **ALWAYS use DOUBLE QUOTES ("") for ALL JavaScript strings, NEVER single quotes ('')**
+- This prevents syntax errors with apostrophes (don't, we're, etc.)
 
 DESIGN REQUIREMENTS FOR EACH SECTION:
 - Hero: Full-screen gradient background, large h1 heading, p subheading, button with icon
@@ -142,9 +144,29 @@ ${userPrompt}`;
 
         const generatedFiles = JSON.parse(cleanedResult);
 
+        // Function to fix common syntax errors in JavaScript strings
+        function fixJavaScriptStrings(code) {
+          if (typeof code !== 'string') return code;
+
+          // Fix unescaped apostrophes in string literals
+          // This regex finds strings and escapes apostrophes within them
+          return code.replace(/'([^']*(?:\\'[^']*)*)'/g, (match) => {
+            // For each single-quoted string, escape any unescaped apostrophes
+            return match.replace(/(?<!\\)'/g, (quote, index) => {
+              // Skip the opening and closing quotes
+              if (index === 0 || index === match.length - 1) return quote;
+              return "\\'";
+            });
+          });
+        }
+
         const formattedFiles = {};
         Object.entries(generatedFiles).forEach(([path, content]) => {
-          formattedFiles[path] = { code: content };
+          // Apply fixes to JavaScript/JSX files
+          const fixedContent = path.endsWith('.js') || path.endsWith('.jsx')
+            ? fixJavaScriptStrings(content)
+            : content;
+          formattedFiles[path] = { code: fixedContent };
         });
 
         return Response.json({

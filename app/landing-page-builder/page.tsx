@@ -12,6 +12,7 @@ import { ActionProvider } from "@/contexts/ActionContext"
 import { Button } from "@/components/ui/button"
 import { RotateCcw, Plus, FolderOpen } from "lucide-react"
 import { toast } from "sonner"
+import Dashboard from "./components/Dashboard"
 
 interface Message {
   role: "user" | "model"
@@ -29,33 +30,28 @@ interface BusinessDetails {
 export default function LandingPageBuilder() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [showForm, setShowForm] = useState(true)
+  const [showForm, setShowForm] = useState(false) // Changed default to false to show Dashboard first
   const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [currentCode, setCurrentCode] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [workspaces, setWorkspaces] = useState<any[]>([])
-  const [showWorkspaceList, setShowWorkspaceList] = useState(false)
+  // const [showWorkspaceList, setShowWorkspaceList] = useState(false) // Removed as we have Dashboard now
 
   // Load workspace from URL params or localStorage
   useEffect(() => {
     const workspaceIdFromUrl = searchParams.get("workspace")
-    const storedWorkspaceId = localStorage.getItem("currentWorkspaceId")
+    // const storedWorkspaceId = localStorage.getItem("currentWorkspaceId") // Don't auto-load from local storage to allow dashboard
 
     if (workspaceIdFromUrl) {
       setWorkspaceId(workspaceIdFromUrl)
-      localStorage.setItem("currentWorkspaceId", workspaceIdFromUrl)
       loadWorkspace(workspaceIdFromUrl)
-    } else if (storedWorkspaceId) {
-      setWorkspaceId(storedWorkspaceId)
-      router.push(`/landing-page-builder?workspace=${storedWorkspaceId}`)
-      loadWorkspace(storedWorkspaceId)
+    } else {
+      setWorkspaceId(null)
+      setShowForm(false)
     }
-
-    // Load workspace list
-    loadWorkspaceList()
-  }, [])
+  }, [searchParams])
 
   const loadWorkspace = async (id: string) => {
     try {
@@ -71,19 +67,8 @@ export default function LandingPageBuilder() {
       }
     } catch (error) {
       console.error("Error loading workspace:", error)
-    }
-  }
-
-  const loadWorkspaceList = async () => {
-    try {
-      const userId = "user-123" // Replace with actual user ID
-      const response = await fetch(`/api/workspace?userId=${userId}`)
-      const data = await response.json()
-      if (data.workspaces) {
-        setWorkspaces(data.workspaces.slice(0, 5)) // Show last 5 workspaces
-      }
-    } catch (error) {
-      console.error("Error loading workspaces:", error)
+      toast.error("Failed to load workspace")
+      setWorkspaceId(null) // Go back to dashboard on error
     }
   }
 
@@ -92,18 +77,18 @@ export default function LandingPageBuilder() {
     setCurrentCode(null)
     setShowForm(true)
     setWorkspaceId(null)
-    localStorage.removeItem("currentWorkspaceId")
     router.push("/landing-page-builder")
-    toast.success("Starting new workspace")
   }
 
   const handleSwitchWorkspace = (id: string) => {
     setWorkspaceId(id)
-    localStorage.setItem("currentWorkspaceId", id)
     router.push(`/landing-page-builder?workspace=${id}`)
-    loadWorkspace(id)
-    setShowWorkspaceList(false)
-    toast.success("Workspace loaded")
+  }
+
+  const handleBackToDashboard = () => {
+    setWorkspaceId(null)
+    setShowForm(false)
+    router.push("/landing-page-builder")
   }
 
   const createWorkspace = async (name: string, userId: string = "default-user") => {
@@ -128,17 +113,22 @@ export default function LandingPageBuilder() {
     return null
   }
 
-  const updateWorkspaceMessages = async (newMessages: Message[]) => {
+  const updateWorkspaceMessages = async (newMessages: Message[], newCode?: any) => {
     if (!workspaceId) return
 
     try {
+      const body: any = { messages: newMessages }
+      if (newCode && newCode.files) {
+        body.fileData = newCode.files
+      }
+
       await fetch(`/api/workspace/${workspaceId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify(body),
       })
     } catch (error) {
-      console.error("Error updating messages:", error)
+      console.error("Error updating workspace:", error)
     }
   }
 
@@ -187,7 +177,7 @@ export default function LandingPageBuilder() {
           },
         ]
         setMessages(newMessages)
-        await updateWorkspaceMessages(newMessages)
+        await updateWorkspaceMessages(newMessages, { files: data.files })
         toast.success("Landing page generated successfully!")
       } else {
         toast.error(data.error || "Failed to generate landing page")
@@ -244,7 +234,7 @@ export default function LandingPageBuilder() {
           },
         ]
         setMessages(updatedMessages)
-        await updateWorkspaceMessages(updatedMessages)
+        await updateWorkspaceMessages(updatedMessages, { files: data.files })
         toast.success(data.message || "Landing page updated successfully!")
       } else {
         toast.error(data.error || "Failed to update landing page")
@@ -295,6 +285,9 @@ export default function LandingPageBuilder() {
     }
   }
 
+
+
+  // Render logic
   if (showForm) {
     return (
       <>
@@ -302,11 +295,27 @@ export default function LandingPageBuilder() {
         <div className="flex min-h-screen flex-col" suppressHydrationWarning>
           <Navbar />
           <main className="flex-1">
-            <InitialForm onSubmit={handleFormSubmit} />
+            <InitialForm onSubmit={handleFormSubmit} onCancel={() => setShowForm(false)} />
           </main>
           <Footer />
         </div>
       </>
+    )
+  }
+
+  if (!workspaceId) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col" suppressHydrationWarning>
+        <Navbar />
+        <main className="flex-1">
+          <Dashboard
+            userId="user-123"
+            onSelectWorkspace={handleSwitchWorkspace}
+            onCreateNew={handleNewWorkspace}
+          />
+        </main>
+        <Footer />
+      </div>
     )
   }
 
@@ -316,61 +325,29 @@ export default function LandingPageBuilder() {
       <ActionProvider>
         <div className="flex h-screen bg-background overflow-hidden flex-col" suppressHydrationWarning>
           {/* Workspace Header */}
-          {!showForm && (
-            <div className="bg-gray-900 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <h2 className="text-white font-semibold">Landing Page Builder</h2>
-                {workspaceId && (
-                  <span className="text-gray-400 text-sm">ID: {workspaceId.slice(0, 8)}...</span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowWorkspaceList(!showWorkspaceList)}
-                    className="gap-2"
-                  >
-                    <FolderOpen className="w-4 h-4" />
-                    Workspaces ({workspaces.length})
-                  </Button>
-
-                  {showWorkspaceList && workspaces.length > 0 && (
-                    <div className="absolute right-0 top-full mt-2 bg-gray-800 rounded-lg shadow-xl border border-gray-700 w-64 z-50">
-                      <div className="p-2">
-                        <p className="text-gray-400 text-xs uppercase font-semibold mb-2 px-2">Recent Workspaces</p>
-                        {workspaces.map((ws) => (
-                          <button
-                            key={ws._id}
-                            onClick={() => handleSwitchWorkspace(ws._id)}
-                            className={`w-full text-left px-3 py-2 rounded hover:bg-gray-700 transition-colors ${ws._id === workspaceId ? "bg-gray-700" : ""
-                              }`}
-                          >
-                            <div className="text-white text-sm font-medium truncate">{ws.name}</div>
-                            <div className="text-gray-400 text-xs">
-                              {new Date(ws.updatedAt).toLocaleDateString()}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleNewWorkspace}
-                  className="gap-2 bg-blue-600 hover:bg-blue-700"
-                >
-                  <Plus className="w-4 h-4" />
-                  New Workspace
-                </Button>
-              </div>
+          <div className="bg-gray-900 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={handleBackToDashboard} className="text-gray-400 hover:text-white">
+                <FolderOpen className="w-4 h-4 mr-2" />
+                Back to Dashboard
+              </Button>
+              <div className="h-4 w-px bg-gray-700 mx-2" />
+              <h2 className="text-white font-semibold">Landing Page Builder</h2>
             </div>
-          )}
+
+            <div className="flex items-center gap-2">
+              {/* Removed dropdown as we have dashboard */}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleNewWorkspace}
+                className="gap-2 bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="w-4 h-4" />
+                New
+              </Button>
+            </div>
+          </div>
 
           <div className="flex flex-1 overflow-hidden">
             {/* Middle - Chat Interface */}
@@ -397,17 +374,11 @@ export default function LandingPageBuilder() {
 
             {/* Right - Code View Workspace */}
             <div className="flex-1 flex flex-col min-w-0 bg-slate-50">
-              {workspaceId ? (
-                <CodeViewWorkspace
-                  workspaceId={workspaceId}
-                  generatedCode={currentCode}
-                  isGenerating={isLoading}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-muted-foreground">Loading workspace...</p>
-                </div>
-              )}
+              <CodeViewWorkspace
+                workspaceId={workspaceId}
+                generatedCode={currentCode}
+                isGenerating={isLoading}
+              />
             </div>
           </div>
         </div>
