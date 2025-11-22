@@ -84,10 +84,8 @@ export default function CampaignPlannerAI() {
     if (stage === "loading") {
       const interval = setInterval(() => {
         setLoadingStage((prev) => {
-          if (prev < loadingStages.length - 1) {
-            return prev + 1;
-          }
-          return prev;
+          // Loop back to 0 when reaching the end for infinite animation
+          return (prev + 1) % loadingStages.length;
         });
       }, 800);
 
@@ -97,7 +95,8 @@ export default function CampaignPlannerAI() {
 
   const handleAddUrl = () => {
     if (urlInput.trim() && isValidUrl(urlInput.trim())) {
-      setUrls((prev) => [...prev, urlInput.trim()]);
+      const normalizedUrl = normalizeUrl(urlInput.trim());
+      setUrls((prev) => [...prev, normalizedUrl]);
       setUrlInput("");
     }
   };
@@ -108,11 +107,24 @@ export default function CampaignPlannerAI() {
 
   const isValidUrl = (string: string) => {
     try {
-      new URL(string);
-      return true;
+      // Add protocol if missing
+      const urlToTest = string.match(/^https?:\/\//)
+        ? string
+        : `https://${string}`;
+      const url = new URL(urlToTest);
+      // Check if it has a valid domain with at least one dot and valid TLD
+      return url.hostname.includes(".") && url.hostname.split(".").length >= 2;
     } catch (_) {
       return false;
     }
+  };
+
+  const normalizeUrl = (string: string) => {
+    // Add https:// if no protocol is specified
+    if (!string.match(/^https?:\/\//)) {
+      return `https://${string}`;
+    }
+    return string;
   };
 
   const getStrategyIcon = (iconName: string) => {
@@ -369,7 +381,7 @@ export default function CampaignPlannerAI() {
                       <Input
                         value={urlInput}
                         onChange={(e) => setUrlInput(e.target.value)}
-                        placeholder="https://your-company-website.com"
+                        placeholder="example.com or https://example.in"
                         className="flex-1 bg-background border-border"
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
@@ -433,19 +445,17 @@ export default function CampaignPlannerAI() {
                     initial={{ scale: 0.8, opacity: 0.3 }}
                     animate={{
                       scale: loadingStage === index ? 1.2 : 0.9,
-                      opacity: loadingStage >= index ? 1 : 0.3,
+                      opacity: loadingStage === index ? 1 : 0.4,
                     }}
                     className={`flex flex-col items-center ${
                       loadingStage === index ? "text-primary" : "text-muted"
                     }`}
                   >
                     <div
-                      className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border-2 ${
+                      className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border-2 transition-all duration-300 ${
                         loadingStage === index
                           ? "border-primary bg-primary/20 shadow-lg dark:shadow-[0_0_15px_rgba(36,101,237,0.5)]"
-                          : loadingStage > index
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-transparent"
+                          : "border-primary/30 bg-primary/5"
                       }`}
                     >
                       {stageItem.icon}
@@ -469,10 +479,8 @@ export default function CampaignPlannerAI() {
                       key={index}
                       className={`h-2 rounded-full transition-all duration-300 ${
                         index === loadingStage
-                          ? "w-8 bg-primary"
-                          : index < loadingStage
-                          ? "w-2 bg-primary/70"
-                          : "w-2 bg-muted"
+                          ? "w-8 bg-primary animate-pulse"
+                          : "w-2 bg-primary/30"
                       }`}
                     />
                   ))}
@@ -571,8 +579,7 @@ export default function CampaignPlannerAI() {
                             >
                               {tag}
                             </span>
-                          ))}
-                          \n{" "}
+                          ))}{" "}
                         </div>
 
                         <div className="flex gap-3 mt-auto pt-4 border-t border-border">
