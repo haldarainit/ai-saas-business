@@ -142,8 +142,9 @@ export default function CodeViewWorkspace({
             </div>
 
             {/* Sandpack Content */}
-            <div className="flex-1 overflow-hidden bg-[#1e1e1e]">
+            <div className="flex-1 overflow-hidden bg-[#1e1e1e]" style={{ display: "flex", flexDirection: "column" }}>
                 <SandpackProvider
+                    key={`sandpack-${activeTab}`}
                     files={files}
                     template="react"
                     theme="dark"
@@ -155,22 +156,26 @@ export default function CodeViewWorkspace({
                     options={{
                         externalResources: ["https://cdn.tailwindcss.com"],
                         autoReload: true,
+                        autorun: true,
                         recompileMode: "immediate",
+                        recompileDelay: 200,
                     }}
                 >
-                    <SandpackLayout style={{ height: "100%" }}>
+                    <SandpackLayout style={{ height: "100%", width: "100%", display: "flex", flex: 1 }}>
                         {activeTab === "code" ? (
                             <>
-                                <SandpackFileExplorer style={{ height: "100%" }} />
+                                <SandpackFileExplorer style={{ height: "100%", minHeight: "100%" }} />
                                 <SandpackCodeEditor
-                                    style={{ height: "100%" }}
+                                    style={{ height: "100%", minHeight: "100%" }}
                                     showTabs
                                     showLineNumbers
                                     showInlineErrors
                                 />
                             </>
                         ) : (
-                            <SandpackPreviewClient />
+                            <div style={{ height: "100%", width: "100%", display: "flex", flex: 1, flexDirection: "column" }}>
+                                <SandpackPreviewClient />
+                            </div>
                         )}
                     </SandpackLayout>
                 </SandpackProvider>
@@ -187,6 +192,23 @@ export default function CodeViewWorkspace({
                     </div>
                 )}
             </div>
+
+            {/* Force Sandpack to take full height */}
+            <style jsx global>{`
+                .sp-wrapper,
+                .sp-layout,
+                .sp-stack,
+                .sp-preview-container,
+                .sp-preview-iframe {
+                    height: 100% !important;
+                    width: 100% !important;
+                    flex: 1 !important;
+                }
+                .sp-preview-container {
+                    display: flex !important;
+                    flex-direction: column !important;
+                }
+            `}</style>
         </div>
     );
 }
