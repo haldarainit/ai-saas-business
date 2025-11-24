@@ -1,8 +1,8 @@
 const Lookup = {
-    INPUT_PLACEHOLDER: "Tell me what changes you'd like...",
-    DEFAULT_FILE: {
-        "/App.js": {
-            code: `export default function App() {
+  INPUT_PLACEHOLDER: "Tell me what changes you'd like...",
+  DEFAULT_FILE: {
+    "/App.js": {
+      code: `export default function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
       <div className="text-center">
@@ -12,10 +12,11 @@ const Lookup = {
     </div>
   );
 }`,
-        },
-        "/index.js": {
-            code: `import React, { StrictMode } from "react";
+    },
+    "/index.js": {
+      code: `import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import "./styles.css";
 
 import App from "./App";
@@ -23,12 +24,14 @@ import App from "./App";
 const root = createRoot(document.getElementById("root"));
 root.render(
   <StrictMode>
-    <App />
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
   </StrictMode>
 );`,
-        },
-        "/styles.css": {
-            code: `body {
+    },
+    "/styles.css": {
+      code: `body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -40,9 +43,9 @@ root.render(
 * {
   box-sizing: border-box;
 }`,
-        },
-        "/public/index.html": {
-            code: `<!DOCTYPE html>
+    },
+    "/public/index.html": {
+      code: `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -50,15 +53,16 @@ root.render(
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="AI-generated landing page" />
     <title>AI Landing Page</title>
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
   </body>
 </html>`,
-        },
-        "/package.json": {
-            code: `{
+    },
+    "/package.json": {
+      code: `{
   "name": "ai-landing-page",
   "version": "1.0.0",
   "description": "AI-generated landing page",
@@ -72,6 +76,7 @@ root.render(
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
     "react-scripts": "5.0.1",
     "lucide-react": "latest"
   },
@@ -82,14 +87,15 @@ root.render(
     "production": [">0.2%", "not dead", "not op_mini all"],
     "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
   }
-}`
-        }
-    },
-    DEPENDANCY: {
-        "lucide-react": "latest",
-        "react": "^18.2.0",
-        "react-dom": "^18.2.0"
-    },
+}`,
+    }
+  },
+  DEPENDANCY: {
+    "lucide-react": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0"
+  },
 };
 
 export default Lookup;

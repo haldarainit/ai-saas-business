@@ -6,6 +6,7 @@ import {
     SandpackCodeEditor,
     SandpackFileExplorer,
 } from "@codesandbox/sandpack-react";
+import { useTheme } from "next-themes";
 import Lookup from "@/data/Lookup";
 import SandpackPreviewClient from "./SandpackPreviewClient";
 import { Loader2, Code2, Eye, Download, Upload, Trash2 } from "lucide-react";
@@ -13,6 +14,7 @@ import { ActionContext } from "@/contexts/ActionContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import SandpackListener from "./SandpackListener";
+import CodeWritingAnimation from "./CodeWritingAnimation";
 
 interface CodeViewWorkspaceProps {
     workspaceId: string;
@@ -33,6 +35,8 @@ export default function CodeViewWorkspace({
     const [files, setFiles] = useState(Lookup.DEFAULT_FILE);
     const [loading, setLoading] = useState(false);
     const { setAction } = useContext(ActionContext);
+    const { theme } = useTheme();
+    const sandpackTheme = theme === 'dark' ? 'dark' : 'light';
 
     // Load workspace files on mount
     useEffect(() => {
@@ -100,14 +104,15 @@ export default function CodeViewWorkspace({
     return (
         <div className="relative h-full flex flex-col">
             {/* Header with tabs and actions */}
-            <div className="bg-[#181818] border-b border-neutral-800 p-3">
+            {/* Header with tabs and actions */}
+            <div className="bg-white dark:bg-[#181818] border-b border-gray-200 dark:border-neutral-800 p-3">
                 <div className="flex items-center justify-between">
                     {/* Tab Switcher */}
-                    <div className="flex items-center gap-2 bg-black p-1 rounded-full">
+                    <div className="flex items-center gap-2 bg-gray-100 dark:bg-black p-1 rounded-full">
                         <button
                             className={`text-sm font-medium transition-all duration-200 px-4 py-2 rounded-full ${activeTab === "code"
-                                ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
-                                : "text-gray-300 hover:text-blue-400 hover:bg-blue-500/10"
+                                ? "bg-white dark:bg-gradient-to-r dark:from-blue-500 dark:to-indigo-500 text-blue-600 dark:text-white shadow-sm"
+                                : "text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200 dark:hover:bg-blue-500/10"
                                 }`}
                             onClick={() => setActiveTab("code")}
                         >
@@ -116,8 +121,8 @@ export default function CodeViewWorkspace({
                         </button>
                         <button
                             className={`text-sm font-medium transition-all duration-200 px-4 py-2 rounded-full ${activeTab === "preview"
-                                ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
-                                : "text-gray-300 hover:text-blue-400 hover:bg-blue-500/10"
+                                ? "bg-white dark:bg-gradient-to-r dark:from-blue-500 dark:to-indigo-500 text-blue-600 dark:text-white shadow-sm"
+                                : "text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200 dark:hover:bg-blue-500/10"
                                 }`}
                             onClick={() => setActiveTab("preview")}
                         >
@@ -163,11 +168,11 @@ export default function CodeViewWorkspace({
             </div>
 
             {/* Sandpack Content */}
-            <div className="flex-1 overflow-hidden bg-[#1e1e1e]" style={{ display: "flex", flexDirection: "column" }}>
+            <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#1e1e1e]" style={{ display: "flex", flexDirection: "column" }}>
                 <SandpackProvider
                     files={files}
                     template="react"
-                    theme="dark"
+                    theme={sandpackTheme}
                     customSetup={{
                         dependencies: {
                             ...Lookup.DEPENDANCY,
@@ -199,16 +204,35 @@ export default function CodeViewWorkspace({
                 </SandpackProvider>
 
                 {/* Loading Overlay */}
-                {(loading || isGenerating) && (
-                    <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50">
-                        <div className="text-center">
-                            <Loader2 className="animate-spin h-12 w-12 text-blue-500 mx-auto mb-4" />
-                            <h2 className="text-white text-lg font-semibold">
-                                {isGenerating ? "Generating Your Code..." : "Loading..."}
-                            </h2>
+                {isGenerating && generatedCode?.files && Object.keys(generatedCode.files).length > 0 ? (
+                    <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-center z-50">
+                        <div className="max-w-3xl w-full px-6">
+                            <div className="text-center mb-6">
+                                <div className="inline-flex items-center gap-3 bg-blue-50 dark:bg-blue-600/20 border border-blue-200 dark:border-blue-500/30 rounded-full px-6 py-3">
+                                    <Loader2 className="animate-spin h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                    <span className="text-blue-700 dark:text-blue-100 font-medium">Building Your Application</span>
+                                </div>
+                            </div>
+                            <CodeWritingAnimation
+                                files={generatedCode.files}
+                                onComplete={() => {
+                                    // Animation complete, will automatically hide when isGenerating becomes false
+                                    console.log("Code generation animation complete")
+                                }}
+                            />
                         </div>
                     </div>
-                )}
+                ) : (loading || isGenerating) ? (
+                    <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50">
+                        <div className="text-center">
+                            <Loader2 className="animate-spin h-12 w-12 text-blue-600 dark:text-blue-500 mx-auto mb-4" />
+                            <h2 className="text-gray-900 dark:text-white text-lg font-semibold">
+                                {isGenerating ? "Generating Your Code..." : "Loading..."}
+                            </h2>
+                            <p className="text-gray-500 dark:text-slate-400 text-sm mt-2">Setting up your workspace...</p>
+                        </div>
+                    </div>
+                ) : null}
             </div>
 
             {/* Force Sandpack to take full height */}

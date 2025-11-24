@@ -258,11 +258,19 @@ function LandingPageBuilderContent() {
 
       if (data.success && data.files) {
         setCurrentCode({ files: data.files })
+
+        // Create a detailed message if files were modified
+        let aiMessage = data.message || "Landing page has been updated!";
+        if (data.modifiedFiles && data.modifiedFiles.length > 0) {
+          const fileList = data.modifiedFiles.map((f: string) => `\`${f}\``).join(", ");
+          aiMessage = `✅ ${data.message}\n\n📝 Modified: ${fileList}`;
+        }
+
         const updatedMessages: Message[] = [
           ...newMessages,
           {
             role: "model" as const,
-            content: data.message || "Landing page has been updated!",
+            content: aiMessage,
           },
         ]
         setMessages(updatedMessages)
@@ -414,6 +422,7 @@ function LandingPageBuilderContent() {
                 messages={messages}
                 onSendMessage={handleSendMessage}
                 isLoading={isLoading}
+                generatedFiles={isLoading ? currentCode?.files : null}
               />
 
               {/* Reset Button at bottom of chat */}
