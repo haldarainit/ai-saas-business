@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Send, Sparkles, User, Bot, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import FileCreationAnimation from "./FileCreationAnimation"
+import CodeWritingAnimation from "./CodeWritingAnimation"
 
 interface Message {
     role: "user" | "model"
@@ -15,9 +17,10 @@ interface ChatInterfaceProps {
     messages: Message[]
     onSendMessage: (message: string) => void
     isLoading: boolean
+    generatedFiles?: Record<string, { code: string }> | null
 }
 
-export default function ChatInterface({ messages, onSendMessage, isLoading }: ChatInterfaceProps) {
+export default function ChatInterface({ messages, onSendMessage, isLoading, generatedFiles }: ChatInterfaceProps) {
     const [input, setInput] = useState("")
     const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -134,11 +137,21 @@ export default function ChatInterface({ messages, onSendMessage, isLoading }: Ch
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
                                 <Bot className="w-4 h-4 text-white" />
                             </div>
-                            <div className="rounded-2xl px-4 py-3 bg-muted border border-border">
-                                <div className="flex items-center gap-2">
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    <p className="text-sm text-muted-foreground">Generating your page...</p>
-                                </div>
+                            <div className="rounded-2xl px-4 py-3 bg-muted border border-border max-w-[80%]">
+                                {generatedFiles && Object.keys(generatedFiles).length > 0 ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                                            <p className="text-sm font-medium">Creating your application...</p>
+                                        </div>
+                                        <FileCreationAnimation files={generatedFiles} />
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <p className="text-sm text-muted-foreground">Generating your page...</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

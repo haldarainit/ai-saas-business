@@ -13,6 +13,7 @@ import { ActionContext } from "@/contexts/ActionContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import SandpackListener from "./SandpackListener";
+import CodeWritingAnimation from "./CodeWritingAnimation";
 
 interface CodeViewWorkspaceProps {
     workspaceId: string;
@@ -199,16 +200,35 @@ export default function CodeViewWorkspace({
                 </SandpackProvider>
 
                 {/* Loading Overlay */}
-                {(loading || isGenerating) && (
+                {isGenerating && generatedCode?.files && Object.keys(generatedCode.files).length > 0 ? (
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-blue-900/90 to-purple-900/95 backdrop-blur-md flex items-center justify-center z-50">
+                        <div className="max-w-3xl w-full px-6">
+                            <div className="text-center mb-6">
+                                <div className="inline-flex items-center gap-3 bg-blue-600/20 border border-blue-500/30 rounded-full px-6 py-3">
+                                    <Loader2 className="animate-spin h-5 w-5 text-blue-400" />
+                                    <span className="text-blue-100 font-medium">Building Your Application</span>
+                                </div>
+                            </div>
+                            <CodeWritingAnimation
+                                files={generatedCode.files}
+                                onComplete={() => {
+                                    // Animation complete, will automatically hide when isGenerating becomes false
+                                    console.log("Code generation animation complete")
+                                }}
+                            />
+                        </div>
+                    </div>
+                ) : (loading || isGenerating) ? (
                     <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50">
                         <div className="text-center">
                             <Loader2 className="animate-spin h-12 w-12 text-blue-500 mx-auto mb-4" />
                             <h2 className="text-white text-lg font-semibold">
                                 {isGenerating ? "Generating Your Code..." : "Loading..."}
                             </h2>
+                            <p className="text-slate-400 text-sm mt-2">Setting up your workspace...</p>
                         </div>
                     </div>
-                )}
+                ) : null}
             </div>
 
             {/* Force Sandpack to take full height */}

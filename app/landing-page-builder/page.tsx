@@ -414,6 +414,7 @@ function LandingPageBuilderContent() {
                 messages={messages}
                 onSendMessage={handleSendMessage}
                 isLoading={isLoading}
+                generatedFiles={isLoading ? currentCode?.files : null}
               />
 
               {/* Reset Button at bottom of chat */}
