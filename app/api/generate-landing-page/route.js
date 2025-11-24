@@ -150,30 +150,51 @@ ${userPrompt}`;
       try {
         let cleanedResult = result.trim();
 
-        // Remove markdown
-        cleanedResult = cleanedResult.replace(/^```json\n?/gm, '');
-        cleanedResult = cleanedResult.replace(/^```\n?/gm, '');
-        cleanedResult = cleanedResult.replace(/\n?```$/gm, '');
+        // Remove markdown fences if present
+        cleanedResult = cleanedResult.replace(/^```json\s*/i, "");
+        cleanedResult = cleanedResult.replace(/^```\s*/i, "");
+        cleanedResult = cleanedResult.replace(/```$/i, "");
         cleanedResult = cleanedResult.trim();
 
-        //  Replace literal control characters with escaped versions
-        const lines = cleanedResult.split('\n');
-        const fixedLines = lines.map(line => {
-          // Fix lines within string values  
-          if (line.includes('":')) {
-            return line.replace(/(?<!\\)[\n\r\t]/g, (match) => {
-              if (match === '\n') return '\\n';
-              if (match === '\r') return '\\r';
-              if (match === '\t') return '\\t';
+        // Try to auto-fix some very common JSON issues from LLMs
+        // 1) Ensure all keys are quoted and use double quotes
+        // 2) Convert single-quoted strings to double-quoted
+        // 3) Escape any embedded newlines/tabs inside string values
+        // 4) Strip invalid escape sequences like "\ " or stray backslashes
+        cleanedResult = cleanedResult
+          // Replace Windows style newlines for consistency
+          .replace(/\r\n/g, "\n")
+          // Convert single-quoted JSON to double-quoted (keys and values)
+          .replace(/'([^']*)'(?=\s*:)/g, '"$1"')
+          .replace(/:\s*'([^']*)'/g, ': "$1"')
+          // Remove invalid escape sequences (anything like \<non-valid>)
+          // Valid JSON escapes are: \" \\ \/ \b \f \n \r \t or \uXXXX
+          .replace(/\\(?!["\\\/bfnrtu])/g, "\\\\");
+
+        // Escape unescaped control characters inside string values
+        const lines = cleanedResult.split("\n");
+        const fixedLines = lines.map((line) => {
+          // Only touch lines that look like JSON key/value pairs
+          if (line.includes("\":")) {
+            return line.replace(/[\n\r\t]/g, (match) => {
+              if (match === "\n") return "\\n";
+              if (match === "\r") return "\\r";
+              if (match === "\t") return "\\t";
               return match;
             });
           }
           return line;
         });
 
-        cleanedResult = fixedLines.join('\n');
+        cleanedResult = fixedLines.join("\n");
 
-        const generatedFiles = JSON.parse(cleanedResult);
+        let generatedFiles;
+        try {
+          generatedFiles = JSON.parse(cleanedResult);
+        } catch (innerError) {
+          console.error("Error parsing cleaned AI JSON, raw payload was:\n", cleanedResult);
+          throw innerError;
+        }
 
         // Function to fix common syntax errors in JavaScript strings
         function fixJavaScriptStrings(code) {

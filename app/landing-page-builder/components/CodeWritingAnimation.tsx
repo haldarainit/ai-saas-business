@@ -16,6 +16,12 @@ export default function CodeWritingAnimation({
     const [currentCharIndex, setCurrentCharIndex] = useState(0)
     const [isComplete, setIsComplete] = useState(false)
 
+    // Expose an approximate total duration so other animations
+    // (like file creation) can sync to this.
+    const avgCharsPerMs = 0.5 // tweak speed here (higher is faster)
+    const totalChars = Object.values(files).reduce((sum, f) => sum + (f.code?.length || 0), 0)
+    const estimatedTypingDurationMs = totalChars / avgCharsPerMs
+
     const fileEntries = Object.entries(files)
     const currentFile = fileEntries[currentFileIndex]
     const currentFileName = currentFile?.[0] || ""
@@ -38,20 +44,22 @@ export default function CodeWritingAnimation({
             setTimeout(() => {
                 setCurrentFileIndex(prev => prev + 1)
                 setCurrentCharIndex(0)
-            }, 600)
+            }, 400)
             return
         }
 
-        // Type characters
+        // Type characters – speed proportional to total size
+        const typingInterval = Math.max(4, estimatedTypingDurationMs / Math.max(1, currentCode.length * fileEntries.length))
+
         const timer = setTimeout(() => {
             setCurrentCharIndex(prev => prev + 1)
-        }, 2) // Very fast typing
+        }, typingInterval)
 
         return () => clearTimeout(timer)
     }, [currentCharIndex, currentCode, currentFileIndex, fileEntries.length, isComplete, onComplete])
 
     const displayedCode = currentCode.slice(0, currentCharIndex)
-    const overallProgress = ((currentFileIndex + (currentCharIndex / currentCode.length)) / fileEntries.length) * 100
+    const overallProgress = ((currentFileIndex + (currentCharIndex / Math.max(1, currentCode.length))) / Math.max(1, fileEntries.length)) * 100
 
     if (isComplete) {
         return (

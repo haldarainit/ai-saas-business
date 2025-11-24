@@ -14,6 +14,11 @@ interface FileInfo {
 interface FileCreationAnimationProps {
     files: Record<string, { code: string }>
     onComplete?: () => void
+    /**
+     * Total duration (ms) that the code-writing animation will take.
+     * We use this to keep file-creation in sync with code writing.
+     */
+    targetDurationMs?: number
     className?: string
 }
 
@@ -28,7 +33,8 @@ const getFileIcon = (fileName: string) => {
 export default function FileCreationAnimation({
     files,
     onComplete,
-    className
+    className,
+    targetDurationMs
 }: FileCreationAnimationProps) {
     const [fileList, setFileList] = useState<FileInfo[]>([])
     const [currentFileIndex, setCurrentFileIndex] = useState(0)
@@ -47,8 +53,21 @@ export default function FileCreationAnimation({
     useEffect(() => {
         if (fileList.length === 0) return
 
+        // Base timings (fallbacks)
+        const defaultPerFileTotal = 1400 // ms (400 delay + 1000 writing)
+        const fileCount = fileList.length
+
+        // If targetDurationMs is provided from CodeWritingAnimation, spread that
+        // time roughly evenly across files.
+        const perFileTotal = targetDurationMs
+            ? Math.max(600, targetDurationMs / fileCount) // minimum sensible per-file time
+            : defaultPerFileTotal
+
+        const perFileDelay = perFileTotal * 0.3
+        const perFileWrite = perFileTotal * 0.7
+
         // Animate files one by one
-        if (currentFileIndex < fileList.length) {
+        if (currentFileIndex < fileCount) {
             const timer = setTimeout(() => {
                 setFileList(prev =>
                     prev.map((file, idx) => {
@@ -70,10 +89,10 @@ export default function FileCreationAnimation({
                         })
                     )
                     setCurrentFileIndex(prev => prev + 1)
-                }, 1000) // Writing duration per file
+                }, perFileWrite)
 
                 return () => clearTimeout(completeTimer)
-            }, 400) // Delay between files
+            }, perFileDelay)
 
             return () => clearTimeout(timer)
         } else if (currentFileIndex >= fileList.length && fileList.length > 0) {
