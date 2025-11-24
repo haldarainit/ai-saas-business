@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import ChatInterface from "./components/ChatInterface"
 import CodeViewWorkspace from "./components/CodeViewWorkspace"
@@ -27,7 +27,7 @@ interface BusinessDetails {
   logo: File | null
 }
 
-export default function LandingPageBuilder() {
+function LandingPageBuilderContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [showForm, setShowForm] = useState(false) // Changed default to false to show Dashboard first
@@ -444,5 +444,13 @@ export default function LandingPageBuilder() {
         </div>
       </ActionProvider>
     </>
+  )
+}
+
+export default function LandingPageBuilder() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LandingPageBuilderContent />
+    </Suspense>
   )
 }
