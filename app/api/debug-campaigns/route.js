@@ -1,7 +1,7 @@
 import { createCampaignScheduler } from "../../../lib/email/CampaignScheduler";
 import { extractUserFromRequest } from "../../../lib/auth-utils";
 import Campaign from "../../../lib/models/Campaign";
-import EmailLog from "../../../lib/models/EmailLog";
+import CampaignEmailHistory from "../../../lib/models/CampaignEmailHistory";
 import dbConnect from "../../../lib/mongodb";
 
 export async function GET(request) {
@@ -24,13 +24,13 @@ export async function GET(request) {
     const campaigns = await Campaign.find({ userId }).sort({ createdAt: -1 });
 
     // Get all email logs for this user
-    const emailLogs = await EmailLog.find({ userId })
+    const emailLogs = await CampaignEmailHistory.find({ userId })
       .sort({ sentAt: -1 })
       .limit(10);
 
     // Get statistics
     const totalCampaigns = await Campaign.countDocuments({ userId });
-    const totalEmailsSent = await EmailLog.countDocuments({
+    const totalEmailsSent = await CampaignEmailHistory.countDocuments({
       userId,
       status: "sent",
     });
