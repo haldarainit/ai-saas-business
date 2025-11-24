@@ -107,6 +107,7 @@ export default function Navbar() {
               <Button
                 onClick={() => setAuthModalOpen(true)}
                 className="hidden md:flex items-center gap-3 px-4 py-2 bg-[#1a1d21] hover:bg-[#2a2d31] text-white rounded-xl border-0 h-auto dark:bg-primary dark:hover:bg-primary/90 dark:shadow-[0_0_10px_rgba(36,101,237,0.4)]"
+                suppressHydrationWarning
               >
                 <Zap className="h-4 w-4 text-white" />
                 <div className="flex flex-col items-start">
@@ -118,7 +119,7 @@ export default function Navbar() {
 
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild className="md:hidden">
-                <Button variant="outline" size="icon" aria-label="Open Menu">
+                <Button variant="outline" size="icon" aria-label="Open Menu" suppressHydrationWarning>
                   <Menu className="h-5 w-5" />
                   <span className="sr-only">Toggle menu</span>
                 </Button>
