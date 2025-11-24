@@ -88,7 +88,7 @@ export default function FileCreationAnimation({
     return (
         <div className={cn("space-y-2.5", className)}>
             <div className="flex items-center gap-2 mb-1">
-                <div className="h-1 w-1 rounded-full bg-blue-400 animate-pulse" />
+                <div className="h-1 w-1 rounded-full bg-blue-400 dark:bg-blue-500 animate-pulse" />
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Creating files...</p>
             </div>
 

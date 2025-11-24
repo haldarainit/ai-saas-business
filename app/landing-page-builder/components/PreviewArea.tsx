@@ -73,9 +73,9 @@ export default function LandingPage() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-background">
+        <div className="flex flex-col h-full bg-background dark:bg-gray-900">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-border bg-background/50 backdrop-blur-sm">
+            <div className="px-6 py-4 border-b border-border dark:border-gray-800 bg-background/50 dark:bg-gray-900/50 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center">
@@ -127,31 +127,31 @@ export default function LandingPage() {
 
                     <TabsContent value="preview" className="flex-1 p-6 mt-0 overflow-auto">
                         {isLoading ? (
-                            <div className="h-full flex flex-col items-center justify-center bg-white/50 backdrop-blur-sm rounded-lg border border-border">
+                            <div className="h-full flex flex-col items-center justify-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm rounded-lg border border-border dark:border-gray-800">
                                 <div className="relative w-16 h-16 mb-4">
-                                    <div className="absolute inset-0 border-4 border-blue-200 rounded-full animate-pulse"></div>
-                                    <div className="absolute inset-0 border-4 border-t-blue-600 rounded-full animate-spin"></div>
+                                    <div className="absolute inset-0 border-4 border-blue-200 dark:border-blue-900 rounded-full animate-pulse"></div>
+                                    <div className="absolute inset-0 border-4 border-t-blue-600 dark:border-t-blue-500 rounded-full animate-spin"></div>
                                 </div>
-                                <h3 className="text-xl font-semibold text-slate-800 mb-2">Building your application...</h3>
-                                <p className="text-slate-500">Writing React components and styling with Tailwind</p>
+                                <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">Building your application...</h3>
+                                <p className="text-slate-500 dark:text-slate-400">Writing React components and styling with Tailwind</p>
                             </div>
                         ) : code ? (
-                            <div className="h-full bg-white rounded-lg border border-border shadow-lg overflow-auto">
+                            <div className="h-full bg-white dark:bg-gray-950 rounded-lg border border-border dark:border-gray-800 shadow-lg overflow-auto">
                                 <LiveProvider code={code} scope={scope} noInline={false}>
-                                    <LiveError className="p-4 bg-red-50 text-red-700 text-sm font-mono whitespace-pre-wrap border-b border-red-200" />
+                                    <LiveError className="p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm font-mono whitespace-pre-wrap border-b border-red-200 dark:border-red-900/30" />
                                     <div className="min-h-full">
                                         <LivePreview />
                                     </div>
                                 </LiveProvider>
                             </div>
                         ) : (
-                            <div className="h-full flex items-center justify-center bg-muted/20 rounded-lg border-2 border-dashed border-border">
+                            <div className="h-full flex items-center justify-center bg-muted/20 dark:bg-gray-900/20 rounded-lg border-2 border-dashed border-border dark:border-gray-800">
                                 <div className="text-center">
-                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center mx-auto mb-4">
-                                        <Monitor className="w-8 h-8 text-gray-500" />
+                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center mx-auto mb-4">
+                                        <Monitor className="w-8 h-8 text-gray-500 dark:text-gray-400" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">Ready to Build</h3>
-                                    <p className="text-muted-foreground">
+                                    <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">Ready to Build</h3>
+                                    <p className="text-muted-foreground dark:text-gray-400">
                                         Fill out the form to generate your landing page
                                     </p>
                                 </div>
@@ -167,13 +167,13 @@ export default function LandingPage() {
                                 </pre>
                             </ScrollArea>
                         ) : (
-                            <div className="h-full flex items-center justify-center bg-muted/20 rounded-lg border-2 border-dashed border-border">
+                            <div className="h-full flex items-center justify-center bg-muted/20 dark:bg-gray-900/20 rounded-lg border-2 border-dashed border-border dark:border-gray-800">
                                 <div className="text-center">
-                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center mx-auto mb-4">
-                                        <Code2 className="w-8 h-8 text-gray-500" />
+                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center mx-auto mb-4">
+                                        <Code2 className="w-8 h-8 text-gray-500 dark:text-gray-400" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">No Code Yet</h3>
-                                    <p className="text-muted-foreground">
+                                    <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">No Code Yet</h3>
+                                    <p className="text-muted-foreground dark:text-gray-400">
                                         Generated code will appear here
                                     </p>
                                 </div>

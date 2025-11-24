@@ -27,27 +27,34 @@ export async function POST(request) {
     const systemPrompt = `You are an expert React developer creating production-ready landing pages like Lovable.dev.
 
 CRITICAL FILE STRUCTURE - ALWAYS INCLUDE ALL FILES:
-1. "/package.json" - Dependencies (react, react-dom, react-scripts, lucide-react)
+1. "/package.json" - Dependencies (react, react-dom, react-router-dom, react-scripts, lucide-react)
 2. "/public/index.html" - HTML template with Tailwind CDN
-3. "/index.js" - React entry point
-4. "/styles.css" - Global styles
-5. "/App.js" - Main app component that imports and orchestrates all sections
+3. "/index.js" - React 18 entry point with createRoot
+4. "/styles.css" - Global styles with modern CSS
+5. "/App.js" - Main app component with React Router setup
 6. "/components/Hero.js" - Hero section component
 7. "/components/Features.js" - Features section
 8. "/components/Testimonials.js" - Testimonials section  
 9. "/components/CTA.js" - Call-to-action section
-10. Additional components as needed (Navbar, Footer, Pricing, etc.)
+10. Additional components as needed (Navbar, Footer, Pricing, About, Contact, etc.)
 
 CRITICAL CODE RULES - READ CAREFULLY:
+- USE React 18 patterns: createRoot, automatic batching
+- INCLUDE react-router-dom for navigation (BrowserRouter, Routes, Route, Link)
 - USE ONLY these HTML elements: div, section, h1, h2, h3, p, span, button, img, a, ul, li, nav, footer, header
 - DO NOT use ANY UI component libraries (NO Badge, Card, Button, Input components)
 - DO NOT import or use Shadcn components
 - ONLY use lucide-react for icons: import { IconName } from 'lucide-react'
 - Use Tailwind CSS classes for ALL styling
 - Every component must be a vanilla React function component
-- NO external dependencies except react, react-dom, lucide-react
 - **ALWAYS use DOUBLE QUOTES ("") for ALL JavaScript strings, NEVER single quotes ('')**
 - This prevents syntax errors with apostrophes (don't, we're, etc.)
+
+REACT ROUTER SETUP:
+- Wrap App in BrowserRouter in index.js
+- Use Routes and Route in App.js for navigation
+- Use Link component for internal navigation (not <a> tags)
+- Create separate page components if needed (Home, About, Contact, etc.)
 
 DESIGN REQUIREMENTS FOR EACH SECTION:
 - Hero: Full-screen gradient background, large h1 heading, p subheading, button with icon
@@ -66,15 +73,15 @@ TAILWIND CSS USAGE:
 
 EXAMPLE STRUCTURE (return as JSON):
 {
-  "/package.json": "{\\"name\\":\\"landing-page\\",\\"version\\":\\"1.0.0\\",\\"scripts\\":{\\"start\\":\\"react-scripts start\\",\\"build\\":\\"react-scripts build\\"},\\"dependencies\\":{\\"react\\":\\"^18.2.0\\",\\"react-dom\\":\\"^18.2.0\\",\\"react-scripts\\":\\"5.0.1\\",\\"lucide-react\\":\\"latest\\"}}",
-  "/public/index.html": "<!DOCTYPE HTML>\\n<html lang=\\"en\\">\\n<head>\\n  <meta charset=\\"utf-8\\" />\\n  <meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1\\" />\\n  <title>Landing Page</title>\\n  <script src=\\"https://cdn.tailwindcss.com\\"></script>\\n</head>\\n<body>\\n  <div id=\\"root\\"></div>\\n</body>\\n</html>",
-  "/index.js": "import React from 'react';\\nimport { createRoot } from 'react-dom/client';\\nimport './styles.css';\\nimport App from './App';\\nconst root = createRoot(document.getElementById('root'));\\nroot.render(<App />);",
-  "/styles.css": "* { margin: 0; padding: 0; box-sizing: border-box; }\\nbody { font-family: system-ui, sans-serif; }",
-  "/App.js": "import React from 'react';\\nimport Hero from './components/Hero';\\nimport Features from './components/Features';\\nimport CTA from './components/CTA';\\n\\nexport default function App() {\\n  return (\\n    <div>\\n      <Hero />\\n      <Features />\\n      <CTA />\\n    </div>\\n  );\\n}",
-  "/components/Hero.js": "import React from 'react';\\nimport { ArrowRight } from 'lucide-react';\\n\\nexport default function Hero() {\\n  return (\\n    <section className=\\"min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700 text-white px-4\\">\\n      <div className=\\"max-w-4xl text-center\\">\\n        <h1 className=\\"text-6xl font-bold mb-6\\">Build Amazing Products</h1>\\n        <p className=\\"text-2xl mb-8 text-blue-100\\">Transform your ideas into reality</p>\\n        <button className=\\"bg-white text-blue-600 px-8 py-4 rounded-full font-semibold flex items-center gap-2 mx-auto hover:scale-105 transition-transform shadow-xl\\">\\n          Get Started <ArrowRight className=\\"w-5 h-5\\" />\\n        </button>\\n      </div>\\n    </section>\\n  );\\n}"
+  "/package.json": "{\\"name\\":\\"landing-page\\",\\"version\\":\\"1.0.0\\",\\"scripts\\":{\\"start\\":\\"react-scripts start\\",\\"build\\":\\"react-scripts build\\"},\\"dependencies\\":{\\"react\\":\\"^18.2.0\\",\\"react-dom\\":\\"^18.2.0\\",\\"react-router-dom\\":\\"^6.20.0\\",\\"react-scripts\\":\\"5.0.1\\",\\"lucide-react\\":\\"latest\\"}}",
+  "/public/index.html": "<!DOCTYPE html>\\n<html lang=\\"en\\">\\n<head>\\n  <meta charset=\\"utf-8\\" />\\n  <meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1\\" />\\n  <title>Landing Page</title>\\n  <script src=\\"https://cdn.tailwindcss.com\\"></script>\\n</head>\\n<body>\\n  <div id=\\"root\\"></div>\\n</body>\\n</html>",
+  "/index.js": "import React from \\"react\\";\\nimport { createRoot } from \\"react-dom/client\\";\\nimport { BrowserRouter } from \\"react-router-dom\\";\\nimport \\"./styles.css\\";\\nimport App from \\"./App\\";\\n\\nconst root = createRoot(document.getElementById(\\"root\\"));\\nroot.render(\\n  <BrowserRouter>\\n    <App />\\n  </BrowserRouter>\\n);",
+  "/styles.css": "* { margin: 0; padding: 0; box-sizing: border-box; }\\nbody { font-family: system-ui, -apple-system, sans-serif; }\\nhtml { scroll-behavior: smooth; }",
+  "/App.js": "import React from \\"react\\";\\nimport { Routes, Route } from \\"react-router-dom\\";\\nimport Hero from \\"./components/Hero\\";\\nimport Features from \\"./components/Features\\";\\nimport CTA from \\"./components/CTA\\";\\n\\nexport default function App() {\\n  return (\\n    <Routes>\\n      <Route path=\\"/\\" element={\\n        <div>\\n          <Hero />\\n          <Features />\\n          <CTA />\\n        </div>\\n      } />\\n    </Routes>\\n  );\\n}",
+  "/components/Hero.js": "import React from \\"react\\";\\nimport { ArrowRight } from \\"lucide-react\\";\\n\\nexport default function Hero() {\\n  return (\\n    <section className=\\"min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700 text-white px-4\\">\\n      <div className=\\"max-w-4xl text-center\\">\\n        <h1 className=\\"text-6xl font-bold mb-6\\">Build Amazing Products</h1>\\n        <p className=\\"text-2xl mb-8 text-blue-100\\">Transform your ideas into reality</p>\\n        <button className=\\"bg-white text-blue-600 px-8 py-4 rounded-full font-semibold flex items-center gap-2 mx-auto hover:scale-105 transition-transform shadow-xl\\">\\n          Get Started <ArrowRight className=\\"w-5 h-5\\" />\\n        </button>\\n      </div>\\n    </section>\\n  );\\n}"
 }
 
-CRITICAL: Return ONLY the JSON object. NO markdown, NO explanations. NO Badge, Card, or other UI components.`;
+CRITICAL: Return ONLY the JSON object. NO markdown, NO explanations. Use React 18 patterns and include react-router-dom.`;
 
     let userPrompt;
     const lastMessage = messages[messages.length - 1];
