@@ -98,15 +98,39 @@ User's request: "${lastMessage.content}"
 
 Return ONLY the JSON object with the file structure.`;
     } else {
-      userPrompt = `Current file structure (keys only):
-${Object.keys(currentCode?.files || {}).join(", ")}
+      // Build full code context for AI to reference
+      const currentFilesContext = Object.entries(currentCode?.files || {})
+        .map(([path, fileData]) => `File: ${path}\n${fileData.code}`)
+        .join("\n\n---NEXT FILE---\n\n");
+
+      userPrompt = `EXISTING CODE CONTEXT - MEMORIZE THIS:
+
+${currentFilesContext}
+
+---
 
 Business context:
 ${businessContext}
 
 User's new request: "${lastMessage.content}"
 
-Please update the code based on the user's request. Return the FULL set of files for the application.`;
+CRITICAL INSTRUCTIONS FOR MODIFICATIONS:
+1. ANALYZE the user's request carefully to determine which files need changes
+2. If the request is SMALL/SPECIFIC (e.g., "change button color", "update hero text"):
+   - Return ONLY the files that need to be modified
+   - DO NOT rewrite unchanged files
+   - Example: If changing hero button → return ONLY /components/Hero.js
+
+3. If the request is MAJOR (e.g., "complete redesign", "add dark mode everywhere"):
+   - Return all files that need changes
+   - You may need to modify multiple files
+
+4. ALWAYS preserve the exact structure and functionality of unchanged code
+5. Use the existing code as reference - maintain consistency
+
+RESPONSE FORMAT:
+Return ONLY a JSON object with the files that NEED TO BE CHANGED.
+The unchanged files will be automatically preserved.`;
     }
 
     const fullPrompt = `${systemPrompt}
@@ -169,10 +193,23 @@ ${userPrompt}`;
           formattedFiles[path] = { code: fixedContent };
         });
 
+        // SMART MERGE: Combine existing files with AI modifications
+        const mergedFiles = currentCode?.files
+          ? { ...currentCode.files, ...formattedFiles }  // Preserve existing + overwrite modified
+          : formattedFiles;  // First generation - use all files
+
+        const modifiedFilePaths = Object.keys(formattedFiles);
+        const preservedCount = Object.keys(currentCode?.files || {}).length - modifiedFilePaths.length;
+
+        console.log(`Smart generation: Modified ${modifiedFilePaths.length} files, Preserved ${Math.max(0, preservedCount)} files`);
+
         return Response.json({
           success: true,
-          files: formattedFiles,
-          message: currentCode ? "Landing page updated successfully!" : "Landing page generated successfully!",
+          files: mergedFiles,
+          modifiedFiles: modifiedFilePaths,
+          message: currentCode
+            ? `Updated ${modifiedFilePaths.length} file(s): ${modifiedFilePaths.join(", ")}`
+            : "Landing page generated successfully!",
           role: "ai"
         });
       } catch (parseError) {
