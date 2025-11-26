@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Tracking Debugger</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 10px;
+        font-size: 28px;
+      }
+      .subtitle {
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 14px;
+      }
+      .section {
+        margin-bottom: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+      }
+      .section h2 {
+        color: #333;
+        margin-bottom: 15px;
+        font-size: 20px;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+      .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .stat-label {
+        color: #666;
+        font-size: 12px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+      .stat-value {
+        color: #333;
+        font-size: 24px;
+        font-weight: bold;
+      }
+      .tracking-list {
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      .tracking-item {
+        background: white;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 6px;
+        border: 1px solid #e0e0e0;
+      }
+      .tracking-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .tracking-email {
+        font-weight: bold;
+        color: #333;
+      }
+      .tracking-status {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+      .status-sent {
+        background: #e3f2fd;
+        color: #1976d2;
+      }
+      .status-opened {
+        background: #e8f5e9;
+        color: #388e3c;
+      }
+      .status-clicked {
+        background: #fff3e0;
+        color: #f57c00;
+      }
+      .tracking-details {
+        font-size: 13px;
+        color: #666;
+        line-height: 1.6;
+      }
+      .button {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-right: 10px;
+        transition: background 0.3s;
+      }
+      .button:hover {
+        background: #5568d3;
+      }
+      .button-success {
+        background: #4caf50;
+      }
+      .button-success:hover {
+        background: #45a049;
+      }
+      .button-danger {
+        background: #f44336;
+      }
+      .button-danger:hover {
+        background: #da190b;
+      }
+      .input-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+      input[type="text"] {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+      .test-section {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .alert {
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+      }
+      .alert-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .alert-info {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+      .code {
+        background: #f5f5f5;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
+        font-size: 12px;
+      }
+      .loading {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+      }
+      .refresh-btn {
+        background: #4caf50;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        float: right;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📊 Email Tracking Debugger</h1>
+      <p class="subtitle">Test and debug your email tracking implementation</p>
+
+      <div id="alert-container"></div>
+
+      <div class="section">
+        <h2>📈 Overall Statistics</h2>
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-label">Total Tracked</div>
+            <div class="stat-value" id="total-count">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Opened</div>
+            <div class="stat-value" id="opened-count">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Clicked</div>
+            <div class="stat-value" id="clicked-count">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Open Rate</div>
+            <div class="stat-value" id="open-rate">0%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>
+          🧪 Send Test Email
+          <button class="refresh-btn" onclick="loadTracking()">
+            🔄 Refresh
+          </button>
+        </h2>
+        <div class="input-group">
+          <input
+            type="text"
+            id="test-email"
+            placeholder="your-email@example.com"
+          />
+          <button class="button button-success" onclick="sendTestEmail()">
+            Send Test Email
+          </button>
+        </div>
+        <p style="color: #666; font-size: 13px; margin-top: 10px">
+          💡 After sending, check your email inbox and click the tracking image.
+          Then refresh this page.
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>📋 Recent Tracking Records</h2>
+        <div id="tracking-list" class="tracking-list">
+          <div class="loading">Loading tracking data...</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let trackingData = [];
+
+      function showAlert(message, type = "info") {
+        const container = document.getElementById("alert-container");
+        const alert = document.createElement("div");
+        alert.className = `alert alert-${type}`;
+        alert.textContent = message;
+        container.appendChild(alert);
+        setTimeout(() => alert.remove(), 5000);
+      }
+
+      async function sendTestEmail() {
+        const email = document.getElementById("test-email").value;
+        if (!email) {
+          showAlert("Please enter an email address", "error");
+          return;
+        }
+
+        try {
+          const response = await fetch("/api/test-pixel", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ testEmail: email }),
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            showAlert(
+              `✅ Test email sent to ${email}! Check your inbox and click the tracking image.`,
+              "success"
+            );
+            setTimeout(() => loadTracking(), 2000);
+          } else {
+            showAlert(`❌ Failed: ${result.error}`, "error");
+          }
+        } catch (error) {
+          showAlert(`❌ Error: ${error.message}`, "error");
+        }
+      }
+
+      async function testOpen(trackingId) {
+        try {
+          const response = await fetch(
+            `/api/debug-tracking?action=test-open&trackingId=${trackingId}`
+          );
+          const result = await response.json();
+          if (result.success) {
+            showAlert(
+              `✅ Open recorded! Total opens: ${result.data.totalOpens}`,
+              "success"
+            );
+            loadTracking();
+          } else {
+            showAlert(`❌ Failed: ${result.error}`, "error");
+          }
+        } catch (error) {
+          showAlert(`❌ Error: ${error.message}`, "error");
+        }
+      }
+
+      async function testClick(trackingId) {
+        try {
+          const response = await fetch(
+            `/api/debug-tracking?action=test-click&trackingId=${trackingId}`
+          );
+          const result = await response.json();
+          if (result.success) {
+            showAlert(
+              `✅ Click recorded! Total clicks: ${result.data.totalClicks}`,
+              "success"
+            );
+            loadTracking();
+          } else {
+            showAlert(`❌ Failed: ${result.error}`, "error");
+          }
+        } catch (error) {
+          showAlert(`❌ Error: ${error.message}`, "error");
+        }
+      }
+
+      async function loadTracking() {
+        try {
+          const response = await fetch("/api/debug-tracking");
+          const result = await response.json();
+
+          if (result.success) {
+            trackingData = result.data;
+            updateStats();
+            renderTrackingList();
+          } else {
+            showAlert(`Failed to load tracking data: ${result.error}`, "error");
+          }
+        } catch (error) {
+          showAlert(`Error loading data: ${error.message}`, "error");
+        }
+      }
+
+      function updateStats() {
+        const total = trackingData.length;
+        const opened = trackingData.filter((t) => t.totalOpens > 0).length;
+        const clicked = trackingData.filter((t) => t.totalClicks > 0).length;
+        const openRate = total > 0 ? ((opened / total) * 100).toFixed(1) : 0;
+
+        document.getElementById("total-count").textContent = total;
+        document.getElementById("opened-count").textContent = opened;
+        document.getElementById("clicked-count").textContent = clicked;
+        document.getElementById("open-rate").textContent = openRate + "%";
+      }
+
+      function renderTrackingList() {
+        const container = document.getElementById("tracking-list");
+
+        if (trackingData.length === 0) {
+          container.innerHTML =
+            '<div class="loading">No tracking records found. Send a test email to get started.</div>';
+          return;
+        }
+
+        container.innerHTML = trackingData
+          .map(
+            (item) => `
+                <div class="tracking-item">
+                    <div class="tracking-header">
+                        <span class="tracking-email">${
+                          item.recipientEmail
+                        }</span>
+                        <span class="tracking-status status-${
+                          item.status
+                        }">${item.status.toUpperCase()}</span>
+                    </div>
+                    <div class="tracking-details">
+                        <strong>Subject:</strong> ${
+                          item.emailSubject || "N/A"
+                        }<br>
+                        <strong>Tracking ID:</strong> <span class="code">${
+                          item._id
+                        }</span><br>
+                        <strong>Sent:</strong> ${new Date(
+                          item.sentAt
+                        ).toLocaleString()}<br>
+                        <strong>Opens:</strong> ${item.totalOpens || 0} 
+                        ${
+                          item.firstOpenedAt
+                            ? `(First: ${new Date(
+                                item.firstOpenedAt
+                              ).toLocaleString()})`
+                            : ""
+                        }<br>
+                        <strong>Clicks:</strong> ${item.totalClicks || 0}<br>
+                    </div>
+                    <div class="test-section">
+                        <button class="button" onclick="testOpen('${
+                          item._id
+                        }')">🔍 Simulate Open</button>
+                        <button class="button" onclick="testClick('${
+                          item._id
+                        }')">👆 Simulate Click</button>
+                        <button class="button" onclick="window.open('/api/track/pixel/${
+                          item._id
+                        }', '_blank')">📷 Load Pixel</button>
+                    </div>
+                </div>
+            `
+          )
+          .join("");
+      }
+
+      // Load tracking data on page load
+      loadTracking();
+
+      // Auto-refresh every 10 seconds
+      setInterval(loadTracking, 10000);
+    </script>
+  </body>
+</html>

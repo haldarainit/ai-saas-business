@@ -2,14 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Mail,
-  TestTube,
-  Zap,
-  Sparkles,
-  History,
-  BarChart3,
-} from "lucide-react";
+import { Mail, TestTube, Zap, Sparkles, History } from "lucide-react";
 import { EmailUploader } from "../../components/EmailUploader";
 import { EmailTemplateEditor } from "../../components/EmailTemplateEditor";
 import { RecipientsList } from "../../components/RecipientsList";
@@ -595,20 +588,6 @@ export default function EmailAutomationPage() {
                     </span>
                     <span className="text-xs text-muted-foreground -mt-0.5">
                       Sent Emails
-                    </span>
-                  </div>
-                </Button>
-                <Button
-                  onClick={() => router.push("/email-tracking")}
-                  className="flex items-center gap-3 px-5 py-6 h-[60px] rounded-xl border-2 border-purple-300 dark:border-purple-600 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-900/40"
-                >
-                  <BarChart3 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  <div className="flex flex-col items-start">
-                    <span className="text-[15px] font-medium text-purple-700 dark:text-purple-300">
-                      View Analytics
-                    </span>
-                    <span className="text-xs text-purple-600 dark:text-purple-400 -mt-0.5">
-                      Track Opens & Clicks
                     </span>
                   </div>
                 </Button>
