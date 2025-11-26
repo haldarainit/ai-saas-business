@@ -185,24 +185,24 @@ export default function CodeViewWorkspace({
                         {/* Tab Switcher */}
                         <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg">
                             <button
-                                className={`text-sm font-medium transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 ${activeTab === "code"
+                                className={`text-xs sm:text-sm font-medium transition-all duration-200 px-2 sm:px-3 py-1.5 rounded-md flex items-center gap-1 sm:gap-2 ${activeTab === "code"
                                     ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
                                     : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-300"
                                     }`}
                                 onClick={() => setActiveTab("code")}
                             >
-                                <Code2 className="w-4 h-4" />
-                                Code
+                                <Code2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                <span className="hidden xs:inline">Code</span>
                             </button>
                             <button
-                                className={`text-sm font-medium transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 ${activeTab === "preview"
+                                className={`text-xs sm:text-sm font-medium transition-all duration-200 px-2 sm:px-3 py-1.5 rounded-md flex items-center gap-1 sm:gap-2 ${activeTab === "preview"
                                     ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
                                     : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-300"
                                     }`}
                                 onClick={() => setActiveTab("preview")}
                             >
-                                <Eye className="w-4 h-4" />
-                                Preview
+                                <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                <span className="hidden xs:inline">Preview</span>
                             </button>
                         </div>
 
@@ -354,19 +354,20 @@ export default function CodeViewWorkspace({
                             justifyContent: "center",
                             backgroundColor: theme === 'dark' ? '#1e1e1e' : '#f9fafb',
                             padding: "20px",
-                            overflow: "auto"
+                            overflow: "auto" // Allow scrolling for mobile/tablet views
                         }}>
                             <div
                                 ref={previewContainerRef}
-                                className={`transition-all duration-300 ease-in-out shadow-2xl overflow-hidden bg-white dark:bg-black border border-gray-200 dark:border-gray-800 relative group ${previewMode === "mobile" ? "rounded-[30px] border-[8px] border-gray-800" :
+                                className={`shadow-2xl overflow-hidden bg-white dark:bg-black border border-gray-200 dark:border-gray-800 relative group ${previewMode === "mobile" ? "rounded-[30px] border-[8px] border-gray-800" :
                                         previewMode === "tablet" ? "rounded-[20px] border-[8px] border-gray-800" :
                                             "rounded-md w-full h-full"
                                     }`}
                                 style={{
                                     width: previewWidth,
-                                    height: previewMode === "mobile" ? "667px" : previewMode === "tablet" ? "1024px" : "100%",
-                                    maxHeight: "100%",
-                                    maxWidth: "100%"
+                                    height: previewMode === "mobile" ? "900px" : previewMode === "tablet" ? "1200px" : "100%", // Increased heights
+                                    maxHeight: previewMode === "desktop" ? "100%" : "none",
+                                    maxWidth: "100%",
+                                    transition: isResizingPreview ? "none" : "width 0.3s ease-in-out" // Smooth transition
                                 }}
                             >
                                 <SandpackPreviewClient />
@@ -412,11 +413,12 @@ export default function CodeViewWorkspace({
                             <p className="text-gray-500 dark:text-slate-400 text-sm mt-2">Setting up your workspace...</p>
                         </div>
                     </div>
-                ) : null}
-            </div>
+                ) : null
+                }
+            </div >
 
-            {/* Force Sandpack to take full height */}
-            <style jsx global>{`
+            {/* Force Sandpack to take full height and custom scrollbars */}
+            < style jsx global > {`
                 .sp-wrapper,
                 .sp-layout,
                 .sp-stack,
@@ -434,7 +436,40 @@ export default function CodeViewWorkspace({
                 .sp-tabs {
                     display: none !important;
                 }
-            `}</style>
-        </div>
+                
+                /* Custom Scrollbar Styles - Thin and subtle */
+                ::-webkit-scrollbar {
+                    width: 8px;
+                    height: 8px;
+                }
+                ::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                ::-webkit-scrollbar-thumb {
+                    background: rgba(156, 163, 175, 0.3);
+                    border-radius: 4px;
+                }
+                ::-webkit-scrollbar-thumb:hover {
+                    background: rgba(156, 163, 175, 0.5);
+                }
+                
+                /* Dark mode scrollbar */
+                .dark ::-webkit-scrollbar-thumb {
+                    background: rgba(75, 85, 99, 0.4);
+                }
+                .dark ::-webkit-scrollbar-thumb:hover {
+                    background: rgba(75, 85, 99, 0.6);
+                }
+                
+                /* Firefox scrollbar */
+                * {
+                    scrollbar-width: thin;
+                    scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+                }
+                .dark * {
+                    scrollbar-color: rgba(75, 85, 99, 0.4) transparent;
+                }
+            `}</style >
+        </div >
     );
 }

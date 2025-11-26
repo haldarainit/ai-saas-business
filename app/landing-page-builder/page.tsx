@@ -297,7 +297,7 @@ function LandingPageBuilderContent() {
         let aiMessage = data.message || "Landing page has been updated!";
         if (data.modifiedFiles && data.modifiedFiles.length > 0) {
           const fileList = data.modifiedFiles.map((f: string) => `\`${f}\``).join(", ");
-          aiMessage = `✅ ${data.message}\n\n📝 Modified: ${fileList}`;
+          aiMessage = ` ${data.message}\n\n Modified: ${fileList}`;
         }
 
         const updatedMessages: Message[] = [
