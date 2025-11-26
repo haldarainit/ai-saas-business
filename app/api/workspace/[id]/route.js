@@ -41,7 +41,14 @@ export async function PUT(request, { params }) {
 
         let body;
         try {
-            body = await request.json();
+            const text = await request.text();
+            if (!text) {
+                return NextResponse.json(
+                    { error: 'Empty request body' },
+                    { status: 400 }
+                );
+            }
+            body = JSON.parse(text);
         } catch (jsonError) {
             console.error(`PUT /api/workspace/${id} - Invalid JSON:`, jsonError);
             return NextResponse.json(

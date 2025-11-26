@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef, useCallback } from "react";
 import {
     SandpackProvider,
     SandpackLayout,
@@ -9,11 +9,12 @@ import {
 import { useTheme } from "next-themes";
 import Lookup from "@/data/Lookup";
 import SandpackPreviewClient from "./SandpackPreviewClient";
-import { Loader2, Code2, Eye, Download, Upload, Trash2 } from "lucide-react";
+import { Loader2, Code2, Eye, Download, Upload, Trash2, Monitor, Tablet, Smartphone, Undo, Redo, Clock, User, Bot, ChevronDown } from "lucide-react";
 import { ActionContext } from "@/contexts/ActionContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import SandpackListener from "./SandpackListener";
+import SandpackErrorListener from "./SandpackErrorListener";
 import CodeWritingAnimation from "./CodeWritingAnimation";
 
 interface CodeViewWorkspaceProps {
@@ -22,6 +23,15 @@ interface CodeViewWorkspaceProps {
     isGenerating?: boolean;
     onCodeChange?: (files: any) => void;
     onDelete?: () => void;
+    onUndo?: () => void;
+    onRedo?: () => void;
+    canUndo?: boolean;
+    canRedo?: boolean;
+    onRuntimeError?: (error: string) => void;
+    sandpackKey?: number;
+    historyIndex?: number;
+    historyLength?: number;
+    history?: any[];
 }
 
 export default function CodeViewWorkspace({
@@ -29,7 +39,16 @@ export default function CodeViewWorkspace({
     generatedCode,
     isGenerating,
     onCodeChange,
-    onDelete
+    onDelete,
+    onUndo,
+    onRedo,
+    canUndo,
+    canRedo,
+    onRuntimeError,
+    sandpackKey = 0,
+    historyIndex = 0,
+    historyLength = 0,
+    history = []
 }: CodeViewWorkspaceProps) {
     const [activeTab, setActiveTab] = useState<"code" | "preview">("preview");
     const [files, setFiles] = useState(Lookup.DEFAULT_FILE);
@@ -37,6 +56,11 @@ export default function CodeViewWorkspace({
     const { setAction } = useContext(ActionContext);
     const { theme } = useTheme();
     const sandpackTheme = theme === 'dark' ? 'dark' : 'light';
+
+    const [previewMode, setPreviewMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
+    const [previewWidth, setPreviewWidth] = useState<string | number>("100%");
+    const [isResizingPreview, setIsResizingPreview] = useState(false);
+    const previewContainerRef = useRef<HTMLDivElement>(null);
 
     // Load workspace files on mount
     useEffect(() => {
@@ -53,6 +77,13 @@ export default function CodeViewWorkspace({
             UpdateWorkspaceFiles(generatedCode.files);
         }
     }, [generatedCode]);
+
+    // Update width when mode changes
+    useEffect(() => {
+        if (previewMode === "mobile") setPreviewWidth("375px");
+        else if (previewMode === "tablet") setPreviewWidth("768px");
+        else setPreviewWidth("100%");
+    }, [previewMode]);
 
     const GetFiles = async () => {
         setLoading(true);
@@ -101,75 +132,239 @@ export default function CodeViewWorkspace({
         }
     };
 
+    // Resize Logic
+    const handlePreviewResizeStart = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizingPreview(true);
+    };
+
+    const handlePreviewResizeEnd = useCallback(() => {
+        setIsResizingPreview(false);
+    }, []);
+
+    const handlePreviewResizeMove = useCallback((e: MouseEvent) => {
+        if (!isResizingPreview || !previewContainerRef.current) return;
+
+        // We assume the container is centered or we just use the mouse position relative to the container's center?
+        // Actually, simpler: just calculate width based on mouse X relative to the center of the screen?
+        // Or relative to the container's left edge.
+        // Since the container is centered with `alignItems: center`, resizing it symmetrically is hard with one handle.
+        // Let's assume we resize the width.
+        // If we drag the right handle, the new width is roughly 2 * (mouseX - centerX).
+
+        const containerRect = previewContainerRef.current.getBoundingClientRect();
+        const centerX = containerRect.left + containerRect.width / 2;
+        const newHalfWidth = Math.abs(e.clientX - centerX);
+        const newWidth = newHalfWidth * 2;
+
+        if (newWidth >= 320) {
+            setPreviewWidth(`${newWidth}px`);
+        }
+    }, [isResizingPreview]);
+
+    useEffect(() => {
+        if (isResizingPreview) {
+            window.addEventListener("mousemove", handlePreviewResizeMove);
+            window.addEventListener("mouseup", handlePreviewResizeEnd);
+            document.body.style.cursor = "ew-resize";
+            document.body.style.userSelect = "none";
+        } else {
+            window.removeEventListener("mousemove", handlePreviewResizeMove);
+            window.removeEventListener("mouseup", handlePreviewResizeEnd);
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+        }
+        return () => {
+            window.removeEventListener("mousemove", handlePreviewResizeMove);
+            window.removeEventListener("mouseup", handlePreviewResizeEnd);
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+        };
+    }, [isResizingPreview, handlePreviewResizeMove, handlePreviewResizeEnd]);
+
+
     return (
         <div className="relative h-full flex flex-col">
             {/* Header with tabs and actions */}
-            {/* Header with tabs and actions */}
             <div className="bg-white dark:bg-[#181818] border-b border-gray-200 dark:border-neutral-800 p-3">
                 <div className="flex items-center justify-between">
-                    {/* Tab Switcher */}
-                    <div className="flex items-center gap-2 bg-gray-100 dark:bg-black p-1 rounded-full">
-                        <button
-                            className={`text-sm font-medium transition-all duration-200 px-4 py-2 rounded-full ${activeTab === "code"
-                                ? "bg-white dark:bg-gradient-to-r dark:from-blue-500 dark:to-indigo-500 text-blue-600 dark:text-white shadow-sm"
-                                : "text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200 dark:hover:bg-blue-500/10"
-                                }`}
-                            onClick={() => setActiveTab("code")}
-                        >
-                            <Code2 className="w-4 h-4 inline mr-2" />
-                            Code
-                        </button>
-                        <button
-                            className={`text-sm font-medium transition-all duration-200 px-4 py-2 rounded-full ${activeTab === "preview"
-                                ? "bg-white dark:bg-gradient-to-r dark:from-blue-500 dark:to-indigo-500 text-blue-600 dark:text-white shadow-sm"
-                                : "text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200 dark:hover:bg-blue-500/10"
-                                }`}
-                            onClick={() => setActiveTab("preview")}
-                        >
-                            <Eye className="w-4 h-4 inline mr-2" />
-                            Preview
-                        </button>
+                    {/* Left Side: View Toggles */}
+                    <div className="flex items-center gap-4">
+                        {/* Tab Switcher */}
+                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg">
+                            <button
+                                className={`text-xs sm:text-sm font-medium transition-all duration-200 px-2 sm:px-3 py-1.5 rounded-md flex items-center gap-1 sm:gap-2 ${activeTab === "code"
+                                    ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                                    : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-300"
+                                    }`}
+                                onClick={() => setActiveTab("code")}
+                            >
+                                <Code2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                <span className="hidden xs:inline">Code</span>
+                            </button>
+                            <button
+                                className={`text-xs sm:text-sm font-medium transition-all duration-200 px-2 sm:px-3 py-1.5 rounded-md flex items-center gap-1 sm:gap-2 ${activeTab === "preview"
+                                    ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                                    : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-300"
+                                    }`}
+                                onClick={() => setActiveTab("preview")}
+                            >
+                                <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                <span className="hidden xs:inline">Preview</span>
+                            </button>
+                        </div>
+
+                        {/* Undo/Redo Controls */}
+                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg border border-gray-200 dark:border-neutral-800">
+                            <button
+                                className={`p-1.5 rounded-md transition-all ${canUndo
+                                    ? "text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800 hover:text-blue-600 dark:hover:text-blue-400"
+                                    : "text-gray-300 dark:text-gray-700 cursor-not-allowed"
+                                    }`}
+                                onClick={onUndo}
+                                disabled={!canUndo}
+                                title="Undo"
+                            >
+                                <Undo className="w-4 h-4" />
+                            </button>
+                            <button
+                                className={`p-1.5 rounded-md transition-all ${canRedo
+                                    ? "text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800 hover:text-blue-600 dark:hover:text-blue-400"
+                                    : "text-gray-300 dark:text-gray-700 cursor-not-allowed"
+                                    }`}
+                                onClick={onRedo}
+                                disabled={!canRedo}
+                                title="Redo"
+                            >
+                                <Redo className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Version Indicator */}
+                        <div className="relative group">
+                            <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-black rounded-lg border border-gray-200 dark:border-neutral-800 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-neutral-800 transition-colors">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Version</span>
+                                <span className="text-gray-900 dark:text-gray-200">
+                                    {history[historyIndex]?.version || 'v1.0'}
+                                </span>
+                                <span className="text-gray-400">/</span>
+                                <span>{historyLength}</span>
+                                <ChevronDown className="w-3 h-3 ml-1" />
+                            </button>
+
+                            {/* Dropdown */}
+                            <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-[#1e1e1e] rounded-lg shadow-xl border border-gray-200 dark:border-neutral-800 hidden group-hover:block z-50 max-h-80 overflow-y-auto">
+                                <div className="p-2">
+                                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 px-2">Version History</div>
+                                    {Array.isArray(history) && history.length > 0 ? history.map((entry, idx) => (
+                                        <div
+                                            key={idx}
+                                            className={`flex items-center gap-3 p-2 rounded-md text-xs cursor-pointer ${idx === historyIndex
+                                                ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                                                : "hover:bg-gray-50 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300"
+                                                }`}
+                                        >
+                                            <div className={`p-1 rounded-full ${entry.source === 'ai' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
+                                                {entry.source === 'ai' ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium truncate flex items-center gap-2">
+                                                    <span className="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-300">
+                                                        {entry.version}
+                                                    </span>
+                                                    {entry.label || (entry.source === 'ai' ? 'AI Generated' : 'User Edit')}
+                                                </div>
+                                                <div className="text-gray-400 text-[10px]">
+                                                    {new Date(entry.timestamp).toLocaleTimeString()}
+                                                </div>
+                                            </div>
+                                            {idx === historyIndex && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                                        </div>
+                                    )) : (
+                                        <div className="p-4 text-center text-gray-400 text-xs">No version history yet</div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Responsive Toggles (Only visible in Preview mode) */}
+                        {activeTab === "preview" && (
+                            <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg border border-gray-200 dark:border-neutral-800">
+                                <button
+                                    className={`p-1.5 rounded-md transition-all ${previewMode === "desktop"
+                                        ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                                        }`}
+                                    onClick={() => setPreviewMode("desktop")}
+                                    title="Desktop View"
+                                >
+                                    <Monitor className="w-4 h-4" />
+                                </button>
+                                <button
+                                    className={`p-1.5 rounded-md transition-all ${previewMode === "tablet"
+                                        ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                                        }`}
+                                    onClick={() => setPreviewMode("tablet")}
+                                    title="Tablet View"
+                                >
+                                    <Tablet className="w-4 h-4" />
+                                </button>
+                                <button
+                                    className={`p-1.5 rounded-md transition-all ${previewMode === "mobile"
+                                        ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                                        }`}
+                                    onClick={() => setPreviewMode("mobile")}
+                                    title="Mobile View"
+                                >
+                                    <Smartphone className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Action Buttons */}
+                    {/* Right Side: Actions */}
                     <div className="flex items-center gap-2">
                         <Button
                             variant="destructive"
                             size="sm"
                             onClick={handleDelete}
-                            className="gap-2 bg-red-600 hover:bg-red-700 text-white"
+                            className="gap-2 bg-red-600 hover:bg-red-700 text-white h-8"
                             disabled={loading || isGenerating}
                         >
-                            <Trash2 className="w-4 h-4" />
-                            Delete
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Delete</span>
                         </Button>
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={handleExport}
-                            className="gap-2"
+                            className="gap-2 h-8"
                             disabled={loading || isGenerating}
                         >
-                            <Download className="w-4 h-4" />
-                            Export
+                            <Download className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Export</span>
                         </Button>
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={handleDeploy}
-                            className="gap-2"
+                            className="gap-2 h-8"
                             disabled={loading || isGenerating}
                         >
-                            <Upload className="w-4 h-4" />
-                            Deploy
+                            <Upload className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Deploy</span>
                         </Button>
                     </div>
                 </div>
             </div>
 
             {/* Sandpack Content */}
-            <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#1e1e1e]" style={{ display: "flex", flexDirection: "column" }}>
+            <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#1e1e1e] relative">
                 <SandpackProvider
+                    key={sandpackKey} // Force reload only when explicitly requested (Undo/Redo)
                     files={files}
                     template="react"
                     theme={sandpackTheme}
@@ -187,18 +382,61 @@ export default function CodeViewWorkspace({
                     }}
                 >
                     {onCodeChange && <SandpackListener onCodeChange={onCodeChange} />}
-                    <SandpackLayout style={{ height: "100%", width: "100%", display: "flex", flex: 1 }}>
-                        <div style={{ display: activeTab === "code" ? "flex" : "none", height: "100%", width: "100%", flex: 1 }}>
-                            <SandpackFileExplorer style={{ height: "100%", minHeight: "100%" }} />
+                    {onRuntimeError && <SandpackErrorListener onError={onRuntimeError} />}
+                    <SandpackLayout style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column", border: "none", background: "transparent" }}>
+
+                        {/* Code Editor View */}
+                        <div style={{
+                            display: activeTab === "code" ? "flex" : "none",
+                            height: "100%",
+                            width: "100%"
+                        }}>
+                            <SandpackFileExplorer style={{ height: "100%", minHeight: "100%", width: "250px" }} />
                             <SandpackCodeEditor
                                 style={{ height: "100%", minHeight: "100%", flex: 1 }}
                                 showTabs
                                 showLineNumbers
                                 showInlineErrors
+                                wrapContent
                             />
                         </div>
-                        <div style={{ display: activeTab === "preview" ? "flex" : "none", height: "100%", width: "100%", flex: 1, flexDirection: "column" }}>
-                            <SandpackPreviewClient />
+
+                        {/* Preview View with Responsive Container */}
+                        <div style={{
+                            display: activeTab === "preview" ? "flex" : "none",
+                            height: "100%",
+                            width: "100%",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            backgroundColor: theme === 'dark' ? '#1e1e1e' : '#f9fafb',
+                            padding: "20px",
+                            overflow: "auto" // Allow scrolling for mobile/tablet views
+                        }}>
+                            <div
+                                ref={previewContainerRef}
+                                className={`shadow-2xl overflow-hidden bg-white dark:bg-black border border-gray-200 dark:border-gray-800 relative group ${previewMode === "mobile" ? "rounded-[30px] border-[8px] border-gray-800" :
+                                    previewMode === "tablet" ? "rounded-[20px] border-[8px] border-gray-800" :
+                                        "rounded-md w-full h-full"
+                                    }`}
+                                style={{
+                                    width: previewWidth,
+                                    height: previewMode === "mobile" ? "900px" : previewMode === "tablet" ? "1200px" : "100%", // Increased heights
+                                    maxHeight: previewMode === "desktop" ? "100%" : "none",
+                                    maxWidth: "100%",
+                                    transition: isResizingPreview ? "none" : "width 0.3s ease-in-out" // Smooth transition
+                                }}
+                            >
+                                <SandpackPreviewClient />
+
+                                {/* Resize Handle (Right) */}
+                                <div
+                                    className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-16 bg-gray-200 dark:bg-gray-700 rounded-l-md cursor-ew-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50"
+                                    onMouseDown={handlePreviewResizeStart}
+                                >
+                                    <div className="w-1 h-8 bg-gray-400 dark:bg-gray-500 rounded-full" />
+                                </div>
+                            </div>
                         </div>
                     </SandpackLayout>
                 </SandpackProvider>
@@ -232,11 +470,12 @@ export default function CodeViewWorkspace({
                             <p className="text-gray-500 dark:text-slate-400 text-sm mt-2">Setting up your workspace...</p>
                         </div>
                     </div>
-                ) : null}
-            </div>
+                ) : null
+                }
+            </div >
 
-            {/* Force Sandpack to take full height */}
-            <style jsx global>{`
+            {/* Force Sandpack to take full height and custom scrollbars */}
+            < style jsx global > {`
                 .sp-wrapper,
                 .sp-layout,
                 .sp-stack,
@@ -250,7 +489,44 @@ export default function CodeViewWorkspace({
                     display: flex !important;
                     flex-direction: column !important;
                 }
-            `}</style>
-        </div>
+                /* Hide default sandpack header/tabs since we have our own */
+                .sp-tabs {
+                    display: none !important;
+                }
+                
+                /* Custom Scrollbar Styles - Thin and subtle */
+                ::-webkit-scrollbar {
+                    width: 8px;
+                    height: 8px;
+                }
+                ::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                ::-webkit-scrollbar-thumb {
+                    background: rgba(156, 163, 175, 0.3);
+                    border-radius: 4px;
+                }
+                ::-webkit-scrollbar-thumb:hover {
+                    background: rgba(156, 163, 175, 0.5);
+                }
+                
+                /* Dark mode scrollbar */
+                .dark ::-webkit-scrollbar-thumb {
+                    background: rgba(75, 85, 99, 0.4);
+                }
+                .dark ::-webkit-scrollbar-thumb:hover {
+                    background: rgba(75, 85, 99, 0.6);
+                }
+                
+                /* Firefox scrollbar */
+                * {
+                    scrollbar-width: thin;
+                    scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+                }
+                .dark * {
+                    scrollbar-color: rgba(75, 85, 99, 0.4) transparent;
+                }
+            `}</style >
+        </div >
     );
 }

@@ -24,6 +24,7 @@ export async function POST(request) {
     const gemini = geminiModule.default || geminiModule;
 
     // Build the prompt with conversation context
+    // Build the prompt with conversation context
     const systemPrompt = `You are an expert React developer creating production-ready landing pages like Lovable.dev.
 
 CRITICAL FILE STRUCTURE - ALWAYS INCLUDE ALL FILES:
@@ -70,13 +71,25 @@ TAILWIND CSS USAGE:
 - hover:scale-105, transition-all for animations
 - Use flex, grid for layouts
 - Responsive: sm:, md:, lg:, xl:
+- **CRITICAL: ALL DESIGNS MUST BE FULLY RESPONSIVE.**
+- ALWAYS use responsive prefixes (sm:, md:, lg:) for layout changes (e.g., flex-col on mobile, flex-row on desktop).
+- Ensure font sizes, padding, and margins are adjusted for mobile screens.
+- The design MUST look professional and perfect on mobile, tablet, and desktop devices.
+
+JSON RESPONSE FORMATTING - CRITICAL:
+- You must return a SINGLE valid JSON object.
+- The keys are file paths, and values are the code content.
+- **YOU MUST ESCAPE ALL DOUBLE QUOTES INSIDE THE CODE STRINGS.**
+- Example: "className=\"bg-blue-500\"" NOT "className="bg-blue-500""
+- Do not use markdown code blocks. Just the raw JSON string.
+- Ensure all newlines in the code are properly escaped as \\n.
 
 EXAMPLE STRUCTURE (return as JSON):
 {
   "/package.json": "{\\"name\\":\\"landing-page\\",\\"version\\":\\"1.0.0\\",\\"scripts\\":{\\"start\\":\\"react-scripts start\\",\\"build\\":\\"react-scripts build\\"},\\"dependencies\\":{\\"react\\":\\"^18.2.0\\",\\"react-dom\\":\\"^18.2.0\\",\\"react-router-dom\\":\\"^6.20.0\\",\\"react-scripts\\":\\"5.0.1\\",\\"lucide-react\\":\\"latest\\"}}",
   "/public/index.html": "<!DOCTYPE html>\\n<html lang=\\"en\\">\\n<head>\\n  <meta charset=\\"utf-8\\" />\\n  <meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1\\" />\\n  <title>Landing Page</title>\\n  <script src=\\"https://cdn.tailwindcss.com\\"></script>\\n</head>\\n<body>\\n  <div id=\\"root\\"></div>\\n</body>\\n</html>",
   "/index.js": "import React from \\"react\\";\\nimport { createRoot } from \\"react-dom/client\\";\\nimport { BrowserRouter } from \\"react-router-dom\\";\\nimport \\"./styles.css\\";\\nimport App from \\"./App\\";\\n\\nconst root = createRoot(document.getElementById(\\"root\\"));\\nroot.render(\\n  <BrowserRouter>\\n    <App />\\n  </BrowserRouter>\\n);",
-  "/styles.css": "* { margin: 0; padding: 0; box-sizing: border-box; }\\nbody { font-family: system-ui, -apple-system, sans-serif; }\\nhtml { scroll-behavior: smooth; }",
+  "/styles.css": "* { margin: 0; padding: 0; box-sizing: border-box; }\\nbody { font-family: system-ui, -apple-system, sans-serif; }\\nhtml { scroll-behavior: smooth; }\\n\\n/* Hide scrollbar but keep functionality */\\n::-webkit-scrollbar { width: 0px; height: 0px; }\\n* { scrollbar-width: none; -ms-overflow-style: none; }",
   "/App.js": "import React from \\"react\\";\\nimport { Routes, Route } from \\"react-router-dom\\";\\nimport Hero from \\"./components/Hero\\";\\nimport Features from \\"./components/Features\\";\\nimport CTA from \\"./components/CTA\\";\\n\\nexport default function App() {\\n  return (\\n    <Routes>\\n      <Route path=\\"/\\" element={\\n        <div>\\n          <Hero />\\n          <Features />\\n          <CTA />\\n        </div>\\n      } />\\n    </Routes>\\n  );\\n}",
   "/components/Hero.js": "import React from \\"react\\";\\nimport { ArrowRight } from \\"lucide-react\\";\\n\\nexport default function Hero() {\\n  return (\\n    <section className=\\"min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700 text-white px-4\\">\\n      <div className=\\"max-w-4xl text-center\\">\\n        <h1 className=\\"text-6xl font-bold mb-6\\">Build Amazing Products</h1>\\n        <p className=\\"text-2xl mb-8 text-blue-100\\">Transform your ideas into reality</p>\\n        <button className=\\"bg-white text-blue-600 px-8 py-4 rounded-full font-semibold flex items-center gap-2 mx-auto hover:scale-105 transition-transform shadow-xl\\">\\n          Get Started <ArrowRight className=\\"w-5 h-5\\" />\\n        </button>\\n      </div>\\n    </section>\\n  );\\n}"
 }
@@ -156,44 +169,38 @@ ${userPrompt}`;
         cleanedResult = cleanedResult.replace(/```$/i, "");
         cleanedResult = cleanedResult.trim();
 
-        // Try to auto-fix some very common JSON issues from LLMs
-        // 1) Ensure all keys are quoted and use double quotes
-        // 2) Convert single-quoted strings to double-quoted
-        // 3) Escape any embedded newlines/tabs inside string values
-        // 4) Strip invalid escape sequences like "\ " or stray backslashes
-        cleanedResult = cleanedResult
-          // Replace Windows style newlines for consistency
-          .replace(/\r\n/g, "\n")
-          // Convert single-quoted JSON to double-quoted (keys and values)
-          .replace(/'([^']*)'(?=\s*:)/g, '"$1"')
-          .replace(/:\s*'([^']*)'/g, ': "$1"')
-          // Remove invalid escape sequences (anything like \<non-valid>)
-          // Valid JSON escapes are: \" \\ \/ \b \f \n \r \t or \uXXXX
-          .replace(/\\(?!["\\\/bfnrtu])/g, "\\\\");
-
-        // Escape unescaped control characters inside string values
-        const lines = cleanedResult.split("\n");
-        const fixedLines = lines.map((line) => {
-          // Only touch lines that look like JSON key/value pairs
-          if (line.includes("\":")) {
-            return line.replace(/[\n\r\t]/g, (match) => {
-              if (match === "\n") return "\\n";
-              if (match === "\r") return "\\r";
-              if (match === "\t") return "\\t";
-              return match;
-            });
-          }
-          return line;
-        });
-
-        cleanedResult = fixedLines.join("\n");
-
         let generatedFiles;
         try {
           generatedFiles = JSON.parse(cleanedResult);
-        } catch (innerError) {
-          console.error("Error parsing cleaned AI JSON, raw payload was:\n", cleanedResult);
-          throw innerError;
+        } catch (firstError) {
+          // If first parse fails, try aggressive cleanup
+          console.log("First parse failed, attempting cleanup...");
+
+          // Fix common issues:
+          // 1. Replace literal newlines in strings with \\n
+          // 2. Fix tabs
+          // 3. Remove any remaining control characters
+
+          try {
+            // Parse as an object to manipulate it
+            const fixedResult = cleanedResult
+              // Fix newlines within string values (between quotes)
+              .replace(/"([^"]*?)"\s*:\s*"((?:[^"\\]|\\.)*)"/g, (match, key, value) => {
+                // Escape unescaped newlines and tabs in the value
+                const fixedValue = value
+                  .replace(/\n/g, '\\n')
+                  .replace(/\r/g, '\\r')
+                  .replace(/\t/g, '\\t');
+                return `"${key}": "${fixedValue}"`;
+              });
+
+            generatedFiles = JSON.parse(fixedResult);
+          } catch (secondError) {
+            console.error("Error parsing cleaned AI JSON after cleanup, raw payload was:\n", cleanedResult);
+            console.error("First error:", firstError.message);
+            console.error("Second error:", secondError.message);
+            throw secondError;
+          }
         }
 
         // Function to fix common syntax errors in JavaScript strings
