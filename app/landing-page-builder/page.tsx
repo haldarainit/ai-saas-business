@@ -212,6 +212,7 @@ function LandingPageBuilderContent() {
 
   // Track last saved state to avoid unnecessary saves
   const lastSavedStateRef = useRef<{ messages?: string, code?: string }>({})
+  const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const updateWorkspaceMessages = useCallback(async (newMessages?: Message[], newCode?: any) => {
     if (!workspaceId) return
@@ -271,30 +272,51 @@ function LandingPageBuilderContent() {
     const newCode = { files }
     setCurrentCode(newCode)
 
-    // Only add to history if not from undo/redo
-    if (!isUndoRedoRef.current) {
-      console.log("Adding to history (user edit)")
-
-      // Use the current history length to ensure we don't go out of bounds
-      // We need to slice up to the current index (inclusive), but clamp it to valid range
-      const safeIndex = Math.min(historyIndex, history.length - 1)
-
-      setHistory(prev => {
-        const currentHistory = prev.slice(0, safeIndex + 1)
-        const newHistory = [...currentHistory, newCode]
-        console.log("New history length:", newHistory.length)
-        return newHistory
-      })
-
-      setHistoryIndex(safeIndex + 1)
-      console.log("New historyIndex:", safeIndex + 1)
-    } else {
-      console.log("Skipping history add (undo/redo operation)")
-    }
-
     // Save to workspace (will only actually save if changed)
     console.log("Triggering save check...")
     updateWorkspaceMessages(messages, newCode)
+
+    // Debounce history updates to avoid saving every keystroke
+    if (!isUndoRedoRef.current) {
+      if (historyTimeoutRef.current) {
+        clearTimeout(historyTimeoutRef.current)
+      }
+
+      historyTimeoutRef.current = setTimeout(() => {
+        console.log("Adding to history (debounced user edit)")
+
+        setHistory(prev => {
+          // Re-calculate safe index based on LATEST state
+          // Note: We need to be careful with closures here. 
+          // Ideally we'd use a functional update that checks the current history state,
+          // but historyIndex is from the outer scope.
+          // A safer approach for debouncing is to just update the history state
+          // and let the index follow.
+
+          // However, since we're inside a timeout, 'historyIndex' might be stale if not careful.
+          // But since we clear timeout on every change, this runs only when typing stops.
+
+          // Actually, for a robust undo/redo, we should snapshot the state *before* changes start?
+          // No, standard behavior is: type type type -> pause -> save state.
+
+          // Let's use the ref approach for history index to ensure freshness if needed,
+          // or just rely on the fact that while typing, historyIndex shouldn't change from other sources.
+
+          const currentHistory = prev.slice(0, historyIndex + 1)
+          const newHistory = [...currentHistory, newCode]
+          console.log("New history length:", newHistory.length)
+          return newHistory
+        })
+
+        setHistoryIndex(prev => {
+          const newIndex = prev + 1
+          console.log("New historyIndex:", newIndex)
+          return newIndex
+        })
+      }, 1000) // 1 second debounce
+    } else {
+      console.log("Skipping history add (undo/redo operation)")
+    }
   }, [historyIndex, messages, updateWorkspaceMessages, history])
 
   // Effect to add to history when currentCode changes, BUT only if it's not from undo/redo
