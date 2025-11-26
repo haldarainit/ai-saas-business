@@ -24,6 +24,7 @@ export async function POST(request) {
     const gemini = geminiModule.default || geminiModule;
 
     // Build the prompt with conversation context
+    // Build the prompt with conversation context
     const systemPrompt = `You are an expert React developer creating production-ready landing pages like Lovable.dev.
 
 CRITICAL FILE STRUCTURE - ALWAYS INCLUDE ALL FILES:
@@ -70,6 +71,18 @@ TAILWIND CSS USAGE:
 - hover:scale-105, transition-all for animations
 - Use flex, grid for layouts
 - Responsive: sm:, md:, lg:, xl:
+- **CRITICAL: ALL DESIGNS MUST BE FULLY RESPONSIVE.**
+- ALWAYS use responsive prefixes (sm:, md:, lg:) for layout changes (e.g., flex-col on mobile, flex-row on desktop).
+- Ensure font sizes, padding, and margins are adjusted for mobile screens.
+- The design MUST look professional and perfect on mobile, tablet, and desktop devices.
+
+JSON RESPONSE FORMATTING - CRITICAL:
+- You must return a SINGLE valid JSON object.
+- The keys are file paths, and values are the code content.
+- **YOU MUST ESCAPE ALL DOUBLE QUOTES INSIDE THE CODE STRINGS.**
+- Example: "className=\"bg-blue-500\"" NOT "className="bg-blue-500""
+- Do not use markdown code blocks. Just the raw JSON string.
+- Ensure all newlines in the code are properly escaped as \\n.
 
 EXAMPLE STRUCTURE (return as JSON):
 {
@@ -155,38 +168,6 @@ ${userPrompt}`;
         cleanedResult = cleanedResult.replace(/^```\s*/i, "");
         cleanedResult = cleanedResult.replace(/```$/i, "");
         cleanedResult = cleanedResult.trim();
-
-        // Try to auto-fix some very common JSON issues from LLMs
-        // 1) Ensure all keys are quoted and use double quotes
-        // 2) Convert single-quoted strings to double-quoted
-        // 3) Escape any embedded newlines/tabs inside string values
-        // 4) Strip invalid escape sequences like "\ " or stray backslashes
-        cleanedResult = cleanedResult
-          // Replace Windows style newlines for consistency
-          .replace(/\r\n/g, "\n")
-          // Convert single-quoted JSON to double-quoted (keys and values)
-          .replace(/'([^']*)'(?=\s*:)/g, '"$1"')
-          .replace(/:\s*'([^']*)'/g, ': "$1"')
-          // Remove invalid escape sequences (anything like \<non-valid>)
-          // Valid JSON escapes are: \" \\ \/ \b \f \n \r \t or \uXXXX
-          .replace(/\\(?!["\\\/bfnrtu])/g, "\\\\");
-
-        // Escape unescaped control characters inside string values
-        const lines = cleanedResult.split("\n");
-        const fixedLines = lines.map((line) => {
-          // Only touch lines that look like JSON key/value pairs
-          if (line.includes("\":")) {
-            return line.replace(/[\n\r\t]/g, (match) => {
-              if (match === "\n") return "\\n";
-              if (match === "\r") return "\\r";
-              if (match === "\t") return "\\t";
-              return match;
-            });
-          }
-          return line;
-        });
-
-        cleanedResult = fixedLines.join("\n");
 
         let generatedFiles;
         try {
