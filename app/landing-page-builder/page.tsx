@@ -587,6 +587,8 @@ function LandingPageBuilderContent() {
                     canRedo={historyIndex < history.length - 1}
                     onRuntimeError={handleRuntimeError}
                     sandpackKey={sandpackKey}
+                    historyIndex={historyIndex}
+                    historyLength={history.length}
                   />
                 </div>
               }

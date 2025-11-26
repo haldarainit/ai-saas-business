@@ -29,6 +29,8 @@ interface CodeViewWorkspaceProps {
     canRedo?: boolean;
     onRuntimeError?: (error: string) => void;
     sandpackKey?: number;
+    historyIndex?: number;
+    historyLength?: number;
 }
 
 export default function CodeViewWorkspace({
@@ -42,7 +44,9 @@ export default function CodeViewWorkspace({
     canUndo,
     canRedo,
     onRuntimeError,
-    sandpackKey = 0
+    sandpackKey = 0,
+    historyIndex = 0,
+    historyLength = 0
 }: CodeViewWorkspaceProps) {
     const [activeTab, setActiveTab] = useState<"code" | "preview">("preview");
     const [files, setFiles] = useState(Lookup.DEFAULT_FILE);
@@ -232,6 +236,16 @@ export default function CodeViewWorkspace({
                             >
                                 <Redo className="w-4 h-4" />
                             </button>
+                        </div>
+
+                        {/* Version Indicator */}
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-black rounded-lg border border-gray-200 dark:border-neutral-800 text-xs font-medium text-gray-500 dark:text-gray-400">
+                            <span className="hidden sm:inline">Version</span>
+                            <span className="text-gray-900 dark:text-gray-200">
+                                {historyLength > 0 ? historyIndex + 1 : 0}
+                            </span>
+                            <span className="text-gray-400">/</span>
+                            <span>{historyLength}</span>
                         </div>
 
                         {/* Responsive Toggles (Only visible in Preview mode) */}
