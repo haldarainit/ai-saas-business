@@ -9,7 +9,7 @@ import {
 import { useTheme } from "next-themes";
 import Lookup from "@/data/Lookup";
 import SandpackPreviewClient from "./SandpackPreviewClient";
-import { Loader2, Code2, Eye, Download, Upload, Trash2, Monitor, Tablet, Smartphone, Undo, Redo } from "lucide-react";
+import { Loader2, Code2, Eye, Download, Upload, Trash2, Monitor, Tablet, Smartphone, Undo, Redo, Clock, User, Bot, ChevronDown } from "lucide-react";
 import { ActionContext } from "@/contexts/ActionContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -31,6 +31,7 @@ interface CodeViewWorkspaceProps {
     sandpackKey?: number;
     historyIndex?: number;
     historyLength?: number;
+    history?: any[];
 }
 
 export default function CodeViewWorkspace({
@@ -46,7 +47,8 @@ export default function CodeViewWorkspace({
     onRuntimeError,
     sandpackKey = 0,
     historyIndex = 0,
-    historyLength = 0
+    historyLength = 0,
+    history = []
 }: CodeViewWorkspaceProps) {
     const [activeTab, setActiveTab] = useState<"code" | "preview">("preview");
     const [files, setFiles] = useState(Lookup.DEFAULT_FILE);
@@ -239,13 +241,51 @@ export default function CodeViewWorkspace({
                         </div>
 
                         {/* Version Indicator */}
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-black rounded-lg border border-gray-200 dark:border-neutral-800 text-xs font-medium text-gray-500 dark:text-gray-400">
-                            <span className="hidden sm:inline">Version</span>
-                            <span className="text-gray-900 dark:text-gray-200">
-                                {historyLength > 0 ? historyIndex + 1 : 0}
-                            </span>
-                            <span className="text-gray-400">/</span>
-                            <span>{historyLength}</span>
+                        <div className="relative group">
+                            <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-black rounded-lg border border-gray-200 dark:border-neutral-800 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-neutral-800 transition-colors">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Version</span>
+                                <span className="text-gray-900 dark:text-gray-200">
+                                    {history[historyIndex]?.version || 'v1.0'}
+                                </span>
+                                <span className="text-gray-400">/</span>
+                                <span>{historyLength}</span>
+                                <ChevronDown className="w-3 h-3 ml-1" />
+                            </button>
+
+                            {/* Dropdown */}
+                            <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-[#1e1e1e] rounded-lg shadow-xl border border-gray-200 dark:border-neutral-800 hidden group-hover:block z-50 max-h-80 overflow-y-auto">
+                                <div className="p-2">
+                                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 px-2">Version History</div>
+                                    {Array.isArray(history) && history.length > 0 ? history.map((entry, idx) => (
+                                        <div
+                                            key={idx}
+                                            className={`flex items-center gap-3 p-2 rounded-md text-xs cursor-pointer ${idx === historyIndex
+                                                ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                                                : "hover:bg-gray-50 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300"
+                                                }`}
+                                        >
+                                            <div className={`p-1 rounded-full ${entry.source === 'ai' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
+                                                {entry.source === 'ai' ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium truncate flex items-center gap-2">
+                                                    <span className="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-300">
+                                                        {entry.version}
+                                                    </span>
+                                                    {entry.label || (entry.source === 'ai' ? 'AI Generated' : 'User Edit')}
+                                                </div>
+                                                <div className="text-gray-400 text-[10px]">
+                                                    {new Date(entry.timestamp).toLocaleTimeString()}
+                                                </div>
+                                            </div>
+                                            {idx === historyIndex && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                                        </div>
+                                    )) : (
+                                        <div className="p-4 text-center text-gray-400 text-xs">No version history yet</div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
                         {/* Responsive Toggles (Only visible in Preview mode) */}

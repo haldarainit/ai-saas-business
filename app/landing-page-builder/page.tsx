@@ -39,7 +39,15 @@ function LandingPageBuilderContent() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
 
   // History Management
-  const [history, setHistory] = useState<any[]>([])
+  // History Management
+  interface HistoryEntry {
+    code: any;
+    timestamp: number;
+    source: 'ai' | 'user';
+    label?: string;
+    version: string;
+  }
+  const [history, setHistory] = useState<HistoryEntry[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
 
   // Debug: Log when currentCode changes
@@ -70,7 +78,14 @@ function LandingPageBuilderContent() {
           const code = { files: data.workspace.fileData }
           setCurrentCode(code)
           // Initialize history with loaded code
-          setHistory([code])
+          const initialEntry: HistoryEntry = {
+            code,
+            timestamp: Date.now(),
+            source: 'user', // Assume user for initial load or maybe 'ai' if we tracked it
+            label: 'Initial Load',
+            version: 'v1.0'
+          }
+          setHistory([initialEntry])
           setHistoryIndex(0)
 
           // Initialize last saved state to prevent initial auto-save
@@ -89,10 +104,30 @@ function LandingPageBuilderContent() {
     }
   }
 
-  const addToHistory = (code: any) => {
+  const addToHistory = (code: any, source: 'ai' | 'user' = 'user', label?: string) => {
     setHistory(prev => {
-      const newHistory = prev.slice(0, historyIndex + 1)
-      newHistory.push(code)
+      const currentHistory = prev.slice(0, historyIndex + 1)
+      const lastEntry = currentHistory[currentHistory.length - 1]
+
+      let newVersion = 'v1.0'
+      if (lastEntry && lastEntry.version) {
+        const [major, minor] = lastEntry.version.replace('v', '').split('.').map(Number)
+        if (source === 'ai') {
+          newVersion = `v${major + 1}.0`
+        } else {
+          newVersion = `v${major}.${minor + 1}`
+        }
+      }
+
+      const entry: HistoryEntry = {
+        code,
+        timestamp: Date.now(),
+        source,
+        label,
+        version: newVersion
+      }
+
+      const newHistory = [...currentHistory, entry]
       return newHistory
     })
     setHistoryIndex(prev => prev + 1)
@@ -125,7 +160,7 @@ function LandingPageBuilderContent() {
       console.log("Code at that index:", history[newIndex])
 
       setHistoryIndex(newIndex)
-      setCurrentCode(history[newIndex])
+      setCurrentCode(history[newIndex].code)
       setSandpackKey(prev => prev + 1) // Force reload
 
       console.log("✅ Undo complete - currentCode should update to:", history[newIndex])
@@ -152,7 +187,7 @@ function LandingPageBuilderContent() {
       console.log("Code at that index:", history[newIndex])
 
       setHistoryIndex(newIndex)
-      setCurrentCode(history[newIndex])
+      setCurrentCode(history[newIndex].code)
       setSandpackKey(prev => prev + 1) // Force reload
 
       console.log("✅ Redo complete - currentCode should update to:", history[newIndex])
@@ -297,18 +332,6 @@ function LandingPageBuilderContent() {
           // But since we clear timeout on every change, this runs only when typing stops.
 
           // Actually, for a robust undo/redo, we should snapshot the state *before* changes start?
-          // No, standard behavior is: type type type -> pause -> save state.
-
-          // Let's use the ref approach for history index to ensure freshness if needed,
-          // or just rely on the fact that while typing, historyIndex shouldn't change from other sources.
-
-          const currentHistory = prev.slice(0, historyIndex + 1)
-          const newHistory = [...currentHistory, newCode]
-          console.log("New history length:", newHistory.length)
-          return newHistory
-        })
-
-        setHistoryIndex(prev => {
           const newIndex = prev + 1
           console.log("New historyIndex:", newIndex)
           return newIndex
@@ -359,9 +382,12 @@ function LandingPageBuilderContent() {
       const data = await response.json()
 
       if (data.success && data.files) {
-        const newCode = { files: data.files }
+        // Merge new files with existing code to ensure atomic update of full state
+        const mergedFiles = { ...currentCode?.files, ...data.files }
+        const newCode = { files: mergedFiles }
+
         setCurrentCode(newCode)
-        addToHistory(newCode) // Add to history
+        addToHistory(newCode, 'ai', 'Initial Generation') // Add to history
         setSandpackKey(prev => prev + 1) // Force reload
 
         const newMessages: Message[] = [
@@ -403,9 +429,12 @@ function LandingPageBuilderContent() {
       const data = await response.json()
 
       if (data.success && data.files) {
-        const newCode = { files: data.files }
+        // Merge new files with existing code to ensure atomic update of full state
+        const mergedFiles = { ...currentCode?.files, ...data.files }
+        const newCode = { files: mergedFiles }
+
         setCurrentCode(newCode)
-        addToHistory(newCode) // Add to history
+        addToHistory(newCode, 'ai', 'AI Update') // Add to history
         setSandpackKey(prev => prev + 1) // Force reload
 
         let aiMessage = data.message || "Landing page has been updated!";
@@ -589,6 +618,7 @@ function LandingPageBuilderContent() {
                     sandpackKey={sandpackKey}
                     historyIndex={historyIndex}
                     historyLength={history.length}
+                    history={history}
                   />
                 </div>
               }
