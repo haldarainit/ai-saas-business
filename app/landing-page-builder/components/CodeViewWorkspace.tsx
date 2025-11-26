@@ -28,6 +28,7 @@ interface CodeViewWorkspaceProps {
     canUndo?: boolean;
     canRedo?: boolean;
     onRuntimeError?: (error: string) => void;
+    sandpackKey?: number;
 }
 
 export default function CodeViewWorkspace({
@@ -40,7 +41,8 @@ export default function CodeViewWorkspace({
     onRedo,
     canUndo,
     canRedo,
-    onRuntimeError
+    onRuntimeError,
+    sandpackKey = 0
 }: CodeViewWorkspaceProps) {
     const [activeTab, setActiveTab] = useState<"code" | "preview">("preview");
     const [files, setFiles] = useState(Lookup.DEFAULT_FILE);
@@ -308,6 +310,7 @@ export default function CodeViewWorkspace({
             {/* Sandpack Content */}
             <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#1e1e1e] relative">
                 <SandpackProvider
+                    key={sandpackKey} // Force reload only when explicitly requested (Undo/Redo)
                     files={files}
                     template="react"
                     theme={sandpackTheme}
@@ -359,8 +362,8 @@ export default function CodeViewWorkspace({
                             <div
                                 ref={previewContainerRef}
                                 className={`shadow-2xl overflow-hidden bg-white dark:bg-black border border-gray-200 dark:border-gray-800 relative group ${previewMode === "mobile" ? "rounded-[30px] border-[8px] border-gray-800" :
-                                        previewMode === "tablet" ? "rounded-[20px] border-[8px] border-gray-800" :
-                                            "rounded-md w-full h-full"
+                                    previewMode === "tablet" ? "rounded-[20px] border-[8px] border-gray-800" :
+                                        "rounded-md w-full h-full"
                                     }`}
                                 style={{
                                     width: previewWidth,

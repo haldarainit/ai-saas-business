@@ -42,6 +42,12 @@ function LandingPageBuilderContent() {
   const [history, setHistory] = useState<any[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
 
+  // Debug: Log when currentCode changes
+  useEffect(() => {
+    console.log("🔄 currentCode changed:", currentCode)
+    console.log("Current historyIndex:", historyIndex)
+  }, [currentCode, historyIndex])
+
   // Load workspace from URL params
   useEffect(() => {
     const workspaceIdFromUrl = searchParams.get("workspace")
@@ -66,6 +72,13 @@ function LandingPageBuilderContent() {
           // Initialize history with loaded code
           setHistory([code])
           setHistoryIndex(0)
+
+          // Initialize last saved state to prevent initial auto-save
+          lastSavedStateRef.current = {
+            messages: JSON.stringify(data.workspace.messages || []),
+            code: JSON.stringify(data.workspace.fileData || {})
+          }
+
           setShowForm(false)
         }
       }
@@ -88,28 +101,70 @@ function LandingPageBuilderContent() {
   // Ref to prevent history updates during undo/redo
   const isUndoRedoRef = useRef(false)
 
+  // Key to force Sandpack reload only when needed (Undo/Redo/AI generation)
+  const [sandpackKey, setSandpackKey] = useState(0)
+
+  // Auto-repair history index if it gets out of sync
+  useEffect(() => {
+    if (history.length > 0 && historyIndex >= history.length) {
+      console.warn(`⚠️ History index desync detected! Index: ${historyIndex}, Length: ${history.length}. Auto-correcting to ${history.length - 1}`)
+      setHistoryIndex(history.length - 1)
+    }
+  }, [historyIndex, history.length])
+
   const handleUndo = () => {
+    console.log("🔙 UNDO CLICKED")
+    console.log("Current historyIndex:", historyIndex)
+    console.log("History length:", history.length)
+    console.log("Current history:", history)
+
     if (historyIndex > 0) {
       isUndoRedoRef.current = true
       const newIndex = historyIndex - 1
+      console.log("Going to index:", newIndex)
+      console.log("Code at that index:", history[newIndex])
+
       setHistoryIndex(newIndex)
       setCurrentCode(history[newIndex])
+      setSandpackKey(prev => prev + 1) // Force reload
+
+      console.log("✅ Undo complete - currentCode should update to:", history[newIndex])
       toast.success("Undone")
-      setTimeout(() => { isUndoRedoRef.current = false }, 100)
+      setTimeout(() => {
+        isUndoRedoRef.current = false
+        console.log("isUndoRedoRef reset to false")
+      }, 1000)
+    } else {
+      console.log("❌ Cannot undo - already at oldest version")
     }
   }
 
   const handleRedo = () => {
+    console.log("🔜 REDO CLICKED")
+    console.log("Current historyIndex:", historyIndex)
+    console.log("History length:", history.length)
+    console.log("Current history:", history)
+
     if (historyIndex < history.length - 1) {
       isUndoRedoRef.current = true
       const newIndex = historyIndex + 1
+      console.log("Going to index:", newIndex)
+      console.log("Code at that index:", history[newIndex])
+
       setHistoryIndex(newIndex)
       setCurrentCode(history[newIndex])
+      setSandpackKey(prev => prev + 1) // Force reload
+
+      console.log("✅ Redo complete - currentCode should update to:", history[newIndex])
       toast.success("Redone")
-      setTimeout(() => { isUndoRedoRef.current = false }, 100)
+      setTimeout(() => {
+        isUndoRedoRef.current = false
+        console.log("isUndoRedoRef reset to false")
+      }, 1000)
+    } else {
+      console.log("❌ Cannot redo - already at newest version")
     }
   }
-
   const handleNewWorkspace = () => {
     setMessages([])
     setCurrentCode(null)
@@ -210,22 +265,37 @@ function LandingPageBuilderContent() {
   }, [workspaceId])
 
   const handleCodeChange = useCallback((files: any) => {
+    console.log("📝 handleCodeChange called")
+    console.log("isUndoRedoRef.current:", isUndoRedoRef.current)
+
     const newCode = { files }
     setCurrentCode(newCode)
 
     // Only add to history if not from undo/redo
     if (!isUndoRedoRef.current) {
+      console.log("Adding to history (user edit)")
+
+      // Use the current history length to ensure we don't go out of bounds
+      // We need to slice up to the current index (inclusive), but clamp it to valid range
+      const safeIndex = Math.min(historyIndex, history.length - 1)
+
       setHistory(prev => {
-        const currentHistory = prev.slice(0, historyIndex + 1)
-        return [...currentHistory, newCode]
+        const currentHistory = prev.slice(0, safeIndex + 1)
+        const newHistory = [...currentHistory, newCode]
+        console.log("New history length:", newHistory.length)
+        return newHistory
       })
-      setHistoryIndex(prev => prev + 1)
+
+      setHistoryIndex(safeIndex + 1)
+      console.log("New historyIndex:", safeIndex + 1)
+    } else {
+      console.log("Skipping history add (undo/redo operation)")
     }
 
     // Save to workspace (will only actually save if changed)
-    console.log("handleCodeChange called, triggering save check...")
+    console.log("Triggering save check...")
     updateWorkspaceMessages(messages, newCode)
-  }, [historyIndex, messages, updateWorkspaceMessages])
+  }, [historyIndex, messages, updateWorkspaceMessages, history])
 
   // Effect to add to history when currentCode changes, BUT only if it's not from undo/redo
   // This is tricky. Let's simplify:
@@ -270,6 +340,7 @@ function LandingPageBuilderContent() {
         const newCode = { files: data.files }
         setCurrentCode(newCode)
         addToHistory(newCode) // Add to history
+        setSandpackKey(prev => prev + 1) // Force reload
 
         const newMessages: Message[] = [
           ...initialMessages,
@@ -313,6 +384,7 @@ function LandingPageBuilderContent() {
         const newCode = { files: data.files }
         setCurrentCode(newCode)
         addToHistory(newCode) // Add to history
+        setSandpackKey(prev => prev + 1) // Force reload
 
         let aiMessage = data.message || "Landing page has been updated!";
         if (data.modifiedFiles && data.modifiedFiles.length > 0) {
@@ -485,27 +557,14 @@ function LandingPageBuilderContent() {
                     workspaceId={workspaceId}
                     generatedCode={currentCode}
                     isGenerating={isLoading}
-                    onCodeChange={async (files) => {
-                      // Inline handleCodeChange logic to access state
-                      const newCode = { files }
-                      setCurrentCode(newCode)
-
-                      // Add to history
-                      setHistory(prev => {
-                        const newHistory = prev.slice(0, historyIndex + 1)
-                        newHistory.push(newCode)
-                        return newHistory
-                      })
-                      setHistoryIndex(prev => prev + 1)
-
-                      await updateWorkspaceMessages(messages, { files })
-                    }}
+                    onCodeChange={handleCodeChange}
                     onDelete={handleDeleteWorkspace}
                     onUndo={handleUndo}
                     onRedo={handleRedo}
                     canUndo={historyIndex > 0}
                     canRedo={historyIndex < history.length - 1}
                     onRuntimeError={handleRuntimeError}
+                    sandpackKey={sandpackKey}
                   />
                 </div>
               }
