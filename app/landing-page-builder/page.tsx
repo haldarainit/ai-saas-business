@@ -85,19 +85,28 @@ function LandingPageBuilderContent() {
     setHistoryIndex(prev => prev + 1)
   }
 
+  // Ref to prevent history updates during undo/redo
+  const isUndoRedoRef = useRef(false)
+
   const handleUndo = () => {
     if (historyIndex > 0) {
+      isUndoRedoRef.current = true
       const newIndex = historyIndex - 1
       setHistoryIndex(newIndex)
       setCurrentCode(history[newIndex])
+      toast.success("Undone")
+      setTimeout(() => { isUndoRedoRef.current = false }, 100)
     }
   }
 
   const handleRedo = () => {
     if (historyIndex < history.length - 1) {
+      isUndoRedoRef.current = true
       const newIndex = historyIndex + 1
       setHistoryIndex(newIndex)
       setCurrentCode(history[newIndex])
+      toast.success("Redone")
+      setTimeout(() => { isUndoRedoRef.current = false }, 100)
     }
   }
 
@@ -146,66 +155,77 @@ function LandingPageBuilderContent() {
     return null
   }
 
-  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  // Track last saved state to avoid unnecessary saves
+  const lastSavedStateRef = useRef<{ messages?: string, code?: string }>({})
 
-  const updateWorkspaceMessages = useCallback(async (newMessages: Message[], newCode?: any) => {
+  const updateWorkspaceMessages = useCallback(async (newMessages?: Message[], newCode?: any) => {
     if (!workspaceId) return
 
-    if (updateTimeoutRef.current) {
-      clearTimeout(updateTimeoutRef.current)
-    }
+    try {
+      const body: any = {}
+      let hasChanges = false
 
-    updateTimeoutRef.current = setTimeout(async () => {
-      try {
-        const body: any = {}
-        if (newMessages && newMessages.length > 0) {
+      // Check if messages changed
+      if (newMessages && newMessages.length > 0) {
+        const messagesStr = JSON.stringify(newMessages)
+        if (lastSavedStateRef.current.messages !== messagesStr) {
+          console.log("Messages changed, will save")
           body.messages = newMessages
+          lastSavedStateRef.current.messages = messagesStr
+          hasChanges = true
+        } else {
+          console.log("Messages unchanged, skipping")
         }
-        if (newCode && newCode.files && Object.keys(newCode.files).length > 0) {
-          body.fileData = newCode.files
-        }
-
-        if (Object.keys(body).length === 0) return
-
-        await fetch(`/api/workspace/${workspaceId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        })
-      } catch (error) {
-        console.error("Error updating workspace:", error)
       }
-    }, 2000)
+
+      // Check if code changed
+      if (newCode?.files && Object.keys(newCode.files).length > 0) {
+        const codeStr = JSON.stringify(newCode.files)
+        if (lastSavedStateRef.current.code !== codeStr) {
+          console.log("Code changed, will save")
+          body.fileData = newCode.files
+          lastSavedStateRef.current.code = codeStr
+          hasChanges = true
+        } else {
+          console.log("Code unchanged, skipping save")
+        }
+      }
+
+      // Only save if there were actual changes
+      if (!hasChanges) {
+        console.log("No changes detected, skipping API call")
+        return
+      }
+
+      console.log("Saving to database...")
+      await fetch(`/api/workspace/${workspaceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      console.log("Save complete")
+    } catch (error) {
+      console.error("Error updating workspace:", error)
+    }
   }, [workspaceId])
 
-  const handleCodeChange = useCallback(async (files: any) => {
+  const handleCodeChange = useCallback((files: any) => {
     const newCode = { files }
     setCurrentCode(newCode)
 
-    // Add to history for user edits
-    // We need to be careful not to add to history during undo/redo, but this callback is mainly from the editor
-    // However, since we can't easily access addToHistory inside useCallback without adding it to deps (and causing loops),
-    // we will rely on a separate effect or just assume this is fine for now.
-    // Actually, we can just call the state setter directly here since we are inside the component.
-    // But wait, addToHistory uses state updater pattern, so it's safe.
-    // We just need to make sure we don't have stale closures if we use addToHistory directly.
-    // Let's just update history here directly to be safe.
+    // Only add to history if not from undo/redo
+    if (!isUndoRedoRef.current) {
+      setHistory(prev => {
+        const currentHistory = prev.slice(0, historyIndex + 1)
+        return [...currentHistory, newCode]
+      })
+      setHistoryIndex(prev => prev + 1)
+    }
 
-    setHistory(prev => {
-      // We need historyIndex here, which is a dependency.
-      // This is getting complicated with useCallback dependencies.
-      // Let's just skip adding to history here and rely on the fact that 
-      // SandpackListener calls this on *user* edits.
-      // We really should add to history here.
-      return prev; // Placeholder
-    })
-
-    // Re-implementing addToHistory logic inside here to avoid dependency issues
-    // Actually, let's just use a ref for historyIndex if we want to avoid re-creating this callback
-    // Or just let it re-create.
-
-    await updateWorkspaceMessages(messages, { files })
-  }, [messages, updateWorkspaceMessages])
+    // Save to workspace (will only actually save if changed)
+    console.log("handleCodeChange called, triggering save check...")
+    updateWorkspaceMessages(messages, newCode)
+  }, [historyIndex, messages, updateWorkspaceMessages])
 
   // Effect to add to history when currentCode changes, BUT only if it's not from undo/redo
   // This is tricky. Let's simplify:

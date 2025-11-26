@@ -172,9 +172,35 @@ ${userPrompt}`;
         let generatedFiles;
         try {
           generatedFiles = JSON.parse(cleanedResult);
-        } catch (innerError) {
-          console.error("Error parsing cleaned AI JSON, raw payload was:\n", cleanedResult);
-          throw innerError;
+        } catch (firstError) {
+          // If first parse fails, try aggressive cleanup
+          console.log("First parse failed, attempting cleanup...");
+
+          // Fix common issues:
+          // 1. Replace literal newlines in strings with \\n
+          // 2. Fix tabs
+          // 3. Remove any remaining control characters
+
+          try {
+            // Parse as an object to manipulate it
+            const fixedResult = cleanedResult
+              // Fix newlines within string values (between quotes)
+              .replace(/"([^"]*?)"\s*:\s*"((?:[^"\\]|\\.)*)"/g, (match, key, value) => {
+                // Escape unescaped newlines and tabs in the value
+                const fixedValue = value
+                  .replace(/\n/g, '\\n')
+                  .replace(/\r/g, '\\r')
+                  .replace(/\t/g, '\\t');
+                return `"${key}": "${fixedValue}"`;
+              });
+
+            generatedFiles = JSON.parse(fixedResult);
+          } catch (secondError) {
+            console.error("Error parsing cleaned AI JSON after cleanup, raw payload was:\n", cleanedResult);
+            console.error("First error:", firstError.message);
+            console.error("Second error:", secondError.message);
+            throw secondError;
+          }
         }
 
         // Function to fix common syntax errors in JavaScript strings
