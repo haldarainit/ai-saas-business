@@ -32,6 +32,7 @@ interface CodeViewWorkspaceProps {
     historyIndex?: number;
     historyLength?: number;
     history?: any[];
+    onVersionSelect?: (index: number) => void;
 }
 
 export default function CodeViewWorkspace({
@@ -48,7 +49,8 @@ export default function CodeViewWorkspace({
     sandpackKey = 0,
     historyIndex = 0,
     historyLength = 0,
-    history = []
+    history = [],
+    onVersionSelect
 }: CodeViewWorkspaceProps) {
     const [activeTab, setActiveTab] = useState<"code" | "preview">("preview");
     const [files, setFiles] = useState(Lookup.DEFAULT_FILE);
@@ -214,119 +216,124 @@ export default function CodeViewWorkspace({
                             </button>
                         </div>
 
-                        {/* Undo/Redo Controls */}
-                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg border border-gray-200 dark:border-neutral-800">
-                            <button
-                                className={`p-1.5 rounded-md transition-all ${canUndo
-                                    ? "text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800 hover:text-blue-600 dark:hover:text-blue-400"
-                                    : "text-gray-300 dark:text-gray-700 cursor-not-allowed"
-                                    }`}
-                                onClick={onUndo}
-                                disabled={!canUndo}
-                                title="Undo"
-                            >
-                                <Undo className="w-4 h-4" />
-                            </button>
-                            <button
-                                className={`p-1.5 rounded-md transition-all ${canRedo
-                                    ? "text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800 hover:text-blue-600 dark:hover:text-blue-400"
-                                    : "text-gray-300 dark:text-gray-700 cursor-not-allowed"
-                                    }`}
-                                onClick={onRedo}
-                                disabled={!canRedo}
-                                title="Redo"
-                            >
-                                <Redo className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        {/* Version Indicator */}
-                        <div className="relative group">
-                            <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-black rounded-lg border border-gray-200 dark:border-neutral-800 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-neutral-800 transition-colors">
-                                <Clock className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Version</span>
-                                <span className="text-gray-900 dark:text-gray-200">
-                                    {history[historyIndex]?.version || 'v1.0'}
-                                </span>
-                                <span className="text-gray-400">/</span>
-                                <span>{historyLength}</span>
-                                <ChevronDown className="w-3 h-3 ml-1" />
-                            </button>
-
-                            {/* Dropdown */}
-                            <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-[#1e1e1e] rounded-lg shadow-xl border border-gray-200 dark:border-neutral-800 hidden group-hover:block z-50 max-h-80 overflow-y-auto">
-                                <div className="p-2">
-                                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 px-2">Version History</div>
-                                    {Array.isArray(history) && history.length > 0 ? history.map((entry, idx) => (
-                                        <div
-                                            key={idx}
-                                            className={`flex items-center gap-3 p-2 rounded-md text-xs cursor-pointer ${idx === historyIndex
-                                                ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-                                                : "hover:bg-gray-50 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300"
-                                                }`}
-                                        >
-                                            <div className={`p-1 rounded-full ${entry.source === 'ai' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
-                                                {entry.source === 'ai' ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-medium truncate flex items-center gap-2">
-                                                    <span className="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-300">
-                                                        {entry.version}
-                                                    </span>
-                                                    {entry.label || (entry.source === 'ai' ? 'AI Generated' : 'User Edit')}
-                                                </div>
-                                                <div className="text-gray-400 text-[10px]">
-                                                    {new Date(entry.timestamp).toLocaleTimeString()}
-                                                </div>
-                                            </div>
-                                            {idx === historyIndex && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
-                                        </div>
-                                    )) : (
-                                        <div className="p-4 text-center text-gray-400 text-xs">No version history yet</div>
-                                    )}
+                        {historyLength > 0 && (
+                            <>
+                                {/* Undo/Redo Controls */}
+                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg border border-gray-200 dark:border-neutral-800">
+                                    <button
+                                        className={`p-1.5 rounded-md transition-all ${canUndo
+                                            ? "text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800 hover:text-blue-600 dark:hover:text-blue-400"
+                                            : "text-gray-300 dark:text-gray-700 cursor-not-allowed"
+                                            }`}
+                                        onClick={onUndo}
+                                        disabled={!canUndo}
+                                        title="Undo"
+                                    >
+                                        <Undo className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        className={`p-1.5 rounded-md transition-all ${canRedo
+                                            ? "text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800 hover:text-blue-600 dark:hover:text-blue-400"
+                                            : "text-gray-300 dark:text-gray-700 cursor-not-allowed"
+                                            }`}
+                                        onClick={onRedo}
+                                        disabled={!canRedo}
+                                        title="Redo"
+                                    >
+                                        <Redo className="w-4 h-4" />
+                                    </button>
                                 </div>
-                            </div>
-                        </div>
+
+                                {/* Version Indicator */}
+                                <div className="relative group">
+                                    <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-black rounded-lg border border-gray-200 dark:border-neutral-800 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-neutral-800 transition-colors">
+                                        <Clock className="w-3.5 h-3.5" />
+                                        <span className="hidden sm:inline">Version</span>
+                                        <span className="text-gray-900 dark:text-gray-200">
+                                            {history[historyIndex]?.version || 'v1.0'}
+                                        </span>
+                                        <ChevronDown className="w-3 h-3 ml-1" />
+                                    </button>
+
+                                    {/* Dropdown */}
+                                    <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-[#1e1e1e] rounded-lg shadow-xl border border-gray-200 dark:border-neutral-800 hidden group-hover:block z-50 max-h-80 overflow-y-auto">
+                                        <div className="p-2">
+                                            <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 px-2">Version History</div>
+                                            {Array.isArray(history) && history.length > 0 ? history.map((entry, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    onClick={() => onVersionSelect?.(idx)}
+                                                    className={`flex items-center gap-3 p-2 rounded-md text-xs cursor-pointer ${idx === historyIndex
+                                                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                                                        : "hover:bg-gray-50 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300"
+                                                        }`}
+                                                >
+                                                    <div className={`p-1 rounded-full ${entry.source === 'ai' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
+                                                        {entry.source === 'ai' ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-medium truncate flex items-center gap-2">
+                                                            <span className="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-300">
+                                                                {entry.version}
+                                                            </span>
+                                                            {entry.label || (entry.source === 'ai' ? 'AI Generated' : 'User Edit')}
+                                                        </div>
+                                                        <div className="text-gray-400 text-[10px]">
+                                                            {new Date(entry.timestamp).toLocaleTimeString()}
+                                                        </div>
+                                                    </div>
+                                                    {idx === historyIndex && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                                                </div>
+                                            )) : (
+                                                <div className="p-4 text-center text-gray-400 text-xs">No version history yet</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
 
                         {/* Responsive Toggles (Only visible in Preview mode) */}
-                        {activeTab === "preview" && (
-                            <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg border border-gray-200 dark:border-neutral-800">
-                                <button
-                                    className={`p-1.5 rounded-md transition-all ${previewMode === "desktop"
-                                        ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
-                                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                                        }`}
-                                    onClick={() => setPreviewMode("desktop")}
-                                    title="Desktop View"
-                                >
-                                    <Monitor className="w-4 h-4" />
-                                </button>
-                                <button
-                                    className={`p-1.5 rounded-md transition-all ${previewMode === "tablet"
-                                        ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
-                                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                                        }`}
-                                    onClick={() => setPreviewMode("tablet")}
-                                    title="Tablet View"
-                                >
-                                    <Tablet className="w-4 h-4" />
-                                </button>
-                                <button
-                                    className={`p-1.5 rounded-md transition-all ${previewMode === "mobile"
-                                        ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
-                                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                                        }`}
-                                    onClick={() => setPreviewMode("mobile")}
-                                    title="Mobile View"
-                                >
-                                    <Smartphone className="w-4 h-4" />
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                        {
+                            activeTab === "preview" && (
+                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg border border-gray-200 dark:border-neutral-800">
+                                    <button
+                                        className={`p-1.5 rounded-md transition-all ${previewMode === "desktop"
+                                            ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                                            : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                                            }`}
+                                        onClick={() => setPreviewMode("desktop")}
+                                        title="Desktop View"
+                                    >
+                                        <Monitor className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        className={`p-1.5 rounded-md transition-all ${previewMode === "tablet"
+                                            ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                                            : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                                            }`}
+                                        onClick={() => setPreviewMode("tablet")}
+                                        title="Tablet View"
+                                    >
+                                        <Tablet className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        className={`p-1.5 rounded-md transition-all ${previewMode === "mobile"
+                                            ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                                            : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                                            }`}
+                                        onClick={() => setPreviewMode("mobile")}
+                                        title="Mobile View"
+                                    >
+                                        <Smartphone className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )
+                        }
+                    </div >
 
                     {/* Right Side: Actions */}
-                    <div className="flex items-center gap-2">
+                    < div className="flex items-center gap-2" >
                         <Button
                             variant="destructive"
                             size="sm"
@@ -357,12 +364,12 @@ export default function CodeViewWorkspace({
                             <Upload className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Deploy</span>
                         </Button>
-                    </div>
-                </div>
-            </div>
+                    </div >
+                </div >
+            </div >
 
             {/* Sandpack Content */}
-            <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#1e1e1e] relative">
+            < div className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#1e1e1e] relative" >
                 <SandpackProvider
                     key={sandpackKey} // Force reload only when explicitly requested (Undo/Redo)
                     files={files}
@@ -442,35 +449,36 @@ export default function CodeViewWorkspace({
                 </SandpackProvider>
 
                 {/* Loading Overlay */}
-                {isGenerating && generatedCode?.files && Object.keys(generatedCode.files).length > 0 ? (
-                    <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-center z-50">
-                        <div className="max-w-3xl w-full px-6">
-                            <div className="text-center mb-6">
-                                <div className="inline-flex items-center gap-3 bg-blue-50 dark:bg-blue-600/20 border border-blue-200 dark:border-blue-500/30 rounded-full px-6 py-3">
-                                    <Loader2 className="animate-spin h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                    <span className="text-blue-700 dark:text-blue-100 font-medium">Building Your Application</span>
+                {
+                    isGenerating && generatedCode?.files && Object.keys(generatedCode.files).length > 0 ? (
+                        <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-center z-50">
+                            <div className="max-w-3xl w-full px-6">
+                                <div className="text-center mb-6">
+                                    <div className="inline-flex items-center gap-3 bg-blue-50 dark:bg-blue-600/20 border border-blue-200 dark:border-blue-500/30 rounded-full px-6 py-3">
+                                        <Loader2 className="animate-spin h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                        <span className="text-blue-700 dark:text-blue-100 font-medium">Building Your Application</span>
+                                    </div>
                                 </div>
+                                <CodeWritingAnimation
+                                    files={generatedCode.files}
+                                    onComplete={() => {
+                                        // Animation complete, will automatically hide when isGenerating becomes false
+                                        console.log("Code generation animation complete")
+                                    }}
+                                />
                             </div>
-                            <CodeWritingAnimation
-                                files={generatedCode.files}
-                                onComplete={() => {
-                                    // Animation complete, will automatically hide when isGenerating becomes false
-                                    console.log("Code generation animation complete")
-                                }}
-                            />
                         </div>
-                    </div>
-                ) : (loading || isGenerating) ? (
-                    <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50">
-                        <div className="text-center">
-                            <Loader2 className="animate-spin h-12 w-12 text-blue-600 dark:text-blue-500 mx-auto mb-4" />
-                            <h2 className="text-gray-900 dark:text-white text-lg font-semibold">
-                                {isGenerating ? "Generating Your Code..." : "Loading..."}
-                            </h2>
-                            <p className="text-gray-500 dark:text-slate-400 text-sm mt-2">Setting up your workspace...</p>
+                    ) : (loading || isGenerating) ? (
+                        <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50">
+                            <div className="text-center">
+                                <Loader2 className="animate-spin h-12 w-12 text-blue-600 dark:text-blue-500 mx-auto mb-4" />
+                                <h2 className="text-gray-900 dark:text-white text-lg font-semibold">
+                                    {isGenerating ? "Generating Your Code..." : "Loading..."}
+                                </h2>
+                                <p className="text-gray-500 dark:text-slate-400 text-sm mt-2">Setting up your workspace...</p>
+                            </div>
                         </div>
-                    </div>
-                ) : null
+                    ) : null
                 }
             </div >
 

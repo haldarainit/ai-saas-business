@@ -105,18 +105,33 @@ function LandingPageBuilderContent() {
   }
 
   const addToHistory = (code: any, source: 'ai' | 'user' = 'user', label?: string) => {
+    // Determine if we should merge with the previous entry
+    // We merge if the current source is 'user' and the last entry was also 'user'
+    const currentHistorySlice = history.slice(0, historyIndex + 1)
+    const lastEntry = currentHistorySlice[currentHistorySlice.length - 1]
+    const shouldMerge = source === 'user' && lastEntry && lastEntry.source === 'user'
+
     setHistory(prev => {
       const currentHistory = prev.slice(0, historyIndex + 1)
-      const lastEntry = currentHistory[currentHistory.length - 1]
 
+      if (shouldMerge) {
+        // Update the last entry
+        const updatedEntry = {
+          ...lastEntry,
+          code,
+          timestamp: Date.now()
+          // Keep existing version and label
+        }
+        const newHistory = [...currentHistory]
+        newHistory[newHistory.length - 1] = updatedEntry
+        return newHistory
+      }
+
+      // Else create new entry
       let newVersion = 'v1.0'
       if (lastEntry && lastEntry.version) {
         const [major, minor] = lastEntry.version.replace('v', '').split('.').map(Number)
-        if (source === 'ai') {
-          newVersion = `v${major + 1}.0`
-        } else {
-          newVersion = `v${major}.${minor + 1}`
-        }
+        newVersion = `v${major}.${minor + 1}`
       }
 
       const entry: HistoryEntry = {
@@ -127,14 +142,21 @@ function LandingPageBuilderContent() {
         version: newVersion
       }
 
-      const newHistory = [...currentHistory, entry]
-      return newHistory
+      return [...currentHistory, entry]
     })
-    setHistoryIndex(prev => prev + 1)
+
+    // Only increment index if we added a NEW entry
+    if (!shouldMerge) {
+      setHistoryIndex(prev => prev + 1)
+    }
   }
 
   // Ref to prevent history updates during undo/redo
   const isUndoRedoRef = useRef(false)
+
+  // Track last saved state to avoid unnecessary saves
+  const lastSavedStateRef = useRef<{ messages?: string, code?: string }>({})
+  const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Key to force Sandpack reload only when needed (Undo/Redo/AI generation)
   const [sandpackKey, setSandpackKey] = useState(0)
@@ -153,6 +175,11 @@ function LandingPageBuilderContent() {
     console.log("History length:", history.length)
     console.log("Current history:", history)
 
+    // Clear any pending history updates from typing
+    if (historyTimeoutRef.current) {
+      clearTimeout(historyTimeoutRef.current)
+    }
+
     if (historyIndex > 0) {
       isUndoRedoRef.current = true
       const newIndex = historyIndex - 1
@@ -164,7 +191,7 @@ function LandingPageBuilderContent() {
       setSandpackKey(prev => prev + 1) // Force reload
 
       console.log("✅ Undo complete - currentCode should update to:", history[newIndex])
-      toast.success("Undone")
+      toast.success(`Undone to ${history[newIndex].version}`)
       setTimeout(() => {
         isUndoRedoRef.current = false
         console.log("isUndoRedoRef reset to false")
@@ -180,6 +207,11 @@ function LandingPageBuilderContent() {
     console.log("History length:", history.length)
     console.log("Current history:", history)
 
+    // Clear any pending history updates from typing
+    if (historyTimeoutRef.current) {
+      clearTimeout(historyTimeoutRef.current)
+    }
+
     if (historyIndex < history.length - 1) {
       isUndoRedoRef.current = true
       const newIndex = historyIndex + 1
@@ -191,7 +223,7 @@ function LandingPageBuilderContent() {
       setSandpackKey(prev => prev + 1) // Force reload
 
       console.log("✅ Redo complete - currentCode should update to:", history[newIndex])
-      toast.success("Redone")
+      toast.success(`Redone to ${history[newIndex].version}`)
       setTimeout(() => {
         isUndoRedoRef.current = false
         console.log("isUndoRedoRef reset to false")
@@ -200,6 +232,27 @@ function LandingPageBuilderContent() {
       console.log("❌ Cannot redo - already at newest version")
     }
   }
+  const handleVersionSelect = (index: number) => {
+    if (index === historyIndex) return;
+
+    console.log("🕒 Switching to version index:", index);
+
+    // Prevent history updates from this change
+    isUndoRedoRef.current = true;
+
+    setHistoryIndex(index);
+    setCurrentCode(history[index].code);
+    setSandpackKey(prev => prev + 1); // Force reload
+
+    toast.success(`Switched to ${history[index].version}`);
+
+    // Reset flag after a delay to allow Sandpack to load
+    setTimeout(() => {
+      isUndoRedoRef.current = false;
+      console.log("isUndoRedoRef reset to false");
+    }, 1000);
+  }
+
   const handleNewWorkspace = () => {
     setMessages([])
     setCurrentCode(null)
@@ -244,10 +297,6 @@ function LandingPageBuilderContent() {
     }
     return null
   }
-
-  // Track last saved state to avoid unnecessary saves
-  const lastSavedStateRef = useRef<{ messages?: string, code?: string }>({})
-  const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const updateWorkspaceMessages = useCallback(async (newMessages?: Message[], newCode?: any) => {
     if (!workspaceId) return
@@ -301,8 +350,10 @@ function LandingPageBuilderContent() {
   }, [workspaceId])
 
   const handleCodeChange = useCallback((files: any) => {
+    // Prevent history updates during AI generation or undo/redo
+    if (isLoading || isUndoRedoRef.current) return;
+
     console.log("📝 handleCodeChange called")
-    console.log("isUndoRedoRef.current:", isUndoRedoRef.current)
 
     const newCode = { files }
     setCurrentCode(newCode)
@@ -312,35 +363,15 @@ function LandingPageBuilderContent() {
     updateWorkspaceMessages(messages, newCode)
 
     // Debounce history updates to avoid saving every keystroke
-    if (!isUndoRedoRef.current) {
-      if (historyTimeoutRef.current) {
-        clearTimeout(historyTimeoutRef.current)
-      }
-
-      historyTimeoutRef.current = setTimeout(() => {
-        console.log("Adding to history (debounced user edit)")
-
-        setHistory(prev => {
-          // Re-calculate safe index based on LATEST state
-          // Note: We need to be careful with closures here. 
-          // Ideally we'd use a functional update that checks the current history state,
-          // but historyIndex is from the outer scope.
-          // A safer approach for debouncing is to just update the history state
-          // and let the index follow.
-
-          // However, since we're inside a timeout, 'historyIndex' might be stale if not careful.
-          // But since we clear timeout on every change, this runs only when typing stops.
-
-          // Actually, for a robust undo/redo, we should snapshot the state *before* changes start?
-          const newIndex = prev + 1
-          console.log("New historyIndex:", newIndex)
-          return newIndex
-        })
-      }, 1000) // 1 second debounce
-    } else {
-      console.log("Skipping history add (undo/redo operation)")
+    if (historyTimeoutRef.current) {
+      clearTimeout(historyTimeoutRef.current)
     }
-  }, [historyIndex, messages, updateWorkspaceMessages, history])
+
+    historyTimeoutRef.current = setTimeout(() => {
+      console.log("Adding to history (debounced user edit)")
+      addToHistory(newCode, 'user', 'User Edit')
+    }, 1000) // 1 second debounce
+  }, [historyIndex, messages, updateWorkspaceMessages, history, isLoading, addToHistory])
 
   // Effect to add to history when currentCode changes, BUT only if it's not from undo/redo
   // This is tricky. Let's simplify:
@@ -619,6 +650,7 @@ function LandingPageBuilderContent() {
                     historyIndex={historyIndex}
                     historyLength={history.length}
                     history={history}
+                    onVersionSelect={handleVersionSelect}
                   />
                 </div>
               }
