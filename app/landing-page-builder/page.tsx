@@ -39,13 +39,14 @@ function LandingPageBuilderContent() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
 
   // History Management
-  // History Management
   interface HistoryEntry {
     code: any;
     timestamp: number;
     source: 'ai' | 'user';
     label?: string;
     version: string;
+    messages?: Message[];
+    userPrompt?: string;
   }
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
@@ -104,7 +105,7 @@ function LandingPageBuilderContent() {
     }
   }
 
-  const addToHistory = (code: any, source: 'ai' | 'user' = 'user', label?: string) => {
+  const addToHistory = (code: any, source: 'ai' | 'user' = 'user', label?: string, userPrompt?: string, currentMessages?: Message[]) => {
     // Determine if we should merge with the previous entry
     // We merge if the current source is 'user' and the last entry was also 'user'
     const currentHistorySlice = history.slice(0, historyIndex + 1)
@@ -139,7 +140,9 @@ function LandingPageBuilderContent() {
         timestamp: Date.now(),
         source,
         label,
-        version: newVersion
+        version: newVersion,
+        messages: currentMessages,
+        userPrompt
       }
 
       return [...currentHistory, entry]
@@ -195,7 +198,7 @@ function LandingPageBuilderContent() {
       setTimeout(() => {
         isUndoRedoRef.current = false
         console.log("isUndoRedoRef reset to false")
-      }, 1000)
+      }, 3000)
     } else {
       console.log("❌ Cannot undo - already at oldest version")
     }
@@ -220,6 +223,12 @@ function LandingPageBuilderContent() {
 
       setHistoryIndex(newIndex)
       setCurrentCode(history[newIndex].code)
+
+      // Restore messages if available
+      if (history[newIndex].messages) {
+        setMessages(history[newIndex].messages!)
+      }
+
       setSandpackKey(prev => prev + 1) // Force reload
 
       console.log("✅ Redo complete - currentCode should update to:", history[newIndex])
@@ -227,7 +236,7 @@ function LandingPageBuilderContent() {
       setTimeout(() => {
         isUndoRedoRef.current = false
         console.log("isUndoRedoRef reset to false")
-      }, 1000)
+      }, 3000)
     } else {
       console.log("❌ Cannot redo - already at newest version")
     }
@@ -242,6 +251,12 @@ function LandingPageBuilderContent() {
 
     setHistoryIndex(index);
     setCurrentCode(history[index].code);
+
+    // Restore messages if available
+    if (history[index].messages) {
+      setMessages(history[index].messages!);
+    }
+
     setSandpackKey(prev => prev + 1); // Force reload
 
     toast.success(`Switched to ${history[index].version}`);
@@ -250,7 +265,13 @@ function LandingPageBuilderContent() {
     setTimeout(() => {
       isUndoRedoRef.current = false;
       console.log("isUndoRedoRef reset to false");
-    }, 1000);
+    }, 3000);
+  }
+
+  const handleGoToLatest = () => {
+    if (history.length > 0 && historyIndex !== history.length - 1) {
+      handleVersionSelect(history.length - 1);
+    }
   }
 
   const handleNewWorkspace = () => {
@@ -349,11 +370,36 @@ function LandingPageBuilderContent() {
     }
   }, [workspaceId])
 
+  const areFilesEqual = (files1: any, files2: any) => {
+    if (!files1 || !files2) return false;
+    const keys1 = Object.keys(files1);
+    const keys2 = Object.keys(files2);
+    if (keys1.length !== keys2.length) return false;
+
+    for (const key of keys1) {
+      if (!files2[key]) return false;
+      // Handle both simple string format and object format
+      const code1 = typeof files1[key] === 'string' ? files1[key] : files1[key].code;
+      const code2 = typeof files2[key] === 'string' ? files2[key] : files2[key].code;
+
+      // Normalize line endings for comparison
+      const normalize = (str: string) => str.replace(/\r\n/g, '\n').trim();
+      if (normalize(code1) !== normalize(code2)) return false;
+    }
+    return true;
+  }
+
   const handleCodeChange = useCallback((files: any) => {
     // Prevent history updates during AI generation or undo/redo
     if (isLoading || isUndoRedoRef.current) return;
 
-    console.log("📝 handleCodeChange called")
+    // Check if files are actually different from currentCode
+    if (currentCode?.files && areFilesEqual(files, currentCode.files)) {
+      console.log("Files are identical, skipping history update");
+      return;
+    }
+
+    console.log("📝 handleCodeChange called - content changed")
 
     const newCode = { files }
     setCurrentCode(newCode)
@@ -369,9 +415,9 @@ function LandingPageBuilderContent() {
 
     historyTimeoutRef.current = setTimeout(() => {
       console.log("Adding to history (debounced user edit)")
-      addToHistory(newCode, 'user', 'User Edit')
+      addToHistory(newCode, 'user', 'User Edit', undefined, messages)
     }, 1000) // 1 second debounce
-  }, [historyIndex, messages, updateWorkspaceMessages, history, isLoading, addToHistory])
+  }, [historyIndex, messages, updateWorkspaceMessages, history, isLoading, addToHistory, currentCode])
 
   // Effect to add to history when currentCode changes, BUT only if it's not from undo/redo
   // This is tricky. Let's simplify:
@@ -417,14 +463,15 @@ function LandingPageBuilderContent() {
         const mergedFiles = { ...currentCode?.files, ...data.files }
         const newCode = { files: mergedFiles }
 
-        setCurrentCode(newCode)
-        addToHistory(newCode, 'ai', 'Initial Generation') // Add to history
-        setSandpackKey(prev => prev + 1) // Force reload
-
         const newMessages: Message[] = [
           ...initialMessages,
           { role: "model", content: "I've created your initial landing page! Feel free to ask me to make any changes." },
         ]
+
+        setCurrentCode(newCode)
+        addToHistory(newCode, 'ai', 'Initial Generation', initialPrompt, newMessages) // Add to history
+        setSandpackKey(prev => prev + 1) // Force reload
+
         setMessages(newMessages)
         await updateWorkspaceMessages(newMessages, { files: data.files })
         toast.success("Landing page generated successfully!")
@@ -464,10 +511,6 @@ function LandingPageBuilderContent() {
         const mergedFiles = { ...currentCode?.files, ...data.files }
         const newCode = { files: mergedFiles }
 
-        setCurrentCode(newCode)
-        addToHistory(newCode, 'ai', 'AI Update') // Add to history
-        setSandpackKey(prev => prev + 1) // Force reload
-
         let aiMessage = data.message || "Landing page has been updated!";
         if (data.modifiedFiles && data.modifiedFiles.length > 0) {
           const fileList = data.modifiedFiles.map((f: string) => `\`${f}\``).join(", ");
@@ -478,6 +521,11 @@ function LandingPageBuilderContent() {
           ...newMessages,
           { role: "model", content: aiMessage },
         ]
+
+        setCurrentCode(newCode)
+        addToHistory(newCode, 'ai', 'AI Update', userMessage, updatedMessages) // Add to history
+        setSandpackKey(prev => prev + 1) // Force reload
+
         setMessages(updatedMessages)
         await updateWorkspaceMessages(updatedMessages, { files: data.files })
         toast.success(data.message || "Landing page updated successfully!")
@@ -651,6 +699,9 @@ function LandingPageBuilderContent() {
                     historyLength={history.length}
                     history={history}
                     onVersionSelect={handleVersionSelect}
+                    currentPrompt={history[historyIndex]?.userPrompt}
+                    isAtLatest={historyIndex === history.length - 1}
+                    onGoToLatest={handleGoToLatest}
                   />
                 </div>
               }

@@ -9,9 +9,10 @@ import {
 import { useTheme } from "next-themes";
 import Lookup from "@/data/Lookup";
 import SandpackPreviewClient from "./SandpackPreviewClient";
-import { Loader2, Code2, Eye, Download, Upload, Trash2, Monitor, Tablet, Smartphone, Undo, Redo, Clock, User, Bot, ChevronDown } from "lucide-react";
+import { Loader2, Code2, Eye, Download, Upload, Trash2, Monitor, Tablet, Smartphone, Undo, Redo, Clock, User, Bot, ChevronDown, FastForward, History } from "lucide-react";
 import { ActionContext } from "@/contexts/ActionContext";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import SandpackListener from "./SandpackListener";
 import SandpackErrorListener from "./SandpackErrorListener";
@@ -33,6 +34,9 @@ interface CodeViewWorkspaceProps {
     historyLength?: number;
     history?: any[];
     onVersionSelect?: (index: number) => void;
+    isAtLatest?: boolean;
+    onGoToLatest?: () => void;
+    currentPrompt?: string;
 }
 
 export default function CodeViewWorkspace({
@@ -50,7 +54,10 @@ export default function CodeViewWorkspace({
     historyIndex = 0,
     historyLength = 0,
     history = [],
-    onVersionSelect
+    onVersionSelect,
+    isAtLatest = true,
+    onGoToLatest,
+    currentPrompt
 }: CodeViewWorkspaceProps) {
     const [activeTab, setActiveTab] = useState<"code" | "preview">("preview");
     const [files, setFiles] = useState(Lookup.DEFAULT_FILE);
@@ -74,9 +81,26 @@ export default function CodeViewWorkspace({
     // Update files when AI generates new code
     useEffect(() => {
         if (generatedCode?.files) {
-            const mergedFiles = { ...Lookup.DEFAULT_FILE, ...generatedCode.files };
+            // Sanitize files to ensure code is always a string
+            const sanitizedFiles = Object.entries(generatedCode.files).reduce((acc, [path, file]: [string, any]) => {
+                let code = file;
+                if (typeof file === 'object' && file !== null && 'code' in file) {
+                    code = file.code;
+                }
+
+                // Ensure code is a string
+                if (typeof code !== 'string') {
+                    console.warn(`Sanitizing file ${path}: code was not a string`, code);
+                    code = typeof code === 'object' ? JSON.stringify(code, null, 2) : String(code);
+                }
+
+                acc[path] = { code };
+                return acc;
+            }, {} as Record<string, { code: string }>);
+
+            const mergedFiles = { ...Lookup.DEFAULT_FILE, ...sanitizedFiles };
             setFiles(mergedFiles);
-            UpdateWorkspaceFiles(generatedCode.files);
+            UpdateWorkspaceFiles(sanitizedFiles);
         }
     }, [generatedCode]);
 
@@ -147,13 +171,6 @@ export default function CodeViewWorkspace({
     const handlePreviewResizeMove = useCallback((e: MouseEvent) => {
         if (!isResizingPreview || !previewContainerRef.current) return;
 
-        // We assume the container is centered or we just use the mouse position relative to the container's center?
-        // Actually, simpler: just calculate width based on mouse X relative to the center of the screen?
-        // Or relative to the container's left edge.
-        // Since the container is centered with `alignItems: center`, resizing it symmetrically is hard with one handle.
-        // Let's assume we resize the width.
-        // If we drag the right handle, the new width is roughly 2 * (mouseX - centerX).
-
         const containerRect = previewContainerRef.current.getBoundingClientRect();
         const centerX = containerRect.left + containerRect.width / 2;
         const newHalfWidth = Math.abs(e.clientX - centerX);
@@ -220,28 +237,39 @@ export default function CodeViewWorkspace({
                             <>
                                 {/* Undo/Redo Controls */}
                                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg border border-gray-200 dark:border-neutral-800">
-                                    <button
-                                        className={`p-1.5 rounded-md transition-all ${canUndo
-                                            ? "text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800 hover:text-blue-600 dark:hover:text-blue-400"
-                                            : "text-gray-300 dark:text-gray-700 cursor-not-allowed"
-                                            }`}
-                                        onClick={onUndo}
-                                        disabled={!canUndo}
-                                        title="Undo"
-                                    >
-                                        <Undo className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        className={`p-1.5 rounded-md transition-all ${canRedo
-                                            ? "text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800 hover:text-blue-600 dark:hover:text-blue-400"
-                                            : "text-gray-300 dark:text-gray-700 cursor-not-allowed"
-                                            }`}
-                                        onClick={onRedo}
-                                        disabled={!canRedo}
-                                        title="Redo"
-                                    >
-                                        <Redo className="w-4 h-4" />
-                                    </button>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className={`h-7 w-7 ${canUndo ? "hover:text-blue-600 dark:hover:text-blue-400" : "opacity-50"}`}
+                                                onClick={onUndo}
+                                                disabled={!canUndo}
+                                            >
+                                                <Undo className="w-4 h-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Undo changes</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className={`h-7 w-7 ${canRedo ? "hover:text-blue-600 dark:hover:text-blue-400" : "opacity-50"}`}
+                                                onClick={onRedo}
+                                                disabled={!canRedo}
+                                            >
+                                                <Redo className="w-4 h-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Redo changes</p>
+                                        </TooltipContent>
+                                    </Tooltip>
                                 </div>
 
                                 {/* Version Indicator */}
@@ -290,6 +318,18 @@ export default function CodeViewWorkspace({
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Go to Latest Button */}
+                                {!isAtLatest && onGoToLatest && (
+                                    <button
+                                        onClick={onGoToLatest}
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium transition-colors animate-pulse"
+                                        title="Return to latest version"
+                                    >
+                                        <FastForward className="w-3.5 h-3.5" />
+                                        <span className="hidden sm:inline">Latest</span>
+                                    </button>
+                                )}
                             </>
                         )}
 
@@ -330,10 +370,10 @@ export default function CodeViewWorkspace({
                                 </div>
                             )
                         }
-                    </div >
+                    </div>
 
                     {/* Right Side: Actions */}
-                    < div className="flex items-center gap-2" >
+                    <div className="flex items-center gap-2">
                         <Button
                             variant="destructive"
                             size="sm"
@@ -364,12 +404,14 @@ export default function CodeViewWorkspace({
                             <Upload className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Deploy</span>
                         </Button>
-                    </div >
-                </div >
-            </div >
+                    </div>
+                </div>
+            </div>
+
+
 
             {/* Sandpack Content */}
-            < div className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#1e1e1e] relative" >
+            <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#1e1e1e] relative">
                 <SandpackProvider
                     key={sandpackKey} // Force reload only when explicitly requested (Undo/Redo)
                     files={files}
@@ -480,10 +522,10 @@ export default function CodeViewWorkspace({
                         </div>
                     ) : null
                 }
-            </div >
+            </div>
 
             {/* Force Sandpack to take full height and custom scrollbars */}
-            < style jsx global > {`
+            <style jsx global>{`
                 .sp-wrapper,
                 .sp-layout,
                 .sp-stack,
@@ -534,7 +576,7 @@ export default function CodeViewWorkspace({
                 .dark * {
                     scrollbar-color: rgba(75, 85, 99, 0.4) transparent;
                 }
-            `}</style >
-        </div >
+            `}</style>
+        </div>
     );
 }
