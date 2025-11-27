@@ -75,6 +75,30 @@ async function getWorkingModelName() {
   );
 }
 
+// Helper for exponential backoff retries
+async function retryWithBackoff(fn, retries = 3, baseDelay = 2000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const isOverloaded =
+        error.status === 503 ||
+        (error.message && error.message.toLowerCase().includes("overloaded")) ||
+        (error.message && error.message.toLowerCase().includes("quota"));
+
+      if (!isOverloaded || i === retries - 1) {
+        throw error;
+      }
+
+      const delay = baseDelay * Math.pow(2, i);
+      console.log(
+        `Gemini API overloaded. Retrying in ${delay}ms (Attempt ${i + 1}/${retries})...`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
 export async function generateAIResponse(prompt) {
   try {
     if (!API_KEY) {
@@ -82,10 +106,14 @@ export async function generateAIResponse(prompt) {
     }
 
     const modelName = await getWorkingModelName();
-    const result = await genAI.models.generateContent({
-      model: modelName,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
+
+    const result = await retryWithBackoff(async () => {
+      return await genAI.models.generateContent({
+        model: modelName,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      });
     });
+
     const text = extractText(result);
     console.log(text);
 
@@ -98,7 +126,11 @@ export async function generateAIResponse(prompt) {
       return "Error: Invalid or missing API key. Please configure your Google AI API key.";
     }
 
-    return "We apologize, but we encountered an error generating your personalized recommendations. Please try again later or contact support for assistance.";
+    if (error.status === 503 || (error.message && error.message.includes("overloaded"))) {
+      return "Error: The AI model is currently overloaded. Please try again in a few moments.";
+    }
+
+    return `Error: ${error.message || "An unexpected error occurred while generating content."}`;
   }
 }
 
@@ -119,10 +151,10 @@ export async function generateEmailTemplate(
     const variablesText =
       availableVariables.length > 0
         ? `Available variables: ${availableVariables
-            .map((v) => `{{${v}}}`)
-            .join(
-              ", "
-            )}. Use these naturally in the content for personalization.`
+          .map((v) => `{{${v}}}`)
+          .join(
+            ", "
+          )}. Use these naturally in the content for personalization.`
         : "No personalization variables available.";
 
     const templatePrompt = `
@@ -151,9 +183,11 @@ RESPONSE FORMAT (JSON only):
 
 Generate the template now:`;
 
-    const result = await genAI.models.generateContent({
-      model: modelName,
-      contents: [{ role: "user", parts: [{ text: templatePrompt }] }],
+    const result = await retryWithBackoff(async () => {
+      return await genAI.models.generateContent({
+        model: modelName,
+        contents: [{ role: "user", parts: [{ text: templatePrompt }] }],
+      });
     });
     const text = extractText(result);
     console.log("Raw AI response:", text);
@@ -306,17 +340,19 @@ export async function analyzeImage(
     }
 
     // Use gemini-1.5-flash which reliably supports vision
-    const result = await genAI.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { inlineData: { data: base64Image, mimeType } },
-            { text: prompt },
-          ],
-        },
-      ],
+    const result = await retryWithBackoff(async () => {
+      return await genAI.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { inlineData: { data: base64Image, mimeType } },
+              { text: prompt },
+            ],
+          },
+        ],
+      });
     });
 
     const text = extractText(result);

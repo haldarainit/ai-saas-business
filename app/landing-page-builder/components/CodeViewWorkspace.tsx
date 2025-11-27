@@ -9,9 +9,10 @@ import {
 import { useTheme } from "next-themes";
 import Lookup from "@/data/Lookup";
 import SandpackPreviewClient from "./SandpackPreviewClient";
-import { Loader2, Code2, Eye, Download, Upload, Trash2, Monitor, Tablet, Smartphone, Undo, Redo, Clock, User, Bot, ChevronDown } from "lucide-react";
+import { Loader2, Code2, Eye, Download, Upload, Trash2, Monitor, Tablet, Smartphone, Undo, Redo, Clock, User, Bot, ChevronDown, FastForward, History } from "lucide-react";
 import { ActionContext } from "@/contexts/ActionContext";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import SandpackListener from "./SandpackListener";
 import SandpackErrorListener from "./SandpackErrorListener";
@@ -32,6 +33,10 @@ interface CodeViewWorkspaceProps {
     historyIndex?: number;
     historyLength?: number;
     history?: any[];
+    onVersionSelect?: (index: number) => void;
+    isAtLatest?: boolean;
+    onGoToLatest?: () => void;
+    currentPrompt?: string;
 }
 
 export default function CodeViewWorkspace({
@@ -48,7 +53,11 @@ export default function CodeViewWorkspace({
     sandpackKey = 0,
     historyIndex = 0,
     historyLength = 0,
-    history = []
+    history = [],
+    onVersionSelect,
+    isAtLatest = true,
+    onGoToLatest,
+    currentPrompt
 }: CodeViewWorkspaceProps) {
     const [activeTab, setActiveTab] = useState<"code" | "preview">("preview");
     const [files, setFiles] = useState(Lookup.DEFAULT_FILE);
@@ -72,9 +81,26 @@ export default function CodeViewWorkspace({
     // Update files when AI generates new code
     useEffect(() => {
         if (generatedCode?.files) {
-            const mergedFiles = { ...Lookup.DEFAULT_FILE, ...generatedCode.files };
+            // Sanitize files to ensure code is always a string
+            const sanitizedFiles = Object.entries(generatedCode.files).reduce((acc, [path, file]: [string, any]) => {
+                let code = file;
+                if (typeof file === 'object' && file !== null && 'code' in file) {
+                    code = file.code;
+                }
+
+                // Ensure code is a string
+                if (typeof code !== 'string') {
+                    console.warn(`Sanitizing file ${path}: code was not a string`, code);
+                    code = typeof code === 'object' ? JSON.stringify(code, null, 2) : String(code);
+                }
+
+                acc[path] = { code };
+                return acc;
+            }, {} as Record<string, { code: string }>);
+
+            const mergedFiles = { ...Lookup.DEFAULT_FILE, ...sanitizedFiles };
             setFiles(mergedFiles);
-            UpdateWorkspaceFiles(generatedCode.files);
+            UpdateWorkspaceFiles(sanitizedFiles);
         }
     }, [generatedCode]);
 
@@ -145,13 +171,6 @@ export default function CodeViewWorkspace({
     const handlePreviewResizeMove = useCallback((e: MouseEvent) => {
         if (!isResizingPreview || !previewContainerRef.current) return;
 
-        // We assume the container is centered or we just use the mouse position relative to the container's center?
-        // Actually, simpler: just calculate width based on mouse X relative to the center of the screen?
-        // Or relative to the container's left edge.
-        // Since the container is centered with `alignItems: center`, resizing it symmetrically is hard with one handle.
-        // Let's assume we resize the width.
-        // If we drag the right handle, the new width is roughly 2 * (mouseX - centerX).
-
         const containerRect = previewContainerRef.current.getBoundingClientRect();
         const centerX = containerRect.left + containerRect.width / 2;
         const newHalfWidth = Math.abs(e.clientX - centerX);
@@ -214,115 +233,143 @@ export default function CodeViewWorkspace({
                             </button>
                         </div>
 
-                        {/* Undo/Redo Controls */}
-                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg border border-gray-200 dark:border-neutral-800">
-                            <button
-                                className={`p-1.5 rounded-md transition-all ${canUndo
-                                    ? "text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800 hover:text-blue-600 dark:hover:text-blue-400"
-                                    : "text-gray-300 dark:text-gray-700 cursor-not-allowed"
-                                    }`}
-                                onClick={onUndo}
-                                disabled={!canUndo}
-                                title="Undo"
-                            >
-                                <Undo className="w-4 h-4" />
-                            </button>
-                            <button
-                                className={`p-1.5 rounded-md transition-all ${canRedo
-                                    ? "text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800 hover:text-blue-600 dark:hover:text-blue-400"
-                                    : "text-gray-300 dark:text-gray-700 cursor-not-allowed"
-                                    }`}
-                                onClick={onRedo}
-                                disabled={!canRedo}
-                                title="Redo"
-                            >
-                                <Redo className="w-4 h-4" />
-                            </button>
-                        </div>
+                        {historyLength > 0 && (
+                            <>
+                                {/* Undo/Redo Controls */}
+                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg border border-gray-200 dark:border-neutral-800">
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className={`h-7 w-7 ${canUndo ? "hover:text-blue-600 dark:hover:text-blue-400" : "opacity-50"}`}
+                                                onClick={onUndo}
+                                                disabled={!canUndo}
+                                            >
+                                                <Undo className="w-4 h-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Undo changes</p>
+                                        </TooltipContent>
+                                    </Tooltip>
 
-                        {/* Version Indicator */}
-                        <div className="relative group">
-                            <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-black rounded-lg border border-gray-200 dark:border-neutral-800 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-neutral-800 transition-colors">
-                                <Clock className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Version</span>
-                                <span className="text-gray-900 dark:text-gray-200">
-                                    {history[historyIndex]?.version || 'v1.0'}
-                                </span>
-                                <span className="text-gray-400">/</span>
-                                <span>{historyLength}</span>
-                                <ChevronDown className="w-3 h-3 ml-1" />
-                            </button>
-
-                            {/* Dropdown */}
-                            <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-[#1e1e1e] rounded-lg shadow-xl border border-gray-200 dark:border-neutral-800 hidden group-hover:block z-50 max-h-80 overflow-y-auto">
-                                <div className="p-2">
-                                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 px-2">Version History</div>
-                                    {Array.isArray(history) && history.length > 0 ? history.map((entry, idx) => (
-                                        <div
-                                            key={idx}
-                                            className={`flex items-center gap-3 p-2 rounded-md text-xs cursor-pointer ${idx === historyIndex
-                                                ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-                                                : "hover:bg-gray-50 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300"
-                                                }`}
-                                        >
-                                            <div className={`p-1 rounded-full ${entry.source === 'ai' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
-                                                {entry.source === 'ai' ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-medium truncate flex items-center gap-2">
-                                                    <span className="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-300">
-                                                        {entry.version}
-                                                    </span>
-                                                    {entry.label || (entry.source === 'ai' ? 'AI Generated' : 'User Edit')}
-                                                </div>
-                                                <div className="text-gray-400 text-[10px]">
-                                                    {new Date(entry.timestamp).toLocaleTimeString()}
-                                                </div>
-                                            </div>
-                                            {idx === historyIndex && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
-                                        </div>
-                                    )) : (
-                                        <div className="p-4 text-center text-gray-400 text-xs">No version history yet</div>
-                                    )}
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className={`h-7 w-7 ${canRedo ? "hover:text-blue-600 dark:hover:text-blue-400" : "opacity-50"}`}
+                                                onClick={onRedo}
+                                                disabled={!canRedo}
+                                            >
+                                                <Redo className="w-4 h-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Redo changes</p>
+                                        </TooltipContent>
+                                    </Tooltip>
                                 </div>
-                            </div>
-                        </div>
+
+                                {/* Version Indicator */}
+                                <div className="relative group">
+                                    <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-black rounded-lg border border-gray-200 dark:border-neutral-800 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-neutral-800 transition-colors">
+                                        <Clock className="w-3.5 h-3.5" />
+                                        <span className="hidden sm:inline">Version</span>
+                                        <span className="text-gray-900 dark:text-gray-200">
+                                            {history[historyIndex]?.version || 'v1.0'}
+                                        </span>
+                                        <ChevronDown className="w-3 h-3 ml-1" />
+                                    </button>
+
+                                    {/* Dropdown */}
+                                    <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-[#1e1e1e] rounded-lg shadow-xl border border-gray-200 dark:border-neutral-800 hidden group-hover:block z-50 max-h-80 overflow-y-auto">
+                                        <div className="p-2">
+                                            <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 px-2">Version History</div>
+                                            {Array.isArray(history) && history.length > 0 ? history.map((entry, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    onClick={() => onVersionSelect?.(idx)}
+                                                    className={`flex items-center gap-3 p-2 rounded-md text-xs cursor-pointer ${idx === historyIndex
+                                                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                                                        : "hover:bg-gray-50 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300"
+                                                        }`}
+                                                >
+                                                    <div className={`p-1 rounded-full ${entry.source === 'ai' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
+                                                        {entry.source === 'ai' ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-medium truncate flex items-center gap-2">
+                                                            <span className="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-300">
+                                                                {entry.version}
+                                                            </span>
+                                                            {entry.label || (entry.source === 'ai' ? 'AI Generated' : 'User Edit')}
+                                                        </div>
+                                                        <div className="text-gray-400 text-[10px]">
+                                                            {new Date(entry.timestamp).toLocaleTimeString()}
+                                                        </div>
+                                                    </div>
+                                                    {idx === historyIndex && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                                                </div>
+                                            )) : (
+                                                <div className="p-4 text-center text-gray-400 text-xs">No version history yet</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Go to Latest Button */}
+                                {!isAtLatest && onGoToLatest && (
+                                    <button
+                                        onClick={onGoToLatest}
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium transition-colors animate-pulse"
+                                        title="Return to latest version"
+                                    >
+                                        <FastForward className="w-3.5 h-3.5" />
+                                        <span className="hidden sm:inline">Latest</span>
+                                    </button>
+                                )}
+                            </>
+                        )}
 
                         {/* Responsive Toggles (Only visible in Preview mode) */}
-                        {activeTab === "preview" && (
-                            <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg border border-gray-200 dark:border-neutral-800">
-                                <button
-                                    className={`p-1.5 rounded-md transition-all ${previewMode === "desktop"
-                                        ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
-                                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                                        }`}
-                                    onClick={() => setPreviewMode("desktop")}
-                                    title="Desktop View"
-                                >
-                                    <Monitor className="w-4 h-4" />
-                                </button>
-                                <button
-                                    className={`p-1.5 rounded-md transition-all ${previewMode === "tablet"
-                                        ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
-                                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                                        }`}
-                                    onClick={() => setPreviewMode("tablet")}
-                                    title="Tablet View"
-                                >
-                                    <Tablet className="w-4 h-4" />
-                                </button>
-                                <button
-                                    className={`p-1.5 rounded-md transition-all ${previewMode === "mobile"
-                                        ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
-                                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                                        }`}
-                                    onClick={() => setPreviewMode("mobile")}
-                                    title="Mobile View"
-                                >
-                                    <Smartphone className="w-4 h-4" />
-                                </button>
-                            </div>
-                        )}
+                        {
+                            activeTab === "preview" && (
+                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-black p-1 rounded-lg border border-gray-200 dark:border-neutral-800">
+                                    <button
+                                        className={`p-1.5 rounded-md transition-all ${previewMode === "desktop"
+                                            ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                                            : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                                            }`}
+                                        onClick={() => setPreviewMode("desktop")}
+                                        title="Desktop View"
+                                    >
+                                        <Monitor className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        className={`p-1.5 rounded-md transition-all ${previewMode === "tablet"
+                                            ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                                            : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                                            }`}
+                                        onClick={() => setPreviewMode("tablet")}
+                                        title="Tablet View"
+                                    >
+                                        <Tablet className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        className={`p-1.5 rounded-md transition-all ${previewMode === "mobile"
+                                            ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                                            : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                                            }`}
+                                        onClick={() => setPreviewMode("mobile")}
+                                        title="Mobile View"
+                                    >
+                                        <Smartphone className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )
+                        }
                     </div>
 
                     {/* Right Side: Actions */}
@@ -360,6 +407,8 @@ export default function CodeViewWorkspace({
                     </div>
                 </div>
             </div>
+
+
 
             {/* Sandpack Content */}
             <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#1e1e1e] relative">
@@ -442,40 +491,41 @@ export default function CodeViewWorkspace({
                 </SandpackProvider>
 
                 {/* Loading Overlay */}
-                {isGenerating && generatedCode?.files && Object.keys(generatedCode.files).length > 0 ? (
-                    <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-center z-50">
-                        <div className="max-w-3xl w-full px-6">
-                            <div className="text-center mb-6">
-                                <div className="inline-flex items-center gap-3 bg-blue-50 dark:bg-blue-600/20 border border-blue-200 dark:border-blue-500/30 rounded-full px-6 py-3">
-                                    <Loader2 className="animate-spin h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                    <span className="text-blue-700 dark:text-blue-100 font-medium">Building Your Application</span>
+                {
+                    isGenerating && generatedCode?.files && Object.keys(generatedCode.files).length > 0 ? (
+                        <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-center z-50">
+                            <div className="max-w-3xl w-full px-6">
+                                <div className="text-center mb-6">
+                                    <div className="inline-flex items-center gap-3 bg-blue-50 dark:bg-blue-600/20 border border-blue-200 dark:border-blue-500/30 rounded-full px-6 py-3">
+                                        <Loader2 className="animate-spin h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                        <span className="text-blue-700 dark:text-blue-100 font-medium">Building Your Application</span>
+                                    </div>
                                 </div>
+                                <CodeWritingAnimation
+                                    files={generatedCode.files}
+                                    onComplete={() => {
+                                        // Animation complete, will automatically hide when isGenerating becomes false
+                                        console.log("Code generation animation complete")
+                                    }}
+                                />
                             </div>
-                            <CodeWritingAnimation
-                                files={generatedCode.files}
-                                onComplete={() => {
-                                    // Animation complete, will automatically hide when isGenerating becomes false
-                                    console.log("Code generation animation complete")
-                                }}
-                            />
                         </div>
-                    </div>
-                ) : (loading || isGenerating) ? (
-                    <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50">
-                        <div className="text-center">
-                            <Loader2 className="animate-spin h-12 w-12 text-blue-600 dark:text-blue-500 mx-auto mb-4" />
-                            <h2 className="text-gray-900 dark:text-white text-lg font-semibold">
-                                {isGenerating ? "Generating Your Code..." : "Loading..."}
-                            </h2>
-                            <p className="text-gray-500 dark:text-slate-400 text-sm mt-2">Setting up your workspace...</p>
+                    ) : (loading || isGenerating) ? (
+                        <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50">
+                            <div className="text-center">
+                                <Loader2 className="animate-spin h-12 w-12 text-blue-600 dark:text-blue-500 mx-auto mb-4" />
+                                <h2 className="text-gray-900 dark:text-white text-lg font-semibold">
+                                    {isGenerating ? "Generating Your Code..." : "Loading..."}
+                                </h2>
+                                <p className="text-gray-500 dark:text-slate-400 text-sm mt-2">Setting up your workspace...</p>
+                            </div>
                         </div>
-                    </div>
-                ) : null
+                    ) : null
                 }
-            </div >
+            </div>
 
             {/* Force Sandpack to take full height and custom scrollbars */}
-            < style jsx global > {`
+            <style jsx global>{`
                 .sp-wrapper,
                 .sp-layout,
                 .sp-stack,
@@ -526,7 +576,7 @@ export default function CodeViewWorkspace({
                 .dark * {
                     scrollbar-color: rgba(75, 85, 99, 0.4) transparent;
                 }
-            `}</style >
-        </div >
+            `}</style>
+        </div>
     );
 }
