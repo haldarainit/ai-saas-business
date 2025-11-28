@@ -1,7 +1,7 @@
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { messages, currentCode, businessDetails } = body;
+    const { messages, currentCode, businessDetails, attachments } = body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return Response.json(
@@ -17,6 +17,7 @@ export async function POST(request) {
       messageCount: messages.length,
       hasCurrentCode: !!currentCode,
       hasBusinessDetails: !!businessDetails,
+      attachmentCount: attachments?.length || 0,
     });
 
     // Generate the landing page using Gemini AI
@@ -157,7 +158,34 @@ The unchanged files will be automatically preserved.`;
 
 ${userPrompt}`;
 
-    const result = await gemini.generateAIResponse(fullPrompt);
+    // Map frontend attachment format to what generateWithMedia expects
+    // Frontend sends: { type, content (base64/text), mimeType, name }
+    // generateWithMedia expects: { type: 'image'|'document', base64Data, mimeType, extractedContent, url }
+
+    const processedAttachments = (attachments || []).map(att => {
+      if (att.type === 'image') {
+        // Strip data:image/xyz;base64, prefix if present
+        const base64Data = att.content.includes('base64,')
+          ? att.content.split('base64,')[1]
+          : att.content;
+
+        return {
+          type: 'image',
+          base64Data,
+          mimeType: att.mimeType,
+          url: att.url // Pass URL if present
+        };
+      } else {
+        // For documents/text
+        return {
+          type: 'document',
+          extractedContent: att.content,
+          filename: att.name
+        };
+      }
+    });
+
+    const result = await gemini.generateWithMedia(fullPrompt, processedAttachments);
 
     if (result && !result.includes("Error")) {
       try {
