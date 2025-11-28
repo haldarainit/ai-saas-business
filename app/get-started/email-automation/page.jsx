@@ -9,6 +9,8 @@ import {
   Sparkles,
   History,
   BarChart3,
+  Link2,
+  MousePointerClick,
 } from "lucide-react";
 import { EmailUploader } from "../../components/EmailUploader";
 import { EmailTemplateEditor } from "../../components/EmailTemplateEditor";
@@ -34,6 +36,8 @@ export default function EmailAutomationPage() {
   const [content, setContent] = useState(
     "<p>Hi there!</p><p>Thank you for subscribing to our newsletter. We're excited to have you on board!</p><p>Best regards,<br/>The Team</p>"
   );
+  const [ctaUrl, setCtaUrl] = useState("");
+  const [ctaText, setCtaText] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [sentCount, setSentCount] = useState(0);
@@ -65,6 +69,8 @@ export default function EmailAutomationPage() {
                 content,
                 csvData,
                 enabledColumns,
+                ctaUrl,
+                ctaText,
               },
             }),
           });
@@ -73,7 +79,7 @@ export default function EmailAutomationPage() {
         }
       }, 1000); // Wait 1 second after user stops typing
     },
-    [emails, content, csvData, enabledColumns]
+    [emails, content, csvData, enabledColumns, ctaUrl, ctaText]
   );
 
   // Auto-save content changes to database
@@ -98,6 +104,8 @@ export default function EmailAutomationPage() {
                 content: newContent,
                 csvData,
                 enabledColumns,
+                ctaUrl,
+                ctaText,
               },
             }),
           });
@@ -106,7 +114,7 @@ export default function EmailAutomationPage() {
         }
       }, 1000); // Wait 1 second after user stops typing
     },
-    [emails, subject, csvData, enabledColumns]
+    [emails, subject, csvData, enabledColumns, ctaUrl, ctaText]
   );
 
   // Cleanup timeouts on unmount
@@ -114,8 +122,44 @@ export default function EmailAutomationPage() {
     return () => {
       clearTimeout(window.subjectSaveTimeout);
       clearTimeout(window.contentSaveTimeout);
+      clearTimeout(window.ctaSaveTimeout);
     };
   }, []);
+
+  // Auto-save CTA changes
+  const handleCtaChange = useCallback(
+    async (newCtaUrl, newCtaText) => {
+      setCtaUrl(newCtaUrl);
+      setCtaText(newCtaText);
+
+      clearTimeout(window.ctaSaveTimeout);
+      window.ctaSaveTimeout = setTimeout(async () => {
+        try {
+          await fetch("/api/email-campaign", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "updateCampaignData",
+              campaignData: {
+                emails,
+                subject,
+                content,
+                csvData,
+                enabledColumns,
+                ctaUrl: newCtaUrl,
+                ctaText: newCtaText,
+              },
+            }),
+          });
+        } catch (error) {
+          console.error("Error saving CTA:", error);
+        }
+      }, 1000);
+    },
+    [emails, subject, content, csvData, enabledColumns]
+  );
 
   // Load campaign data from database on component mount (only once)
   useEffect(() => {
@@ -170,6 +214,14 @@ export default function EmailAutomationPage() {
               "<p>Hi there!</p><p>Thank you for subscribing to our newsletter. We're excited to have you on board!</p><p>Best regards,<br/>The Team</p>"
           ) {
             setContent(campaign.template);
+          }
+
+          // Load CTA data if available
+          if (campaign.ctaUrl) {
+            setCtaUrl(campaign.ctaUrl);
+          }
+          if (campaign.ctaText) {
+            setCtaText(campaign.ctaText);
           }
         }
       } catch (error) {
@@ -250,6 +302,8 @@ export default function EmailAutomationPage() {
             content,
             csvData,
             enabledColumns,
+            ctaUrl,
+            ctaText,
           },
         }),
       });
@@ -723,6 +777,91 @@ export default function EmailAutomationPage() {
                 csvData={csvData}
                 onEnabledColumnsChange={handleEnabledColumnsChange}
               />
+
+              {/* CTA Button Configuration */}
+              <Card className="mt-6 p-6 bg-background/60 backdrop-blur-sm border transition-all duration-300 hover:shadow-lg dark:bg-background/80">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center">
+                      <MousePointerClick className="w-5 h-5 text-purple-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold">
+                        CTA Button (Optional)
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Add a call-to-action button with click tracking
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Button Link (URL)
+                      </label>
+                      <div className="relative">
+                        <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          value={ctaUrl}
+                          onChange={(e) =>
+                            handleCtaChange(e.target.value, ctaText)
+                          }
+                          placeholder="https://example.com"
+                          className="pl-10"
+                          disabled={!canEditTemplate}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Button Text
+                      </label>
+                      <Input
+                        value={ctaText}
+                        onChange={(e) =>
+                          handleCtaChange(ctaUrl, e.target.value)
+                        }
+                        placeholder="Click here to learn more"
+                        disabled={!canEditTemplate}
+                      />
+                    </div>
+
+                    {ctaUrl && ctaText && (
+                      <div className="mt-4 p-4 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Preview:
+                        </p>
+                        <div style={{ textAlign: "center" }}>
+                          <a
+                            href={ctaUrl}
+                            onClick={(e) => e.preventDefault()}
+                            style={{
+                              display: "inline-block",
+                              padding: "15px 40px",
+                              background:
+                                "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                              color: "white",
+                              textDecoration: "none",
+                              borderRadius: "8px",
+                              fontWeight: "bold",
+                              fontSize: "16px",
+                              boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {ctaText}
+                          </a>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-3 text-center">
+                          ✨ Clicks will be automatically tracked
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
             </div>
 
             {/* Right Column - Recipients List */}
