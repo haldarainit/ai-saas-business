@@ -111,9 +111,33 @@ Primary Color Scheme: "${businessDetails.colorScheme}"
 `;
     }
 
+    // Add info about uploaded files
+    let fileContext = "";
+    if (attachments && attachments.length > 0) {
+      const fileList = attachments.map(att => {
+        // Generate a safe variable name based on the filename
+        const varName = att.name.replace(/[^a-zA-Z0-9]/g, '_').replace(/^([0-9])/, '_$1');
+        const safeFileName = att.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+
+        return `- ${att.type}: ${att.name} -> Available at './assets/${safeFileName}.js'.\n  Usage: import ${varName} from './assets/${safeFileName}.js';\n  <img src={${varName}} ... /> (or <video/audio src={${varName}} />)`;
+      }).join("\n");
+
+      fileContext = `
+UPLOADED FILES AVAILABLE:
+${fileList}
+
+CRITICAL: 
+- Files are stored as individual JS modules in 'src/assets/'.
+- Each file exports the Data URL as the default export.
+- YOU MUST IMPORT them to use them.
+- Example: import myImage from './assets/my-image.png.js';
+`;
+    }
+
     if (!currentCode) {
       userPrompt = `Create a complete, multi-file landing page with the following details:
 ${businessContext}
+${fileContext}
 
 User's request: "${lastMessage.content}"
 
@@ -132,6 +156,7 @@ ${currentFilesContext}
 
 Business context:
 ${businessContext}
+${fileContext}
 
 User's new request: "${lastMessage.content}"
 
@@ -192,7 +217,7 @@ ${userPrompt}`;
         let cleanedResult = result.trim();
 
         // Remove markdown fences if present
-        cleanedResult = cleanedResult.replace(/^```json\s*/i, "");
+        cleanedResult = cleanedResult.replace(/^```json\s */i, "");
         cleanedResult = cleanedResult.replace(/^```\s*/i, "");
         cleanedResult = cleanedResult.replace(/```$/i, "");
         cleanedResult = cleanedResult.trim();

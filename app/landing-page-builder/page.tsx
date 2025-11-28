@@ -424,6 +424,23 @@ function LandingPageBuilderContent() {
         const mergedFiles = { ...currentCode?.files, ...data.files }
         const newCode = { files: mergedFiles }
 
+        // Inject uploaded images/media into the file system for Sandpack
+        if (attachments && attachments.length > 0) {
+          attachments.forEach(att => {
+            if (att.content) {
+              // Sanitize filename but keep extension
+              const safeName = att.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+              // Create a JS module for the asset to allow importing
+              // We append .js to the original filename (e.g. image.png -> image.png.js)
+              // This allows the user/AI to import it as a module while preserving the original name context
+              const filePath = `/src/assets/${safeName}.js`;
+              const fileContent = `export default "${att.content}";`;
+
+              newCode.files[filePath] = { code: fileContent };
+            }
+          });
+        }
+
         let aiMessage = data.message || "Landing page has been updated!";
         if (data.modifiedFiles && data.modifiedFiles.length > 0) {
           const fileList = data.modifiedFiles.map((f: string) => `\`${f}\``).join(", ");
@@ -440,7 +457,7 @@ function LandingPageBuilderContent() {
         setSandpackKey(prev => prev + 1)
 
         setMessages(updatedMessages)
-        await updateWorkspaceMessages(updatedMessages, { files: data.files })
+        await updateWorkspaceMessages(updatedMessages, { files: newCode.files })
         toast.success(data.message || "Landing page updated successfully!")
       } else {
         toast.error(data.error || "Failed to update landing page")

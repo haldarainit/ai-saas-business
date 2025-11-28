@@ -94,6 +94,29 @@ export default function CodeViewWorkspace({
                     code = typeof code === 'object' ? JSON.stringify(code, null, 2) : String(code);
                 }
 
+                // Special handling for package.json to prevent Sandpack crashes
+                if (path === '/package.json' || path === 'package.json') {
+                    try {
+                        JSON.parse(code);
+                    } catch (e) {
+                        console.warn("Detected invalid JSON in package.json, attempting to fix...", e);
+                        try {
+                            // Attempt to fix common JSON errors (single quotes, unquoted keys)
+                            // This is a basic heuristic repair
+                            const fixedCode = code
+                                .replace(/'/g, '"') // Replace single quotes with double quotes
+                                .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":'); // Quote unquoted keys
+
+                            JSON.parse(fixedCode); // Verify if fixed
+                            code = fixedCode;
+                            console.log("Successfully repaired package.json");
+                        } catch (fixError) {
+                            console.error("Failed to repair package.json, reverting to default", fixError);
+                            code = Lookup.DEFAULT_FILE['/package.json'].code;
+                        }
+                    }
+                }
+
                 acc[path] = { code };
                 return acc;
             }, {} as Record<string, { code: string }>);
