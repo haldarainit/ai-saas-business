@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     });
 
     const payload = ticket.getPayload();
-    
+
     if (!payload) {
       return NextResponse.json(
         { error: "Invalid token payload" },
@@ -83,7 +83,9 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
       },
-      process.env.JWT_SECRET || process.env.JWT_SECRET || "fallback-secret",
+      process.env.NEXTAUTH_SECRET ||
+        process.env.JWT_SECRET ||
+        "fallback-secret",
       { expiresIn: "7d" }
     );
 

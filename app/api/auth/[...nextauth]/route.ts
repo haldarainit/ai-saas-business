@@ -1,5 +1,5 @@
-import NextAuth from "next-auth"
-import GoogleProvider from "next-auth/providers/google"
+import NextAuth from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
 
 const handler = NextAuth({
   providers: [
@@ -24,12 +24,14 @@ const handler = NextAuth({
         // Send id_token to your backend for verification
         try {
           const res = await fetch(
-            `${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXTAUTH_URL}/api/auth/google/verify`,
+            `${
+              process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXTAUTH_URL
+            }/api/auth/google/verify`,
             {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${account?.id_token}`,
+                Authorization: `Bearer ${account?.id_token}`,
               },
               body: JSON.stringify({
                 email: user?.email,
@@ -38,7 +40,7 @@ const handler = NextAuth({
               }),
             }
           );
-          
+
           if (res.ok) {
             const resParsed = await res.json();
             token = Object.assign({}, token, {
@@ -69,7 +71,7 @@ const handler = NextAuth({
     signIn: "/",
     error: "/",
   },
-  secret: process.env.JWT_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET,
 });
 
 export { handler as GET, handler as POST };
