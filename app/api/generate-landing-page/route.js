@@ -25,7 +25,6 @@ export async function POST(request) {
     const gemini = geminiModule.default || geminiModule;
 
     // Build the prompt with conversation context
-    // Build the prompt with conversation context
     const systemPrompt = `You are an expert React developer creating production-ready landing pages like Lovable.dev.
 
 CRITICAL FILE STRUCTURE - ALWAYS INCLUDE ALL FILES:
@@ -81,7 +80,7 @@ JSON RESPONSE FORMATTING - CRITICAL:
 - You must return a SINGLE valid JSON object.
 - The keys are file paths, and values are the code content.
 - **YOU MUST ESCAPE ALL DOUBLE QUOTES INSIDE THE CODE STRINGS.**
-- Example: "className=\"bg-blue-500\"" NOT "className="bg-blue-500""
+- Example: "className=\\"bg-blue-500\\"" NOT "className="bg-blue-500""
 - Do not use markdown code blocks. Just the raw JSON string.
 - Ensure all newlines in the code are properly escaped as \\n.
 
@@ -126,11 +125,19 @@ Primary Color Scheme: "${businessDetails.colorScheme}"
 UPLOADED FILES AVAILABLE:
 ${fileList}
 
-CRITICAL: 
-- Files are stored as individual JS modules in 'src/assets/'.
-- Each file exports the Data URL as the default export.
-- YOU MUST IMPORT them to use them.
-- Example: import myImage from './assets/my-image.png.js';
+CRITICAL ASSET INSTRUCTIONS: 
+1. Files are stored as individual JS modules in 'src/assets/'.
+2. Each file exports the Data URL as the default export.
+3. YOU MUST IMPORT them to use them.
+4. **YOU MUST INCLUDE THE .js EXTENSION IN THE IMPORT PATH.**
+   - CORRECT: import myImage from './assets/my-image.png.js';
+   - INCORRECT: import myImage from './assets/my-image.png';
+5. Use the imported variable as the src for img/video tags.
+
+CRITICAL CONTENT PRESERVATION:
+- When updating components (especially Navbar and Footer), **DO NOT REMOVE EXISTING TITLES, LINKS, OR CONTENT** unless explicitly asked.
+- If adding a logo, insert it ALONGSIDE the existing business name/title, do not replace it.
+- Maintain the existing structure and styling while adding the new media.
 `;
     }
 
@@ -161,18 +168,16 @@ ${fileContext}
 User's new request: "${lastMessage.content}"
 
 CRITICAL INSTRUCTIONS FOR MODIFICATIONS:
-1. ANALYZE the user's request carefully to determine which files need changes
-2. If the request is SMALL/SPECIFIC (e.g., "change button color", "update hero text"):
-   - Return ONLY the files that need to be modified
-   - DO NOT rewrite unchanged files
-   - Example: If changing hero button → return ONLY /components/Hero.js
+1. ANALYZE the user's request carefully to determine which files need changes.
+2. **PARTIAL UPDATES ONLY:**
+   - If the request is specific (e.g., "add this image to navbar"), **RETURN ONLY THE MODIFIED FILE** (e.g., "/components/Navbar.js").
+   - **DO NOT** return unchanged files like App.js, index.js, or styles.css.
+   - This prevents overwriting existing work and speeds up generation.
 
-3. If the request is MAJOR (e.g., "complete redesign", "add dark mode everywhere"):
-   - Return all files that need changes
-   - You may need to modify multiple files
+3. If the request is MAJOR (e.g., "complete redesign"), then return all affected files.
 
-4. ALWAYS preserve the exact structure and functionality of unchanged code
-5. Use the existing code as reference - maintain consistency
+4. ALWAYS preserve the exact structure and functionality of unchanged code within the modified file.
+5. Use the existing code as reference - maintain consistency.
 
 RESPONSE FORMAT:
 Return ONLY a JSON object with the files that NEED TO BE CHANGED.
