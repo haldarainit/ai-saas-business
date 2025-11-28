@@ -231,26 +231,28 @@ ${userPrompt}`;
         try {
           generatedFiles = JSON.parse(cleanedResult);
         } catch (firstError) {
-          // If first parse fails, try aggressive cleanup
           console.log("First parse failed, attempting cleanup...");
 
-          // Fix common issues:
-          // 1. Replace literal newlines in strings with \\n
-          // 2. Fix tabs
-          // 3. Remove any remaining control characters
-
           try {
-            // Parse as an object to manipulate it
-            const fixedResult = cleanedResult
-              // Fix newlines within string values (between quotes)
-              .replace(/"([^"]*?)"\s*:\s*"((?:[^"\\]|\\.)*)"/g, (match, key, value) => {
-                // Escape unescaped newlines and tabs in the value
-                const fixedValue = value
-                  .replace(/\n/g, '\\n')
-                  .replace(/\r/g, '\\r')
-                  .replace(/\t/g, '\\t');
-                return `"${key}": "${fixedValue}"`;
-              });
+            // Robust JSON repair strategy
+            let fixedResult = cleanedResult;
+
+            // 1. Fix bad escaped characters (e.g. \ followed by space, or \')
+            // Only preserve valid JSON escapes: " \ / b f n r t u
+            fixedResult = fixedResult.replace(/\\([^"\\/bfnrtu])/g, '$1');
+
+            // 2. Fix trailing commas (e.g. "key": "value", } -> "key": "value" })
+            fixedResult = fixedResult.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+
+            // 3. Attempt to fix unescaped newlines/tabs in values
+            // This regex matches "key": "value" patterns and escapes control chars in the value
+            fixedResult = fixedResult.replace(/"([^"]*?)"\s*:\s*"((?:[^"\\]|\\.)*)"/g, (match, key, value) => {
+              const fixedValue = value
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r')
+                .replace(/\t/g, '\\t');
+              return `"${key}": "${fixedValue}"`;
+            });
 
             generatedFiles = JSON.parse(fixedResult);
           } catch (secondError) {
