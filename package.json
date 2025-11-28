@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "seed:employees": "node scripts/seed-employees.js",
+    "enable-ai": "powershell -ExecutionPolicy Bypass -File ./scripts/enable-ai-verification.ps1",
+    "disable-ai": "powershell -ExecutionPolicy Bypass -File ./scripts/disable-ai-verification.ps1",
+    "test:tracking": "node scripts/test-tracking.js simulate",
+    "tracking:view": "node scripts/test-tracking.js view"
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",
