@@ -181,17 +181,82 @@ export function EmailTemplateEditor({
 
   const insertTrackedButton = () => {
     if (trackedButtonUrl && trackedButtonText) {
+      console.log("🔘 Inserting tracked button:", {
+        text: trackedButtonText,
+        url: trackedButtonUrl,
+        style: trackedButtonStyle,
+      });
+
+      // Normalize URL so tracking rewrite catches it
+      let normalizedUrl = trackedButtonUrl.trim();
+      if (/^www\./i.test(normalizedUrl)) {
+        normalizedUrl = `https://${normalizedUrl}`;
+      }
+      if (!/^https?:\/\//i.test(normalizedUrl)) {
+        normalizedUrl = `https://${normalizedUrl}`;
+      }
+
       const buttonStyles = getButtonStyles(trackedButtonStyle);
-      const html = `<div style="text-align: center; margin: 20px 0;">
-        <a href="${trackedButtonUrl}" class="tracked-button" data-track="true" style="display: inline-block; padding: 15px 40px; background: ${buttonStyles.background}; color: ${buttonStyles.color}; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: ${buttonStyles.shadow}; transition: transform 0.2s;">
+      const buttonHtml = `<div style="text-align: center; margin: 20px 0;">
+        <a href="${normalizedUrl}" class="tracked-button" data-track="true" style="display: inline-block; padding: 15px 40px; background: ${buttonStyles.background}; color: ${buttonStyles.color}; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: ${buttonStyles.shadow}; transition: transform 0.2s;">
           ${trackedButtonText}
         </a>
       </div>`;
-      execCommand("insertHTML", html);
+
+      // Focus the editor first
+      if (contentEditableRef.current) {
+        contentEditableRef.current.focus();
+        // Move caret to the end to ensure insertion at end when no selection
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(contentEditableRef.current);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        // Try to use execCommand first (if editor is focused)
+        try {
+          const success = document.execCommand("insertHTML", false, buttonHtml);
+          console.log("🔘 execCommand result:", success);
+
+          if (!success) {
+            // Fallback: directly append to innerHTML
+            console.log("🔘 Fallback: Appending to innerHTML");
+            const currentContent = contentEditableRef.current.innerHTML;
+            contentEditableRef.current.innerHTML = currentContent + buttonHtml;
+          }
+        } catch (error) {
+          // Fallback: directly append to innerHTML
+          console.log("🔘 execCommand failed, using fallback:", error);
+          const currentContent = contentEditableRef.current.innerHTML;
+          contentEditableRef.current.innerHTML = currentContent + buttonHtml;
+        }
+
+        // Manually trigger content change with a small delay to ensure DOM is updated
+        setTimeout(() => {
+          if (contentEditableRef.current) {
+            const newContent = contentEditableRef.current.innerHTML;
+            console.log(
+              "🔘 Triggering content change with new content length:",
+              newContent.length
+            );
+            onContentChange(newContent);
+          }
+        }, 100);
+      } else {
+        console.error("🔘 contentEditableRef.current is null!");
+      }
+
+      // Reset form and close dialog
       setTrackedButtonUrl("");
       setTrackedButtonText("");
       setTrackedButtonStyle("primary");
       setShowTrackedButtonDialog(false);
+    } else {
+      console.warn("🔘 Missing button text or URL:", {
+        text: trackedButtonText,
+        url: trackedButtonUrl,
+      });
     }
   };
 
@@ -429,6 +494,7 @@ export function EmailTemplateEditor({
           <div
             ref={contentEditableRef}
             contentEditable={!disabled}
+            onInput={handleContentChange}
             onBlur={handleContentChange}
             className="min-h-[350px] p-4 border border-muted-foreground/20 rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
             style={{
