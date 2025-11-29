@@ -7,8 +7,25 @@ export async function POST(request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { trackingId, recipient, subject, url, clickedAt, clickCount } =
-      body || {};
+    const {
+      trackingId,
+      recipient,
+      subject,
+      url,
+      clickedAt,
+      clickCount,
+      ipAddress,
+      device,
+    } = body || {};
+
+    console.log("📬 [WEBHOOK] Received email click notification:", {
+      trackingId,
+      recipient,
+      url,
+      clickCount,
+      ipAddress,
+      device,
+    });
 
     let doc = null;
     try {
@@ -24,10 +41,17 @@ export async function POST(request) {
         doc.totalClicks = clickCount;
       doc.status = "clicked";
       await doc.save();
+      console.log("✅ [WEBHOOK] Tracking document updated successfully");
+    } else {
+      console.log("⚠️ [WEBHOOK] No tracking document found for:", trackingId);
     }
 
-    return Response.json({ received: true });
+    return Response.json({
+      received: true,
+      message: "Click tracked successfully",
+    });
   } catch (e) {
+    console.error("❌ [WEBHOOK] Error processing webhook:", e);
     return Response.json(
       { received: false, error: "Internal error" },
       { status: 500 }

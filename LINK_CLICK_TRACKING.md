@@ -4,6 +4,18 @@
 
 Successfully implemented comprehensive link click tracking for the email automation system. Users can now add Call-to-Action (CTA) buttons to their emails, and all link clicks are automatically tracked and reported in analytics.
 
+## 🆕 NEW: In-Template Tracked Button Feature
+
+**See [TRACKED_BUTTON_FEATURE.md](./TRACKED_BUTTON_FEATURE.md) for complete documentation**
+
+Users can now insert beautiful, tracked CTA buttons **anywhere in the email template** using the new button insertion tool in the email editor:
+
+- 5 button style presets (Primary, Success, Danger, Warning, Dark)
+- Custom text and URLs for each button
+- Multiple buttons per email
+- Real-time preview
+- Automatic click tracking with webhook notifications
+
 ## Features Implemented
 
 ### 1. Click Tracking API Endpoint

@@ -15,6 +15,7 @@ import {
   Wand2,
   RefreshCw,
   Edit3,
+  MousePointerClick,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,9 +43,13 @@ export function EmailTemplateEditor({
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [showChecklistDialog, setShowChecklistDialog] = useState(false);
   const [showAIDialog, setShowAIDialog] = useState(false);
+  const [showTrackedButtonDialog, setShowTrackedButtonDialog] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [linkText, setLinkText] = useState("");
+  const [trackedButtonUrl, setTrackedButtonUrl] = useState("");
+  const [trackedButtonText, setTrackedButtonText] = useState("");
+  const [trackedButtonStyle, setTrackedButtonStyle] = useState("primary");
   const [enabledColumns, setEnabledColumns] = useState(new Set());
   const [aiPrompt, setAiPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -140,6 +145,53 @@ export function EmailTemplateEditor({
       setLinkUrl("");
       setLinkText("");
       setShowLinkDialog(false);
+    }
+  };
+
+  const getButtonStyles = (style) => {
+    const styles = {
+      primary: {
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        color: "white",
+        shadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
+      },
+      success: {
+        background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+        color: "white",
+        shadow: "0 4px 15px rgba(16, 185, 129, 0.4)",
+      },
+      danger: {
+        background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+        color: "white",
+        shadow: "0 4px 15px rgba(239, 68, 68, 0.4)",
+      },
+      warning: {
+        background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+        color: "white",
+        shadow: "0 4px 15px rgba(245, 158, 11, 0.4)",
+      },
+      dark: {
+        background: "linear-gradient(135deg, #1f2937 0%, #111827 100%)",
+        color: "white",
+        shadow: "0 4px 15px rgba(31, 41, 55, 0.4)",
+      },
+    };
+    return styles[style] || styles.primary;
+  };
+
+  const insertTrackedButton = () => {
+    if (trackedButtonUrl && trackedButtonText) {
+      const buttonStyles = getButtonStyles(trackedButtonStyle);
+      const html = `<div style="text-align: center; margin: 20px 0;">
+        <a href="${trackedButtonUrl}" class="tracked-button" data-track="true" style="display: inline-block; padding: 15px 40px; background: ${buttonStyles.background}; color: ${buttonStyles.color}; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: ${buttonStyles.shadow}; transition: transform 0.2s;">
+          ${trackedButtonText}
+        </a>
+      </div>`;
+      execCommand("insertHTML", html);
+      setTrackedButtonUrl("");
+      setTrackedButtonText("");
+      setTrackedButtonStyle("primary");
+      setShowTrackedButtonDialog(false);
     }
   };
 
@@ -357,6 +409,19 @@ export function EmailTemplateEditor({
               className="h-9 w-9 p-0 hover:bg-primary/10 hover:text-primary"
             >
               <Link className="w-4 h-4" />
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowTrackedButtonDialog(true)}
+              disabled={disabled}
+              className="h-9 px-3 bg-blue-500/5 border border-blue-500/20 text-blue-600 hover:bg-blue-500/10 hover:text-blue-700"
+              title="Insert tracked CTA button"
+            >
+              <MousePointerClick className="w-4 h-4 mr-2" />
+              <span className="text-xs font-medium">CTA</span>
             </Button>
           </div>
 
@@ -642,6 +707,113 @@ export function EmailTemplateEditor({
                   Generate Template
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tracked Button Dialog */}
+      <Dialog
+        open={showTrackedButtonDialog}
+        onOpenChange={setShowTrackedButtonDialog}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MousePointerClick className="w-5 h-5 text-blue-600" />
+              Insert Tracked CTA Button
+            </DialogTitle>
+            <p className="text-sm text-gray-600">
+              Add a clickable button that will track when recipients click it
+            </p>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="tracked-button-text">Button Text</Label>
+              <Input
+                id="tracked-button-text"
+                value={trackedButtonText}
+                onChange={(e) => setTrackedButtonText(e.target.value)}
+                placeholder="Get Started"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tracked-button-url">Destination URL</Label>
+              <Input
+                id="tracked-button-url"
+                value={trackedButtonUrl}
+                onChange={(e) => setTrackedButtonUrl(e.target.value)}
+                placeholder="https://example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tracked-button-style">Button Style</Label>
+              <div className="grid grid-cols-5 gap-2">
+                {["primary", "success", "danger", "warning", "dark"].map(
+                  (style) => (
+                    <button
+                      key={style}
+                      onClick={() => setTrackedButtonStyle(style)}
+                      className={`h-12 rounded-lg border-2 transition-all ${
+                        trackedButtonStyle === style
+                          ? "border-blue-500 scale-105"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      style={{
+                        background: getButtonStyles(style).background,
+                      }}
+                      title={style.charAt(0).toUpperCase() + style.slice(1)}
+                    />
+                  )
+                )}
+              </div>
+            </div>
+            {trackedButtonText && trackedButtonUrl && (
+              <div className="mt-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-xs text-muted-foreground mb-3">Preview:</p>
+                <div style={{ textAlign: "center" }}>
+                  <a
+                    href={trackedButtonUrl}
+                    onClick={(e) => e.preventDefault()}
+                    style={{
+                      display: "inline-block",
+                      padding: "15px 40px",
+                      background:
+                        getButtonStyles(trackedButtonStyle).background,
+                      color: getButtonStyles(trackedButtonStyle).color,
+                      textDecoration: "none",
+                      borderRadius: "8px",
+                      fontWeight: "bold",
+                      fontSize: "16px",
+                      boxShadow: getButtonStyles(trackedButtonStyle).shadow,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {trackedButtonText}
+                  </a>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3 text-center flex items-center justify-center gap-2">
+                  <MousePointerClick className="w-3 h-3" />
+                  Clicks will be automatically tracked & webhook will be
+                  triggered
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowTrackedButtonDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={insertTrackedButton}
+              disabled={!trackedButtonUrl || !trackedButtonText}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <MousePointerClick className="w-4 h-4 mr-2" />
+              Insert Button
             </Button>
           </DialogFooter>
         </DialogContent>

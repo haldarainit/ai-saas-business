@@ -75,6 +75,7 @@ export async function GET(request, { params }) {
 
     if (tracked) {
       console.log("✅ [TRACKING] Recording click for:", tracked.recipientEmail);
+      console.log("🔗 [TRACKING] Destination URL:", redirectUrl);
       await tracked.recordClick({
         url: redirectUrl,
         ipAddress,
@@ -86,23 +87,37 @@ export async function GET(request, { params }) {
         tracked.totalClicks
       );
 
-      // Fire webhook (optional)
+      // Fire webhook to notify external systems
       try {
         const base =
           process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-        await fetch(`${base}/api/webhook/email-clicked`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            trackingId: tracked._id.toString(),
-            recipient: tracked.recipientEmail,
-            subject: tracked.emailSubject,
-            url: redirectUrl,
-            clickedAt: new Date().toISOString(),
-            clickCount: tracked.totalClicks || 1,
-          }),
-        });
-      } catch (_) {}
+        const webhookResponse = await fetch(
+          `${base}/api/webhook/email-clicked`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              trackingId: tracked._id.toString(),
+              recipient: tracked.recipientEmail,
+              subject: tracked.emailSubject,
+              url: redirectUrl,
+              clickedAt: new Date().toISOString(),
+              clickCount: tracked.totalClicks || 1,
+              ipAddress,
+              device,
+            }),
+          }
+        );
+        console.log(
+          "📡 [WEBHOOK] Email click webhook sent:",
+          webhookResponse.ok ? "✅ Success" : "❌ Failed"
+        );
+      } catch (webhookError) {
+        console.error(
+          "📡 [WEBHOOK] Failed to send webhook:",
+          webhookError.message
+        );
+      }
 
       // Notify SSE subscribers
       try {
