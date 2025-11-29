@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Send, Sparkles, User, Bot, Loader2, Plus, X, FileText, Image as ImageIcon, Paperclip } from "lucide-react"
+import { Send, Sparkles, User, Bot, Loader2, Plus, X, FileText, Image as ImageIcon, Paperclip, RotateCcw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import FileCreationAnimation from "./FileCreationAnimation"
 import CodeWritingAnimation from "./CodeWritingAnimation"
@@ -21,6 +21,7 @@ interface Message {
     role: "user" | "model"
     content: string
     attachments?: Attachment[]
+    error?: boolean
 }
 
 interface ChatInterfaceProps {
@@ -28,9 +29,10 @@ interface ChatInterfaceProps {
     onSendMessage: (message: string, attachments: Attachment[]) => void
     isLoading: boolean
     generatedFiles?: Record<string, { code: string }> | null
+    onRetry?: (index: number) => void
 }
 
-export default function ChatInterface({ messages, onSendMessage, isLoading, generatedFiles }: ChatInterfaceProps) {
+export default function ChatInterface({ messages, onSendMessage, isLoading, generatedFiles, onRetry }: ChatInterfaceProps) {
     const [input, setInput] = useState("")
     const [attachments, setAttachments] = useState<Attachment[]>([])
     const [isUploading, setIsUploading] = useState(false)
@@ -226,8 +228,21 @@ export default function ChatInterface({ messages, onSendMessage, isLoading, gene
                                     <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                                 </div>
                                 {message.role === "user" && (
-                                    <div className="w-8 h-8 rounded-lg bg-gray-700 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
-                                        <User className="w-4 h-4 text-white" />
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className="w-8 h-8 rounded-lg bg-gray-700 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
+                                            <User className="w-4 h-4 text-white" />
+                                        </div>
+                                        {message.error && (
+                                            <button
+                                                onClick={() => onRetry?.(index)}
+                                                disabled={isLoading}
+                                                className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 text-xs flex items-center gap-1 mt-1 disabled:opacity-50"
+                                                title="Retry message"
+                                            >
+                                                <RotateCcw className="w-3 h-3" />
+                                                Retry
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>

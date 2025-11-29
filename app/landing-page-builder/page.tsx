@@ -19,6 +19,7 @@ interface Message {
   role: "user" | "model"
   content: string
   attachments?: Attachment[]
+  error?: boolean
 }
 
 interface BusinessDetails {
@@ -444,9 +445,21 @@ function LandingPageBuilderContent() {
     }
   }
 
-  const handleSendMessage = async (userMessage: string, attachments: Attachment[] = []) => {
-    const newMessages: Message[] = [...messages, { role: "user", content: userMessage, attachments }]
-    setMessages(newMessages)
+  const handleSendMessage = async (userMessage: string, attachments: Attachment[] = [], messageIndex?: number) => {
+    let newMessages: Message[] = [];
+
+    if (messageIndex !== undefined) {
+      // Retry existing message
+      newMessages = [...messages];
+      // Clear error state
+      newMessages[messageIndex] = { ...newMessages[messageIndex], error: false };
+      setMessages(newMessages);
+    } else {
+      // New message
+      newMessages = [...messages, { role: "user", content: userMessage, attachments }];
+      setMessages(newMessages);
+    }
+
     setIsLoading(true)
 
     try {
@@ -510,12 +523,25 @@ function LandingPageBuilderContent() {
         toast.success(data.message || "Landing page updated successfully!")
       } else {
         toast.error(data.error || "Failed to update landing page")
-        setMessages([...newMessages, { role: "model", content: `Sorry, I encountered an error: ${data.error || "Unknown error"}. Please try again.` }])
+        // Mark the last user message as error
+        const errorMessages = [...newMessages];
+        const lastUserIndex = messageIndex !== undefined ? messageIndex : errorMessages.length - 1;
+        if (errorMessages[lastUserIndex].role === 'user') {
+          errorMessages[lastUserIndex] = { ...errorMessages[lastUserIndex], error: true };
+        }
+        setMessages([...errorMessages, { role: "model", content: `Sorry, I encountered an error: ${data.error || "Unknown error"}. Please try again.` }])
       }
     } catch (error) {
       console.error("Error:", error)
       toast.error("An error occurred. Please try again.")
-      setMessages([...newMessages, { role: "model", content: "Sorry, I encountered an error. Please try again." }])
+
+      // Mark the last user message as error
+      const errorMessages = [...newMessages];
+      const lastUserIndex = messageIndex !== undefined ? messageIndex : errorMessages.length - 1;
+      if (errorMessages[lastUserIndex].role === 'user') {
+        errorMessages[lastUserIndex] = { ...errorMessages[lastUserIndex], error: true };
+      }
+      setMessages([...errorMessages, { role: "model", content: "Sorry, I encountered an error. Please try again." }])
     } finally {
       setIsLoading(false)
     }
@@ -642,6 +668,12 @@ function LandingPageBuilderContent() {
                     onSendMessage={handleSendMessage}
                     isLoading={isLoading}
                     generatedFiles={isLoading ? currentCode?.files : null}
+                    onRetry={(index) => {
+                      const msg = messages[index];
+                      if (msg && msg.role === 'user') {
+                        handleSendMessage(msg.content, msg.attachments, index);
+                      }
+                    }}
                   />
 
                   <div className="p-4 border-t border-border">

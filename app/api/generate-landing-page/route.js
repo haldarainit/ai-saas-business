@@ -224,11 +224,19 @@ ${userPrompt}`;
       try {
         let cleanedResult = result.trim();
 
-        // Remove markdown fences if present
-        cleanedResult = cleanedResult.replace(/^```json\s */i, "");
-        cleanedResult = cleanedResult.replace(/^```\s*/i, "");
-        cleanedResult = cleanedResult.replace(/```$/i, "");
-        cleanedResult = cleanedResult.trim();
+        // Robust JSON extraction: Find the first '{' and the last '}'
+        const firstOpenBrace = cleanedResult.indexOf('{');
+        const lastCloseBrace = cleanedResult.lastIndexOf('}');
+
+        if (firstOpenBrace !== -1 && lastCloseBrace !== -1 && lastCloseBrace > firstOpenBrace) {
+          cleanedResult = cleanedResult.substring(firstOpenBrace, lastCloseBrace + 1);
+        } else {
+          // Fallback cleanup if braces aren't found correctly (unlikely for valid JSON)
+          cleanedResult = cleanedResult.replace(/^```json\s */i, "");
+          cleanedResult = cleanedResult.replace(/^```\s*/i, "");
+          cleanedResult = cleanedResult.replace(/```$/i, "");
+          cleanedResult = cleanedResult.trim();
+        }
 
         let generatedFiles;
         try {
