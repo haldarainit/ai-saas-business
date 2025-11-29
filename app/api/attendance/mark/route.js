@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Attendance from '@/lib/models/Attendance';
 import Employee from '@/lib/models/Employee';
-import { analyzeImage } from '@/utils/gemini';
+import { GoogleGenAI } from "@google/genai";
 
 // Rate limiting map (in production, use Redis)
 const rateLimitMap = new Map();
@@ -40,92 +40,225 @@ function formatDate(date) {
 // Helper to perform face verification
 async function verifyFace(base64Image, referenceImage, employeeName, skipAI = false) {
   try {
-    // Check if we should skip AI verification (controlled by env variable)
+    // SECURITY: Never skip verification in production
     const shouldSkipAI = process.env.ENABLE_AI_FACE_VERIFICATION !== 'true';
     
     if (skipAI || shouldSkipAI) {
-      console.log('Skipping AI verification (testing mode) - Set ENABLE_AI_FACE_VERIFICATION=true to enable');
+      console.error('⚠️ SECURITY WARNING: Face verification is disabled! This is a security risk.');
+      // Fail-secure: Reject if verification is disabled
       return {
-        faceDetected: true,
-        qualityScore: 85,
-        matchScore: 90, // High score for testing
-        suspicious: false,
-        suspiciousFlags: [],
-        analysis: 'Testing mode - verification skipped',
+        faceDetected: false,
+        qualityScore: 0,
+        matchScore: 0,
+        suspicious: true,
+        suspiciousFlags: ['Verification disabled - security risk'],
+        analysis: 'Face verification is disabled. Please enable ENABLE_AI_FACE_VERIFICATION=true for security.',
       };
     }
     
-    console.log('🤖 Using AI face verification with Gemini');
+    if (!referenceImage) {
+      console.error('No reference image provided for employee:', employeeName);
+      return {
+        faceDetected: false,
+        qualityScore: 0,
+        matchScore: 0,
+        suspicious: true,
+        suspiciousFlags: ['No reference image available'],
+        analysis: 'Employee has no registered profile image',
+      };
+    }
+    
+    console.log('🤖 Using AI face verification with Gemini - Comparing faces');
 
     // Remove data URL prefix if present
     const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+    const cleanReference = referenceImage.replace(/^data:image\/\w+;base64,/, '');
     
-    // Lenient prompt - focus on presence of face, not quality
-    const prompt = `Look at this image. Is there ANY human face visible, even partially?
-If you can see eyes, nose, or mouth of a person, answer yes.
-Be VERY lenient - accept poor lighting, angles, or partial faces.
+    // CRITICAL: Compare the two images to verify they are the same person
+    const prompt = `You are a security system performing face verification. Compare these TWO images:
 
-Respond in JSON:
-{"faceDetected": true/false, "qualityScore": 0-100, "matchScore": 80, "suspicious": false, "analysis": "brief description"}`;
+IMAGE 1 (Reference - Registered Employee): This is the registered profile photo of employee "${employeeName}".
 
-    const response = await analyzeImage(cleanBase64, 'image/jpeg', prompt);
-    console.log('AI Response:', response.substring(0, 200));
+IMAGE 2 (Current - Clock In Attempt): This is a photo taken during clock in attempt.
+
+TASK: Determine if IMAGE 2 shows the SAME PERSON as IMAGE 1.
+
+Analyze:
+1. Facial features: eyes, nose, mouth, face shape, bone structure
+2. Facial landmarks and proportions
+3. Distinctive features (if any)
+4. Overall facial similarity
+
+IMPORTANT SECURITY RULES:
+- Only return matchScore >= 75 if you are CONFIDENT it's the same person
+- Return matchScore < 75 if there are ANY doubts or differences
+- Be STRICT - this is a security check
+- Reject if faces look different
+- Consider lighting, angle, and image quality but prioritize facial similarity
+
+Respond in JSON format ONLY:
+{
+  "faceDetected": true/false,
+  "qualityScore": 0-100 (image quality),
+  "matchScore": 0-100 (similarity: 0-50=different person, 51-74=uncertain, 75-100=same person),
+  "suspicious": true/false,
+  "suspiciousFlags": ["array of any concerns"],
+  "analysis": "brief explanation of your comparison"
+}`;
+
+    // Initialize Gemini API
+    const API_KEY = process.env.GOOGLE_API_KEY;
+    if (!API_KEY) {
+      throw new Error('Google API key is not configured');
+    }
+    
+    const genAI = new GoogleGenAI({ apiKey: API_KEY });
+    
+    // Try available models
+    const AVAILABLE_MODELS = [
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
+    ];
+    
+    let modelName = null;
+    for (const model of AVAILABLE_MODELS) {
+      try {
+        // Test if model works
+        await genAI.models.generateContent({
+          model,
+          contents: [{ role: "user", parts: [{ text: "test" }] }],
+        });
+        modelName = model;
+        break;
+      } catch (e) {
+        continue;
+      }
+    }
+    
+    if (!modelName) {
+      throw new Error('No available Gemini model found');
+    }
+    
+    // Prepare parts with both images
+    const parts = [
+      { text: 'Reference Image (Registered Employee):' },
+      { inlineData: { data: cleanReference, mimeType: 'image/jpeg' } },
+      { text: '\n\nCurrent Image (Clock In Attempt):' },
+      { inlineData: { data: cleanBase64, mimeType: 'image/jpeg' } },
+      { text: '\n\n' + prompt }
+    ];
+    
+    // Call Gemini with both images for comparison
+    const result = await genAI.models.generateContent({
+      model: modelName,
+      contents: [{ role: 'user', parts }],
+    });
+    
+    // Extract text from response
+    let response = '';
+    try {
+      if (result?.response?.text) {
+        response = typeof result.response.text === "function" ? result.response.text() : result.response.text;
+      } else if (result?.candidates?.[0]?.content?.parts) {
+        response = result.candidates[0].content.parts.map(p => p.text || '').join('');
+      }
+    } catch (e) {
+      console.error('Error extracting response:', e);
+    }
+    
+    console.log('AI Response:', response.substring(0, 500));
     
     // Try to parse JSON from response
     try {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const result = JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        
+        // SECURITY: Be strict with match scores
+        const matchScore = parsed.matchScore || 0;
+        const faceDetected = parsed.faceDetected !== false && matchScore > 0;
+        
         return {
-          faceDetected: result.faceDetected !== false, // Default to true if not explicitly false
-          qualityScore: result.qualityScore || 75,
-          matchScore: result.matchScore || 80,
-          suspicious: result.suspicious || false,
-          suspiciousFlags: result.suspiciousFlags || [],
-          analysis: result.analysis || response,
+          faceDetected,
+          qualityScore: parsed.qualityScore || 0,
+          matchScore: matchScore,
+          suspicious: parsed.suspicious || matchScore < 75,
+          suspiciousFlags: parsed.suspiciousFlags || (matchScore < 75 ? ['Low match score'] : []),
+          analysis: parsed.analysis || response,
         };
       }
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
     }
     
-    // Fallback: Look for explicit rejection only
+    // Fallback: Analyze text response for security indicators
     const lowerResponse = response.toLowerCase();
     
-    // Only reject if explicitly stated no face
-    const hasNegativeIndicators =
-      lowerResponse.includes('no face') ||
-      lowerResponse.includes('not detected') ||
-      (lowerResponse.includes('cannot') && lowerResponse.includes('face')) ||
-      (lowerResponse.includes('unable') && lowerResponse.includes('detect'));
+    // Look for positive indicators (same person)
+    const positiveIndicators = [
+      'same person',
+      'matches',
+      'same face',
+      'identical',
+      'recognized',
+      'verified',
+      'match score',
+    ];
     
-    // Default to true unless explicitly rejected
-    const faceDetected = !hasNegativeIndicators;
+    // Look for negative indicators (different person)
+    const negativeIndicators = [
+      'different person',
+      'not the same',
+      'does not match',
+      'different face',
+      'not recognized',
+      'verification failed',
+      'no match',
+    ];
+    
+    const hasPositive = positiveIndicators.some(ind => lowerResponse.includes(ind));
+    const hasNegative = negativeIndicators.some(ind => lowerResponse.includes(ind));
+    
+    // Extract match score from response if mentioned
+    const scoreMatch = response.match(/matchScore[:\s]+(\d+)/i) || response.match(/(\d+)%?\s*(?:match|similarity|score)/i);
+    const extractedScore = scoreMatch ? parseInt(scoreMatch[1]) : null;
+    
+    // Determine face detection and match score
+    const faceDetected = !lowerResponse.includes('no face') && !lowerResponse.includes('not detected');
+    let matchScore = extractedScore || (hasPositive && !hasNegative ? 75 : hasNegative ? 30 : 50);
+    
+    // Be conservative - if uncertain, use lower score
+    if (!hasPositive && !hasNegative) {
+      matchScore = Math.min(matchScore, 60); // Default to uncertain if no clear indicators
+    }
     
     const suspicious = 
       lowerResponse.includes('suspicious') ||
       lowerResponse.includes('photo of photo') ||
       lowerResponse.includes('mask') ||
-      lowerResponse.includes('multiple faces');
+      lowerResponse.includes('multiple faces') ||
+      matchScore < 75;
     
     return {
       faceDetected,
       qualityScore: faceDetected ? 75 : 30,
-      matchScore: faceDetected && !suspicious ? 80 : 40,
+      matchScore: matchScore,
       suspicious,
-      suspiciousFlags: suspicious ? ['AI detected anomaly'] : [],
-      analysis: response,
+      suspiciousFlags: suspicious ? ['Uncertain verification result'] : [],
+      analysis: response.substring(0, 500),
     };
   } catch (error) {
     console.error('Face verification error:', error);
-    // In case of error, allow the attendance (fail-open for testing)
+    // SECURITY: Fail-secure - reject on error
     return {
-      faceDetected: true,
-      qualityScore: 85,
-      matchScore: 85,
-      suspicious: false,
-      suspiciousFlags: ['Verification error - allowed'],
-      analysis: 'Error during verification - proceeding with attendance',
+      faceDetected: false,
+      qualityScore: 0,
+      matchScore: 0,
+      suspicious: true,
+      suspiciousFlags: ['Verification error - rejected for security'],
+      analysis: `Error during verification: ${error.message}. Attendance rejected for security.`,
     };
   }
 }
@@ -209,8 +342,9 @@ export async function POST(request) {
       );
     }
 
-    // Check match threshold (70% - but more lenient in development)
-    const MATCH_THRESHOLD = process.env.NODE_ENV === 'development' ? 40 : 70;
+    // SECURITY: Strict match threshold - must be at least 75% to pass
+    // This ensures only the actual employee can clock in
+    const MATCH_THRESHOLD = 75; // Same threshold for all environments for security
     if (verification.matchScore < MATCH_THRESHOLD) {
       console.log(`Match score ${verification.matchScore} below threshold ${MATCH_THRESHOLD}`);
       

@@ -43,8 +43,8 @@ export default function RegisterEmployee() {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { 
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
           facingMode: 'user'
         }
       });
@@ -202,24 +202,24 @@ export default function RegisterEmployee() {
     <div className="flex min-h-screen flex-col">
       <Navbar />
 
-      <main className="flex-1 py-12">
-        <div className="container px-4 md:px-6 max-w-4xl mx-auto">
-          <Link href="/employee-management" className="text-sm text-muted-foreground hover:text-primary mb-4 inline-block">
+      <main className="flex-1 py-6 sm:py-8 md:py-12">
+        <div className="container px-4 sm:px-6 md:px-6 max-w-4xl mx-auto">
+          <Link href="/employee-management" className="text-sm text-muted-foreground hover:text-primary mb-4 sm:mb-6 inline-block">
             ← Back to Employee Management
           </Link>
 
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">Register New Employee</h1>
-            <p className="text-muted-foreground">
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">Register New Employee</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Add employee details and capture their profile photo for face verification.
             </p>
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
               {/* Employee Details */}
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Employee Details</h2>
+              <Card className="p-4 sm:p-5 md:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold mb-4">Employee Details</h2>
                 
                 <div className="space-y-4">
                   <div>
@@ -301,15 +301,15 @@ export default function RegisterEmployee() {
               </Card>
 
               {/* Profile Photo */}
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Profile Photo *</h2>
+              <Card className="p-4 sm:p-5 md:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold mb-4">Profile Photo *</h2>
                 
                 {!imagePreview ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {/* Camera Capture */}
                     {useCamera ? (
-                      <div className="space-y-4">
-                        <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '4/3', minHeight: '300px' }}>
+                      <div className="space-y-3 sm:space-y-4">
+                        <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '4/3', minHeight: '200px' }}>
                           <video
                             ref={videoRef}
                             autoPlay
@@ -319,46 +319,47 @@ export default function RegisterEmployee() {
                           />
                           {!cameraActive && (
                             <div className="absolute inset-0 flex items-center justify-center text-white">
-                              <Camera className="w-16 h-16 opacity-50 animate-pulse" />
+                              <Camera className="w-12 h-12 sm:w-16 sm:h-16 opacity-50 animate-pulse" />
                             </div>
                           )}
                           <canvas ref={canvasRef} className="hidden" />
                         </div>
                         
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <Button
                             type="button"
                             onClick={capturePhoto}
                             disabled={!cameraActive}
-                            className="flex-1"
+                            className="flex-1 w-full sm:w-auto"
                           >
                             <Camera className="w-4 h-4 mr-2" />
-                            Capture Photo
+                            <span className="text-sm sm:text-base">Capture Photo</span>
                           </Button>
                           <Button
                             type="button"
                             variant="outline"
                             onClick={stopCamera}
+                            className="w-full sm:w-auto"
                           >
                             <X className="w-4 h-4 mr-2" />
-                            Cancel
+                            <span className="text-sm sm:text-base">Cancel</span>
                           </Button>
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-4">
+                      <div className="space-y-3 sm:space-y-4">
                         <Button
                           type="button"
                           variant="outline"
-                          className="w-full h-32"
+                          className="w-full h-24 sm:h-28 md:h-32"
                           onClick={() => {
                             setUseCamera(true);
                             setTimeout(startCamera, 100);
                           }}
                         >
                           <div className="flex flex-col items-center">
-                            <Camera className="w-8 h-8 mb-2" />
-                            <span>Use Camera</span>
+                            <Camera className="w-6 h-6 sm:w-8 sm:h-8 mb-2" />
+                            <span className="text-sm sm:text-base">Use Camera</span>
                           </div>
                         </Button>
 
@@ -376,12 +377,12 @@ export default function RegisterEmployee() {
                         <Button
                           type="button"
                           variant="outline"
-                          className="w-full h-32"
+                          className="w-full h-24 sm:h-28 md:h-32"
                           onClick={() => fileInputRef.current?.click()}
                         >
                           <div className="flex flex-col items-center">
-                            <Upload className="w-8 h-8 mb-2" />
-                            <span>Upload Photo</span>
+                            <Upload className="w-6 h-6 sm:w-8 sm:h-8 mb-2" />
+                            <span className="text-sm sm:text-base">Upload Photo</span>
                           </div>
                         </Button>
 
@@ -395,7 +396,7 @@ export default function RegisterEmployee() {
                       </div>
                     )}
 
-                    <div className="bg-muted p-3 rounded-lg text-sm">
+                    <div className="bg-muted p-3 rounded-lg text-xs sm:text-sm">
                       <p className="font-semibold mb-1">Photo Guidelines:</p>
                       <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                         <li>Clear, front-facing photo</li>
@@ -406,7 +407,7 @@ export default function RegisterEmployee() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div className="relative rounded-lg overflow-hidden border">
                       <img
                         src={imagePreview}
@@ -416,8 +417,8 @@ export default function RegisterEmployee() {
                     </div>
                     
                     <div className="flex items-center gap-2 text-green-600">
-                      <CheckCircle className="w-5 h-5" />
-                      <span className="text-sm font-medium">Photo captured successfully</span>
+                      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <span className="text-xs sm:text-sm font-medium">Photo captured successfully</span>
                     </div>
 
                     <Button
@@ -429,7 +430,7 @@ export default function RegisterEmployee() {
                       }}
                       className="w-full"
                     >
-                      Retake Photo
+                      <span className="text-sm sm:text-base">Retake Photo</span>
                     </Button>
                   </div>
                 )}
@@ -437,17 +438,24 @@ export default function RegisterEmployee() {
             </div>
 
             {/* Submit Button */}
-            <div className="mt-8 flex justify-end gap-4">
+            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => window.history.back()}
+                className="w-full sm:w-auto order-2 sm:order-1"
               >
-                Cancel
+                <span className="text-sm sm:text-base">Cancel</span>
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button 
+                type="submit" 
+                disabled={loading}
+                className="w-full sm:w-auto order-1 sm:order-2"
+              >
                 <UserPlus className="w-4 h-4 mr-2" />
-                {loading ? "Registering..." : "Register Employee"}
+                <span className="text-sm sm:text-base">
+                  {loading ? "Registering..." : "Register Employee"}
+                </span>
               </Button>
             </div>
           </form>

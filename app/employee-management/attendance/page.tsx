@@ -148,8 +148,8 @@ export default function Attendance() {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { 
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
           facingMode: 'user'
         }
       });
@@ -365,24 +365,24 @@ export default function Attendance() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative py-16 overflow-hidden bg-gradient-to-br from-cyan-500/5 via-background to-blue-500/5">
-          <div className="container relative px-4 md:px-6">
+        <section className="relative py-8 sm:py-12 md:py-16 overflow-hidden bg-gradient-to-br from-cyan-500/5 via-background to-blue-500/5">
+          <div className="container relative px-4 sm:px-6 md:px-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               className="max-w-4xl"
             >
-              <Link href="/employee-management" className="text-sm text-muted-foreground hover:text-primary mb-4 inline-block">
+              <Link href="/employee-management" className="text-xs sm:text-sm text-muted-foreground hover:text-primary mb-3 sm:mb-4 inline-block">
                 ← Back to Employee Management
               </Link>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-cyan-500" />
+              <div className="flex items-center gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-cyan-500" />
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold">Attendance Management</h1>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold">Attendance Management</h1>
               </div>
-              <p className="text-xl text-muted-foreground">
+              <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground">
                 Track employee attendance in real-time with automated reporting and analytics.
               </p>
             </motion.div>
@@ -390,177 +390,240 @@ export default function Attendance() {
         </section>
 
         {/* Stats Section */}
-        <section className="py-8 border-y bg-muted/30">
-          <div className="container px-4 md:px-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <Card className="p-4">
-                <div className="text-2xl font-bold text-green-500">
+        <section className="py-4 sm:py-6 md:py-8 border-y bg-muted/30">
+          <div className="container px-4 sm:px-6 md:px-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <Card className="p-3 sm:p-4">
+                <div className="text-xl sm:text-2xl font-bold text-green-500">
                   {attendanceData.filter((a: any) => a.status === 'present').length}
                 </div>
-                <div className="text-sm text-muted-foreground">Present Today</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Present Today</div>
               </Card>
-              <Card className="p-4">
-                <div className="text-2xl font-bold text-red-500">
+              <Card className="p-3 sm:p-4">
+                <div className="text-xl sm:text-2xl font-bold text-red-500">
                   {attendanceData.filter((a: any) => a.status === 'absent').length}
                 </div>
-                <div className="text-sm text-muted-foreground">Absent Today</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Absent Today</div>
               </Card>
-              <Card className="p-4">
-                <div className="text-2xl font-bold text-orange-500">
+              <Card className="p-3 sm:p-4">
+                <div className="text-xl sm:text-2xl font-bold text-orange-500">
                   {attendanceData.filter((a: any) => a.status === 'on-leave').length}
                 </div>
-                <div className="text-sm text-muted-foreground">On Leave</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">On Leave</div>
               </Card>
-              <Card className="p-4">
-                <div className="text-2xl font-bold text-cyan-500">
+              <Card className="p-3 sm:p-4">
+                <div className="text-xl sm:text-2xl font-bold text-cyan-500">
                   {attendanceData.length > 0 
                     ? ((attendanceData.filter((a: any) => a.status === 'present').length / attendanceData.length) * 100).toFixed(0)
                     : 0}%
                 </div>
-                <div className="text-sm text-muted-foreground">Attendance Rate</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Attendance Rate</div>
               </Card>
             </div>
           </div>
         </section>
 
         {/* Main Content */}
-        <section className="py-12">
-          <div className="container px-4 md:px-6">
+        <section className="py-6 sm:py-8 md:py-12">
+          <div className="container px-4 sm:px-6 md:px-6">
             {/* Controls */}
-            <div className="flex flex-col md:flex-row gap-4 mb-8">
-              <div className="flex-1 flex gap-4">
+            <div className="flex flex-col gap-3 sm:gap-4 mb-6 sm:mb-8">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
                     placeholder="Search employees..."
-                    className="pl-10"
+                    className="pl-10 text-sm sm:text-base"
                   />
                 </div>
                 <Input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-48"
+                  className="w-full sm:w-48 text-sm sm:text-base"
                 />
               </div>
-              <div className="flex gap-2">
-                <Button onClick={() => openMarkAttendance("clockIn")}>
+              <div className="flex flex-wrap gap-2">
+                <Button 
+                  onClick={() => openMarkAttendance("clockIn")}
+                  className="flex-1 sm:flex-initial text-sm sm:text-base"
+                >
                   <Camera className="w-4 h-4 mr-2" />
-                  Clock In
+                  <span className="hidden sm:inline">Clock In</span>
+                  <span className="sm:hidden">In</span>
                 </Button>
-                <Button variant="outline" onClick={() => openMarkAttendance("clockOut")}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => openMarkAttendance("clockOut")}
+                  className="flex-1 sm:flex-initial text-sm sm:text-base"
+                >
                   <Camera className="w-4 h-4 mr-2" />
-                  Clock Out
+                  <span className="hidden sm:inline">Clock Out</span>
+                  <span className="sm:hidden">Out</span>
                 </Button>
-                <Button variant="outline" onClick={loadAttendanceData}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh
+                <Button 
+                  variant="outline" 
+                  onClick={loadAttendanceData}
+                  className="flex-1 sm:flex-initial text-sm sm:text-base"
+                >
+                  <RefreshCw className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Refresh</span>
                 </Button>
-                <ManualLocationUpdate />
+                <div className="flex-1 sm:flex-initial">
+                  <ManualLocationUpdate />
+                </div>
               </div>
             </div>
 
             {/* Attendance Table */}
-            <Card>
-              <div className="overflow-x-auto">
-                {loading ? (
-                  <div className="p-8 text-center text-muted-foreground">
-                    Loading attendance data...
+            <Card className="overflow-hidden">
+              {loading ? (
+                <div className="p-6 sm:p-8 text-center text-muted-foreground text-sm sm:text-base">
+                  Loading attendance data...
+                </div>
+              ) : attendanceData.length === 0 ? (
+                <div className="p-6 sm:p-8 text-center text-muted-foreground text-sm sm:text-base">
+                  No attendance records for this date
+                </div>
+              ) : (
+                <>
+                  {/* Mobile Card View */}
+                  <div className="block md:hidden divide-y">
+                    {attendanceData.map((record: any) => (
+                      <div key={record._id} className="p-4 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{record.employeeName}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                record.status === "present" 
+                                  ? "bg-green-500/20 text-green-600" 
+                                  : record.status === "absent"
+                                  ? "bg-red-500/20 text-red-600"
+                                  : record.status === "late"
+                                  ? "bg-orange-500/20 text-orange-600"
+                                  : "bg-gray-500/20 text-gray-600"
+                              }`}>
+                                {record.status}
+                              </span>
+                              {record.suspicious && (
+                                <span className="text-xs text-red-500">⚠️</span>
+                              )}
+                            </div>
+                          </div>
+                          {record.clockIn?.faceMatchScore && (
+                            <div className="text-xs text-muted-foreground ml-2">
+                              {record.clockIn.faceMatchScore}%
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                          <div>
+                            <span className="font-medium">In:</span> {record.clockIn?.time ? new Date(record.clockIn.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                          </div>
+                          <div>
+                            <span className="font-medium">Out:</span> {record.clockOut?.time ? new Date(record.clockOut.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                          </div>
+                          <div>
+                            <span className="font-medium">Hours:</span> {record.workingHours ? `${record.workingHours}h` : '-'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ) : attendanceData.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground">
-                    No attendance records for this date
-                  </div>
-                ) : (
-                  <table className="w-full">
-                    <thead className="border-b">
-                      <tr className="text-left">
-                        <th className="p-4 font-semibold">Employee</th>
-                        <th className="p-4 font-semibold">Check In</th>
-                        <th className="p-4 font-semibold">Check Out</th>
-                        <th className="p-4 font-semibold">Hours</th>
-                        <th className="p-4 font-semibold">Status</th>
-                        <th className="p-4 font-semibold">Match Score</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {attendanceData.map((record: any) => (
-                        <tr key={record._id} className="border-b last:border-0 hover:bg-muted/50">
-                          <td className="p-4 font-medium">{record.employeeName}</td>
-                          <td className="p-4 text-muted-foreground">
-                            {record.clockIn?.time ? new Date(record.clockIn.time).toLocaleTimeString() : '-'}
-                          </td>
-                          <td className="p-4 text-muted-foreground">
-                            {record.clockOut?.time ? new Date(record.clockOut.time).toLocaleTimeString() : '-'}
-                          </td>
-                          <td className="p-4 text-muted-foreground">
-                            {record.workingHours ? `${record.workingHours}h` : '-'}
-                          </td>
-                          <td className="p-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              record.status === "present" 
-                                ? "bg-green-500/20 text-green-600" 
-                                : record.status === "absent"
-                                ? "bg-red-500/20 text-red-600"
-                                : record.status === "late"
-                                ? "bg-orange-500/20 text-orange-600"
-                                : "bg-gray-500/20 text-gray-600"
-                            }`}>
-                              {record.status}
-                            </span>
-                            {record.suspicious && (
-                              <span className="ml-2 text-xs text-red-500">⚠️</span>
-                            )}
-                          </td>
-                          <td className="p-4 text-muted-foreground text-sm">
-                            {record.clockIn?.faceMatchScore ? `${record.clockIn.faceMatchScore}%` : '-'}
-                          </td>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="border-b bg-muted/50">
+                        <tr className="text-left">
+                          <th className="p-3 md:p-4 font-semibold text-sm whitespace-nowrap">Employee</th>
+                          <th className="p-3 md:p-4 font-semibold text-sm whitespace-nowrap">Check In</th>
+                          <th className="p-3 md:p-4 font-semibold text-sm whitespace-nowrap">Check Out</th>
+                          <th className="p-3 md:p-4 font-semibold text-sm whitespace-nowrap">Hours</th>
+                          <th className="p-3 md:p-4 font-semibold text-sm whitespace-nowrap">Status</th>
+                          <th className="p-3 md:p-4 font-semibold text-sm whitespace-nowrap">Match Score</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+                      </thead>
+                      <tbody>
+                        {attendanceData.map((record: any) => (
+                          <tr key={record._id} className="border-b last:border-0 hover:bg-muted/50">
+                            <td className="p-3 md:p-4 font-medium text-sm">{record.employeeName}</td>
+                            <td className="p-3 md:p-4 text-muted-foreground text-sm whitespace-nowrap">
+                              {record.clockIn?.time ? new Date(record.clockIn.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                            </td>
+                            <td className="p-3 md:p-4 text-muted-foreground text-sm whitespace-nowrap">
+                              {record.clockOut?.time ? new Date(record.clockOut.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                            </td>
+                            <td className="p-3 md:p-4 text-muted-foreground text-sm whitespace-nowrap">
+                              {record.workingHours ? `${record.workingHours}h` : '-'}
+                            </td>
+                            <td className="p-3 md:p-4">
+                              <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                                record.status === "present" 
+                                  ? "bg-green-500/20 text-green-600" 
+                                  : record.status === "absent"
+                                  ? "bg-red-500/20 text-red-600"
+                                  : record.status === "late"
+                                  ? "bg-orange-500/20 text-orange-600"
+                                  : "bg-gray-500/20 text-gray-600"
+                              }`}>
+                                {record.status}
+                              </span>
+                              {record.suspicious && (
+                                <span className="ml-2 text-xs text-red-500">⚠️</span>
+                              )}
+                            </td>
+                            <td className="p-3 md:p-4 text-muted-foreground text-sm whitespace-nowrap">
+                              {record.clockIn?.faceMatchScore ? `${record.clockIn.faceMatchScore}%` : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </Card>
 
             {/* Camera Dialog */}
             <Dialog open={cameraOpen} onOpenChange={handleCloseCamera}>
-              <DialogContent className="sm:max-w-[600px]">
+              <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>
+                  <DialogTitle className="text-lg sm:text-xl">
                     {action === "clockIn" ? "Clock In" : "Clock Out"}
                   </DialogTitle>
-                  <DialogDescription>
+                  <DialogDescription className="text-xs sm:text-sm">
                     Select employee and capture face image for verification
                   </DialogDescription>
                 </DialogHeader>
                 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {/* Employee Selection */}
                   <div>
-                    <label className="text-sm font-medium mb-2 block">
+                    <label className="text-xs sm:text-sm font-medium mb-2 block">
                       Select Employee
                     </label>
                     {employees.length === 0 ? (
-                      <div className="p-4 bg-muted rounded-lg text-center">
-                        <p className="text-sm text-muted-foreground mb-3">
+                      <div className="p-3 sm:p-4 bg-muted rounded-lg text-center">
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-3">
                           No employees registered yet
                         </p>
                         <Link href="/employee-management/register">
-                          <Button size="sm" variant="outline">
-                            <UserPlus className="w-4 h-4 mr-2" />
+                          <Button size="sm" variant="outline" className="text-xs sm:text-sm">
+                            <UserPlus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                             Register First Employee
                           </Button>
                         </Link>
                       </div>
                     ) : (
                       <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                        <SelectTrigger>
+                        <SelectTrigger className="text-sm sm:text-base">
                           <SelectValue placeholder="Choose employee..." />
                         </SelectTrigger>
                         <SelectContent>
                           {employees.map((emp: any) => (
-                            <SelectItem key={emp.employeeId} value={emp.employeeId}>
+                            <SelectItem key={emp.employeeId} value={emp.employeeId} className="text-sm sm:text-base">
                               {emp.name} ({emp.employeeId})
                             </SelectItem>
                           ))}
@@ -570,7 +633,7 @@ export default function Attendance() {
                   </div>
 
                   {/* Camera Feed */}
-                  <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9', minHeight: '300px' }}>
+                  <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9', minHeight: '200px' }}>
                     <video
                       ref={videoRef}
                       autoPlay
@@ -580,15 +643,15 @@ export default function Attendance() {
                     />
                     {!capturing && (
                       <div className="absolute inset-0 flex items-center justify-center text-white">
-                        <div className="text-center">
-                          <Camera className="w-16 h-16 mx-auto mb-4 opacity-50 animate-pulse" />
-                          <p>Starting camera...</p>
+                        <div className="text-center px-4">
+                          <Camera className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 opacity-50 animate-pulse" />
+                          <p className="text-sm sm:text-base">Starting camera...</p>
                           <p className="text-xs text-gray-400 mt-2">Please allow camera access if prompted</p>
                         </div>
                       </div>
                     )}
                     {capturing && (
-                      <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-500/20 backdrop-blur-sm px-3 py-1 rounded-full">
+                      <div className="absolute top-2 sm:top-4 right-2 sm:right-4 flex items-center gap-2 bg-green-500/20 backdrop-blur-sm px-2 sm:px-3 py-1 rounded-full">
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                         <span className="text-xs text-white">Live</span>
                       </div>
@@ -597,7 +660,7 @@ export default function Attendance() {
                   </div>
 
                   {/* Instructions */}
-                  <div className="bg-muted p-4 rounded-lg text-sm">
+                  <div className="bg-muted p-3 sm:p-4 rounded-lg text-xs sm:text-sm">
                     <p className="font-semibold mb-2">Instructions:</p>
                     <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                       <li>Ensure your face is clearly visible and well-lit</li>
@@ -608,12 +671,21 @@ export default function Attendance() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={handleCloseCamera} disabled={loading}>
+                  <div className="flex flex-col sm:flex-row justify-end gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleCloseCamera} 
+                      disabled={loading}
+                      className="w-full sm:w-auto text-sm sm:text-base order-2 sm:order-1"
+                    >
                       <X className="w-4 h-4 mr-2" />
                       Cancel
                     </Button>
-                    <Button onClick={handleMarkAttendance} disabled={loading || !selectedEmployee || !capturing}>
+                    <Button 
+                      onClick={handleMarkAttendance} 
+                      disabled={loading || !selectedEmployee || !capturing}
+                      className="w-full sm:w-auto text-sm sm:text-base order-1 sm:order-2"
+                    >
                       {loading ? (
                         <>
                           <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -632,25 +704,25 @@ export default function Attendance() {
             </Dialog>
 
             {/* Features Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-              <Card className="p-6">
-                <UserCheck className="w-8 h-8 text-cyan-500 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Biometric Integration</h3>
-                <p className="text-sm text-muted-foreground">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mt-8 sm:mt-10 md:mt-12">
+              <Card className="p-4 sm:p-5 md:p-6">
+                <UserCheck className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-500 mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-semibold mb-2">Biometric Integration</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Seamlessly integrate with biometric devices for accurate attendance tracking.
                 </p>
               </Card>
-              <Card className="p-6">
-                <Calendar className="w-8 h-8 text-cyan-500 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Shift Management</h3>
-                <p className="text-sm text-muted-foreground">
+              <Card className="p-4 sm:p-5 md:p-6">
+                <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-500 mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-semibold mb-2">Shift Management</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Manage multiple shifts and track attendance across different time zones.
                 </p>
               </Card>
-              <Card className="p-6">
-                <CheckCircle className="w-8 h-8 text-cyan-500 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Auto Reports</h3>
-                <p className="text-sm text-muted-foreground">
+              <Card className="p-4 sm:p-5 md:p-6">
+                <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-500 mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-semibold mb-2">Auto Reports</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Generate comprehensive attendance reports automatically with insights.
                 </p>
               </Card>
