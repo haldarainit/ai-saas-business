@@ -339,10 +339,12 @@ export async function analyzeImage(
       throw new Error("Google API key is not configured");
     }
 
-    // Use gemini-1.5-flash which reliably supports vision
+    // Get the best available model name
+    const modelName = await getWorkingModelName();
+
     const result = await retryWithBackoff(async () => {
       return await genAI.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: modelName,
         contents: [
           {
             role: "user",
@@ -378,9 +380,120 @@ export async function analyzeImage(
   }
 }
 
+/**
+ * Parse @-mentions from prompt text
+ * Supports @image, @video, @audio URLs
+ */
+function parseMentions(prompt) {
+  const mentions = [];
+  const mentionRegex = /@(image|video|audio)\s+(https?:\/\/[^\s]+)/gi;
+  let match;
+
+  while ((match = mentionRegex.exec(prompt)) !== null) {
+    mentions.push({
+      type: match[1].toLowerCase(),
+      url: match[2],
+    });
+  }
+
+  return mentions;
+}
+
+/**
+ * Generate AI response with media attachments and document content
+ * Supports images (vision API), documents, and @-mention URLs
+ */
+export async function generateWithMedia(prompt, attachments = []) {
+  try {
+    if (!API_KEY) {
+      throw new Error("Google API key is not configured");
+    }
+
+    const modelName = await getWorkingModelName();
+    const parts = [];
+
+    // Parse @-mentions from prompt
+    const mentions = parseMentions(prompt);
+    let enhancedPrompt = prompt;
+
+    // Add mention context to prompt
+    if (mentions.length > 0) {
+      enhancedPrompt += "\n\nReferenced Media URLs:\n";
+      mentions.forEach((mention) => {
+        enhancedPrompt += `- ${mention.type.toUpperCase()}: ${mention.url}\n`;
+      });
+    }
+
+    // Add document content to prompt
+    const documentAttachments = attachments.filter(
+      (att) => att.type === "document" && att.extractedContent
+    );
+    if (documentAttachments.length > 0) {
+      enhancedPrompt += "\n\nDocument Content:\n";
+      documentAttachments.forEach((doc) => {
+        enhancedPrompt += `\n--- ${doc.filename} ---\n${doc.extractedContent}\n`;
+      });
+    }
+
+    // Add text prompt
+    parts.push({ text: enhancedPrompt });
+
+    // Add image attachments for vision API
+    const imageAttachments = attachments.filter((att) => att.type === "image");
+    for (const img of imageAttachments) {
+      // If base64 data is provided
+      if (img.base64Data) {
+        parts.push({
+          inlineData: {
+            data: img.base64Data,
+            mimeType: img.mimeType || "image/jpeg",
+          },
+        });
+      }
+      // If URL is provided, add it to the context
+      else if (img.url) {
+        enhancedPrompt += `\n\nImage URL: ${img.url}`;
+        parts[0].text = enhancedPrompt;
+      }
+    }
+
+    // Use the resolved modelName which supports multimodal input
+    const model = modelName;
+
+    const result = await retryWithBackoff(async () => {
+      return await genAI.models.generateContent({
+        model,
+        contents: [{ role: "user", parts }],
+      });
+    });
+
+    const text = extractText(result);
+    console.log(text);
+
+    return text;
+  } catch (error) {
+    console.error("Error generating AI response with media:", error);
+
+    if (error.message && error.message.includes("API key")) {
+      return "Error: Invalid or missing API key. Please configure your Google AI API key.";
+    }
+
+    if (
+      error.status === 503 ||
+      (error.message && error.message.includes("overloaded"))
+    ) {
+      return "Error: The AI model is currently overloaded. Please try again in a few moments.";
+    }
+
+    return `Error: ${error.message || "An unexpected error occurred while generating content."
+      }`;
+  }
+}
+
 // Default export for webpack compatibility
 export default {
   generateAIResponse,
   generateEmailTemplate,
   analyzeImage,
+  generateWithMedia,
 };

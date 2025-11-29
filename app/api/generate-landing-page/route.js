@@ -1,7 +1,7 @@
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { messages, currentCode, businessDetails } = body;
+    const { messages, currentCode, businessDetails, attachments } = body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return Response.json(
@@ -17,13 +17,13 @@ export async function POST(request) {
       messageCount: messages.length,
       hasCurrentCode: !!currentCode,
       hasBusinessDetails: !!businessDetails,
+      attachmentCount: attachments?.length || 0,
     });
 
     // Generate the landing page using Gemini AI
     const geminiModule = await import("../../../utils/gemini.js");
     const gemini = geminiModule.default || geminiModule;
 
-    // Build the prompt with conversation context
     // Build the prompt with conversation context
     const systemPrompt = `You are an expert React developer creating production-ready landing pages like Lovable.dev.
 
@@ -80,7 +80,7 @@ JSON RESPONSE FORMATTING - CRITICAL:
 - You must return a SINGLE valid JSON object.
 - The keys are file paths, and values are the code content.
 - **YOU MUST ESCAPE ALL DOUBLE QUOTES INSIDE THE CODE STRINGS.**
-- Example: "className=\"bg-blue-500\"" NOT "className="bg-blue-500""
+- Example: "className=\\"bg-blue-500\\"" NOT "className="bg-blue-500""
 - Do not use markdown code blocks. Just the raw JSON string.
 - Ensure all newlines in the code are properly escaped as \\n.
 
@@ -110,9 +110,41 @@ Primary Color Scheme: "${businessDetails.colorScheme}"
 `;
     }
 
+    // Add info about uploaded files
+    let fileContext = "";
+    if (attachments && attachments.length > 0) {
+      const fileList = attachments.map(att => {
+        // Generate a safe variable name based on the filename
+        const varName = att.name.replace(/[^a-zA-Z0-9]/g, '_').replace(/^([0-9])/, '_$1');
+        const safeFileName = att.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+
+        return `- ${att.type}: ${att.name} -> Available at './assets/${safeFileName}.js'.\n  Usage: import ${varName} from './assets/${safeFileName}.js';\n  <img src={${varName}} ... /> (or <video/audio src={${varName}} />)`;
+      }).join("\n");
+
+      fileContext = `
+UPLOADED FILES AVAILABLE:
+${fileList}
+
+CRITICAL ASSET INSTRUCTIONS: 
+1. Files are stored as individual JS modules in 'src/assets/'.
+2. Each file exports the Data URL as the default export.
+3. YOU MUST IMPORT them to use them.
+4. **YOU MUST INCLUDE THE .js EXTENSION IN THE IMPORT PATH.**
+   - CORRECT: import myImage from './assets/my-image.png.js';
+   - INCORRECT: import myImage from './assets/my-image.png';
+5. Use the imported variable as the src for img/video tags.
+
+CRITICAL CONTENT PRESERVATION:
+- When updating components (especially Navbar and Footer), **DO NOT REMOVE EXISTING TITLES, LINKS, OR CONTENT** unless explicitly asked.
+- If adding a logo, insert it ALONGSIDE the existing business name/title, do not replace it.
+- Maintain the existing structure and styling while adding the new media.
+`;
+    }
+
     if (!currentCode) {
       userPrompt = `Create a complete, multi-file landing page with the following details:
 ${businessContext}
+${fileContext}
 
 User's request: "${lastMessage.content}"
 
@@ -131,22 +163,21 @@ ${currentFilesContext}
 
 Business context:
 ${businessContext}
+${fileContext}
 
 User's new request: "${lastMessage.content}"
 
 CRITICAL INSTRUCTIONS FOR MODIFICATIONS:
-1. ANALYZE the user's request carefully to determine which files need changes
-2. If the request is SMALL/SPECIFIC (e.g., "change button color", "update hero text"):
-   - Return ONLY the files that need to be modified
-   - DO NOT rewrite unchanged files
-   - Example: If changing hero button → return ONLY /components/Hero.js
+1. ANALYZE the user's request carefully to determine which files need changes.
+2. **PARTIAL UPDATES ONLY:**
+   - If the request is specific (e.g., "add this image to navbar"), **RETURN ONLY THE MODIFIED FILE** (e.g., "/components/Navbar.js").
+   - **DO NOT** return unchanged files like App.js, index.js, or styles.css.
+   - This prevents overwriting existing work and speeds up generation.
 
-3. If the request is MAJOR (e.g., "complete redesign", "add dark mode everywhere"):
-   - Return all files that need changes
-   - You may need to modify multiple files
+3. If the request is MAJOR (e.g., "complete redesign"), then return all affected files.
 
-4. ALWAYS preserve the exact structure and functionality of unchanged code
-5. Use the existing code as reference - maintain consistency
+4. ALWAYS preserve the exact structure and functionality of unchanged code within the modified file.
+5. Use the existing code as reference - maintain consistency.
 
 RESPONSE FORMAT:
 Return ONLY a JSON object with the files that NEED TO BE CHANGED.
@@ -157,14 +188,41 @@ The unchanged files will be automatically preserved.`;
 
 ${userPrompt}`;
 
-    const result = await gemini.generateAIResponse(fullPrompt);
+    // Map frontend attachment format to what generateWithMedia expects
+    // Frontend sends: { type, content (base64/text), mimeType, name }
+    // generateWithMedia expects: { type: 'image'|'document', base64Data, mimeType, extractedContent, url }
+
+    const processedAttachments = (attachments || []).map(att => {
+      if (att.type === 'image') {
+        // Strip data:image/xyz;base64, prefix if present
+        const base64Data = att.content.includes('base64,')
+          ? att.content.split('base64,')[1]
+          : att.content;
+
+        return {
+          type: 'image',
+          base64Data,
+          mimeType: att.mimeType,
+          url: att.url // Pass URL if present
+        };
+      } else {
+        // For documents/text
+        return {
+          type: 'document',
+          extractedContent: att.content,
+          filename: att.name
+        };
+      }
+    });
+
+    const result = await gemini.generateWithMedia(fullPrompt, processedAttachments);
 
     if (result && !result.includes("Error")) {
       try {
         let cleanedResult = result.trim();
 
         // Remove markdown fences if present
-        cleanedResult = cleanedResult.replace(/^```json\s*/i, "");
+        cleanedResult = cleanedResult.replace(/^```json\s */i, "");
         cleanedResult = cleanedResult.replace(/^```\s*/i, "");
         cleanedResult = cleanedResult.replace(/```$/i, "");
         cleanedResult = cleanedResult.trim();
@@ -173,26 +231,28 @@ ${userPrompt}`;
         try {
           generatedFiles = JSON.parse(cleanedResult);
         } catch (firstError) {
-          // If first parse fails, try aggressive cleanup
           console.log("First parse failed, attempting cleanup...");
 
-          // Fix common issues:
-          // 1. Replace literal newlines in strings with \\n
-          // 2. Fix tabs
-          // 3. Remove any remaining control characters
-
           try {
-            // Parse as an object to manipulate it
-            const fixedResult = cleanedResult
-              // Fix newlines within string values (between quotes)
-              .replace(/"([^"]*?)"\s*:\s*"((?:[^"\\]|\\.)*)"/g, (match, key, value) => {
-                // Escape unescaped newlines and tabs in the value
-                const fixedValue = value
-                  .replace(/\n/g, '\\n')
-                  .replace(/\r/g, '\\r')
-                  .replace(/\t/g, '\\t');
-                return `"${key}": "${fixedValue}"`;
-              });
+            // Robust JSON repair strategy
+            let fixedResult = cleanedResult;
+
+            // 1. Fix bad escaped characters (e.g. \ followed by space, or \')
+            // Only preserve valid JSON escapes: " \ / b f n r t u
+            fixedResult = fixedResult.replace(/\\([^"\\/bfnrtu])/g, '$1');
+
+            // 2. Fix trailing commas (e.g. "key": "value", } -> "key": "value" })
+            fixedResult = fixedResult.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+
+            // 3. Attempt to fix unescaped newlines/tabs in values
+            // This regex matches "key": "value" patterns and escapes control chars in the value
+            fixedResult = fixedResult.replace(/"([^"]*?)"\s*:\s*"((?:[^"\\]|\\.)*)"/g, (match, key, value) => {
+              const fixedValue = value
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r')
+                .replace(/\t/g, '\\t');
+              return `"${key}": "${fixedValue}"`;
+            });
 
             generatedFiles = JSON.parse(fixedResult);
           } catch (secondError) {

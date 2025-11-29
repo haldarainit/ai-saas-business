@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import ChatInterface from "./components/ChatInterface"
+import ChatInterface, { Attachment } from "./components/ChatInterface"
 import CodeViewWorkspace from "./components/CodeViewWorkspace"
 import InitialForm from "./components/InitialForm"
 import Navbar from "@/components/navbar"
@@ -18,6 +18,7 @@ import ResizableSplitPane from "./components/ResizableSplitPane"
 interface Message {
   role: "user" | "model"
   content: string
+  attachments?: Attachment[]
 }
 
 interface BusinessDetails {
@@ -27,6 +28,8 @@ interface BusinessDetails {
   colorScheme: string
   logo: File | null
 }
+
+const CURRENT_USER_ID = "user_123"
 
 function LandingPageBuilderContent() {
   const router = useRouter()
@@ -51,11 +54,23 @@ function LandingPageBuilderContent() {
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
 
-  // Debug: Log when currentCode changes
+  // Ref to prevent history updates during undo/redo
+  const isUndoRedoRef = useRef(false)
+
+  // Track last saved state to avoid unnecessary saves
+  const lastSavedStateRef = useRef<{ messages?: string, code?: string }>({})
+  const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Key to force Sandpack reload only when needed (Undo/Redo/AI generation)
+  const [sandpackKey, setSandpackKey] = useState(0)
+
+  // Auto-repair history index if it gets out of sync
   useEffect(() => {
-    console.log("🔄 currentCode changed:", currentCode)
-    console.log("Current historyIndex:", historyIndex)
-  }, [currentCode, historyIndex])
+    if (history.length > 0 && historyIndex >= history.length) {
+      console.warn(`⚠️ History index desync detected! Index: ${historyIndex}, Length: ${history.length}. Auto-correcting to ${history.length - 1}`)
+      setHistoryIndex(history.length - 1)
+    }
+  }, [historyIndex, history.length])
 
   // Load workspace from URL params
   useEffect(() => {
@@ -120,8 +135,8 @@ function LandingPageBuilderContent() {
         const updatedEntry = {
           ...lastEntry,
           code,
-          timestamp: Date.now()
-          // Keep existing version and label
+          timestamp: Date.now(),
+          messages: currentMessages || lastEntry.messages
         }
         const newHistory = [...currentHistory]
         newHistory[newHistory.length - 1] = updatedEntry
@@ -154,31 +169,7 @@ function LandingPageBuilderContent() {
     }
   }
 
-  // Ref to prevent history updates during undo/redo
-  const isUndoRedoRef = useRef(false)
-
-  // Track last saved state to avoid unnecessary saves
-  const lastSavedStateRef = useRef<{ messages?: string, code?: string }>({})
-  const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Key to force Sandpack reload only when needed (Undo/Redo/AI generation)
-  const [sandpackKey, setSandpackKey] = useState(0)
-
-  // Auto-repair history index if it gets out of sync
-  useEffect(() => {
-    if (history.length > 0 && historyIndex >= history.length) {
-      console.warn(`⚠️ History index desync detected! Index: ${historyIndex}, Length: ${history.length}. Auto-correcting to ${history.length - 1}`)
-      setHistoryIndex(history.length - 1)
-    }
-  }, [historyIndex, history.length])
-
   const handleUndo = () => {
-    console.log("🔙 UNDO CLICKED")
-    console.log("Current historyIndex:", historyIndex)
-    console.log("History length:", history.length)
-    console.log("Current history:", history)
-
-    // Clear any pending history updates from typing
     if (historyTimeoutRef.current) {
       clearTimeout(historyTimeoutRef.current)
     }
@@ -186,31 +177,17 @@ function LandingPageBuilderContent() {
     if (historyIndex > 0) {
       isUndoRedoRef.current = true
       const newIndex = historyIndex - 1
-      console.log("Going to index:", newIndex)
-      console.log("Code at that index:", history[newIndex])
-
       setHistoryIndex(newIndex)
       setCurrentCode(history[newIndex].code)
       setSandpackKey(prev => prev + 1) // Force reload
-
-      console.log("✅ Undo complete - currentCode should update to:", history[newIndex])
       toast.success(`Undone to ${history[newIndex].version}`)
       setTimeout(() => {
         isUndoRedoRef.current = false
-        console.log("isUndoRedoRef reset to false")
       }, 3000)
-    } else {
-      console.log("❌ Cannot undo - already at oldest version")
     }
   }
 
   const handleRedo = () => {
-    console.log("🔜 REDO CLICKED")
-    console.log("Current historyIndex:", historyIndex)
-    console.log("History length:", history.length)
-    console.log("Current history:", history)
-
-    // Clear any pending history updates from typing
     if (historyTimeoutRef.current) {
       clearTimeout(historyTimeoutRef.current)
     }
@@ -218,53 +195,31 @@ function LandingPageBuilderContent() {
     if (historyIndex < history.length - 1) {
       isUndoRedoRef.current = true
       const newIndex = historyIndex + 1
-      console.log("Going to index:", newIndex)
-      console.log("Code at that index:", history[newIndex])
-
       setHistoryIndex(newIndex)
       setCurrentCode(history[newIndex].code)
-
-      // Restore messages if available
       if (history[newIndex].messages) {
         setMessages(history[newIndex].messages!)
       }
-
       setSandpackKey(prev => prev + 1) // Force reload
-
-      console.log("✅ Redo complete - currentCode should update to:", history[newIndex])
       toast.success(`Redone to ${history[newIndex].version}`)
       setTimeout(() => {
         isUndoRedoRef.current = false
-        console.log("isUndoRedoRef reset to false")
       }, 3000)
-    } else {
-      console.log("❌ Cannot redo - already at newest version")
     }
   }
+
   const handleVersionSelect = (index: number) => {
     if (index === historyIndex) return;
-
-    console.log("🕒 Switching to version index:", index);
-
-    // Prevent history updates from this change
     isUndoRedoRef.current = true;
-
     setHistoryIndex(index);
     setCurrentCode(history[index].code);
-
-    // Restore messages if available
     if (history[index].messages) {
       setMessages(history[index].messages!);
     }
-
-    setSandpackKey(prev => prev + 1); // Force reload
-
+    setSandpackKey(prev => prev + 1);
     toast.success(`Switched to ${history[index].version}`);
-
-    // Reset flag after a delay to allow Sandpack to load
     setTimeout(() => {
       isUndoRedoRef.current = false;
-      console.log("isUndoRedoRef reset to false");
     }, 3000);
   }
 
@@ -295,8 +250,6 @@ function LandingPageBuilderContent() {
     router.push("/landing-page-builder")
   }
 
-  const CURRENT_USER_ID = "user-123"
-
   const createWorkspace = async (name: string, userId: string = CURRENT_USER_ID) => {
     try {
       const response = await fetch("/api/workspace", {
@@ -326,45 +279,31 @@ function LandingPageBuilderContent() {
       const body: any = {}
       let hasChanges = false
 
-      // Check if messages changed
       if (newMessages && newMessages.length > 0) {
         const messagesStr = JSON.stringify(newMessages)
         if (lastSavedStateRef.current.messages !== messagesStr) {
-          console.log("Messages changed, will save")
           body.messages = newMessages
           lastSavedStateRef.current.messages = messagesStr
           hasChanges = true
-        } else {
-          console.log("Messages unchanged, skipping")
         }
       }
 
-      // Check if code changed
       if (newCode?.files && Object.keys(newCode.files).length > 0) {
         const codeStr = JSON.stringify(newCode.files)
         if (lastSavedStateRef.current.code !== codeStr) {
-          console.log("Code changed, will save")
           body.fileData = newCode.files
           lastSavedStateRef.current.code = codeStr
           hasChanges = true
-        } else {
-          console.log("Code unchanged, skipping save")
         }
       }
 
-      // Only save if there were actual changes
-      if (!hasChanges) {
-        console.log("No changes detected, skipping API call")
-        return
-      }
+      if (!hasChanges) return
 
-      console.log("Saving to database...")
       await fetch(`/api/workspace/${workspaceId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       })
-      console.log("Save complete")
     } catch (error) {
       console.error("Error updating workspace:", error)
     }
@@ -378,11 +317,8 @@ function LandingPageBuilderContent() {
 
     for (const key of keys1) {
       if (!files2[key]) return false;
-      // Handle both simple string format and object format
       const code1 = typeof files1[key] === 'string' ? files1[key] : files1[key].code;
       const code2 = typeof files2[key] === 'string' ? files2[key] : files2[key].code;
-
-      // Normalize line endings for comparison
       const normalize = (str: string) => str.replace(/\r\n/g, '\n').trim();
       if (normalize(code1) !== normalize(code2)) return false;
     }
@@ -390,43 +326,21 @@ function LandingPageBuilderContent() {
   }
 
   const handleCodeChange = useCallback((files: any) => {
-    // Prevent history updates during AI generation or undo/redo
     if (isLoading || isUndoRedoRef.current) return;
-
-    // Check if files are actually different from currentCode
-    if (currentCode?.files && areFilesEqual(files, currentCode.files)) {
-      console.log("Files are identical, skipping history update");
-      return;
-    }
-
-    console.log("📝 handleCodeChange called - content changed")
+    if (currentCode?.files && areFilesEqual(files, currentCode.files)) return;
 
     const newCode = { files }
     setCurrentCode(newCode)
-
-    // Save to workspace (will only actually save if changed)
-    console.log("Triggering save check...")
     updateWorkspaceMessages(messages, newCode)
 
-    // Debounce history updates to avoid saving every keystroke
     if (historyTimeoutRef.current) {
       clearTimeout(historyTimeoutRef.current)
     }
 
     historyTimeoutRef.current = setTimeout(() => {
-      console.log("Adding to history (debounced user edit)")
       addToHistory(newCode, 'user', 'User Edit', undefined, messages)
-    }, 1000) // 1 second debounce
-  }, [historyIndex, messages, updateWorkspaceMessages, history, isLoading, addToHistory, currentCode])
-
-  // Effect to add to history when currentCode changes, BUT only if it's not from undo/redo
-  // This is tricky. Let's simplify:
-  // We will add to history ONLY when:
-  // 1. AI generates code
-  // 2. User edits code (via handleCodeChange)
-
-  // We'll modify handleCodeChange to add to history
-  // And modify the AI success block to add to history.
+    }, 1000)
+  }, [historyIndex, messages, updateWorkspaceMessages, history, isLoading, currentCode])
 
   const handleFormSubmit = async (details: BusinessDetails) => {
     setBusinessDetails(details)
@@ -459,7 +373,6 @@ function LandingPageBuilderContent() {
       const data = await response.json()
 
       if (data.success && data.files) {
-        // Merge new files with existing code to ensure atomic update of full state
         const mergedFiles = { ...currentCode?.files, ...data.files }
         const newCode = { files: mergedFiles }
 
@@ -469,8 +382,8 @@ function LandingPageBuilderContent() {
         ]
 
         setCurrentCode(newCode)
-        addToHistory(newCode, 'ai', 'Initial Generation', initialPrompt, newMessages) // Add to history
-        setSandpackKey(prev => prev + 1) // Force reload
+        addToHistory(newCode, 'ai', 'Initial Generation', initialPrompt, newMessages)
+        setSandpackKey(prev => prev + 1)
 
         setMessages(newMessages)
         await updateWorkspaceMessages(newMessages, { files: data.files })
@@ -488,8 +401,8 @@ function LandingPageBuilderContent() {
     }
   }
 
-  const handleSendMessage = async (userMessage: string) => {
-    const newMessages: Message[] = [...messages, { role: "user", content: userMessage }]
+  const handleSendMessage = async (userMessage: string, attachments: Attachment[] = []) => {
+    const newMessages: Message[] = [...messages, { role: "user", content: userMessage, attachments }]
     setMessages(newMessages)
     setIsLoading(true)
 
@@ -501,15 +414,32 @@ function LandingPageBuilderContent() {
           messages: newMessages,
           currentCode: currentCode,
           businessDetails,
+          attachments
         }),
       })
 
       const data = await response.json()
 
       if (data.success && data.files) {
-        // Merge new files with existing code to ensure atomic update of full state
         const mergedFiles = { ...currentCode?.files, ...data.files }
         const newCode = { files: mergedFiles }
+
+        // Inject uploaded images/media into the file system for Sandpack
+        if (attachments && attachments.length > 0) {
+          attachments.forEach(att => {
+            if (att.content) {
+              // Sanitize filename but keep extension
+              const safeName = att.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+              // Create a JS module for the asset to allow importing
+              // We append .js to the original filename (e.g. image.png -> image.png.js)
+              // This allows the user/AI to import it as a module while preserving the original name context
+              const filePath = `/src/assets/${safeName}.js`;
+              const fileContent = `export default "${att.content}";`;
+
+              newCode.files[filePath] = { code: fileContent };
+            }
+          });
+        }
 
         let aiMessage = data.message || "Landing page has been updated!";
         if (data.modifiedFiles && data.modifiedFiles.length > 0) {
@@ -523,11 +453,11 @@ function LandingPageBuilderContent() {
         ]
 
         setCurrentCode(newCode)
-        addToHistory(newCode, 'ai', 'AI Update', userMessage, updatedMessages) // Add to history
-        setSandpackKey(prev => prev + 1) // Force reload
+        addToHistory(newCode, 'ai', 'AI Update', userMessage, updatedMessages)
+        setSandpackKey(prev => prev + 1)
 
         setMessages(updatedMessages)
-        await updateWorkspaceMessages(updatedMessages, { files: data.files })
+        await updateWorkspaceMessages(updatedMessages, { files: newCode.files })
         toast.success(data.message || "Landing page updated successfully!")
       } else {
         toast.error(data.error || "Failed to update landing page")
@@ -594,7 +524,6 @@ function LandingPageBuilderContent() {
     }
   }
 
-  // Render logic
   if (showForm) {
     return (
       <>
@@ -632,7 +561,6 @@ function LandingPageBuilderContent() {
       <StructuredData />
       <ActionProvider>
         <div className="flex h-screen bg-background overflow-hidden flex-col" suppressHydrationWarning>
-          {/* Workspace Header */}
           <div className="bg-gray-900 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="sm" onClick={handleBackToDashboard} className="text-gray-400 hover:text-white">
@@ -667,7 +595,6 @@ function LandingPageBuilderContent() {
                     generatedFiles={isLoading ? currentCode?.files : null}
                   />
 
-                  {/* Reset Button at bottom of chat */}
                   <div className="p-4 border-t border-border">
                     <Button
                       variant="outline"
