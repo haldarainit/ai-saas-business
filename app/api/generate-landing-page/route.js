@@ -194,10 +194,13 @@ ${userPrompt}`;
 
     const processedAttachments = (attachments || []).map(att => {
       if (att.type === 'image') {
-        // Strip data:image/xyz;base64, prefix if present
-        const base64Data = att.content.includes('base64,')
-          ? att.content.split('base64,')[1]
-          : att.content;
+        let base64Data = null;
+        if (att.content) {
+          // Strip data:image/xyz;base64, prefix if present
+          base64Data = att.content.includes('base64,')
+            ? att.content.split('base64,')[1]
+            : att.content;
+        }
 
         return {
           type: 'image',

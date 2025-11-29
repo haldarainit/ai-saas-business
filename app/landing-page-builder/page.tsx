@@ -427,15 +427,21 @@ function LandingPageBuilderContent() {
         // Inject uploaded images/media into the file system for Sandpack
         if (attachments && attachments.length > 0) {
           attachments.forEach(att => {
-            if (att.content) {
-              // Sanitize filename but keep extension
-              const safeName = att.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-              // Create a JS module for the asset to allow importing
-              // We append .js to the original filename (e.g. image.png -> image.png.js)
-              // This allows the user/AI to import it as a module while preserving the original name context
-              const filePath = `/src/assets/${safeName}.js`;
-              const fileContent = `export default "${att.content}";`;
+            // Sanitize filename but keep extension
+            const safeName = att.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            // Create a JS module for the asset to allow importing
+            // We append .js to the original filename (e.g. image.png -> image.png.js)
+            // This allows the user/AI to import it as a module while preserving the original name context
+            const filePath = `/src/assets/${safeName}.js`;
 
+            let fileContent = '';
+            if (att.content) {
+              fileContent = `export default "${att.content}";`;
+            } else if (att.url) {
+              fileContent = `export default "${att.url}";`;
+            }
+
+            if (fileContent) {
               newCode.files[filePath] = { code: fileContent };
             }
           });

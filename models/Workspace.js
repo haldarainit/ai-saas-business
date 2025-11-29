@@ -8,7 +8,21 @@ const MessageSchema = new mongoose.Schema({
     content: {
         type: String,
         required: true
-    }
+    },
+    attachments: [{
+        type: {
+            type: String,
+            enum: ['image', 'video', 'audio', 'document'],
+            required: true
+        },
+        url: {
+            type: String,
+            required: true
+        },
+        publicId: String,
+        name: String,
+        mimeType: String
+    }]
 }, { _id: false });
 
 const WorkspaceSchema = new mongoose.Schema({
