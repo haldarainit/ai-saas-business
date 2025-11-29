@@ -57,7 +57,7 @@ export async function PUT(request, { params }) {
             );
         }
 
-        const { messages, fileData } = body;
+        const { messages, fileData, history } = body;
 
         // Sanitize messages to fix validation errors with cached schema
         // This maps 'model' -> 'ai' to ensure it passes the old enum validation
@@ -72,12 +72,15 @@ export async function PUT(request, { params }) {
         console.log(`PUT /api/workspace/${id} - Updating:`, {
             hasMessages: !!sanitizedMessages,
             messageCount: sanitizedMessages?.length,
-            hasFileData: !!fileData
+            hasFileData: !!fileData,
+            hasHistory: !!history,
+            historyLength: history?.length
         });
 
         const updateData = {};
         if (sanitizedMessages !== undefined) updateData.messages = sanitizedMessages;
         if (fileData !== undefined) updateData.fileData = fileData;
+        if (history !== undefined) updateData.history = history;
 
         // Don't update if nothing to update
         if (Object.keys(updateData).length === 0) {
@@ -123,7 +126,8 @@ export async function DELETE(request, { params }) {
 
         const { id } = await params;
 
-        const workspace = await Workspace.findByIdAndDelete(id);
+        // Find workspace first to get attachments
+        const workspace = await Workspace.findById(id);
 
         if (!workspace) {
             return NextResponse.json(
@@ -131,6 +135,35 @@ export async function DELETE(request, { params }) {
                 { status: 404 }
             );
         }
+
+        // Collect publicIds from all messages
+        const publicIds = [];
+        if (workspace.messages && workspace.messages.length > 0) {
+            workspace.messages.forEach(msg => {
+                if (msg.attachments && msg.attachments.length > 0) {
+                    msg.attachments.forEach(att => {
+                        if (att.publicId) {
+                            publicIds.push(att.publicId);
+                        }
+                    });
+                }
+            });
+        }
+
+        // Delete resources from Cloudinary
+        if (publicIds.length > 0) {
+            console.log(`DELETE /api/workspace/${id} - Deleting ${publicIds.length} Cloudinary resources`);
+            try {
+                // Dynamically import to avoid issues if lib is not set up in all environments (though it should be)
+                const { deleteResources } = await import('@/lib/cloudinary');
+                await deleteResources(publicIds);
+            } catch (cloudError) {
+                console.error('Error deleting Cloudinary resources:', cloudError);
+                // Continue with workspace deletion even if Cloudinary fails
+            }
+        }
+
+        await Workspace.findByIdAndDelete(id);
 
         return NextResponse.json({
             success: true,

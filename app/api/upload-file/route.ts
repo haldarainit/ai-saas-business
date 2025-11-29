@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir, readFile } from "fs/promises";
-import path from "path";
-import { existsSync } from "fs";
+import { uploadFile } from "@/lib/cloudinary";
 
 // Allowed file types
 const ALLOWED_TYPES = {
@@ -26,10 +24,6 @@ function getFileCategory(mimeType: string): string | null {
         }
     }
     return null;
-}
-
-function isTextBasedFile(mimeType: string): boolean {
-    return ["text/plain", "text/csv"].includes(mimeType);
 }
 
 export async function POST(request: NextRequest) {
@@ -67,45 +61,34 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Create uploads directory if it doesn't exist
-        const uploadsDir = path.join(process.cwd(), "public", "uploads");
-        if (!existsSync(uploadsDir)) {
-            await mkdir(uploadsDir, { recursive: true });
-        }
-
-        // Generate unique filename
-        const timestamp = Date.now();
-        const randomString = Math.random().toString(36).substring(2, 8);
-        const extension = file.name.split(".").pop();
-        const filename = `${timestamp}-${randomString}.${extension}`;
-        const filepath = path.join(uploadsDir, filename);
-
-        // Save file
+        // Convert file to buffer
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        await writeFile(filepath, buffer);
 
-        // For text-based files, extract content
-        let extractedContent: string | undefined;
-        if (isTextBasedFile(file.type)) {
-            try {
-                extractedContent = await readFile(filepath, "utf-8");
-            } catch (error) {
-                console.error("Error reading file content:", error);
-            }
-        }
+        // Upload to Cloudinary
+        // Determine resource type for Cloudinary
+        let resourceType = 'auto';
+        if (category === 'image') resourceType = 'image';
+        else if (category === 'video') resourceType = 'video';
+        else resourceType = 'raw'; // For documents/others
+
+        console.log(`Uploading file: ${file.name}, Size: ${file.size}, Type: ${resourceType}`);
+
+        const result = await uploadFile(buffer, 'ai-saas-chat', resourceType);
+
+        console.log("Cloudinary upload result:", result);
 
         // Return file info
-        const fileUrl = `/uploads/${filename}`;
         return NextResponse.json({
             success: true,
             file: {
-                url: fileUrl,
+                url: result.secure_url,
+                publicId: result.public_id,
                 type: category,
                 filename: file.name,
                 size: file.size,
                 mimeType: file.type,
-                extractedContent,
+                format: result.format, // Cloudinary format (e.g., 'webp', 'jpg')
             },
         });
     } catch (error) {

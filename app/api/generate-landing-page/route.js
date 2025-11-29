@@ -194,10 +194,13 @@ ${userPrompt}`;
 
     const processedAttachments = (attachments || []).map(att => {
       if (att.type === 'image') {
-        // Strip data:image/xyz;base64, prefix if present
-        const base64Data = att.content.includes('base64,')
-          ? att.content.split('base64,')[1]
-          : att.content;
+        let base64Data = null;
+        if (att.content) {
+          // Strip data:image/xyz;base64, prefix if present
+          base64Data = att.content.includes('base64,')
+            ? att.content.split('base64,')[1]
+            : att.content;
+        }
 
         return {
           type: 'image',
@@ -221,11 +224,19 @@ ${userPrompt}`;
       try {
         let cleanedResult = result.trim();
 
-        // Remove markdown fences if present
-        cleanedResult = cleanedResult.replace(/^```json\s */i, "");
-        cleanedResult = cleanedResult.replace(/^```\s*/i, "");
-        cleanedResult = cleanedResult.replace(/```$/i, "");
-        cleanedResult = cleanedResult.trim();
+        // Robust JSON extraction: Find the first '{' and the last '}'
+        const firstOpenBrace = cleanedResult.indexOf('{');
+        const lastCloseBrace = cleanedResult.lastIndexOf('}');
+
+        if (firstOpenBrace !== -1 && lastCloseBrace !== -1 && lastCloseBrace > firstOpenBrace) {
+          cleanedResult = cleanedResult.substring(firstOpenBrace, lastCloseBrace + 1);
+        } else {
+          // Fallback cleanup if braces aren't found correctly (unlikely for valid JSON)
+          cleanedResult = cleanedResult.replace(/^```json\s */i, "");
+          cleanedResult = cleanedResult.replace(/^```\s*/i, "");
+          cleanedResult = cleanedResult.replace(/```$/i, "");
+          cleanedResult = cleanedResult.trim();
+        }
 
         let generatedFiles;
         try {

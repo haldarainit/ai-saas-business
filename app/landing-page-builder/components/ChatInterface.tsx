@@ -3,14 +3,16 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Send, Sparkles, User, Bot, Loader2, Plus, X, FileText, Image as ImageIcon, Paperclip } from "lucide-react"
+import { Send, Sparkles, User, Bot, Loader2, Plus, X, FileText, Image as ImageIcon, Paperclip, RotateCcw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import FileCreationAnimation from "./FileCreationAnimation"
 import CodeWritingAnimation from "./CodeWritingAnimation"
 
 export interface Attachment {
     type: 'image' | 'video' | 'audio' | 'document';
-    content: string; // base64 or text content
+    content?: string; // Optional now, used for preview or text content
+    url?: string; // Cloudinary URL
+    publicId?: string; // Cloudinary Public ID
     mimeType: string;
     name: string;
 }
@@ -19,6 +21,7 @@ interface Message {
     role: "user" | "model"
     content: string
     attachments?: Attachment[]
+    error?: boolean
 }
 
 interface ChatInterfaceProps {
@@ -26,11 +29,13 @@ interface ChatInterfaceProps {
     onSendMessage: (message: string, attachments: Attachment[]) => void
     isLoading: boolean
     generatedFiles?: Record<string, { code: string }> | null
+    onRetry?: (index: number) => void
 }
 
-export default function ChatInterface({ messages, onSendMessage, isLoading, generatedFiles }: ChatInterfaceProps) {
+export default function ChatInterface({ messages, onSendMessage, isLoading, generatedFiles, onRetry }: ChatInterfaceProps) {
     const [input, setInput] = useState("")
     const [attachments, setAttachments] = useState<Attachment[]>([])
+    const [isUploading, setIsUploading] = useState(false)
     const scrollRef = useRef<HTMLDivElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -42,7 +47,7 @@ export default function ChatInterface({ messages, onSendMessage, isLoading, gene
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        if ((input.trim() || attachments.length > 0) && !isLoading) {
+        if ((input.trim() || attachments.length > 0) && !isLoading && !isUploading) {
             let messageContent = input.trim();
             const currentAttachments = [...attachments];
 
@@ -53,14 +58,13 @@ export default function ChatInterface({ messages, onSendMessage, isLoading, gene
             if (matches) {
                 matches.forEach(match => {
                     const url = match.substring(1); // Remove @
-                    if (!currentAttachments.some(att => (att as any).url === url)) {
+                    if (!currentAttachments.some(att => att.url === url)) {
                         currentAttachments.push({
                             type: 'image',
-                            content: '',
                             url: url,
                             mimeType: 'image/jpeg',
                             name: url.split('/').pop() || 'image'
-                        } as any);
+                        });
                     }
                 });
             }
@@ -80,52 +84,48 @@ export default function ChatInterface({ messages, onSendMessage, isLoading, gene
 
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
+            setIsUploading(true);
             const newAttachments: Attachment[] = []
 
-            for (let i = 0; i < e.target.files.length; i++) {
-                const file = e.target.files[i]
-                const isImage = file.type.startsWith('image/')
-                const isVideo = file.type.startsWith('video/')
-                const isAudio = file.type.startsWith('audio/')
+            try {
+                for (let i = 0; i < e.target.files.length; i++) {
+                    const file = e.target.files[i]
+                    const formData = new FormData();
+                    formData.append('file', file);
 
-                try {
-                    const content = await readFile(file)
-                    newAttachments.push({
-                        type: isImage ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : 'document',
-                        content: content as string,
-                        mimeType: file.type,
-                        name: file.name
-                    })
-                } catch (error) {
-                    console.error("Error reading file:", error)
+                    const response = await fetch('/api/upload-file', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+                    console.log("ChatInterface: Upload response:", data);
+
+                    if (data.success && data.file) {
+                        console.log("ChatInterface: File uploaded successfully:", data.file.url);
+                        newAttachments.push({
+                            type: data.file.type as any,
+                            url: data.file.url,
+                            publicId: data.file.publicId,
+                            mimeType: data.file.mimeType,
+                            name: data.file.filename,
+                            content: data.file.extractedContent // For text files if needed
+                        });
+                    } else {
+                        console.error("Upload failed:", data.error);
+                        // Optionally show a toast here
+                    }
                 }
+            } catch (error) {
+                console.error("Error uploading file:", error);
+            } finally {
+                setIsUploading(false);
             }
 
             setAttachments(prev => [...prev, ...newAttachments])
             // Reset input
             if (fileInputRef.current) fileInputRef.current.value = ''
         }
-    }
-
-    const readFile = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader()
-
-            if (file.type.startsWith('image/') || file.type.startsWith('video/') || file.type.startsWith('audio/')) {
-                reader.readAsDataURL(file)
-            } else {
-                reader.readAsText(file)
-            }
-
-            reader.onload = () => {
-                let result = reader.result as string
-                // For data URLs, we might want to strip the prefix if the backend expects just base64
-                // But usually keeping it is safer for frontend display, and we can strip it before sending if needed
-                // For now, let's keep it as is.
-                resolve(result)
-            }
-            reader.onerror = reject
-        })
     }
 
     const removeAttachment = (index: number) => {
@@ -214,7 +214,7 @@ export default function ChatInterface({ messages, onSendMessage, isLoading, gene
                                             {message.attachments.map((att, i) => (
                                                 <div key={i} className="relative group">
                                                     {att.type === 'image' ? (
-                                                        <img src={att.content} alt={att.name} className="w-20 h-20 object-cover rounded-md border border-white/20" />
+                                                        <img src={att.url || att.content} alt={att.name} className="w-20 h-20 object-cover rounded-md border border-white/20" />
                                                     ) : (
                                                         <div className="w-20 h-20 flex flex-col items-center justify-center bg-white/10 rounded-md border border-white/20 p-1">
                                                             <FileText className="w-6 h-6 mb-1" />
@@ -228,8 +228,21 @@ export default function ChatInterface({ messages, onSendMessage, isLoading, gene
                                     <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                                 </div>
                                 {message.role === "user" && (
-                                    <div className="w-8 h-8 rounded-lg bg-gray-700 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
-                                        <User className="w-4 h-4 text-white" />
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className="w-8 h-8 rounded-lg bg-gray-700 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
+                                            <User className="w-4 h-4 text-white" />
+                                        </div>
+                                        {message.error && (
+                                            <button
+                                                onClick={() => onRetry?.(index)}
+                                                disabled={isLoading}
+                                                className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 text-xs flex items-center gap-1 mt-1 disabled:opacity-50"
+                                                title="Retry message"
+                                            >
+                                                <RotateCcw className="w-3 h-3" />
+                                                Retry
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -263,12 +276,12 @@ export default function ChatInterface({ messages, onSendMessage, isLoading, gene
 
             {/* Input */}
             <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-                {attachments.length > 0 && (
+                {(attachments.length > 0 || isUploading) && (
                     <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
                         {attachments.map((att, i) => (
                             <div key={i} className="relative group flex-shrink-0">
                                 {att.type === 'image' ? (
-                                    <img src={att.content} alt={att.name} className="w-16 h-16 object-cover rounded-md border border-gray-200 dark:border-gray-700" />
+                                    <img src={att.url || att.content} alt={att.name} className="w-16 h-16 object-cover rounded-md border border-gray-200 dark:border-gray-700" />
                                 ) : (
                                     <div className="w-16 h-16 flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 p-1">
                                         <FileText className="w-6 h-6 mb-1 text-gray-500" />
@@ -283,6 +296,12 @@ export default function ChatInterface({ messages, onSendMessage, isLoading, gene
                                 </button>
                             </div>
                         ))}
+                        {isUploading && (
+                            <div className="w-16 h-16 flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 p-1 animate-pulse">
+                                <Loader2 className="w-6 h-6 mb-1 text-blue-500 animate-spin" />
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400">Uploading...</span>
+                            </div>
+                        )}
                     </div>
                 )}
 

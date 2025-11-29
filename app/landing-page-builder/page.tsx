@@ -19,6 +19,7 @@ interface Message {
   role: "user" | "model"
   content: string
   attachments?: Attachment[]
+  error?: boolean
 }
 
 interface BusinessDetails {
@@ -58,7 +59,7 @@ function LandingPageBuilderContent() {
   const isUndoRedoRef = useRef(false)
 
   // Track last saved state to avoid unnecessary saves
-  const lastSavedStateRef = useRef<{ messages?: string, code?: string }>({})
+  const lastSavedStateRef = useRef<{ messages?: string, code?: string, history?: string }>({})
   const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Key to force Sandpack reload only when needed (Undo/Redo/AI generation)
@@ -93,21 +94,40 @@ function LandingPageBuilderContent() {
         if (Object.keys(data.workspace.fileData || {}).length > 0) {
           const code = { files: data.workspace.fileData }
           setCurrentCode(code)
+
+          console.log("Loading workspace history:", {
+            hasHistory: !!data.workspace.history,
+            length: data.workspace.history?.length
+          })
+
           // Initialize history with loaded code
-          const initialEntry: HistoryEntry = {
-            code,
-            timestamp: Date.now(),
-            source: 'user', // Assume user for initial load or maybe 'ai' if we tracked it
-            label: 'Initial Load',
-            version: 'v1.0'
+          if (data.workspace.history && data.workspace.history.length > 0) {
+            setHistory(data.workspace.history)
+            setHistoryIndex(data.workspace.history.length - 1)
+
+            // If we have history, set current code to the latest history entry
+            const latestEntry = data.workspace.history[data.workspace.history.length - 1]
+            setCurrentCode(latestEntry.code)
+            if (latestEntry.messages) {
+              setMessages(latestEntry.messages)
+            }
+          } else {
+            const initialEntry: HistoryEntry = {
+              code,
+              timestamp: Date.now(),
+              source: 'user', // Assume user for initial load or maybe 'ai' if we tracked it
+              label: 'Initial Load',
+              version: 'v1.0'
+            }
+            setHistory([initialEntry])
+            setHistoryIndex(0)
           }
-          setHistory([initialEntry])
-          setHistoryIndex(0)
 
           // Initialize last saved state to prevent initial auto-save
           lastSavedStateRef.current = {
             messages: JSON.stringify(data.workspace.messages || []),
-            code: JSON.stringify(data.workspace.fileData || {})
+            code: JSON.stringify(data.workspace.fileData || {}),
+            history: JSON.stringify(data.workspace.history || [])
           }
 
           setShowForm(false)
@@ -127,23 +147,20 @@ function LandingPageBuilderContent() {
     const lastEntry = currentHistorySlice[currentHistorySlice.length - 1]
     const shouldMerge = source === 'user' && lastEntry && lastEntry.source === 'user'
 
-    setHistory(prev => {
-      const currentHistory = prev.slice(0, historyIndex + 1)
+    let newHistory: HistoryEntry[] = [];
 
-      if (shouldMerge) {
-        // Update the last entry
-        const updatedEntry = {
-          ...lastEntry,
-          code,
-          timestamp: Date.now(),
-          messages: currentMessages || lastEntry.messages
-        }
-        const newHistory = [...currentHistory]
-        newHistory[newHistory.length - 1] = updatedEntry
-        return newHistory
+    if (shouldMerge) {
+      // Update the last entry
+      const updatedEntry = {
+        ...lastEntry,
+        code,
+        timestamp: Date.now(),
+        messages: currentMessages || lastEntry.messages
       }
-
-      // Else create new entry
+      newHistory = [...currentHistorySlice]
+      newHistory[newHistory.length - 1] = updatedEntry
+    } else {
+      // Create new entry
       let newVersion = 'v1.0'
       if (lastEntry && lastEntry.version) {
         const [major, minor] = lastEntry.version.replace('v', '').split('.').map(Number)
@@ -159,14 +176,23 @@ function LandingPageBuilderContent() {
         messages: currentMessages,
         userPrompt
       }
+      newHistory = [...currentHistorySlice, entry]
+    }
 
-      return [...currentHistory, entry]
-    })
+    setHistory(newHistory)
 
     // Only increment index if we added a NEW entry
     if (!shouldMerge) {
-      setHistoryIndex(prev => prev + 1)
+      setHistoryIndex(newHistory.length - 1)
     }
+
+    console.log("addToHistory: Saving history to DB", {
+      entries: newHistory.length,
+      lastVersion: newHistory[newHistory.length - 1].version
+    })
+
+    // Save history to DB
+    updateWorkspaceMessages(undefined, undefined, newHistory);
   }
 
   const handleUndo = () => {
@@ -272,7 +298,7 @@ function LandingPageBuilderContent() {
     return null
   }
 
-  const updateWorkspaceMessages = useCallback(async (newMessages?: Message[], newCode?: any) => {
+  const updateWorkspaceMessages = useCallback(async (newMessages?: Message[], newCode?: any, newHistory?: HistoryEntry[]) => {
     if (!workspaceId) return
 
     try {
@@ -297,7 +323,25 @@ function LandingPageBuilderContent() {
         }
       }
 
-      if (!hasChanges) return
+      if (newHistory && newHistory.length > 0) {
+        const historyStr = JSON.stringify(newHistory)
+        console.log("Checking history update:", {
+          currentLength: newHistory.length,
+          lastSavedLength: lastSavedStateRef.current.history?.length,
+          hasChanges: lastSavedStateRef.current.history !== historyStr
+        })
+        if (lastSavedStateRef.current.history !== historyStr) {
+          body.history = newHistory
+          lastSavedStateRef.current.history = historyStr
+          hasChanges = true
+        }
+      }
+
+      if (!hasChanges) {
+        return
+      }
+
+      console.log("Sending update to workspace:", Object.keys(body))
 
       await fetch(`/api/workspace/${workspaceId}`, {
         method: "PUT",
@@ -401,9 +445,21 @@ function LandingPageBuilderContent() {
     }
   }
 
-  const handleSendMessage = async (userMessage: string, attachments: Attachment[] = []) => {
-    const newMessages: Message[] = [...messages, { role: "user", content: userMessage, attachments }]
-    setMessages(newMessages)
+  const handleSendMessage = async (userMessage: string, attachments: Attachment[] = [], messageIndex?: number) => {
+    let newMessages: Message[] = [];
+
+    if (messageIndex !== undefined) {
+      // Retry existing message
+      newMessages = [...messages];
+      // Clear error state
+      newMessages[messageIndex] = { ...newMessages[messageIndex], error: false };
+      setMessages(newMessages);
+    } else {
+      // New message
+      newMessages = [...messages, { role: "user", content: userMessage, attachments }];
+      setMessages(newMessages);
+    }
+
     setIsLoading(true)
 
     try {
@@ -427,15 +483,21 @@ function LandingPageBuilderContent() {
         // Inject uploaded images/media into the file system for Sandpack
         if (attachments && attachments.length > 0) {
           attachments.forEach(att => {
-            if (att.content) {
-              // Sanitize filename but keep extension
-              const safeName = att.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-              // Create a JS module for the asset to allow importing
-              // We append .js to the original filename (e.g. image.png -> image.png.js)
-              // This allows the user/AI to import it as a module while preserving the original name context
-              const filePath = `/src/assets/${safeName}.js`;
-              const fileContent = `export default "${att.content}";`;
+            // Sanitize filename but keep extension
+            const safeName = att.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            // Create a JS module for the asset to allow importing
+            // We append .js to the original filename (e.g. image.png -> image.png.js)
+            // This allows the user/AI to import it as a module while preserving the original name context
+            const filePath = `/src/assets/${safeName}.js`;
 
+            let fileContent = '';
+            if (att.content) {
+              fileContent = `export default "${att.content}";`;
+            } else if (att.url) {
+              fileContent = `export default "${att.url}";`;
+            }
+
+            if (fileContent) {
               newCode.files[filePath] = { code: fileContent };
             }
           });
@@ -461,12 +523,25 @@ function LandingPageBuilderContent() {
         toast.success(data.message || "Landing page updated successfully!")
       } else {
         toast.error(data.error || "Failed to update landing page")
-        setMessages([...newMessages, { role: "model", content: `Sorry, I encountered an error: ${data.error || "Unknown error"}. Please try again.` }])
+        // Mark the last user message as error
+        const errorMessages = [...newMessages];
+        const lastUserIndex = messageIndex !== undefined ? messageIndex : errorMessages.length - 1;
+        if (errorMessages[lastUserIndex].role === 'user') {
+          errorMessages[lastUserIndex] = { ...errorMessages[lastUserIndex], error: true };
+        }
+        setMessages([...errorMessages, { role: "model", content: `Sorry, I encountered an error: ${data.error || "Unknown error"}. Please try again.` }])
       }
     } catch (error) {
       console.error("Error:", error)
       toast.error("An error occurred. Please try again.")
-      setMessages([...newMessages, { role: "model", content: "Sorry, I encountered an error. Please try again." }])
+
+      // Mark the last user message as error
+      const errorMessages = [...newMessages];
+      const lastUserIndex = messageIndex !== undefined ? messageIndex : errorMessages.length - 1;
+      if (errorMessages[lastUserIndex].role === 'user') {
+        errorMessages[lastUserIndex] = { ...errorMessages[lastUserIndex], error: true };
+      }
+      setMessages([...errorMessages, { role: "model", content: "Sorry, I encountered an error. Please try again." }])
     } finally {
       setIsLoading(false)
     }
@@ -593,6 +668,12 @@ function LandingPageBuilderContent() {
                     onSendMessage={handleSendMessage}
                     isLoading={isLoading}
                     generatedFiles={isLoading ? currentCode?.files : null}
+                    onRetry={(index) => {
+                      const msg = messages[index];
+                      if (msg && msg.role === 'user') {
+                        handleSendMessage(msg.content, msg.attachments, index);
+                      }
+                    }}
                   />
 
                   <div className="p-4 border-t border-border">
