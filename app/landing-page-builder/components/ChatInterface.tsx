@@ -261,7 +261,7 @@ export default function ChatInterface({ messages, onSendMessage, isLoading, gene
 
             {/* Input */}
             <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-                {attachments.length > 0 && (
+                {(attachments.length > 0 || isUploading) && (
                     <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
                         {attachments.map((att, i) => (
                             <div key={i} className="relative group flex-shrink-0">
@@ -281,6 +281,12 @@ export default function ChatInterface({ messages, onSendMessage, isLoading, gene
                                 </button>
                             </div>
                         ))}
+                        {isUploading && (
+                            <div className="w-16 h-16 flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 p-1 animate-pulse">
+                                <Loader2 className="w-6 h-6 mb-1 text-blue-500 animate-spin" />
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400">Uploading...</span>
+                            </div>
+                        )}
                     </div>
                 )}
 
