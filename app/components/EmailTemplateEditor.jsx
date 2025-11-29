@@ -197,11 +197,33 @@ export function EmailTemplateEditor({
       }
 
       const buttonStyles = getButtonStyles(trackedButtonStyle);
-      const buttonHtml = `<div style="text-align: center; margin: 20px 0;">
-        <a href="${normalizedUrl}" class="tracked-button" data-track="true" style="display: inline-block; padding: 15px 40px; background: ${buttonStyles.background}; color: ${buttonStyles.color}; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: ${buttonStyles.shadow}; transition: transform 0.2s;">
-          ${trackedButtonText}
-        </a>
-      </div>`;
+      // Email-client friendly button using table structure
+      const buttonHtml = `
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" width="100%" style="margin: 0; padding: 0;">
+          <tr>
+            <td align="center" style="padding: 24px 12px;">
+              <a href="${normalizedUrl}" data-track="true" class="tracked-button"
+                 style="
+                   display: inline-block;
+                   text-align: center;
+                   text-decoration: none;
+                   background: ${buttonStyles.background};
+                   color: ${buttonStyles.color};
+                   font-weight: 700;
+                   font-size: 16px;
+                   line-height: 20px;
+                   border-radius: 8px;
+                   box-shadow: ${buttonStyles.shadow};
+                   padding: 14px 28px;
+                   mso-padding-alt: 0; /* Outlook */
+                   -webkit-text-size-adjust: 100%;
+                 ">
+                ${trackedButtonText}
+              </a>
+            </td>
+          </tr>
+        </table>
+      `;
 
       // Focus the editor first
       if (contentEditableRef.current) {
