@@ -61,7 +61,7 @@ export default function CodeViewWorkspace({
 }: CodeViewWorkspaceProps) {
     const [activeTab, setActiveTab] = useState<"code" | "preview">("preview");
     const [files, setFiles] = useState(Lookup.DEFAULT_FILE);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const { setAction } = useContext(ActionContext);
     const { theme } = useTheme();
     const sandpackTheme = theme === 'dark' ? 'dark' : 'light';
@@ -123,6 +123,7 @@ export default function CodeViewWorkspace({
 
             const mergedFiles = { ...Lookup.DEFAULT_FILE, ...sanitizedFiles };
             setFiles(mergedFiles);
+            setLoading(false);
             UpdateWorkspaceFiles(sanitizedFiles);
         }
     }, [generatedCode]);
@@ -435,83 +436,85 @@ export default function CodeViewWorkspace({
 
             {/* Sandpack Content */}
             <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#1e1e1e] relative">
-                <SandpackProvider
-                    key={sandpackKey} // Force reload only when explicitly requested (Undo/Redo)
-                    files={files}
-                    template="react"
-                    theme={sandpackTheme}
-                    customSetup={{
-                        dependencies: {
-                            ...Lookup.DEPENDANCY,
-                        },
-                    }}
-                    options={{
-                        externalResources: ["https://cdn.tailwindcss.com"],
-                        autoReload: true,
-                        autorun: true,
-                        recompileMode: "immediate",
-                        recompileDelay: 200,
-                    }}
-                >
-                    {onCodeChange && <SandpackListener onCodeChange={onCodeChange} />}
-                    {onRuntimeError && <SandpackErrorListener onError={onRuntimeError} />}
-                    <SandpackLayout style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column", border: "none", background: "transparent" }}>
+                {!loading && (
+                    <SandpackProvider
+                        key={sandpackKey} // Force reload only when explicitly requested (Undo/Redo)
+                        files={files}
+                        template="react"
+                        theme={sandpackTheme}
+                        customSetup={{
+                            dependencies: {
+                                ...Lookup.DEPENDANCY,
+                            },
+                        }}
+                        options={{
+                            externalResources: ["https://cdn.tailwindcss.com"],
+                            autoReload: true,
+                            autorun: true,
+                            recompileMode: "immediate",
+                            recompileDelay: 200,
+                        }}
+                    >
+                        {onCodeChange && <SandpackListener onCodeChange={onCodeChange} />}
+                        {onRuntimeError && <SandpackErrorListener onError={onRuntimeError} />}
+                        <SandpackLayout style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column", border: "none", background: "transparent" }}>
 
-                        {/* Code Editor View */}
-                        <div style={{
-                            display: activeTab === "code" ? "flex" : "none",
-                            height: "100%",
-                            width: "100%"
-                        }}>
-                            <SandpackFileExplorer style={{ height: "100%", minHeight: "100%", width: "250px" }} />
-                            <SandpackCodeEditor
-                                style={{ height: "100%", minHeight: "100%", flex: 1 }}
-                                showTabs
-                                showLineNumbers
-                                showInlineErrors
-                                wrapContent
-                            />
-                        </div>
+                            {/* Code Editor View */}
+                            <div style={{
+                                display: activeTab === "code" ? "flex" : "none",
+                                height: "100%",
+                                width: "100%"
+                            }}>
+                                <SandpackFileExplorer style={{ height: "100%", minHeight: "100%", width: "250px" }} />
+                                <SandpackCodeEditor
+                                    style={{ height: "100%", minHeight: "100%", flex: 1 }}
+                                    showTabs
+                                    showLineNumbers
+                                    showInlineErrors
+                                    wrapContent
+                                />
+                            </div>
 
-                        {/* Preview View with Responsive Container */}
-                        <div style={{
-                            display: activeTab === "preview" ? "flex" : "none",
-                            height: "100%",
-                            width: "100%",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            backgroundColor: theme === 'dark' ? '#1e1e1e' : '#f9fafb',
-                            padding: "20px",
-                            overflow: "auto" // Allow scrolling for mobile/tablet views
-                        }}>
-                            <div
-                                ref={previewContainerRef}
-                                className={`shadow-2xl overflow-hidden bg-white dark:bg-black border border-gray-200 dark:border-gray-800 relative group ${previewMode === "mobile" ? "rounded-[30px] border-[8px] border-gray-800" :
-                                    previewMode === "tablet" ? "rounded-[20px] border-[8px] border-gray-800" :
-                                        "rounded-md w-full h-full"
-                                    }`}
-                                style={{
-                                    width: previewWidth,
-                                    height: previewMode === "mobile" ? "900px" : previewMode === "tablet" ? "1200px" : "100%", // Increased heights
-                                    maxHeight: previewMode === "desktop" ? "100%" : "none",
-                                    maxWidth: "100%",
-                                    transition: isResizingPreview ? "none" : "width 0.3s ease-in-out" // Smooth transition
-                                }}
-                            >
-                                <SandpackPreviewClient />
-
-                                {/* Resize Handle (Right) */}
+                            {/* Preview View with Responsive Container */}
+                            <div style={{
+                                display: activeTab === "preview" ? "flex" : "none",
+                                height: "100%",
+                                width: "100%",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                backgroundColor: theme === 'dark' ? '#1e1e1e' : '#f9fafb',
+                                padding: "20px",
+                                overflow: "auto" // Allow scrolling for mobile/tablet views
+                            }}>
                                 <div
-                                    className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-16 bg-gray-200 dark:bg-gray-700 rounded-l-md cursor-ew-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50"
-                                    onMouseDown={handlePreviewResizeStart}
+                                    ref={previewContainerRef}
+                                    className={`shadow-2xl overflow-hidden bg-white dark:bg-black border border-gray-200 dark:border-gray-800 relative group ${previewMode === "mobile" ? "rounded-[30px] border-[8px] border-gray-800" :
+                                        previewMode === "tablet" ? "rounded-[20px] border-[8px] border-gray-800" :
+                                            "rounded-md w-full h-full"
+                                        }`}
+                                    style={{
+                                        width: previewWidth,
+                                        height: previewMode === "mobile" ? "900px" : previewMode === "tablet" ? "1200px" : "100%", // Increased heights
+                                        maxHeight: previewMode === "desktop" ? "100%" : "none",
+                                        maxWidth: "100%",
+                                        transition: isResizingPreview ? "none" : "width 0.3s ease-in-out" // Smooth transition
+                                    }}
                                 >
-                                    <div className="w-1 h-8 bg-gray-400 dark:bg-gray-500 rounded-full" />
+                                    <SandpackPreviewClient />
+
+                                    {/* Resize Handle (Right) */}
+                                    <div
+                                        className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-16 bg-gray-200 dark:bg-gray-700 rounded-l-md cursor-ew-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50"
+                                        onMouseDown={handlePreviewResizeStart}
+                                    >
+                                        <div className="w-1 h-8 bg-gray-400 dark:bg-gray-500 rounded-full" />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </SandpackLayout>
-                </SandpackProvider>
+                        </SandpackLayout>
+                    </SandpackProvider>
+                )}
 
                 {/* Loading Overlay */}
                 {
