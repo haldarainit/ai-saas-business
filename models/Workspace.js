@@ -25,6 +25,16 @@ const MessageSchema = new mongoose.Schema({
     }]
 }, { _id: false });
 
+const HistoryEntrySchema = new mongoose.Schema({
+    code: mongoose.Schema.Types.Mixed,
+    timestamp: Number,
+    source: { type: String, enum: ['ai', 'user'] },
+    label: String,
+    version: String,
+    messages: [MessageSchema],
+    userPrompt: String
+}, { _id: false });
+
 const WorkspaceSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -43,6 +53,10 @@ const WorkspaceSchema = new mongoose.Schema({
     fileData: {
         type: mongoose.Schema.Types.Mixed,
         default: {}
+    },
+    history: {
+        type: [HistoryEntrySchema],
+        default: []
     }
 }, {
     timestamps: true

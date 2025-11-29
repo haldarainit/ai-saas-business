@@ -57,7 +57,7 @@ export async function PUT(request, { params }) {
             );
         }
 
-        const { messages, fileData } = body;
+        const { messages, fileData, history } = body;
 
         // Sanitize messages to fix validation errors with cached schema
         // This maps 'model' -> 'ai' to ensure it passes the old enum validation
@@ -72,12 +72,15 @@ export async function PUT(request, { params }) {
         console.log(`PUT /api/workspace/${id} - Updating:`, {
             hasMessages: !!sanitizedMessages,
             messageCount: sanitizedMessages?.length,
-            hasFileData: !!fileData
+            hasFileData: !!fileData,
+            hasHistory: !!history,
+            historyLength: history?.length
         });
 
         const updateData = {};
         if (sanitizedMessages !== undefined) updateData.messages = sanitizedMessages;
         if (fileData !== undefined) updateData.fileData = fileData;
+        if (history !== undefined) updateData.history = history;
 
         // Don't update if nothing to update
         if (Object.keys(updateData).length === 0) {
