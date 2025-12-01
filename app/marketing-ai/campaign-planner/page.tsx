@@ -447,16 +447,14 @@ export default function CampaignPlannerAI() {
                       scale: loadingStage === index ? 1.2 : 0.9,
                       opacity: loadingStage === index ? 1 : 0.4,
                     }}
-                    className={`flex flex-col items-center ${
-                      loadingStage === index ? "text-primary" : "text-muted"
-                    }`}
+                    className={`flex flex-col items-center ${loadingStage === index ? "text-primary" : "text-muted"
+                      }`}
                   >
                     <div
-                      className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border-2 transition-all duration-300 ${
-                        loadingStage === index
+                      className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border-2 transition-all duration-300 ${loadingStage === index
                           ? "border-primary bg-primary/20 shadow-lg dark:shadow-[0_0_15px_rgba(36,101,237,0.5)]"
                           : "border-primary/30 bg-primary/5"
-                      }`}
+                        }`}
                     >
                       {stageItem.icon}
                     </div>
@@ -477,11 +475,10 @@ export default function CampaignPlannerAI() {
                   {loadingStages.map((_, index) => (
                     <div
                       key={index}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        index === loadingStage
+                      className={`h-2 rounded-full transition-all duration-300 ${index === loadingStage
                           ? "w-8 bg-primary animate-pulse"
                           : "w-2 bg-primary/30"
-                      }`}
+                        }`}
                     />
                   ))}
                 </div>
@@ -490,9 +487,8 @@ export default function CampaignPlannerAI() {
               <p className="text-sm text-muted-foreground mt-12 text-center">
                 <Sparkles className="w-4 h-4 inline mr-2" />
                 {urls.length > 0
-                  ? `Analyzing ${urls.length} website${
-                      urls.length > 1 ? "s" : ""
-                    } to understand your business and create personalized strategies...`
+                  ? `Analyzing ${urls.length} website${urls.length > 1 ? "s" : ""
+                  } to understand your business and create personalized strategies...`
                   : "Tip: Add your website URL for AI to create highly personalized campaign strategies"}
               </p>
             </motion.div>
@@ -792,11 +788,10 @@ export default function CampaignPlannerAI() {
                     (phase: any, index: number) => (
                       <div
                         key={phase.phaseNumber}
-                        className={`bg-gradient-to-br from-orange-900/20 to-slate-800/30 border border-orange-700/30 rounded-lg p-5 ${
-                          index < actionPlanData.executionPhases.length - 1
+                        className={`bg-gradient-to-br from-orange-900/20 to-slate-800/30 border border-orange-700/30 rounded-lg p-5 ${index < actionPlanData.executionPhases.length - 1
                             ? "mb-4"
                             : ""
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-3 mb-3">
                           <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold">
@@ -816,51 +811,51 @@ export default function CampaignPlannerAI() {
                         </p>
                         {(phase.deliverables?.length > 0 ||
                           phase.milestones?.length > 0) && (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {phase.deliverables &&
-                              phase.deliverables.length > 0 && (
-                                <div>
-                                  <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
-                                    Deliverables
-                                  </h5>
-                                  <ul className="space-y-1.5 text-sm text-slate-300">
-                                    {phase.deliverables.map(
-                                      (deliverable: string, idx: number) => (
-                                        <li
-                                          key={idx}
-                                          className="flex items-center gap-2"
-                                        >
-                                          <CheckCircle2 className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
-                                          <span>{deliverable}</span>
-                                        </li>
-                                      )
-                                    )}
-                                  </ul>
-                                </div>
-                              )}
-                            {phase.milestones &&
-                              phase.milestones.length > 0 && (
-                                <div>
-                                  <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
-                                    Milestones
-                                  </h5>
-                                  <ul className="space-y-1.5 text-sm text-slate-300">
-                                    {phase.milestones.map(
-                                      (milestone: string, idx: number) => (
-                                        <li
-                                          key={idx}
-                                          className="flex items-center gap-2"
-                                        >
-                                          <Sparkles className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
-                                          <span>{milestone}</span>
-                                        </li>
-                                      )
-                                    )}
-                                  </ul>
-                                </div>
-                              )}
-                          </div>
-                        )}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {phase.deliverables &&
+                                phase.deliverables.length > 0 && (
+                                  <div>
+                                    <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
+                                      Deliverables
+                                    </h5>
+                                    <ul className="space-y-1.5 text-sm text-slate-300">
+                                      {phase.deliverables.map(
+                                        (deliverable: string, idx: number) => (
+                                          <li
+                                            key={idx}
+                                            className="flex items-center gap-2"
+                                          >
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
+                                            <span>{deliverable}</span>
+                                          </li>
+                                        )
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+                              {phase.milestones &&
+                                phase.milestones.length > 0 && (
+                                  <div>
+                                    <h5 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider">
+                                      Milestones
+                                    </h5>
+                                    <ul className="space-y-1.5 text-sm text-slate-300">
+                                      {phase.milestones.map(
+                                        (milestone: string, idx: number) => (
+                                          <li
+                                            key={idx}
+                                            className="flex items-center gap-2"
+                                          >
+                                            <Sparkles className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
+                                            <span>{milestone}</span>
+                                          </li>
+                                        )
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+                            </div>
+                          )}
                       </div>
                     )
                   )}
@@ -896,13 +891,12 @@ export default function CampaignPlannerAI() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <span
-                                  className={`px-2 py-0.5 text-xs font-semibold rounded ${
-                                    item.priority === "High"
+                                  className={`px-2 py-0.5 text-xs font-semibold rounded ${item.priority === "High"
                                       ? "bg-red-500/20 text-red-300"
                                       : item.priority === "Medium"
-                                      ? "bg-yellow-500/20 text-yellow-300"
-                                      : "bg-blue-500/20 text-blue-300"
-                                  }`}
+                                        ? "bg-yellow-500/20 text-yellow-300"
+                                        : "bg-blue-500/20 text-blue-300"
+                                    }`}
                                 >
                                   {item.priority}
                                 </span>
@@ -1075,7 +1069,7 @@ export default function CampaignPlannerAI() {
             {/* Modal Footer */}
             <div className="bg-slate-800/50 border-t border-blue-700/30 p-4 flex items-center justify-between">
               <p className="text-sm text-slate-400">
-                Comprehensive action plan by Latent Genius • Ready for immediate
+                Comprehensive action plan by Campaign Planner • Ready for immediate
                 implementation
               </p>
               <div className="flex gap-3">
@@ -1234,13 +1228,12 @@ export default function CampaignPlannerAI() {
                   {selectedStrategy.tags.map((tag, index) => (
                     <span
                       key={index}
-                      className={`px-4 py-2 rounded-lg font-medium text-sm ${
-                        index % 3 === 0
+                      className={`px-4 py-2 rounded-lg font-medium text-sm ${index % 3 === 0
                           ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
                           : index % 3 === 1
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                          : "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-                      }`}
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                            : "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                        }`}
                     >
                       {tag}
                     </span>
