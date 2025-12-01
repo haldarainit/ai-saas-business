@@ -40,7 +40,6 @@ export default function DeploymentModal({
             return;
         }
 
-        setIsLoading(true);
         setError(null);
 
         try {
