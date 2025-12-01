@@ -36,6 +36,7 @@ import {
   Code,
 } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/contexts/auth-context";
 
 interface CampaignStrategy {
   id: number;
@@ -48,6 +49,7 @@ interface CampaignStrategy {
 }
 
 export default function CampaignPlannerAI() {
+  const { user } = useAuth();
   const [stage, setStage] = useState<"input" | "loading" | "results">("input");
   const [userPrompt, setUserPrompt] = useState("");
   const [urls, setUrls] = useState<string[]>([]);
@@ -64,6 +66,9 @@ export default function CampaignPlannerAI() {
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [actionPlanData, setActionPlanData] = useState<any>(null);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const loadingStages = [
     { icon: <Sparkles className="w-8 h-8" />, text: "Analyzing your prompt" },
@@ -278,6 +283,47 @@ export default function CampaignPlannerAI() {
     setActionPlanStrategy(null);
     setActionPlanLoading(false);
     setActionPlanData(null);
+    setEmailSent(false);
+    setEmailError(null);
+  };
+
+  const handleEmailActionPlan = async () => {
+    // Check if user is authenticated
+    if (!user || !user.email) {
+      setEmailError("Please sign in to email your action plan");
+      return;
+    }
+
+    // Reset states
+    setEmailSending(true);
+    setEmailSent(false);
+    setEmailError(null);
+
+    try {
+      const response = await fetch("/api/send-action-plan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          actionPlanData: actionPlanData,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setEmailSent(true);
+        setEmailError(null);
+      } else {
+        setEmailError(data.error || "Failed to send email");
+      }
+    } catch (error) {
+      console.error("Error sending email:", error);
+      setEmailError("Failed to send email. Please try again.");
+    } finally {
+      setEmailSending(false);
+    }
   };
 
   return (
@@ -452,8 +498,8 @@ export default function CampaignPlannerAI() {
                   >
                     <div
                       className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border-2 transition-all duration-300 ${loadingStage === index
-                          ? "border-primary bg-primary/20 shadow-lg dark:shadow-[0_0_15px_rgba(36,101,237,0.5)]"
-                          : "border-primary/30 bg-primary/5"
+                        ? "border-primary bg-primary/20 shadow-lg dark:shadow-[0_0_15px_rgba(36,101,237,0.5)]"
+                        : "border-primary/30 bg-primary/5"
                         }`}
                     >
                       {stageItem.icon}
@@ -476,8 +522,8 @@ export default function CampaignPlannerAI() {
                     <div
                       key={index}
                       className={`h-2 rounded-full transition-all duration-300 ${index === loadingStage
-                          ? "w-8 bg-primary animate-pulse"
-                          : "w-2 bg-primary/30"
+                        ? "w-8 bg-primary animate-pulse"
+                        : "w-2 bg-primary/30"
                         }`}
                     />
                   ))}
@@ -789,8 +835,8 @@ export default function CampaignPlannerAI() {
                       <div
                         key={phase.phaseNumber}
                         className={`bg-gradient-to-br from-orange-900/20 to-slate-800/30 border border-orange-700/30 rounded-lg p-5 ${index < actionPlanData.executionPhases.length - 1
-                            ? "mb-4"
-                            : ""
+                          ? "mb-4"
+                          : ""
                           }`}
                       >
                         <div className="flex items-center gap-3 mb-3">
@@ -892,10 +938,10 @@ export default function CampaignPlannerAI() {
                               <div className="flex items-center gap-2 mb-2">
                                 <span
                                   className={`px-2 py-0.5 text-xs font-semibold rounded ${item.priority === "High"
-                                      ? "bg-red-500/20 text-red-300"
-                                      : item.priority === "Medium"
-                                        ? "bg-yellow-500/20 text-yellow-300"
-                                        : "bg-blue-500/20 text-blue-300"
+                                    ? "bg-red-500/20 text-red-300"
+                                    : item.priority === "Medium"
+                                      ? "bg-yellow-500/20 text-yellow-300"
+                                      : "bg-blue-500/20 text-blue-300"
                                     }`}
                                 >
                                   {item.priority}
@@ -1067,25 +1113,59 @@ export default function CampaignPlannerAI() {
             )}
 
             {/* Modal Footer */}
-            <div className="bg-slate-800/50 border-t border-blue-700/30 p-4 flex items-center justify-between">
-              <p className="text-sm text-slate-400">
-                Comprehensive action plan by Campaign Planner • Ready for immediate
-                implementation
-              </p>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="border-emerald-500 text-emerald-400 hover:bg-emerald-500/10"
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  Email Action Plan
-                </Button>
-                <Button
-                  onClick={handleCloseActionPlan}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                >
-                  Close Action Plan
-                </Button>
+            <div className="bg-slate-800/50 border-t border-blue-700/30 p-4">
+              {/* Email Status Messages */}
+              {emailSent && (
+                <div className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500/50 rounded-lg flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  <p className="text-sm text-emerald-300">
+                    Action plan sent successfully to {user?.email}!
+                  </p>
+                </div>
+              )}
+              {emailError && (
+                <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2">
+                  <X className="w-5 h-5 text-red-400" />
+                  <p className="text-sm text-red-300">{emailError}</p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-400">
+                  Comprehensive action plan by Campaign Planner • Ready for immediate
+                  implementation
+                </p>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleEmailActionPlan}
+                    disabled={emailSending || !actionPlanData}
+                    variant="outline"
+                    className="border-emerald-500 text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {emailSending ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : emailSent ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        Sent!
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-2" />
+                        Email Action Plan
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleCloseActionPlan}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                  >
+                    Close Action Plan
+                  </Button>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -1229,10 +1309,10 @@ export default function CampaignPlannerAI() {
                     <span
                       key={index}
                       className={`px-4 py-2 rounded-lg font-medium text-sm ${index % 3 === 0
-                          ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                          : index % 3 === 1
-                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                            : "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                        ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                        : index % 3 === 1
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                          : "bg-purple-500/20 text-purple-300 border border-purple-500/30"
                         }`}
                     >
                       {tag}
