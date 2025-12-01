@@ -41,6 +41,13 @@ const WorkspaceSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    subdomain: {
+        type: String,
+        unique: true,
+        sparse: true,
+        trim: true,
+        lowercase: true
+    },
     userId: {
         type: String,
         required: true,

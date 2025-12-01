@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import SandpackListener from "./SandpackListener";
 import SandpackErrorListener from "./SandpackErrorListener";
 import CodeWritingAnimation from "./CodeWritingAnimation";
+import DeploymentModal from "./DeploymentModal";
 
 interface CodeViewWorkspaceProps {
     workspaceId: string;
@@ -166,14 +167,31 @@ export default function CodeViewWorkspace({
         }
     };
 
+    const [isDeploymentModalOpen, setIsDeploymentModalOpen] = useState(false);
+    const [currentSubdomain, setCurrentSubdomain] = useState<string | undefined>(undefined);
+
+    // Fetch current subdomain when workspace loads
+    useEffect(() => {
+        if (workspaceId) {
+            fetch(`/api/workspace/${workspaceId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.workspace?.subdomain) {
+                        setCurrentSubdomain(data.workspace.subdomain);
+                    }
+                })
+                .catch(err => console.error("Error fetching workspace details:", err));
+        }
+    }, [workspaceId]);
+
+
     const handleExport = () => {
         setAction({ actionType: "export" });
         toast.success("Exporting project...");
     };
 
     const handleDeploy = () => {
-        setAction({ actionType: "deploy" });
-        toast.success("Deploying to CodeSandbox...");
+        setIsDeploymentModalOpen(true);
     };
 
     const handleDelete = () => {
@@ -549,6 +567,14 @@ export default function CodeViewWorkspace({
                     ) : null
                 }
             </div>
+
+            <DeploymentModal
+                isOpen={isDeploymentModalOpen}
+                onClose={() => setIsDeploymentModalOpen(false)}
+                workspaceId={workspaceId}
+                currentSubdomain={currentSubdomain}
+                onDeploySuccess={(subdomain) => setCurrentSubdomain(subdomain)}
+            />
 
             {/* Force Sandpack to take full height and custom scrollbars */}
             <style jsx global>{`
