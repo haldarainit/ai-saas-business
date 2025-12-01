@@ -437,14 +437,23 @@ export default function CodeViewWorkspace({
                             <span className="hidden sm:inline">Export</span>
                         </Button>
                         <Button
-                            variant="outline"
+                            variant={currentSubdomain ? "secondary" : "outline"}
                             size="sm"
                             onClick={handleDeploy}
-                            className="gap-2 h-8"
+                            className={`gap-2 h-8 ${currentSubdomain ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800" : ""}`}
                             disabled={loading || isGenerating}
                         >
-                            <Upload className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Deploy</span>
+                            {currentSubdomain ? (
+                                <>
+                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                    <span className="hidden sm:inline">Deployed</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Upload className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Deploy</span>
+                                </>
+                            )}
                         </Button>
                     </div>
                 </div>

@@ -28,6 +28,12 @@ export default function DeploymentModal({
     const [error, setError] = useState<string | null>(null);
     const [isDeployed, setIsDeployed] = useState(!!currentSubdomain);
 
+    // Update state when prop changes
+    if (currentSubdomain && !isDeployed && subdomain === "") {
+        setSubdomain(currentSubdomain);
+        setIsDeployed(true);
+    }
+
     const handleDeploy = async () => {
         if (!subdomain) {
             setError("Please enter a subdomain");
@@ -62,78 +68,75 @@ export default function DeploymentModal({
     };
 
     const domain = typeof window !== 'undefined' ? window.location.host.split(':')[0] : 'localhost';
-    // If localhost, use port 3000, otherwise assume standard ports
     const port = typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
-    const fullUrl = `http://${subdomain}.${domain}${port}`; // Note: http for localhost, https for prod usually
+    const fullUrl = `http://${subdomain}.${domain}${port}`;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Deploy to Subdomain</DialogTitle>
+                    <DialogTitle>{isDeployed ? "Deployment Settings" : "Deploy to Subdomain"}</DialogTitle>
                     <DialogDescription>
-                        Choose a unique subdomain to publish your site.
+                        {isDeployed
+                            ? "Your site is currently live. You can change the subdomain below."
+                            : "Choose a unique subdomain to publish your site."}
                     </DialogDescription>
                 </DialogHeader>
 
-                {!isDeployed ? (
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="subdomain" className="text-right">
-                                Subdomain
-                            </Label>
-                            <div className="col-span-3 flex items-center gap-2">
-                                <Input
-                                    id="subdomain"
-                                    value={subdomain}
-                                    onChange={(e) => {
-                                        setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
-                                        setError(null);
-                                    }}
-                                    placeholder="my-site"
-                                    className="flex-1"
-                                />
-                                <span className="text-sm text-gray-500">.{domain}</span>
+                <div className="grid gap-4 py-4">
+                    {isDeployed && (
+                        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-100 dark:border-green-900/50 mb-2">
+                            <div className="flex items-center gap-2 mb-2">
+                                <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                <span className="font-medium text-green-900 dark:text-green-100">Live & Auto-Deploying</span>
                             </div>
+                            <p className="text-sm text-green-700 dark:text-green-300 mb-3">
+                                Changes are automatically reflected on your live site.
+                            </p>
+                            <a
+                                href={fullUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-blue-600 hover:underline bg-white dark:bg-black/20 px-3 py-2 rounded border border-green-200 dark:border-green-800/50 w-full justify-center"
+                            >
+                                <Globe className="w-4 h-4" />
+                                {subdomain}.{domain}
+                            </a>
                         </div>
-                        {error && (
-                            <div className="flex items-center gap-2 text-red-500 text-sm justify-end">
-                                <AlertCircle className="w-4 h-4" />
-                                <span>{error}</span>
-                            </div>
-                        )}
+                    )}
+
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="subdomain" className="text-right">
+                            Subdomain
+                        </Label>
+                        <div className="col-span-3 flex items-center gap-2">
+                            <Input
+                                id="subdomain"
+                                value={subdomain}
+                                onChange={(e) => {
+                                    setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+                                    setError(null);
+                                    if (isDeployed) setIsDeployed(false); // Allow redeploying/updating
+                                }}
+                                placeholder="my-site"
+                                className="flex-1"
+                            />
+                            <span className="text-sm text-gray-500">.{domain}</span>
+                        </div>
                     </div>
-                ) : (
-                    <div className="py-6 flex flex-col items-center justify-center text-center space-y-4">
-                        <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                            <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    {error && (
+                        <div className="flex items-center gap-2 text-red-500 text-sm justify-end">
+                            <AlertCircle className="w-4 h-4" />
+                            <span>{error}</span>
                         </div>
-                        <div>
-                            <h3 className="text-lg font-medium">Deployment Successful!</h3>
-                            <p className="text-sm text-gray-500 mt-1">Your site is live at:</p>
-                        </div>
-                        <a
-                            href={fullUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-blue-600 hover:underline bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-md"
-                        >
-                            <Globe className="w-4 h-4" />
-                            {subdomain}.{domain}
-                        </a>
-                        <Button variant="outline" size="sm" onClick={() => setIsDeployed(false)}>
-                            Deploy to different subdomain
-                        </Button>
-                    </div>
-                )}
+                    )}
+                </div>
 
                 <DialogFooter>
-                    {!isDeployed && (
-                        <Button onClick={handleDeploy} disabled={isLoading || !subdomain}>
-                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Deploy Site
-                        </Button>
-                    )}
+                    <Button onClick={handleDeploy} disabled={isLoading || !subdomain || (isDeployed && subdomain === currentSubdomain)}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isDeployed ? "Update Subdomain" : "Deploy Site"}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
