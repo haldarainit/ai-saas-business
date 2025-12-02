@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, User, Lock, Loader2, KeyRound, Mail, Shield, ArrowLeft } from "lucide-react";
+import { LogIn, User, Lock, Loader2, KeyRound, Mail, Shield, ArrowLeft, X } from "lucide-react";
 import { employeeAuth } from "@/lib/utils/employeeAuth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -291,6 +291,20 @@ export default function EmployeeLogin() {
         }
     };
 
+    const closeForgotModal = () => {
+        setShowForgotPassword(false);
+        setForgotPasswordStep(1);
+        setForgotData({
+            employeeId: "",
+            otp: "",
+            newPassword: "",
+            confirmPassword: "",
+        });
+        setMaskedEmail("");
+        setResetToken("");
+        setOtpAttempts(0);
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500/10 via-background to-cyan-500/10 p-4">
             {/* Animated background */}
@@ -392,22 +406,33 @@ export default function EmployeeLogin() {
             </Card>
 
             {/* Forgot Password Modal */}
-            <Dialog open={showForgotPassword} onOpenChange={(open) => {
-                if (!open) {
-                    setShowForgotPassword(false);
-                    setForgotPasswordStep(1);
-                    setForgotData({
-                        employeeId: "",
-                        otp: "",
-                        newPassword: "",
-                        confirmPassword: "",
-                    });
-                    setMaskedEmail("");
-                    setResetToken("");
-                    setOtpAttempts(0);
-                }
-            }}>
-                <DialogContent className="sm:max-w-[500px]">
+            <Dialog
+                open={showForgotPassword}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        // Prevent closing the dialog by clicking outside or pressing Escape
+                        // when user is on the OTP step (step 2). Closing is allowed via
+                        // the explicit close button only in that step.
+                        if (forgotPasswordStep === 2) {
+                            return; // ignore close attempts during OTP entry
+                        }
+
+                        closeForgotModal();
+                    } else {
+                        setShowForgotPassword(true);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-[500px] relative">
+                    <div className="absolute top-3 right-3">
+                        <Button
+                            variant="ghost"
+                            onClick={closeForgotModal}
+                            aria-label="Close"
+                        >
+                            <X className="w-4 h-4" />
+                        </Button>
+                    </div>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-xl">
                             <KeyRound className="w-6 h-6 text-purple-500" />
