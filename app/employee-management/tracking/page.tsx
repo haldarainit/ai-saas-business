@@ -354,7 +354,7 @@ function EmployeeDetails({ employee, onClose }: { employee: any; onClose: () => 
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Live Location Map */}
+        {/* Live Location Map */}
       <Card className="p-4 sm:p-5 md:p-6">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-2">
@@ -375,25 +375,8 @@ function EmployeeDetails({ employee, onClose }: { employee: any; onClose: () => 
             style={{ border: 0 }}
             loading="lazy"
             allowFullScreen
-            src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY'}&q=${employee.location.latitude},${employee.location.longitude}&zoom=15`}
+            src={`https://www.google.com/maps?q=${employee.location.latitude},${employee.location.longitude}&z=15&output=embed`}
           />
-          
-          {/* Fallback if no API key */}
-          {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
-            <div className="absolute inset-0 flex items-center justify-center bg-muted">
-              <div className="text-center px-4">
-                <MapPin className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 text-muted-foreground" />
-                <p className="text-xs sm:text-sm text-muted-foreground mb-3">
-                  Map preview requires Google Maps API key
-                </p>
-                <Button size="sm" asChild className="text-xs sm:text-sm">
-                  <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
-                    Open in Google Maps
-                  </a>
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2">

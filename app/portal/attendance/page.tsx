@@ -17,6 +17,8 @@ import {
     Calendar,
     TrendingUp,
     RefreshCw,
+    CalendarDays,
+    Plus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -25,7 +27,18 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface AttendanceRecord {
     date: string;
@@ -51,6 +64,15 @@ export default function AttendancePortal() {
     const [verificationFailed, setVerificationFailed] = useState(false);
     const [lastVerificationResult, setLastVerificationResult] = useState<any>(null);
     const [retryCount, setRetryCount] = useState(0);
+    const [leaves, setLeaves] = useState<any[]>([]);
+    const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+    const [submittingLeave, setSubmittingLeave] = useState(false);
+    const [leaveForm, setLeaveForm] = useState({
+        leaveType: '',
+        fromDate: '',
+        toDate: '',
+        reason: '',
+    });
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -137,6 +159,7 @@ export default function AttendancePortal() {
         loadEmployeeData();
         loadTodayAttendance();
         loadAttendanceHistory();
+        loadLeaves();
         
         // Restore background tracking if user was clocked in
         const trackingData = localStorage.getItem('activeTracking');
@@ -214,6 +237,73 @@ export default function AttendancePortal() {
             }
         } catch (error) {
             console.error("Failed to load attendance history:", error);
+        }
+    };
+
+    const loadLeaves = async () => {
+        try {
+            const response = await employeeAuth.apiCall("/api/leave/list");
+            const data = await response.json();
+
+            if (data.success) {
+                setLeaves(data.leaves || []);
+            }
+        } catch (error) {
+            console.error("Failed to load leaves:", error);
+        }
+    };
+
+    const handleApplyLeave = async () => {
+        if (!leaveForm.leaveType || !leaveForm.fromDate || !leaveForm.toDate || !leaveForm.reason) {
+            toast({
+                title: "Validation Error",
+                description: "Please fill in all fields",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setSubmittingLeave(true);
+        try {
+            const response = await employeeAuth.apiCall("/api/leave/apply", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(leaveForm),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                toast({
+                    title: "✅ Leave Applied",
+                    description: "Your leave request has been submitted successfully",
+                });
+                setLeaveDialogOpen(false);
+                setLeaveForm({
+                    leaveType: '',
+                    fromDate: '',
+                    toDate: '',
+                    reason: '',
+                });
+                loadLeaves();
+            } else {
+                toast({
+                    title: "❌ Error",
+                    description: data.error || "Failed to apply for leave",
+                    variant: "destructive",
+                });
+            }
+        } catch (error: any) {
+            console.error("Apply leave error:", error);
+            toast({
+                title: "❌ Network Error",
+                description: error.message || "Failed to apply for leave. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setSubmittingLeave(false);
         }
     };
 
@@ -905,6 +995,141 @@ export default function AttendancePortal() {
                                         )}
                                     </div>
                                 ))}
+                            </div>
+                        </Card>
+
+                        {/* Leave Management */}
+                        <Card className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-bold flex items-center gap-2">
+                                    <CalendarDays className="w-5 h-5 text-orange-500" />
+                                    Leave Requests
+                                </h3>
+                                <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button size="sm">
+                                            <Plus className="w-4 h-4 mr-2" />
+                                            Apply Leave
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-[500px]">
+                                        <DialogHeader>
+                                            <DialogTitle>Apply for Leave</DialogTitle>
+                                            <DialogDescription>
+                                                Fill in the details for your leave request.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="grid gap-4 py-4">
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="leave-type">Leave Type</Label>
+                                                <Select
+                                                    value={leaveForm.leaveType}
+                                                    onValueChange={(value) =>
+                                                        setLeaveForm({ ...leaveForm, leaveType: value })
+                                                    }
+                                                >
+                                                    <SelectTrigger id="leave-type">
+                                                        <SelectValue placeholder="Select leave type" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="sick">Sick Leave</SelectItem>
+                                                        <SelectItem value="vacation">Vacation</SelectItem>
+                                                        <SelectItem value="personal">Personal Leave</SelectItem>
+                                                        <SelectItem value="emergency">Emergency Leave</SelectItem>
+                                                        <SelectItem value="casual">Casual Leave</SelectItem>
+                                                        <SelectItem value="annual">Annual Leave</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="from-date">From Date</Label>
+                                                    <Input
+                                                        id="from-date"
+                                                        type="date"
+                                                        value={leaveForm.fromDate}
+                                                        onChange={(e) =>
+                                                            setLeaveForm({ ...leaveForm, fromDate: e.target.value })
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="to-date">To Date</Label>
+                                                    <Input
+                                                        id="to-date"
+                                                        type="date"
+                                                        value={leaveForm.toDate}
+                                                        onChange={(e) =>
+                                                            setLeaveForm({ ...leaveForm, toDate: e.target.value })
+                                                        }
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="reason">Reason</Label>
+                                                <Textarea
+                                                    id="reason"
+                                                    placeholder="Explain your reason for leave..."
+                                                    value={leaveForm.reason}
+                                                    onChange={(e) =>
+                                                        setLeaveForm({ ...leaveForm, reason: e.target.value })
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => setLeaveDialogOpen(false)}
+                                                disabled={submittingLeave}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button onClick={handleApplyLeave} disabled={submittingLeave}>
+                                                {submittingLeave ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                        Submitting...
+                                                    </>
+                                                ) : (
+                                                    "Submit Request"
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                            <div className="space-y-2">
+                                {leaves.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground text-center py-4">
+                                        No leave requests yet
+                                    </p>
+                                ) : (
+                                    leaves.slice(0, 5).map((leave: any) => (
+                                        <div
+                                            key={leave._id}
+                                            className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                                        >
+                                            <div>
+                                                <p className="font-medium text-sm capitalize">{leave.leaveType} Leave</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {formatDate(leave.fromDate)} - {formatDate(leave.toDate)} ({leave.days} days)
+                                                </p>
+                                            </div>
+                                            <span
+                                                className={`text-xs font-medium px-2 py-1 rounded ${
+                                                    leave.status === "approved"
+                                                        ? "bg-green-500/20 text-green-600"
+                                                        : leave.status === "rejected"
+                                                        ? "bg-red-500/20 text-red-600"
+                                                        : "bg-orange-500/20 text-orange-600"
+                                                }`}
+                                            >
+                                                {leave.status}
+                                            </span>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </Card>
                     </div>
