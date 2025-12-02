@@ -36,6 +36,9 @@ export default function Attendance() {
   const [capturing, setCapturing] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [loading, setLoading] = useState(false);
+  const [verificationFailed, setVerificationFailed] = useState(false);
+  const [lastVerificationResult, setLastVerificationResult] = useState<any>(null);
+  const [retryCount, setRetryCount] = useState(0);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -310,23 +313,30 @@ export default function Attendance() {
         stopCamera();
         setCameraOpen(false);
         setSelectedEmployee("");
+        setVerificationFailed(false);
+        setLastVerificationResult(null);
+        setRetryCount(0);
         loadAttendanceData();
       } else {
         console.error('Attendance marking failed:', data);
-        toast({
-          title: data.retry ? "⚠️ Verification Failed" : "❌ Error",
-          description: data.error || "Unknown error occurred",
-          variant: "destructive",
-        });
-
-        if (data.retry) {
-          // Allow retry - keep dialog open
-          setTimeout(() => {
-            toast({
-              title: "💡 Tip",
-              description: "Ensure good lighting and face the camera directly. Try again in a moment.",
-            });
-          }, 500);
+        
+        // Handle verification failure with modal
+        if (data.retry && (data.matchScore !== undefined || data.qualityScore !== undefined)) {
+          setLastVerificationResult({
+            matchScore: data.matchScore || 0,
+            qualityScore: data.qualityScore || 0,
+            error: data.error,
+            threshold: 75,
+            employeeName: employees.find((e: any) => e.employeeId === selectedEmployee)?.name || 'Unknown'
+          });
+          setVerificationFailed(true);
+          setRetryCount(prev => prev + 1);
+        } else {
+          toast({
+            title: "❌ Error",
+            description: data.error || "Unknown error occurred",
+            variant: "destructive",
+          });
         }
       }
     } catch (error: any) {
@@ -350,6 +360,9 @@ export default function Attendance() {
     stopCamera();
     setCameraOpen(false);
     setSelectedEmployee("");
+    setVerificationFailed(false);
+    setLastVerificationResult(null);
+    setRetryCount(0);
   };
 
   // Start camera when dialog opens
@@ -699,6 +712,137 @@ export default function Attendance() {
                       )}
                     </Button>
                   </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Verification Failed Modal */}
+            <Dialog open={verificationFailed} onOpenChange={(open) => {
+              if (!open) {
+                setVerificationFailed(false);
+                setLastVerificationResult(null);
+              }
+            }}>
+              <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-orange-500 text-base sm:text-lg">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Face Verification Failed
+                  </DialogTitle>
+                  <DialogDescription className="text-xs sm:text-sm">
+                    {lastVerificationResult?.employeeName}'s face could not be verified with sufficient confidence
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-3 sm:space-y-4">
+                  {/* Score Display */}
+                  {lastVerificationResult && (
+                    <div className="space-y-2 sm:space-y-3">
+                      <div className="p-3 sm:p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs sm:text-sm font-medium">Match Score</span>
+                          <span className={`text-xl sm:text-2xl font-bold ${lastVerificationResult.matchScore >= 75 ? 'text-green-500' : 'text-orange-500'}`}>
+                            {lastVerificationResult.matchScore}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 sm:h-2.5 dark:bg-gray-700">
+                          <div 
+                            className={`h-2 sm:h-2.5 rounded-full ${lastVerificationResult.matchScore >= 75 ? 'bg-green-500' : 'bg-orange-500'}`}
+                            style={{ width: `${lastVerificationResult.matchScore}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Required: {lastVerificationResult.threshold}% or higher
+                        </p>
+                      </div>
+
+                      <div className="p-3 sm:p-4 bg-muted rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs sm:text-sm font-medium">Image Quality</span>
+                          <span className={`text-base sm:text-lg font-bold ${lastVerificationResult.qualityScore >= 70 ? 'text-green-500' : lastVerificationResult.qualityScore >= 40 ? 'text-orange-500' : 'text-red-500'}`}>
+                            {lastVerificationResult.qualityScore}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2 dark:bg-gray-700">
+                          <div 
+                            className={`h-1.5 rounded-full ${lastVerificationResult.qualityScore >= 70 ? 'bg-green-500' : lastVerificationResult.qualityScore >= 40 ? 'bg-orange-500' : 'bg-red-500'}`}
+                            style={{ width: `${lastVerificationResult.qualityScore}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {lastVerificationResult.error && (
+                        <div className="p-2 sm:p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                          <p className="text-xs sm:text-sm text-red-600 dark:text-red-400">
+                            {lastVerificationResult.error}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Improvement Tips */}
+                  <div className="p-3 sm:p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                    <p className="font-semibold text-xs sm:text-sm mb-2 flex items-center gap-2">
+                      <svg className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      Tips to Improve Verification
+                    </p>
+                    <ul className="text-xs text-muted-foreground space-y-1 sm:space-y-1.5 ml-5 sm:ml-6">
+                      <li>✓ Move to a well-lit area (avoid backlighting)</li>
+                      <li>✓ Face the camera directly at eye level</li>
+                      <li>✓ Remove glasses, hats, or masks if wearing</li>
+                      <li>✓ Keep face centered in the circle</li>
+                      <li>✓ Stay still with neutral expression</li>
+                      <li>✓ Ensure camera lens is clean</li>
+                    </ul>
+                  </div>
+
+                  {/* Retry Count Warning */}
+                  {retryCount >= 2 && (
+                    <div className="p-2 sm:p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                      <p className="text-xs sm:text-sm text-yellow-600 dark:text-yellow-400">
+                        ⚠️ Attempt {retryCount} of 5. Multiple failures flagged for admin review.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 sm:gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={handleCloseCamera}
+                      className="flex-1 text-xs sm:text-sm"
+                      size="sm"
+                    >
+                      <X className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Cancel</span>
+                      <span className="sm:hidden">Cancel</span>
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setVerificationFailed(false);
+                        setLastVerificationResult(null);
+                      }}
+                      className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-xs sm:text-sm"
+                      disabled={retryCount >= 5}
+                      size="sm"
+                    >
+                      <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                      {retryCount >= 5 ? 'Max Attempts' : 'Try Again'}
+                    </Button>
+                  </div>
+
+                  {retryCount >= 5 && (
+                    <div className="p-2 sm:p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                      <p className="text-xs sm:text-sm text-red-600 dark:text-red-400 text-center">
+                        Maximum attempts reached. Contact supervisor/HR for assistance.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </DialogContent>
             </Dialog>

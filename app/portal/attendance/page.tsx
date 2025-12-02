@@ -48,6 +48,9 @@ export default function AttendancePortal() {
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [location, setLocation] = useState<any>(null);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [verificationFailed, setVerificationFailed] = useState(false);
+    const [lastVerificationResult, setLastVerificationResult] = useState<any>(null);
+    const [retryCount, setRetryCount] = useState(0);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -268,6 +271,9 @@ export default function AttendancePortal() {
         stopCamera();
         setCameraOpen(false);
         setAction(null);
+        setVerificationFailed(false);
+        setLastVerificationResult(null);
+        setRetryCount(0);
     };
 
     const captureImage = (): string | null => {
@@ -411,22 +417,30 @@ export default function AttendancePortal() {
                 stopCamera();
                 setCameraOpen(false);
                 setAction(null);
+                setVerificationFailed(false);
+                setLastVerificationResult(null);
+                setRetryCount(0);
                 loadTodayAttendance();
                 loadAttendanceHistory();
             } else {
-                toast({
-                    title: data.retry ? "⚠️ Verification Failed" : "❌ Error",
-                    description: data.error || "Unknown error occurred",
-                    variant: "destructive",
-                });
-
-                if (data.retry) {
-                    setTimeout(() => {
-                        toast({
-                            title: "💡 Tip",
-                            description: "Ensure good lighting and face the camera directly. Try again in a moment.",
-                        });
-                    }, 500);
+                // Handle verification failure
+                if (data.retry && (data.matchScore !== undefined || data.qualityScore !== undefined)) {
+                    // Show verification failure modal
+                    setLastVerificationResult({
+                        matchScore: data.matchScore || 0,
+                        qualityScore: data.qualityScore || 0,
+                        error: data.error,
+                        threshold: 75
+                    });
+                    setVerificationFailed(true);
+                    setRetryCount(prev => prev + 1);
+                } else {
+                    // Other errors
+                    toast({
+                        title: "❌ Error",
+                        description: data.error || "Unknown error occurred",
+                        variant: "destructive",
+                    });
                 }
             }
         } catch (error: any) {
@@ -700,6 +714,135 @@ export default function AttendancePortal() {
                                             )}
                                         </Button>
                                     </div>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
+
+                        {/* Verification Failed Modal */}
+                        <Dialog open={verificationFailed} onOpenChange={(open) => {
+                            if (!open) {
+                                setVerificationFailed(false);
+                                setLastVerificationResult(null);
+                            }
+                        }}>
+                            <DialogContent className="sm:max-w-[500px]">
+                                <DialogHeader>
+                                    <DialogTitle className="flex items-center gap-2 text-orange-500">
+                                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        Face Verification Failed
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                        Your face could not be verified with sufficient confidence
+                                    </DialogDescription>
+                                </DialogHeader>
+
+                                <div className="space-y-4">
+                                    {/* Score Display */}
+                                    {lastVerificationResult && (
+                                        <div className="space-y-3">
+                                            <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-sm font-medium">Match Score</span>
+                                                    <span className={`text-2xl font-bold ${lastVerificationResult.matchScore >= 75 ? 'text-green-500' : 'text-orange-500'}`}>
+                                                        {lastVerificationResult.matchScore}%
+                                                    </span>
+                                                </div>
+                                                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                                                    <div 
+                                                        className={`h-2.5 rounded-full ${lastVerificationResult.matchScore >= 75 ? 'bg-green-500' : 'bg-orange-500'}`}
+                                                        style={{ width: `${lastVerificationResult.matchScore}%` }}
+                                                    />
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-2">
+                                                    Required: {lastVerificationResult.threshold}% or higher
+                                                </p>
+                                            </div>
+
+                                            <div className="p-4 bg-muted rounded-lg">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium">Image Quality</span>
+                                                    <span className={`text-lg font-bold ${lastVerificationResult.qualityScore >= 70 ? 'text-green-500' : lastVerificationResult.qualityScore >= 40 ? 'text-orange-500' : 'text-red-500'}`}>
+                                                        {lastVerificationResult.qualityScore}%
+                                                    </span>
+                                                </div>
+                                                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2 dark:bg-gray-700">
+                                                    <div 
+                                                        className={`h-1.5 rounded-full ${lastVerificationResult.qualityScore >= 70 ? 'bg-green-500' : lastVerificationResult.qualityScore >= 40 ? 'bg-orange-500' : 'bg-red-500'}`}
+                                                        style={{ width: `${lastVerificationResult.qualityScore}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {lastVerificationResult.error && (
+                                                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                                                    <p className="text-sm text-red-600 dark:text-red-400">
+                                                        {lastVerificationResult.error}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Improvement Tips */}
+                                    <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                                        <p className="font-semibold text-sm mb-2 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                            </svg>
+                                            Tips to Improve Verification
+                                        </p>
+                                        <ul className="text-xs text-muted-foreground space-y-1.5 ml-6">
+                                            <li>✓ Move to a well-lit area (avoid backlighting)</li>
+                                            <li>✓ Face the camera directly at eye level</li>
+                                            <li>✓ Remove glasses, hats, or masks if wearing</li>
+                                            <li>✓ Keep your face centered in the circle</li>
+                                            <li>✓ Stay still and maintain a neutral expression</li>
+                                            <li>✓ Ensure camera lens is clean</li>
+                                        </ul>
+                                    </div>
+
+                                    {/* Retry Count Warning */}
+                                    {retryCount >= 2 && (
+                                        <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                                            <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                                                ⚠️ Attempt {retryCount} of 5. Multiple failed attempts may be flagged for review.
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Action Buttons */}
+                                    <div className="flex gap-3">
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleCloseCamera}
+                                            className="flex-1"
+                                        >
+                                            <X className="w-4 h-4 mr-2" />
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            onClick={() => {
+                                                setVerificationFailed(false);
+                                                setLastVerificationResult(null);
+                                                // Keep camera running for retry
+                                            }}
+                                            className="flex-1 bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600"
+                                            disabled={retryCount >= 5}
+                                        >
+                                            <RefreshCw className="w-4 h-4 mr-2" />
+                                            {retryCount >= 5 ? 'Max Attempts Reached' : 'Try Again'}
+                                        </Button>
+                                    </div>
+
+                                    {retryCount >= 5 && (
+                                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                                            <p className="text-sm text-red-600 dark:text-red-400 text-center">
+                                                Maximum retry attempts reached. Please contact your supervisor or HR for assistance.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </DialogContent>
                         </Dialog>
