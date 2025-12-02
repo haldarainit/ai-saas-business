@@ -369,7 +369,8 @@ export async function POST(request) {
       );
     }
 
-    console.log('Verification passed!');
+    console.log('Verification passed! Match score:', verification.matchScore);
+    console.log('Suspicious flags (non-blocking):', verification.suspiciousFlags);
 
     const today = formatDate(new Date());
     const now = new Date();
@@ -389,14 +390,18 @@ export async function POST(request) {
         );
       }
 
-      // Create or update attendance record
+      // Create or update attendance record with complete location data
       const attendanceData = {
         employeeId,
         employeeName: employee.name,
         date: today,
         clockIn: {
           time: now,
-          location,
+          location: {
+            latitude: location.latitude || 0,
+            longitude: location.longitude || 0,
+            accuracy: location.accuracy || 0,
+          },
           faceImage: image,
           faceMatchScore: verification.matchScore,
           deviceInfo,
@@ -406,6 +411,8 @@ export async function POST(request) {
         suspiciousFlags: verification.suspiciousFlags,
         retryAttempts: existingAttendance?.retryAttempts || 0,
       };
+      
+      console.log('Storing attendance with location:', attendanceData.clockIn.location);
 
       let attendance;
       if (existingAttendance) {
@@ -447,14 +454,20 @@ export async function POST(request) {
         );
       }
 
-      // Update clock out
+      // Update clock out with complete location data
       attendance.clockOut = {
         time: now,
-        location,
+        location: {
+          latitude: location.latitude || 0,
+          longitude: location.longitude || 0,
+          accuracy: location.accuracy || 0,
+        },
         faceImage: image,
         faceMatchScore: verification.matchScore,
         deviceInfo,
       };
+      
+      console.log('Storing clock out with location:', attendance.clockOut.location);
 
       // Mark as suspicious if clockOut verification also flags it
       if (verification.suspicious) {

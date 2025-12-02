@@ -16,8 +16,16 @@ import {
     Loader2,
     Calendar,
     TrendingUp,
+    RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 interface AttendanceRecord {
     date: string;
@@ -33,8 +41,9 @@ export default function AttendancePortal() {
     const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
     const [statistics, setStatistics] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [cameraActive, setCameraActive] = useState(false);
+    const [cameraOpen, setCameraOpen] = useState(false);
     const [action, setAction] = useState<"clockIn" | "clockOut" | null>(null);
+    const [submitting, setSubmitting] = useState(false);
     const [capturing, setCapturing] = useState(false);
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [location, setLocation] = useState<any>(null);
@@ -45,6 +54,68 @@ export default function AttendancePortal() {
     const { toast } = useToast();
     const router = useRouter();
 
+    // Background tracking functions
+    const startBackgroundTracking = (employeeId: string) => {
+        // Store tracking state in localStorage
+        localStorage.setItem('activeTracking', JSON.stringify({
+            employeeId,
+            startTime: new Date().toISOString(),
+            status: 'active'
+        }));
+
+        // Send location update every 2 minutes
+        const sendUpdate = async () => {
+            const trackingData = JSON.parse(localStorage.getItem('activeTracking') || '{}');
+            
+            if (!trackingData.employeeId) return;
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    try {
+                        await fetch('/api/tracking/update', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                employeeId: trackingData.employeeId,
+                                location: {
+                                    latitude: position.coords.latitude,
+                                    longitude: position.coords.longitude,
+                                    accuracy: position.coords.accuracy,
+                                },
+                                status: 'active',
+                                activity: 'working',
+                                speed: position.coords.speed ? (position.coords.speed * 3.6) : 0,
+                                heading: position.coords.heading || 0,
+                                deviceInfo: navigator.userAgent,
+                            }),
+                        });
+                        console.log('Background location updated');
+                    } catch (error) {
+                        console.error('Failed to update location:', error);
+                    }
+                },
+                (error) => console.error('Geolocation error:', error),
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+            );
+        };
+
+        // Initial update
+        sendUpdate();
+
+        // Schedule periodic updates (every 2 minutes)
+        const intervalId = setInterval(sendUpdate, 120000);
+        localStorage.setItem('trackingIntervalId', intervalId.toString());
+    };
+
+    const stopBackgroundTracking = () => {
+        const intervalId = localStorage.getItem('trackingIntervalId');
+        if (intervalId) {
+            clearInterval(parseInt(intervalId));
+            localStorage.removeItem('trackingIntervalId');
+        }
+        localStorage.removeItem('activeTracking');
+    };
+
     // Update current time every second
     useEffect(() => {
         const timer = setInterval(() => {
@@ -53,7 +124,7 @@ export default function AttendancePortal() {
         return () => clearInterval(timer);
     }, []);
 
-    // Check authentication
+    // Check authentication and restore tracking state
     useEffect(() => {
         if (!employeeAuth.isAuthenticated()) {
             router.push("/portal/login");
@@ -63,7 +134,36 @@ export default function AttendancePortal() {
         loadEmployeeData();
         loadTodayAttendance();
         loadAttendanceHistory();
+        
+        // Restore background tracking if user was clocked in
+        const trackingData = localStorage.getItem('activeTracking');
+        if (trackingData) {
+            const { employeeId, startTime } = JSON.parse(trackingData);
+            const empData = employeeAuth.getEmployeeData();
+            
+            // Verify it's the same employee and tracking is recent (within 24 hours)
+            if (employeeId === empData?.employeeId) {
+                const timeSinceStart = Date.now() - new Date(startTime).getTime();
+                if (timeSinceStart < 24 * 60 * 60 * 1000) {
+                    console.log('Restoring background tracking for', employeeId);
+                    startBackgroundTracking(employeeId);
+                } else {
+                    // Clean up old tracking data
+                    localStorage.removeItem('activeTracking');
+                    localStorage.removeItem('trackingIntervalId');
+                }
+            }
+        }
     }, []);
+
+    // Cleanup camera stream
+    useEffect(() => {
+        return () => {
+            if (stream) {
+                stream.getTracks().forEach((track) => track.stop());
+            }
+        };
+    }, [stream]);
 
     const loadEmployeeData = async () => {
         try {
@@ -114,33 +214,17 @@ export default function AttendancePortal() {
         }
     };
 
-    const startCamera = async (actionType: "clockIn" | "clockOut") => {
+    const openMarkAttendance = (actionType: "clockIn" | "clockOut") => {
         setAction(actionType);
+        setCameraOpen(true);
+    };
 
-        // Get location first
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    setLocation({
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                    });
-                },
-                (error) => {
-                    toast({
-                        title: "Location Error",
-                        description: "Could not get your location. Please enable location services.",
-                        variant: "destructive",
-                    });
-                }
-            );
-        }
-
+    const startCamera = async () => {
         try {
             const mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
                     facingMode: "user",
                 },
             });
@@ -151,11 +235,19 @@ export default function AttendancePortal() {
                 videoRef.current.srcObject = mediaStream;
                 videoRef.current.onloadedmetadata = () => {
                     videoRef.current?.play().then(() => {
-                        setCameraActive(true);
+                        setCapturing(true);
+                    }).catch((err) => {
+                        console.error("Error playing video:", err);
+                        toast({
+                            title: "Camera Error",
+                            description: "Unable to start video stream.",
+                            variant: "destructive",
+                        });
                     });
                 };
             }
         } catch (error) {
+            console.error("Camera access error:", error);
             toast({
                 title: "Camera Error",
                 description: "Unable to access camera. Please allow camera permissions.",
@@ -169,29 +261,111 @@ export default function AttendancePortal() {
             stream.getTracks().forEach((track) => track.stop());
             setStream(null);
         }
-        setCameraActive(false);
+        setCapturing(false);
+    };
+
+    const handleCloseCamera = () => {
+        stopCamera();
+        setCameraOpen(false);
         setAction(null);
     };
 
-    const captureAndSubmit = async () => {
-        if (!videoRef.current || !canvasRef.current || !action) return;
+    const captureImage = (): string | null => {
+        if (!videoRef.current || !canvasRef.current) {
+            console.error("Video or canvas ref not available");
+            return null;
+        }
 
         const video = videoRef.current;
         const canvas = canvasRef.current;
         const context = canvas.getContext("2d");
 
-        if (!context || video.readyState < 2) return;
+        if (!context) {
+            console.error("Canvas context not available");
+            return null;
+        }
 
-        setCapturing(true);
+        if (video.readyState < 2) {
+            console.error("Video not ready");
+            return null;
+        }
 
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0);
 
-        const imageData = canvas.toDataURL("image/jpeg", 0.8);
-        const empData = employeeAuth.getEmployeeData();
+        if (canvas.width === 0 || canvas.height === 0) {
+            console.error("Invalid video dimensions");
+            return null;
+        }
+
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", 0.8);
+    };
+
+    const handleMarkAttendance = async () => {
+        if (!capturing) {
+            toast({
+                title: "Camera Not Ready",
+                description: "Please wait for camera to start.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const imageData = captureImage();
+        if (!imageData) {
+            toast({
+                title: "Capture Error",
+                description: "Failed to capture image. Ensure camera is working and try again.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setSubmitting(true);
 
         try {
+            // Get location with proper timeout and accuracy
+            const location = await new Promise<{ latitude: number; longitude: number; accuracy: number }>((resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        console.log('Location obtained:', {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            accuracy: position.coords.accuracy
+                        });
+                        resolve({
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            accuracy: position.coords.accuracy,
+                        });
+                    },
+                    (error) => {
+                        console.error('Geolocation error:', error);
+                        toast({
+                            title: "Location Warning",
+                            description: "Unable to get location. Proceeding with default.",
+                            variant: "destructive",
+                        });
+                        resolve({ latitude: 0, longitude: 0, accuracy: 0 });
+                    },
+                    { 
+                        enableHighAccuracy: true, 
+                        timeout: 10000, 
+                        maximumAge: 0 
+                    }
+                );
+            });
+
+            const empData = employeeAuth.getEmployeeData();
+
+            console.log('Submitting attendance with data:', {
+                employeeId: empData.employeeId,
+                action,
+                location,
+                hasImage: !!imageData
+            });
+
             const response = await fetch("/api/attendance/mark", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -205,33 +379,74 @@ export default function AttendancePortal() {
             });
 
             const data = await response.json();
+            console.log('Attendance response:', data);
 
             if (data.success) {
                 toast({
-                    title: "Success!",
-                    description: `${action === "clockIn" ? "Clocked in" : "Clocked out"} successfully`,
+                    title: "✅ Success!",
+                    description: data.message,
                 });
 
+                if (data.verification) {
+                    setTimeout(() => {
+                        toast({
+                            title: "🎯 Verification Details",
+                            description: `Match Score: ${data.verification.matchScore}% | Quality: ${data.verification.qualityScore}%`,
+                        });
+                    }, 500);
+                }
+
+                // Start background location tracking after clock-in
+                if (action === 'clockIn') {
+                    startBackgroundTracking(empData.employeeId);
+                    toast({
+                        title: "📍 Location Tracking Enabled",
+                        description: "Your location will be tracked while you're clocked in",
+                    });
+                } else if (action === 'clockOut') {
+                    // Stop tracking on clock out
+                    stopBackgroundTracking();
+                }
+
+                stopCamera();
+                setCameraOpen(false);
+                setAction(null);
                 loadTodayAttendance();
                 loadAttendanceHistory();
-                stopCamera();
             } else {
                 toast({
-                    title: "Failed",
-                    description: data.error || "Attendance marking failed",
+                    title: data.retry ? "⚠️ Verification Failed" : "❌ Error",
+                    description: data.error || "Unknown error occurred",
                     variant: "destructive",
                 });
+
+                if (data.retry) {
+                    setTimeout(() => {
+                        toast({
+                            title: "💡 Tip",
+                            description: "Ensure good lighting and face the camera directly. Try again in a moment.",
+                        });
+                    }, 500);
+                }
             }
-        } catch (error) {
+        } catch (error: any) {
+            console.error("Mark attendance error:", error);
             toast({
-                title: "Error",
-                description: "Failed to mark attendance. Please try again.",
+                title: "❌ Network Error",
+                description: error.message || "Failed to mark attendance. Please try again.",
                 variant: "destructive",
             });
         } finally {
-            setCapturing(false);
+            setSubmitting(false);
         }
     };
+
+    // Start camera when dialog opens
+    useEffect(() => {
+        if (cameraOpen && !capturing) {
+            startCamera();
+        }
+    }, [cameraOpen]);
 
     const handleLogout = () => {
         employeeAuth.logout();
@@ -368,8 +583,8 @@ export default function AttendancePortal() {
                             {/* Action Buttons */}
                             <div className="flex gap-4 mt-6">
                                 <Button
-                                    onClick={() => startCamera("clockIn")}
-                                    disabled={!canClockIn || cameraActive}
+                                    onClick={() => openMarkAttendance("clockIn")}
+                                    disabled={!canClockIn || cameraOpen}
                                     className="flex-1"
                                     size="lg"
                                 >
@@ -378,8 +593,8 @@ export default function AttendancePortal() {
                                 </Button>
 
                                 <Button
-                                    onClick={() => startCamera("clockOut")}
-                                    disabled={!canClockOut || cameraActive}
+                                    onClick={() => openMarkAttendance("clockOut")}
+                                    disabled={!canClockOut || cameraOpen}
                                     variant="outline"
                                     className="flex-1"
                                     size="lg"
@@ -388,77 +603,106 @@ export default function AttendancePortal() {
                                     Clock Out
                                 </Button>
                             </div>
+
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    loadTodayAttendance();
+                                    loadAttendanceHistory();
+                                }}
+                                className="w-full mt-3"
+                            >
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                Refresh Status
+                            </Button>
                         </Card>
 
-                        {/* Camera Modal */}
-                        <AnimatePresence>
-                            {cameraActive && (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
-                                >
-                                    <Card className="w-full max-w-lg">
-                                        <div className="p-6">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h3 className="text-lg font-bold">
-                                                    {action === "clockIn" ? "Clock In" : "Clock Out"}
-                                                </h3>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={stopCamera}
-                                                    disabled={capturing}
-                                                >
-                                                    <X className="w-5 h-5" />
-                                                </Button>
-                                            </div>
+                        {/* Camera Dialog */}
+                        <Dialog open={cameraOpen} onOpenChange={handleCloseCamera}>
+                            <DialogContent className="sm:max-w-[600px]">
+                                <DialogHeader>
+                                    <DialogTitle>
+                                        {action === "clockIn" ? "Clock In" : "Clock Out"}
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                        Capture face image for verification
+                                    </DialogDescription>
+                                </DialogHeader>
 
-                                            <div className="relative bg-black rounded-lg overflow-hidden aspect-video mb-4">
-                                                <video
-                                                    ref={videoRef}
-                                                    autoPlay
-                                                    playsInline
-                                                    muted
-                                                    className="w-full h-full object-cover"
-                                                />
-                                                <canvas ref={canvasRef} className="hidden" />
+                                <div className="space-y-4">
+                                    {/* Camera Feed */}
+                                    <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: "16/9", minHeight: "300px" }}>
+                                        <video
+                                            ref={videoRef}
+                                            autoPlay
+                                            playsInline
+                                            muted
+                                            className={`w-full h-full object-cover ${capturing ? "block" : "hidden"}`}
+                                            style={{ transform: "scaleX(-1)" }}
+                                        />
+                                        {!capturing && (
+                                            <div className="absolute inset-0 flex items-center justify-center text-white">
+                                                <div className="text-center">
+                                                    <Camera className="w-16 h-16 mx-auto mb-4 opacity-50 animate-pulse" />
+                                                    <p>Starting camera...</p>
+                                                    <p className="text-xs text-gray-400 mt-2">Please allow camera access if prompted</p>
+                                                </div>
                                             </div>
-
-                                            <div className="flex gap-3">
-                                                <Button
-                                                    onClick={captureAndSubmit}
-                                                    disabled={capturing}
-                                                    className="flex-1"
-                                                    size="lg"
-                                                >
-                                                    {capturing ? (
-                                                        <>
-                                                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                                            Processing...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Camera className="w-5 h-5 mr-2" />
-                                                            Capture & Submit
-                                                        </>
-                                                    )}
-                                                </Button>
-
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={stopCamera}
-                                                    disabled={capturing}
-                                                >
-                                                    Cancel
-                                                </Button>
+                                        )}
+                                        {capturing && (
+                                            <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-500/20 backdrop-blur-sm px-3 py-1 rounded-full">
+                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                                <span className="text-xs text-white">Live</span>
                                             </div>
+                                        )}
+                                        {/*  Face guide overlay */}
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            <div className="w-64 h-80 border-4 border-white/30 rounded-full" />
                                         </div>
-                                    </Card>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                                        <canvas ref={canvasRef} className="hidden" />
+                                    </div>
+
+                                    {/* Instructions */}
+                                    <div className="bg-muted p-4 rounded-lg text-sm">
+                                        <p className="font-semibold mb-2">Instructions:</p>
+                                        <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                                            <li>Ensure your face is clearly visible and well-lit</li>
+                                            <li>Look directly at the camera</li>
+                                            <li>Position your face within the circle</li>
+                                            <li>Face verification requires 75% match score</li>
+                                        </ul>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex justify-end gap-2">
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleCloseCamera}
+                                            disabled={submitting}
+                                        >
+                                            <X className="w-4 h-4 mr-2" />
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            onClick={handleMarkAttendance}
+                                            disabled={submitting || !capturing}
+                                        >
+                                            {submitting ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                    Verifying...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                                    {action === "clockIn" ? "Clock In" : "Clock Out"}
+                                                </>
+                                            )}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                     </div>
 
                     {/* Statistics & History */}
