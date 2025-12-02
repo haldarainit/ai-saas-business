@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,13 +29,58 @@ import {
 
 export default function LeaveSystem() {
   const [open, setOpen] = useState(false);
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState<string | null>(null);
 
-  const leaveRequests = [
-    { id: 1, employee: "John Doe", type: "Sick Leave", from: "Nov 25", to: "Nov 27", days: 3, status: "Pending" },
-    { id: 2, employee: "Jane Smith", type: "Vacation", from: "Dec 15", to: "Dec 22", days: 8, status: "Approved" },
-    { id: 3, employee: "Mike Johnson", type: "Personal", from: "Nov 30", to: "Dec 1", days: 2, status: "Pending" },
-    { id: 4, employee: "Sarah Williams", type: "Sick Leave", from: "Nov 20", to: "Nov 21", days: 2, status: "Rejected" },
-  ];
+  useEffect(() => {
+    loadLeaves();
+  }, []);
+
+  const loadLeaves = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/leave/all");
+      const data = await response.json();
+
+      if (data.success) {
+        setLeaveRequests(data.leaves || []);
+      }
+    } catch (error) {
+      console.error("Failed to load leaves:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveReject = async (leaveId: string, action: "approve" | "reject", rejectionReason?: string) => {
+    setProcessing(leaveId);
+    try {
+      const response = await fetch("/api/leave/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leaveId,
+          action,
+          rejectionReason,
+          approvedBy: "Admin",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        loadLeaves();
+      } else {
+        alert(data.error || "Failed to process leave request");
+      }
+    } catch (error) {
+      console.error("Failed to process leave:", error);
+      alert("Failed to process leave request");
+    } finally {
+      setProcessing(null);
+    }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -166,56 +211,96 @@ export default function LeaveSystem() {
 
             {/* Leave Requests Table */}
             <Card>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="border-b">
-                    <tr className="text-left">
-                      <th className="p-4 font-semibold">Employee</th>
-                      <th className="p-4 font-semibold">Type</th>
-                      <th className="p-4 font-semibold">From</th>
-                      <th className="p-4 font-semibold">To</th>
-                      <th className="p-4 font-semibold">Days</th>
-                      <th className="p-4 font-semibold">Status</th>
-                      <th className="p-4 font-semibold">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaveRequests.map((request) => (
-                      <tr key={request.id} className="border-b last:border-0 hover:bg-muted/50">
-                        <td className="p-4 font-medium">{request.employee}</td>
-                        <td className="p-4 text-muted-foreground">{request.type}</td>
-                        <td className="p-4 text-muted-foreground">{request.from}</td>
-                        <td className="p-4 text-muted-foreground">{request.to}</td>
-                        <td className="p-4 text-muted-foreground">{request.days}</td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            {getStatusIcon(request.status)}
-                            <span className={`text-sm font-medium ${
-                              request.status === "Approved" ? "text-green-600" :
-                              request.status === "Pending" ? "text-orange-600" :
-                              "text-red-600"
-                            }`}>
-                              {request.status}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          {request.status === "Pending" && (
-                            <div className="flex gap-2">
-                              <Button variant="ghost" size="sm" className="text-green-600">
-                                Approve
-                              </Button>
-                              <Button variant="ghost" size="sm" className="text-red-600">
-                                Reject
-                              </Button>
-                            </div>
-                          )}
-                        </td>
+              {loading ? (
+                <div className="p-8 text-center">
+                  <p className="text-muted-foreground">Loading leave requests...</p>
+                </div>
+              ) : leaveRequests.length === 0 ? (
+                <div className="p-8 text-center">
+                  <p className="text-muted-foreground">No leave requests found</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="border-b">
+                      <tr className="text-left">
+                        <th className="p-4 font-semibold">Employee</th>
+                        <th className="p-4 font-semibold">Type</th>
+                        <th className="p-4 font-semibold">From</th>
+                        <th className="p-4 font-semibold">To</th>
+                        <th className="p-4 font-semibold">Days</th>
+                        <th className="p-4 font-semibold">Reason</th>
+                        <th className="p-4 font-semibold">Status</th>
+                        <th className="p-4 font-semibold">Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {leaveRequests.map((request: any) => (
+                        <tr key={request._id} className="border-b last:border-0 hover:bg-muted/50">
+                          <td className="p-4 font-medium">{request.employeeName}</td>
+                          <td className="p-4 text-muted-foreground capitalize">{request.leaveType}</td>
+                          <td className="p-4 text-muted-foreground">
+                            {new Date(request.fromDate).toLocaleDateString()}
+                          </td>
+                          <td className="p-4 text-muted-foreground">
+                            {new Date(request.toDate).toLocaleDateString()}
+                          </td>
+                          <td className="p-4 text-muted-foreground">{request.days}</td>
+                          <td className="p-4 text-muted-foreground text-sm max-w-xs truncate">
+                            {request.reason}
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              {getStatusIcon(request.status.charAt(0).toUpperCase() + request.status.slice(1))}
+                              <span className={`text-sm font-medium ${
+                                request.status === "approved" ? "text-green-600" :
+                                request.status === "pending" ? "text-orange-600" :
+                                "text-red-600"
+                              }`}>
+                                {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            {request.status === "pending" && (
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-green-600"
+                                  onClick={() => handleApproveReject(request._id, "approve")}
+                                  disabled={processing === request._id}
+                                >
+                                  {processing === request._id ? "Processing..." : "Approve"}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600"
+                                  onClick={() => {
+                                    const reason = prompt("Enter rejection reason (optional):");
+                                    if (reason !== null) {
+                                      handleApproveReject(request._id, "reject", reason || undefined);
+                                    }
+                                  }}
+                                  disabled={processing === request._id}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            )}
+                            {request.status === "approved" && request.approvedBy && (
+                              <span className="text-xs text-muted-foreground">
+                                Approved by {request.approvedBy}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </Card>
 
             {/* Features Grid */}

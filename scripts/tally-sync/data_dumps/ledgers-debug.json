@@ -1,0 +1,58 @@
+{
+  "ENVELOPE": {
+    "SHORTPROMPT": [
+      "Under:",
+      ""
+    ],
+    "PARENT": [
+      ""
+    ],
+    "MSTGRANDPARENT": [
+      ""
+    ],
+    "LONGPROMPT": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Include in Assessable Value calculation:",
+      "",
+      "GSTIN/UIN :"
+    ],
+    "LEDTAXTYPE": [
+      ""
+    ],
+    "RATEOFTAXCALCULATION": [
+      ""
+    ],
+    "LEDDUTYTYPE": [
+      ""
+    ],
+    "ROUNDINGMETHOD": [
+      ""
+    ],
+    "ROUNDINGLIMIT": [
+      ""
+    ],
+    "APPROPRIATEFOR": [
+      "\u0004 Not Applicable"
+    ],
+    "EXCISEALLOCTYPE": [
+      ""
+    ],
+    "MEDIUMPROMPT": [
+      "PAN/IT No.:",
+      ""
+    ],
+    "INCOMETAXNUMBER": [
+      ""
+    ],
+    "LEDGSTIN": [
+      ""
+    ],
+    "LEDGSTADDLDETAILS": [
+      ""
+    ]
+  }
+}

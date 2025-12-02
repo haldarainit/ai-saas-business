@@ -1,0 +1,76 @@
+{
+  "ENVELOPE": {
+    "SHORTPROMPT": [
+      "Under:",
+      "Units:"
+    ],
+    "PARENT": [
+      "\u0004 Primary"
+    ],
+    "BASEUNITS": [
+      "\u0004 Not Applicable"
+    ],
+    "SIMPLEFIELD": [
+      ""
+    ],
+    "MEDIUMPROMPT": [
+      "GST applicability:",
+      "HSN/SAC Details:",
+      "GST Rate Details:",
+      "Type of Supply:",
+      "",
+      "Rate of Duty (eg 5) :"
+    ],
+    "GSTAPPLICABLE": [
+      "\u0004 Applicable"
+    ],
+    "GSTMSTGSTDETAILSTITLE": [
+      "HSN/SAC & Related Details",
+      "GST Rate & Related Details"
+    ],
+    "TEMPSRCOFHSNDETAILS": [
+      "As per Company/Stock Group"
+    ],
+    "GSTMSTINFOSOURCENOTE": [
+      "Source of details:",
+      "Source of details:"
+    ],
+    "GSTMSTINFONOTE": [
+      "Not Available",
+      "Not Available"
+    ],
+    "LONGPROMPT": [
+      "HSN/SAC:",
+      "Description:",
+      "Taxability Type:",
+      "GST Rate:"
+    ],
+    "GSTMSTINFOHSNSAC": [
+      ""
+    ],
+    "GSTMSTINFOHSNSACDESC": [
+      ""
+    ],
+    "TEMPSRCOFGSTDETAILS": [
+      "As per Company/Stock Group"
+    ],
+    "GSTMSTINFOTAXABILITY": [
+      ""
+    ],
+    "GSTMSTINFOIGSTRATE": [
+      "0"
+    ],
+    "GSTDUTYRATEPER": [
+      "%"
+    ],
+    "GSTTYPEOFSUPPLY": [
+      "Goods"
+    ],
+    "TEMPREPUOMNAME": [
+      ""
+    ],
+    "BASICRATEOFEXCISE": [
+      ""
+    ]
+  }
+}

@@ -15,6 +15,7 @@ export default function HRAIAssistant() {
     { id: 1, text: "Hello! I'm your HR AI Assistant. How can I help you today?", sender: "ai" },
   ]);
   const [inputMessage, setInputMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const quickQuestions = [
     "What is the leave policy?",
@@ -25,19 +26,69 @@ export default function HRAIAssistant() {
     "How to claim expenses?",
   ];
 
-  const handleSendMessage = () => {
-    if (inputMessage.trim()) {
-      setMessages([...messages, { id: messages.length + 1, text: inputMessage, sender: "user" }]);
-      setInputMessage("");
+  const handleSendMessage = async () => {
+    const content = inputMessage.trim();
+    if (!content || isLoading) return;
+
+    const userMessage = {
+      id: messages.length + 1,
+      text: content,
+      sender: "user" as const,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInputMessage("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/hr-ai/attendance", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: content }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Request failed");
+      }
+
+      const aiText = data.answer || "I couldn't process that request right now. Please try again in a moment.";
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: prev.length + 1,
+          text: aiText,
+          sender: "ai",
+        },
+      ]);
+    } catch (error) {
+      console.error("HR AI request failed:", error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const errorMessage = errorMsg.includes("AI service")
+        ? "The AI service is temporarily unavailable. Please check your API key configuration."
+        : errorMsg.includes("HTTP")
+        ? "Server error. Please try again in a moment."
+        : "Sorry, I'm having trouble connecting to the HR AI service. Please try again later.";
       
-      // Simulate AI response
-      setTimeout(() => {
-        setMessages(prev => [...prev, { 
-          id: prev.length + 1, 
-          text: "I understand your question. Let me help you with that. Based on our company policies...", 
-          sender: "ai" 
-        }]);
-      }, 1000);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: prev.length + 1,
+          text: errorMessage,
+          sender: "ai",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -107,6 +158,18 @@ export default function HRAIAssistant() {
                         </div>
                       </div>
                     ))}
+                    {isLoading && (
+                      <div className="flex justify-start">
+                        <div className="max-w-[80%] rounded-2xl px-4 py-2 bg-muted">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
+                            <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                            <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0.4s" }} />
+                            <span className="text-sm text-muted-foreground ml-2">Thinking...</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Input */}
@@ -116,9 +179,15 @@ export default function HRAIAssistant() {
                         placeholder="Type your question..."
                         value={inputMessage}
                         onChange={(e) => setInputMessage(e.target.value)}
-                        onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleSendMessage();
+                          }
+                        }}
+                        disabled={isLoading}
                       />
-                      <Button onClick={handleSendMessage}>
+                      <Button onClick={handleSendMessage} disabled={isLoading}>
                         <Send className="w-4 h-4" />
                       </Button>
                     </div>
