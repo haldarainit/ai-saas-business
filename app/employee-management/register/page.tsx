@@ -42,15 +42,15 @@ export default function RegisterEmployee() {
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
+        video: {
           width: { ideal: 1280, max: 1920 },
           height: { ideal: 720, max: 1080 },
           facingMode: 'user'
         }
       });
-      
+
       setStream(mediaStream);
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.onloadedmetadata = () => {
@@ -152,7 +152,7 @@ export default function RegisterEmployee() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/employees', {
+      const response = await fetch('/api/employee/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -166,8 +166,17 @@ export default function RegisterEmployee() {
       if (data.success) {
         toast({
           title: "Success!",
-          description: `Employee ${formData.name} registered successfully.`,
+          description: `Employee ${formData.name} registered successfully. Login credentials have been sent to ${formData.email}.`,
         });
+
+        // Show temporary password in development mode
+        if (process.env.NODE_ENV === 'development' && data.tempPassword) {
+          toast({
+            title: "Development Mode - Credentials",
+            description: `Temp Password: ${data.tempPassword}`,
+            duration: 10000,
+          });
+        }
 
         // Reset form
         setFormData({
@@ -220,7 +229,7 @@ export default function RegisterEmployee() {
               {/* Employee Details */}
               <Card className="p-4 sm:p-5 md:p-6">
                 <h2 className="text-lg sm:text-xl font-semibold mb-4">Employee Details</h2>
-                
+
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="employeeId">Employee ID *</Label>
@@ -228,7 +237,7 @@ export default function RegisterEmployee() {
                       id="employeeId"
                       placeholder="EMP001"
                       value={formData.employeeId}
-                      onChange={(e) => setFormData({...formData, employeeId: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
                       required
                     />
                   </div>
@@ -239,7 +248,7 @@ export default function RegisterEmployee() {
                       id="name"
                       placeholder="John Doe"
                       value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
                     />
                   </div>
@@ -251,7 +260,7 @@ export default function RegisterEmployee() {
                       type="email"
                       placeholder="john@company.com"
                       value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       required
                     />
                   </div>
@@ -262,7 +271,7 @@ export default function RegisterEmployee() {
                       id="phone"
                       placeholder="+1234567890"
                       value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     />
                   </div>
 
@@ -270,7 +279,7 @@ export default function RegisterEmployee() {
                     <Label htmlFor="department">Department</Label>
                     <Select
                       value={formData.department}
-                      onValueChange={(value) => setFormData({...formData, department: value})}
+                      onValueChange={(value) => setFormData({ ...formData, department: value })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select department" />
@@ -294,7 +303,7 @@ export default function RegisterEmployee() {
                       id="position"
                       placeholder="Software Engineer"
                       value={formData.position}
-                      onChange={(e) => setFormData({...formData, position: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                     />
                   </div>
                 </div>
@@ -303,7 +312,7 @@ export default function RegisterEmployee() {
               {/* Profile Photo */}
               <Card className="p-4 sm:p-5 md:p-6">
                 <h2 className="text-lg sm:text-xl font-semibold mb-4">Profile Photo *</h2>
-                
+
                 {!imagePreview ? (
                   <div className="space-y-3 sm:space-y-4">
                     {/* Camera Capture */}
@@ -324,7 +333,7 @@ export default function RegisterEmployee() {
                           )}
                           <canvas ref={canvasRef} className="hidden" />
                         </div>
-                        
+
                         <div className="flex flex-col sm:flex-row gap-2">
                           <Button
                             type="button"
@@ -415,7 +424,7 @@ export default function RegisterEmployee() {
                         className="w-full h-auto"
                       />
                     </div>
-                    
+
                     <div className="flex items-center gap-2 text-green-600">
                       <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                       <span className="text-xs sm:text-sm font-medium">Photo captured successfully</span>
@@ -447,8 +456,8 @@ export default function RegisterEmployee() {
               >
                 <span className="text-sm sm:text-base">Cancel</span>
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={loading}
                 className="w-full sm:w-auto order-1 sm:order-2"
               >
