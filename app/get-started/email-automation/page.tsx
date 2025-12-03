@@ -214,7 +214,15 @@ export default function EmailAutomationPage() {
         if (result.success && result.data && result.data.campaign) {
           const campaign: Campaign = result.data.campaign;
 
-          console.log("Loading campaign data from database:", {
+          // If the latest campaign is completed, we want to show a fresh form
+          // so the user can start a new one easily.
+          if (campaign.status === "completed") {
+            console.log("✅ Latest campaign is completed. Showing fresh form.");
+            setHasLoadedInitialData(true);
+            return;
+          }
+
+          console.log("📥 Loading campaign data from database:", {
             recipientsCount: campaign.recipients?.length || 0,
             hasCsvData: !!campaign.csvData,
             enabledColumns: campaign.enabledColumns?.length || 0,

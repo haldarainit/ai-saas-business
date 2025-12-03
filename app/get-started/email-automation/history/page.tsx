@@ -130,7 +130,13 @@ export default function EmailHistoryPage() {
       const result = await response.json();
 
       if (result.success) {
-        setCampaigns(result.data.campaigns);
+        // Deduplicate campaigns based on _id
+        const uniqueCampaigns = result.data.campaigns.filter(
+          (campaign: Campaign, index: number, self: Campaign[]) =>
+            index === self.findIndex((c) => c._id === campaign._id)
+        );
+
+        setCampaigns(uniqueCampaigns);
         setPagination(result.data.pagination);
       } else {
         toast.error("Failed to load campaigns");
