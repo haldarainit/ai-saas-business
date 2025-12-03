@@ -14,6 +14,17 @@ export default function Features() {
   const features = [
     {
       image:
+        "https://images.unsplash.com/photo-1556740738-b6a63e27c4df?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+      title: "Inventory Management",
+      description:
+        "Efficiently track and manage your inventory with real-time updates, stock alerts, and automated reordering.",
+      benefits: ["Stock Tracking", "Low Stock Alerts", "Automated Reordering"],
+      accentColor: "rgba(16, 185, 129, 0.5)",
+      iconColor: "text-emerald-500",
+      link: "/inventory-management",
+    },
+    {
+      image:
         "https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
       title: "Landing Page Builder",
       description:
@@ -40,7 +51,7 @@ export default function Features() {
     },
     {
       image:
-        "https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
       title: "Sales & Communication",
       description:
         "AI-powered sales acceleration with intelligent scripts, automated calling, and deal closing assistance.",
@@ -48,6 +59,17 @@ export default function Features() {
       accentColor: "rgba(34, 211, 238, 0.5)",
       iconColor: "text-cyan-500",
       link: "/sales-ai",
+    },
+    {
+      image:
+        "https://images.unsplash.com/photo-1581094794329-c8112a89af12?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+      title: "Techno Tally ChatBot",
+      description:
+        "Intelligent chatbot solution to fetch and analyze your Tally data through natural conversations. Get insights instantly.",
+      benefits: ["Natural Language Queries", "Real-time Data Fetch", "Tally Integration"],
+      accentColor: "rgba(20, 184, 166, 0.5)",
+      iconColor: "text-teal-500",
+      link: "/tally-chatbot",
     },
     {
       image:
