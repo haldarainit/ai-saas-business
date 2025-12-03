@@ -27,11 +27,52 @@ import FramerSpotlight from "@/components/framer-spotlight";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 
+// Define types
+interface CsvData {
+  headers: string[];
+  data: any[];
+  totalRows: number;
+}
+
+interface Campaign {
+  _id: string;
+  subject: string;
+  template: string;
+  recipients: { email: string; sent: boolean; sentAt?: string; error?: string }[];
+  status: "draft" | "active" | "paused" | "completed" | "cancelled";
+  totalEmails: number;
+  sentCount: number;
+  failedCount: number;
+  currentIndex: number;
+  csvData?: CsvData;
+  enabledColumns?: string[];
+  ctaUrl?: string;
+  ctaText?: string;
+  isActive?: boolean; // Legacy support
+}
+
+interface CampaignStatus {
+  isRunning: boolean;
+  campaign: Campaign | null;
+  todaysCount: number;
+  maxEmailsPerDay: number;
+  dailyLimitReached: boolean;
+}
+
+// Extend Window interface for custom timeouts
+declare global {
+  interface Window {
+    subjectSaveTimeout?: NodeJS.Timeout;
+    contentSaveTimeout?: NodeJS.Timeout;
+    ctaSaveTimeout?: NodeJS.Timeout;
+  }
+}
+
 export default function EmailAutomationPage() {
   const router = useRouter();
-  const [emails, setEmails] = useState([]);
-  const [csvData, setCsvData] = useState(null);
-  const [enabledColumns, setEnabledColumns] = useState([]);
+  const [emails, setEmails] = useState<string[]>([]);
+  const [csvData, setCsvData] = useState<CsvData | null>(null);
+  const [enabledColumns, setEnabledColumns] = useState<string[]>([]);
   const [subject, setSubject] = useState("Welcome to Our Newsletter!");
   const [content, setContent] = useState(
     "<p>Hi there!</p><p>Thank you for subscribing to our newsletter. We're excited to have you on board!</p><p>Best regards,<br/>The Team</p>"
@@ -41,15 +82,15 @@ export default function EmailAutomationPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [sentCount, setSentCount] = useState(0);
-  const [campaignStatus, setCampaignStatus] = useState(null);
+  const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null);
   const [testEmail, setTestEmail] = useState("");
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
-  const intervalRef = useRef(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-save subject changes to database
   const handleSubjectChange = useCallback(
-    async (newSubject) => {
+    async (newSubject: string) => {
       setSubject(newSubject);
 
       // Debounce the save operation
@@ -84,7 +125,7 @@ export default function EmailAutomationPage() {
 
   // Auto-save content changes to database
   const handleContentChange = useCallback(
-    async (newContent) => {
+    async (newContent: string) => {
       setContent(newContent);
 
       // Debounce the save operation
@@ -128,7 +169,7 @@ export default function EmailAutomationPage() {
 
   // Auto-save CTA changes
   const handleCtaChange = useCallback(
-    async (newCtaUrl, newCtaText) => {
+    async (newCtaUrl: string, newCtaText: string) => {
       setCtaUrl(newCtaUrl);
       setCtaText(newCtaText);
 
@@ -171,7 +212,15 @@ export default function EmailAutomationPage() {
         const result = await response.json();
 
         if (result.success && result.data && result.data.campaign) {
-          const campaign = result.data.campaign;
+          const campaign: Campaign = result.data.campaign;
+
+          // If the latest campaign is completed or cancelled, we want to show a fresh form
+          // so the user can start a new one easily without old data.
+          if (campaign.status === "completed" || campaign.status === "cancelled") {
+            console.log("✅ Latest campaign is finished. Showing fresh form.");
+            setHasLoadedInitialData(true);
+            return;
+          }
 
           console.log("📥 Loading campaign data from database:", {
             recipientsCount: campaign.recipients?.length || 0,
@@ -211,7 +260,7 @@ export default function EmailAutomationPage() {
           if (
             campaign.template &&
             campaign.template !==
-              "<p>Hi there!</p><p>Thank you for subscribing to our newsletter. We're excited to have you on board!</p><p>Best regards,<br/>The Team</p>"
+            "<p>Hi there!</p><p>Thank you for subscribing to our newsletter. We're excited to have you on board!</p><p>Best regards,<br/>The Team</p>"
           ) {
             setContent(campaign.template);
           }
@@ -251,7 +300,7 @@ export default function EmailAutomationPage() {
             setIsRunning(result.data.isRunning);
             setIsPaused(
               !result.data.isRunning &&
-                (campaign.status === "paused" || campaign.status === "active")
+              (campaign.status === "paused" || campaign.status === "active")
             );
             setSentCount(campaign.currentIndex || 0);
 
@@ -437,7 +486,7 @@ export default function EmailAutomationPage() {
     }
   };
 
-  const handleEmailsUploaded = useCallback(async (uploadedEmails) => {
+  const handleEmailsUploaded = useCallback(async (uploadedEmails: string[]) => {
     setEmails(uploadedEmails);
     if (uploadedEmails.length > 0) {
       toast.success(`${uploadedEmails.length} recipients loaded!`);
@@ -447,7 +496,7 @@ export default function EmailAutomationPage() {
   }, []);
 
   const handleCsvDataUploaded = useCallback(
-    async (uploadedCsvData) => {
+    async (uploadedCsvData: CsvData | null) => {
       setCsvData(uploadedCsvData);
 
       // Save complete campaign data (emails + CSV) to database
@@ -489,7 +538,7 @@ export default function EmailAutomationPage() {
   );
 
   const handleEnabledColumnsChange = useCallback(
-    async (columns) => {
+    async (columns: string[]) => {
       setEnabledColumns(columns);
 
       // Save enabled columns to database immediately
@@ -523,7 +572,7 @@ export default function EmailAutomationPage() {
   );
 
   const handleDeleteEmail = useCallback(
-    async (indexOrAll) => {
+    async (indexOrAll: number | "all") => {
       if (indexOrAll === "all") {
         // Clear all emails - force delete everything including sent ones
         setEmails([]);
@@ -678,19 +727,18 @@ export default function EmailAutomationPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <Badge
-                    className={`${
-                      campaignStatus.isRunning
-                        ? "bg-green-500"
-                        : campaignStatus.campaign?.isActive
+                    className={`${campaignStatus.isRunning
+                      ? "bg-green-500"
+                      : campaignStatus.campaign?.isActive
                         ? "bg-yellow-500"
                         : "bg-gray-500"
-                    } text-white`}
+                      } text-white`}
                   >
                     {campaignStatus.isRunning
                       ? "Active"
                       : campaignStatus.campaign?.isActive
-                      ? "Paused"
-                      : "Inactive"}
+                        ? "Paused"
+                        : "Inactive"}
                   </Badge>
                   <span className="text-sm text-muted-foreground">
                     Today: {campaignStatus.todaysCount}/
