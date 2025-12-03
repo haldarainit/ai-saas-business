@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -8,7 +8,7 @@ import { CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function VerifyEmail() {
+function VerifyEmailContent() {
     const [verifying, setVerifying] = useState(true);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState("");
@@ -125,5 +125,27 @@ export default function VerifyEmail() {
                 </div>
             </Card>
         </div>
+    );
+}
+
+export default function VerifyEmail() {
+    return (
+        <Suspense
+            fallback={
+                <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500/10 via-background to-cyan-500/10 p-4">
+                    <Card className="w-full max-w-md">
+                        <div className="p-8 text-center">
+                            <Loader2 className="w-16 h-16 mx-auto mb-4 text-purple-500 animate-spin" />
+                            <h1 className="text-2xl font-bold mb-2">Loading...</h1>
+                            <p className="text-muted-foreground">
+                                Please wait while we load the verification page.
+                            </p>
+                        </div>
+                    </Card>
+                </div>
+            }
+        >
+            <VerifyEmailContent />
+        </Suspense>
     );
 }
