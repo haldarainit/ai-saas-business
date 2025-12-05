@@ -1470,7 +1470,9 @@ export default function TechnoQuotationPage() {
         }
       `}</style>
 
-            <Footer />
+            <div className="no-print">
+                <Footer />
+            </div>
         </>
     );
 }
