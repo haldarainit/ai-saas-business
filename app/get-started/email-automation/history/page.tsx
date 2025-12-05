@@ -58,6 +58,7 @@ interface Campaign {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  currentIndex: number;
 }
 
 interface EmailLog {
@@ -673,7 +674,7 @@ export default function EmailHistoryPage() {
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center justify-between text-xs mb-1">
                                   <span>{Math.round((campaign.sentCount / (campaign.totalEmails || 1)) * 100)}%</span>
-                                  <span className="text-muted-foreground">{campaign.sentCount}/{campaign.totalEmails}</span>
+                                  <span className="text-muted-foreground">{campaign.sentCount}/{campaign.currentIndex}</span>
                                 </div>
                                 <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                                   <div
