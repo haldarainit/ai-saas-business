@@ -63,6 +63,14 @@ export async function POST(request) {
           await campaignScheduler.updateCampaignData(campaignData);
         return Response.json(updateCampaignDataResult);
 
+      case "completeCampaign":
+        const completeCampaignResult = await campaignScheduler.storage.updateCampaignStatus(
+          campaignData.campaignId,
+          "completed",
+          { completedAt: new Date() }
+        );
+        return Response.json(completeCampaignResult);
+
       case "generateTemplate":
         try {
           const {

@@ -488,6 +488,8 @@ export default function EmailAutomationPage() {
 
   const handleEmailsUploaded = useCallback(async (uploadedEmails: string[]) => {
     setEmails(uploadedEmails);
+    // Reset sent count when new emails are uploaded
+    setSentCount(0);
     if (uploadedEmails.length > 0) {
       toast.success(`${uploadedEmails.length} recipients loaded!`);
       // Note: Data will be saved when handleCsvDataUploaded is called
@@ -500,9 +502,43 @@ export default function EmailAutomationPage() {
       setCsvData(uploadedCsvData);
 
       // Save complete campaign data (emails + CSV) to database
-      // This is called after handleEmailsUploaded, so we have all data
+      // Extract emails directly from CSV data to avoid stale closure issue
       if (uploadedCsvData) {
+        // Extract emails from the uploaded CSV data directly
+        const uploadedEmails = uploadedCsvData.data
+          .map((row: any) => row.email)
+          .filter((email: string) => email && email.includes("@"));
+        const uniqueEmails = [...new Set(uploadedEmails)] as string[];
+
         try {
+          // First, check if there's an existing campaign
+          const statusResponse = await fetch("/api/email-campaign");
+          const statusResult = await statusResponse.json();
+
+          let shouldCreateNew = false;
+
+          if (statusResult.success && statusResult.data?.campaign) {
+            const existingCampaign = statusResult.data.campaign;
+
+            // If the existing campaign has been used (has sent emails), complete it and create a new one
+            if (existingCampaign.sentCount > 0) {
+              console.log("📧 Existing campaign has sent emails. Completing it and creating a new campaign...");
+              shouldCreateNew = true;
+
+              // Complete the old campaign to preserve its history
+              await fetch("/api/email-campaign", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  action: "completeCampaign",
+                  campaignId: existingCampaign._id,
+                }),
+              });
+            }
+          }
+
           const response = await fetch("/api/email-campaign", {
             method: "POST",
             headers: {
@@ -511,11 +547,13 @@ export default function EmailAutomationPage() {
             body: JSON.stringify({
               action: "updateCampaignData",
               campaignData: {
-                emails,
+                emails: uniqueEmails, // Use emails from CSV directly
                 subject,
                 content,
                 csvData: uploadedCsvData,
                 enabledColumns,
+                // Only force new if needed
+                forceNew: shouldCreateNew,
               },
             }),
           });
@@ -534,7 +572,7 @@ export default function EmailAutomationPage() {
         }
       }
     },
-    [emails, subject, content, enabledColumns]
+    [subject, content, enabledColumns] // Removed 'emails' since we extract from CSV directly
   );
 
   const handleEnabledColumnsChange = useCallback(

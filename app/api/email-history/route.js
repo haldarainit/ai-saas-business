@@ -139,6 +139,7 @@ export async function GET(request) {
         },
         stats: {
           total: totalCount,
+          pending: statsMap.pending || 0,
           sent: statsMap.sent || 0,
           failed: statsMap.failed || 0,
           bounced: statsMap.bounced || 0,

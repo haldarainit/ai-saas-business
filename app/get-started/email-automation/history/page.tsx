@@ -91,6 +91,7 @@ export default function EmailHistoryPage() {
     bounced: 0,
     opened: 0,
     clicked: 0,
+    pending: 0,
   });
 
   const [pagination, setPagination] = useState({
@@ -297,6 +298,10 @@ export default function EmailHistoryPage() {
 
   const getStatusBadge = (status: string) => {
     const config: Record<string, { className: string; icon: React.ReactNode }> = {
+      pending: {
+        className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300 font-semibold",
+        icon: <Clock className="w-3 h-3" />,
+      },
       sent: {
         className: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300 font-semibold",
         icon: <CheckCircle2 className="w-3 h-3" />,
@@ -404,7 +409,7 @@ export default function EmailHistoryPage() {
 
             {/* Statistics Cards - Only show in Logs view */}
             {viewMode === "logs" && (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
                 <Card className="p-5 frost-glass border-l-4 border-l-primary hover:shadow-xl transition-all duration-300">
                   <div className="flex items-center justify-between mb-3">
                     <div className="p-2 bg-primary/10 rounded-lg">
@@ -416,6 +421,20 @@ export default function EmailHistoryPage() {
                   </p>
                   <p className="text-2xl font-bold">
                     {stats.total.toLocaleString()}
+                  </p>
+                </Card>
+
+                <Card className="p-5 frost-glass border-l-4 border-l-yellow-500 hover:shadow-xl transition-all duration-300">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-2 bg-yellow-500/10 rounded-lg">
+                      <Clock className="w-5 h-5 text-yellow-500" />
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">
+                    Pending
+                  </p>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {stats.pending.toLocaleString()}
                   </p>
                 </Card>
 
@@ -532,6 +551,7 @@ export default function EmailHistoryPage() {
                         </>
                       ) : (
                         <>
+                          <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="sent">Sent</SelectItem>
                           <SelectItem value="failed">Failed</SelectItem>
                           <SelectItem value="bounced">Bounced</SelectItem>
