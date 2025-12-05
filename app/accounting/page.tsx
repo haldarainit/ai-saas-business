@@ -32,7 +32,7 @@ export default function Accounting() {
             accentColor: "rgba(16, 185, 129, 0.5)",
             iconColor: "text-emerald-500",
             gradient: "from-emerald-500/20 to-teal-500/20",
-            link: "/accounting/quotation",
+            link: "/accounting/techno-quotation",
         },
     ]
 
