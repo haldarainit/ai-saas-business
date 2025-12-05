@@ -18,13 +18,15 @@ export async function POST(request) {
         (process.env.NODE_ENV === "development" ? "default" : "anonymous");
     }
 
-    const { action } = await request.json();
+    const { action, allUsers } = await request.json();
 
     if (action === "cleanup") {
-      console.log("🧹 Starting campaign cleanup for user:", userId);
+      // If allUsers is true, clean up ALL campaigns, not just this user's
+      const query = allUsers ? {} : { userId };
+      console.log("🧹 Starting campaign cleanup", allUsers ? "for ALL users" : `for user: ${userId}`);
 
-      // 1. Find all campaigns for this user
-      const campaigns = await Campaign.find({ userId }).sort({ createdAt: -1 });
+      // 1. Find all campaigns
+      const campaigns = await Campaign.find(query).sort({ createdAt: -1 });
       console.log(`Found ${campaigns.length} campaigns`);
 
       const results = {
@@ -69,6 +71,22 @@ export async function POST(request) {
             { _id: campaign._id },
             { 
               $set: { 
+                sentCount: actualSentCount,
+                currentIndex: actualSentCount,
+              } 
+            }
+          );
+          results.fixed++;
+        }
+
+        // Fix completed campaigns: totalEmails should equal sentCount (what was actually sent)
+        if (campaign.status === "completed" && campaign.totalEmails !== actualSentCount && actualSentCount > 0) {
+          console.log(`🔧 Fixing totalEmails for completed campaign ${campaign._id}: ${campaign.totalEmails} -> ${actualSentCount}`);
+          await Campaign.updateOne(
+            { _id: campaign._id },
+            { 
+              $set: { 
+                totalEmails: actualSentCount,
                 sentCount: actualSentCount,
                 currentIndex: actualSentCount,
               } 
@@ -177,6 +195,10 @@ export async function GET(request) {
   try {
     await dbConnect();
 
+    // Get query params to check for allUsers flag
+    const { searchParams } = new URL(request.url);
+    const allUsers = searchParams.get("allUsers") === "true";
+
     // Extract user information
     let userId = null;
     const authResult = extractUserFromRequest(request);
@@ -188,8 +210,9 @@ export async function GET(request) {
         (process.env.NODE_ENV === "development" ? "default" : "anonymous");
     }
 
-    // Get campaign health report
-    const campaigns = await Campaign.find({ userId }).sort({ createdAt: -1 });
+    // Get campaign health report - optionally for all users
+    const query = allUsers ? {} : { userId };
+    const campaigns = await Campaign.find(query).sort({ createdAt: -1 });
 
     const report = [];
     for (const campaign of campaigns) {
