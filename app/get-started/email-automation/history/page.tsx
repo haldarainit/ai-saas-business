@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Mail,
@@ -104,18 +104,11 @@ export default function EmailHistoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Fetch data based on view mode
-  useEffect(() => {
-    if (viewMode === "campaigns") {
-      fetchCampaigns();
-    } else {
-      fetchEmailHistory();
-    }
-  }, [viewMode, pagination.currentPage, statusFilter, selectedCampaign]);
-
-  const fetchCampaigns = async () => {
+  // Fetch campaigns - wrapped in useCallback to prevent stale closures
+  const fetchCampaigns = useCallback(async () => {
     try {
       setIsLoading(true);
+      console.log("📊 Fetching campaigns...");
       const params = new URLSearchParams({
         page: pagination.currentPage.toString(),
         limit: "20",
@@ -129,6 +122,8 @@ export default function EmailHistoryPage() {
       const response = await fetch(`/api/email-history?${params}`);
       const result = await response.json();
 
+      console.log("📊 Campaigns API response:", result);
+
       if (result.success) {
         // Deduplicate campaigns based on _id
         const uniqueCampaigns = result.data.campaigns.filter(
@@ -136,22 +131,31 @@ export default function EmailHistoryPage() {
             index === self.findIndex((c) => c._id === campaign._id)
         );
 
+        console.log(`✅ Loaded ${uniqueCampaigns.length} unique campaigns`);
         setCampaigns(uniqueCampaigns);
         setPagination(result.data.pagination);
       } else {
         toast.error("Failed to load campaigns");
       }
     } catch (error) {
-      console.error("Failed to fetch campaigns:", error);
+      console.error("❌ Failed to fetch campaigns:", error);
       toast.error("Failed to load campaigns");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pagination.currentPage, statusFilter]);
 
-  const fetchEmailHistory = async () => {
+  // Fetch email history - wrapped in useCallback to prevent stale closures
+  const fetchEmailHistory = useCallback(async () => {
     try {
       setIsLoading(true);
+      console.log("📧 Fetching email history...", {
+        selectedCampaign: selectedCampaign?._id,
+        statusFilter,
+        searchTerm,
+        page: pagination.currentPage
+      });
+
       const params = new URLSearchParams({
         page: pagination.currentPage.toString(),
         limit: "20",
@@ -166,26 +170,51 @@ export default function EmailHistoryPage() {
       }
 
       if (selectedCampaign) {
+        console.log("🎯 Filtering by campaign ID:", selectedCampaign._id);
         params.append("campaignId", selectedCampaign._id);
       }
 
-      const response = await fetch(`/api/email-history?${params}`);
+      const url = `/api/email-history?${params}`;
+      console.log("🔗 Fetching from:", url);
+
+      const response = await fetch(url);
       const result = await response.json();
 
+      console.log("📧 Email history API response:", result);
+
       if (result.success) {
+        console.log(`✅ Loaded ${result.data.emailLogs.length} email logs`);
+        console.log("📊 Stats:", result.data.stats);
         setEmailLogs(result.data.emailLogs);
         setPagination(result.data.pagination);
         setStats(result.data.stats);
       } else {
+        console.error("❌ API returned error:", result.error);
         toast.error("Failed to load email history");
       }
     } catch (error) {
-      console.error("Failed to fetch email history:", error);
+      console.error("❌ Failed to fetch email history:", error);
       toast.error("Failed to load email history");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pagination.currentPage, statusFilter, searchTerm, selectedCampaign]);
+
+  // Fetch data based on view mode
+  useEffect(() => {
+    console.log("🔄 View mode changed:", viewMode, {
+      selectedCampaign: selectedCampaign?._id,
+      page: pagination.currentPage,
+      statusFilter
+    });
+
+    if (viewMode === "campaigns") {
+      fetchCampaigns();
+    } else {
+      fetchEmailHistory();
+    }
+  }, [viewMode, fetchCampaigns, fetchEmailHistory]);
+
 
   const handleSearch = () => {
     setPagination((prev) => ({ ...prev, currentPage: 1 }));

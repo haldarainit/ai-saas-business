@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import dbConnect from "../../../lib/mongodb.js";
 import CampaignEmailHistory from "../../../lib/models/CampaignEmailHistory.js";
 import CampaignStorage from "../../../lib/email/CampaignStorage.js";
@@ -61,7 +62,16 @@ export async function GET(request) {
     const query = { userId };
 
     if (campaignId) {
-      query.campaignId = campaignId;
+      // Convert campaignId string to ObjectId for proper MongoDB matching
+      try {
+        query.campaignId = new mongoose.Types.ObjectId(campaignId);
+      } catch (err) {
+        console.error("Invalid campaignId format:", campaignId);
+        return Response.json(
+          { success: false, error: "Invalid campaign ID format" },
+          { status: 400 }
+        );
+      }
     }
 
     if (status && status !== "all") {
@@ -96,27 +106,14 @@ export async function GET(request) {
     console.log(`📊 Found ${totalCount} total emails for user`);
 
     // Get statistics for this user's emails (filtered by campaign if provided)
+    // Since we already have the query.campaignId as ObjectId, we can use it directly
     const statsMatch = { userId };
     if (campaignId) {
-      // Convert string ID to ObjectId if needed, though mongoose usually handles string IDs in match
-      // But for aggregation $match, we might need to be careful. 
-      // Ideally, we should cast to ObjectId if it's stored as ObjectId.
-      // However, CampaignEmailHistory schema defines campaignId as ObjectId.
-      // Let's rely on mongoose casting or simple string match if it works, 
-      // but aggregation usually requires correct types.
-      // For safety, we'll skip strict casting here as we are in a simple flow, 
-      // but in production we might need `new mongoose.Types.ObjectId(campaignId)`.
-      // Let's try simple string match first, or just filter by what we have.
-      // Actually, let's just use the query object we built above for count, 
-      // but we need to be careful about $or for search which might not apply to stats.
-      // So we'll just use userId and campaignId for stats.
-      // NOTE: Mongoose aggregation pipeline doesn't auto-cast strings to ObjectIds.
-      // We will skip campaign-specific stats in the aggregation for now to avoid complexity 
-      // or just use the general stats.
+      statsMatch.campaignId = query.campaignId; // Already converted to ObjectId above
     }
 
     const stats = await CampaignEmailHistory.aggregate([
-      { $match: campaignId ? { userId, campaignId: new (await import('mongoose')).default.Types.ObjectId(campaignId) } : { userId } },
+      { $match: statsMatch },
       {
         $group: {
           _id: "$status",
