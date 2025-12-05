@@ -150,6 +150,11 @@ export default function TechnoQuotationPage() {
         'Routine Philosophy & Cable Schedule'
     ]);
 
+    // Footer Content
+    const [footerLine1, setFooterLine1] = useState('Solar Solutions | Owner & VP and Power Plans | Water Heater | Street Lights | Home Lighting');
+    const [footerLine2, setFooterLine2] = useState('LED Lighting Solutions | Inverters | Commercial | Industrial | Customized solution');
+    const [footerLine3, setFooterLine3] = useState('Authorized Submitter: SANTOSH - M.D. - SCADA / PDD');
+
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -410,11 +415,26 @@ export default function TechnoQuotationPage() {
                     <div className="footer">
                         <p>Page 1 of 4</p>
                         <p>
-                            <strong>Solar Solutions</strong> | Owner & VP and Power Plans | <strong>Water Heater</strong> | <strong>Street Lights</strong> | <strong>Home Lighting</strong>
+                            <input
+                                type="text"
+                                value={footerLine1}
+                                onChange={(e) => setFooterLine1(e.target.value)}
+                                className="editable-field full-width footer-field"
+                            />
                             <br />
-                            <strong>LED Lighting Solutions</strong> | Inverters | Commercial | Industrial | Customized solution
+                            <input
+                                type="text"
+                                value={footerLine2}
+                                onChange={(e) => setFooterLine2(e.target.value)}
+                                className="editable-field full-width footer-field"
+                            />
                             <br />
-                            Authorized Submitter: SANTOSH - M.D. - SCADA / PDD
+                            <input
+                                type="text"
+                                value={footerLine3}
+                                onChange={(e) => setFooterLine3(e.target.value)}
+                                className="editable-field full-width footer-field"
+                            />
                         </p>
                     </div>
                 </div>
@@ -594,11 +614,11 @@ export default function TechnoQuotationPage() {
                     <div className="footer">
                         <p>Page 2 of 4</p>
                         <p>
-                            <strong>Solar Solutions</strong> | Owner & VP and Power Plans | <strong>Water Heater</strong> | <strong>Street Lights</strong> | <strong>Home Lighting</strong>
+                            {footerLine1}
                             <br />
-                            <strong>LED Lighting Solutions</strong> | Inverters | Commercial | Industrial | Customized solution
+                            {footerLine2}
                             <br />
-                            Authorized Submitter: SANTOSH - M.D. - SCADA / PDD
+                            {footerLine3}
                         </p>
                     </div>
                 </div>
@@ -865,11 +885,11 @@ export default function TechnoQuotationPage() {
                     <div className="footer">
                         <p>Page 3 of 4</p>
                         <p>
-                            <strong>Solar Solutions</strong> | Owner & VP and Power Plans | <strong>Water Heater</strong> | <strong>Street Lights</strong> | <strong>Home Lighting</strong>
+                            {footerLine1}
                             <br />
-                            <strong>LED Lighting Solutions</strong> | Inverters | Commercial | Industrial | Customized solution
+                            {footerLine2}
                             <br />
-                            Authorized Submitter: SANTOSH - M.D. - SCADA / PDD
+                            {footerLine3}
                         </p>
                     </div>
                 </div>
@@ -980,11 +1000,11 @@ export default function TechnoQuotationPage() {
                     <div className="footer">
                         <p>Page 4 of 4</p>
                         <p>
-                            <strong>Solar Solutions</strong> | Owner & VP and Power Plans | <strong>Water Heater</strong> | <strong>Street Lights</strong> | <strong>Home Lighting</strong>
+                            {footerLine1}
                             <br />
-                            <strong>LED Lighting Solutions</strong> | Inverters | Commercial | Industrial | Customized solution
+                            {footerLine2}
                             <br />
-                            Authorized Submitter: SANTOSH - M.D. - SCADA / PDD
+                            {footerLine3}
                         </p>
                     </div>
                 </div>
@@ -1044,7 +1064,8 @@ export default function TechnoQuotationPage() {
           .main-title-field,
           .section-title-field,
           .section-heading-field,
-          .table-header-field {
+          .table-header-field,
+          .footer-field {
             border: none !important;
             background: transparent !important;
             outline: none !important;
@@ -1432,6 +1453,20 @@ export default function TechnoQuotationPage() {
           font-size: 8px;
           text-align: center;
           line-height: 1.4;
+        }
+
+        .footer-field {
+          font-size: 8px;
+          line-height: 1.4;
+          text-align: center;
+          border: 1px dashed #ccc;
+          background: #fafafa;
+          padding: 2px 4px;
+        }
+
+        .footer-field:focus {
+          outline: 2px solid #4CAF50;
+          background: white;
         }
       `}</style>
 
