@@ -32,6 +32,53 @@ interface SupplyItem {
 }
 
 export default function TechnoQuotationPage() {
+    // Company Information & Logo
+    const [logoUrl, setLogoUrl] = useState('');
+    const [logoLetter, setLogoLetter] = useState('G');
+    const [companyName, setCompanyName] = useState('GREEN ENERGY PVT. LTD');
+    const [companyId, setCompanyId] = useState('GREEN - 2RAAGPV24KEP');
+    const [companyAddress1, setCompanyAddress1] = useState('Malad - 400 064');
+    const [companyAddress2, setCompanyAddress2] = useState('Mumbai, Maharashtra, India');
+    const [companyPhone, setCompanyPhone] = useState('+91 99205 21473');
+    const [companyDate, setCompanyDate] = useState('Thursday, March 06th');
+
+    // Main Title
+    const [mainTitle, setMainTitle] = useState('TECHNO COMMERCIAL QUOTATION');
+
+    // Section Headings
+    const [panelSectionHeading, setPanelSectionHeading] = useState('Panel');
+    const [technicalComplianceHeading, setTechnicalComplianceHeading] = useState('Technical Compliance');
+    const [billOfQuantityHeading, setBillOfQuantityHeading] = useState('Bill of Quantity Summary');
+    const [billOfQuantitySubtitle, setBillOfQuantitySubtitle] = useState('(Mentioned in RP TS — reference BOM\'s)');
+    const [commercialOffersHeading, setCommercialOffersHeading] = useState('Commercial Offers');
+    const [supplyHeading, setSupplyHeading] = useState('1. Supply');
+    const [erectionHeading, setErectionHeading] = useState('2. Erection, Testing & Commissioning');
+    const [freightHeading, setFreightHeading] = useState('3. Freight & Insurance');
+    const [termsHeading, setTermsHeading] = useState('Terms & Conditions');
+
+    // Table Column Headers - Panel Table
+    const [panelColPanel, setPanelColPanel] = useState('Panel');
+    const [panelColQty, setPanelColQty] = useState('Qty');
+    const [panelColRemarks, setPanelColRemarks] = useState('Remarks');
+
+    // Table Column Headers - Technical Compliance
+    const [techColParameter, setTechColParameter] = useState('Parameter');
+    const [techColRequirement, setTechColRequirement] = useState('Requirement');
+    const [techColOffered, setTechColOffered] = useState('Offered');
+
+    // Table Column Headers - Bill of Quantity
+    const [billColPanel, setBillColPanel] = useState('Panel');
+    const [billColComponents, setBillColComponents] = useState('Key Components');
+
+    // Table Column Headers - Commercial Tables
+    const [commColItem, setCommColItem] = useState('Item');
+    const [commColQty, setCommColQty] = useState('Qty');
+    const [commColQtyUnit, setCommColQtyUnit] = useState('(In Nos)');
+    const [commColUnitPrice, setCommColUnitPrice] = useState('Unit Price');
+    const [commColUnitPriceUnit, setCommColUnitPriceUnit] = useState('(In Rs.)');
+    const [commColAmount, setCommColAmount] = useState('Amount');
+    const [commColAmountUnit, setCommColAmountUnit] = useState('(In Rs.)');
+
     const [refNo, setRefNo] = useState('PTP/305/DAAN/2025-26/0181');
     const [date, setDate] = useState('04/05/2025');
     const [customerName, setCustomerName] = useState('The Head Plant - SAIL');
@@ -103,6 +150,17 @@ export default function TechnoQuotationPage() {
         'Routine Philosophy & Cable Schedule'
     ]);
 
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setLogoUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handlePrint = () => {
         window.print();
     };
@@ -141,19 +199,51 @@ export default function TechnoQuotationPage() {
                 <div className="page">
                     <div className="header">
                         <div className="logo-section">
-                            <div className="logo-circle">G</div>
-                            <div className="company-name">GREEN ENERGY PVT. LTD</div>
+                            {logoUrl ? (
+                                <img src={logoUrl} alt="Company Logo" className="logo-image" />
+                            ) : (
+                                <div className="logo-circle" contentEditable suppressContentEditableWarning onBlur={(e) => setLogoLetter(e.currentTarget.textContent || 'G')}>
+                                    {logoLetter}
+                                </div>
+                            )}
+                            <div>
+                                <input
+                                    type="text"
+                                    value={companyName}
+                                    onChange={(e) => setCompanyName(e.target.value)}
+                                    className="editable-field company-name-field"
+                                />
+                                <div className="no-print" style={{ marginTop: '5px' }}>
+                                    <label htmlFor="logo-upload" style={{ cursor: 'pointer', fontSize: '9px', color: '#666', textDecoration: 'underline' }}>
+                                        Upload Logo
+                                    </label>
+                                    <input
+                                        id="logo-upload"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleLogoUpload}
+                                        style={{ display: 'none' }}
+                                    />
+                                </div>
+                            </div>
                         </div>
                         <div className="header-info">
-                            <p><strong>GREEN - 2RAAGPV24KEP</strong></p>
-                            <p>Malad - 400 064</p>
-                            <p>Mumbai, Maharashtra, India</p>
-                            <p>Phone: +91 99205 21473</p>
-                            <p>Thursday, March 06th</p>
+                            <p><strong><input type="text" value={companyId} onChange={(e) => setCompanyId(e.target.value)} className="editable-field" /></strong></p>
+                            <p><input type="text" value={companyAddress1} onChange={(e) => setCompanyAddress1(e.target.value)} className="editable-field" /></p>
+                            <p><input type="text" value={companyAddress2} onChange={(e) => setCompanyAddress2(e.target.value)} className="editable-field" /></p>
+                            <p>Phone: <input type="text" value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} className="editable-field" /></p>
+                            <p><input type="text" value={companyDate} onChange={(e) => setCompanyDate(e.target.value)} className="editable-field" /></p>
                         </div>
                     </div>
 
-                    <h1 className="main-title">TECHNO COMMERCIAL QUOTATION</h1>
+                    <h1 className="main-title">
+                        <input
+                            type="text"
+                            value={mainTitle}
+                            onChange={(e) => setMainTitle(e.target.value)}
+                            className="editable-field main-title-field"
+                        />
+                    </h1>
 
                     <div className="ref-section">
                         <p>
@@ -232,13 +322,41 @@ export default function TechnoQuotationPage() {
                         ))}
                     </ul>
 
-                    <h3 className="section-heading">Panel</h3>
+                    <h3 className="section-heading">
+                        <input
+                            type="text"
+                            value={panelSectionHeading}
+                            onChange={(e) => setPanelSectionHeading(e.target.value)}
+                            className="editable-field section-heading-field"
+                        />
+                    </h3>
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th>Panel</th>
-                                <th>Qty</th>
-                                <th>Remarks</th>
+                                <th>
+                                    <input
+                                        type="text"
+                                        value={panelColPanel}
+                                        onChange={(e) => setPanelColPanel(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                </th>
+                                <th>
+                                    <input
+                                        type="text"
+                                        value={panelColQty}
+                                        onChange={(e) => setPanelColQty(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                </th>
+                                <th>
+                                    <input
+                                        type="text"
+                                        value={panelColRemarks}
+                                        onChange={(e) => setPanelColRemarks(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -305,26 +423,58 @@ export default function TechnoQuotationPage() {
                 <div className="page">
                     <div className="header">
                         <div className="logo-section">
-                            <div className="logo-circle">G</div>
-                            <div className="company-name">GREEN ENERGY PVT. LTD</div>
+                            {logoUrl ? (
+                                <img src={logoUrl} alt="Company Logo" className="logo-image" />
+                            ) : (
+                                <div className="logo-circle">{logoLetter}</div>
+                            )}
+                            <div className="company-name">{companyName}</div>
                         </div>
                         <div className="header-info">
-                            <p><strong>GREEN - 2RAAGPV24KEP</strong></p>
-                            <p>Malad - 400 064</p>
-                            <p>Mumbai, Maharashtra, India</p>
-                            <p>Phone: +91 99205 21473</p>
-                            <p>Thursday, March 06th</p>
+                            <p><strong>{companyId}</strong></p>
+                            <p>{companyAddress1}</p>
+                            <p>{companyAddress2}</p>
+                            <p>Phone: {companyPhone}</p>
+                            <p>{companyDate}</p>
                         </div>
                     </div>
 
-                    <h2 className="section-title">Technical Compliance</h2>
+                    <h2 className="section-title">
+                        <input
+                            type="text"
+                            value={technicalComplianceHeading}
+                            onChange={(e) => setTechnicalComplianceHeading(e.target.value)}
+                            className="editable-field section-title-field"
+                        />
+                    </h2>
 
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th>Parameter</th>
-                                <th>Requirement</th>
-                                <th>Offered</th>
+                                <th>
+                                    <input
+                                        type="text"
+                                        value={techColParameter}
+                                        onChange={(e) => setTechColParameter(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                </th>
+                                <th>
+                                    <input
+                                        type="text"
+                                        value={techColRequirement}
+                                        onChange={(e) => setTechColRequirement(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                </th>
+                                <th>
+                                    <input
+                                        type="text"
+                                        value={techColOffered}
+                                        onChange={(e) => setTechColOffered(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -371,14 +521,42 @@ export default function TechnoQuotationPage() {
                         </tbody>
                     </table>
 
-                    <h3 className="section-heading mt-6">Bill of Quantity Summary</h3>
-                    <p className="subtitle">(Mentioned in RP TS — reference BOM's)</p>
+                    <h3 className="section-heading mt-6">
+                        <input
+                            type="text"
+                            value={billOfQuantityHeading}
+                            onChange={(e) => setBillOfQuantityHeading(e.target.value)}
+                            className="editable-field section-heading-field"
+                        />
+                    </h3>
+                    <p className="subtitle">
+                        <input
+                            type="text"
+                            value={billOfQuantitySubtitle}
+                            onChange={(e) => setBillOfQuantitySubtitle(e.target.value)}
+                            className="editable-field full-width"
+                        />
+                    </p>
 
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th>Panel</th>
-                                <th>Key Components</th>
+                                <th>
+                                    <input
+                                        type="text"
+                                        value={billColPanel}
+                                        onChange={(e) => setBillColPanel(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                </th>
+                                <th>
+                                    <input
+                                        type="text"
+                                        value={billColComponents}
+                                        onChange={(e) => setBillColComponents(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -429,28 +607,95 @@ export default function TechnoQuotationPage() {
                 <div className="page">
                     <div className="header">
                         <div className="logo-section">
-                            <div className="logo-circle">G</div>
-                            <div className="company-name">GREEN ENERGY PVT. LTD</div>
+                            {logoUrl ? (
+                                <img src={logoUrl} alt="Company Logo" className="logo-image" />
+                            ) : (
+                                <div className="logo-circle">{logoLetter}</div>
+                            )}
+                            <div className="company-name">{companyName}</div>
                         </div>
                         <div className="header-info">
-                            <p><strong>GREEN - 2RAAGPV24KEP</strong></p>
-                            <p>Malad - 400 064</p>
-                            <p>Mumbai, Maharashtra, India</p>
-                            <p>Phone: +91 99205 21473</p>
-                            <p>Thursday, March 06th</p>
+                            <p><strong>{companyId}</strong></p>
+                            <p>{companyAddress1}</p>
+                            <p>{companyAddress2}</p>
+                            <p>Phone: {companyPhone}</p>
+                            <p>{companyDate}</p>
                         </div>
                     </div>
 
-                    <h2 className="section-title">Commercial Offers</h2>
+                    <h2 className="section-title">
+                        <input
+                            type="text"
+                            value={commercialOffersHeading}
+                            onChange={(e) => setCommercialOffersHeading(e.target.value)}
+                            className="editable-field section-title-field"
+                        />
+                    </h2>
 
-                    <h3 className="section-heading">1. Supply</h3>
+                    <h3 className="section-heading">
+                        <input
+                            type="text"
+                            value={supplyHeading}
+                            onChange={(e) => setSupplyHeading(e.target.value)}
+                            className="editable-field section-heading-field"
+                        />
+                    </h3>
                     <table className="data-table price-table">
                         <thead>
                             <tr>
-                                <th>Item</th>
-                                <th>Qty<br />(In Nos)</th>
-                                <th>Unit Price<br />(In Rs.)</th>
-                                <th>Amount<br />(In Rs.)</th>
+                                <th>
+                                    <input
+                                        type="text"
+                                        value={commColItem}
+                                        onChange={(e) => setCommColItem(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                </th>
+                                <th>
+                                    <input
+                                        type="text"
+                                        value={commColQty}
+                                        onChange={(e) => setCommColQty(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                    <br />
+                                    <input
+                                        type="text"
+                                        value={commColQtyUnit}
+                                        onChange={(e) => setCommColQtyUnit(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                </th>
+                                <th>
+                                    <input
+                                        type="text"
+                                        value={commColUnitPrice}
+                                        onChange={(e) => setCommColUnitPrice(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                    <br />
+                                    <input
+                                        type="text"
+                                        value={commColUnitPriceUnit}
+                                        onChange={(e) => setCommColUnitPriceUnit(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                </th>
+                                <th>
+                                    <input
+                                        type="text"
+                                        value={commColAmount}
+                                        onChange={(e) => setCommColAmount(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                    <br />
+                                    <input
+                                        type="text"
+                                        value={commColAmountUnit}
+                                        onChange={(e) => setCommColAmountUnit(e.target.value)}
+                                        className="editable-field table-header-field"
+                                    />
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -513,7 +758,14 @@ export default function TechnoQuotationPage() {
                         </tbody>
                     </table>
 
-                    <h3 className="section-heading mt-4">2. Erection, Testing & Commissioning</h3>
+                    <h3 className="section-heading mt-4">
+                        <input
+                            type="text"
+                            value={erectionHeading}
+                            onChange={(e) => setErectionHeading(e.target.value)}
+                            className="editable-field section-heading-field"
+                        />
+                    </h3>
                     <table className="data-table price-table">
                         <thead>
                             <tr>
@@ -558,7 +810,14 @@ export default function TechnoQuotationPage() {
                         </tbody>
                     </table>
 
-                    <h3 className="section-heading mt-4">3. Freight & Insurance</h3>
+                    <h3 className="section-heading mt-4">
+                        <input
+                            type="text"
+                            value={freightHeading}
+                            onChange={(e) => setFreightHeading(e.target.value)}
+                            className="editable-field section-heading-field"
+                        />
+                    </h3>
                     <table className="data-table price-table">
                         <thead>
                             <tr>
@@ -619,19 +878,30 @@ export default function TechnoQuotationPage() {
                 <div className="page">
                     <div className="header">
                         <div className="logo-section">
-                            <div className="logo-circle">G</div>
-                            <div className="company-name">GREEN ENERGY PVT. LTD</div>
+                            {logoUrl ? (
+                                <img src={logoUrl} alt="Company Logo" className="logo-image" />
+                            ) : (
+                                <div className="logo-circle">{logoLetter}</div>
+                            )}
+                            <div className="company-name">{companyName}</div>
                         </div>
                         <div className="header-info">
-                            <p><strong>GREEN - 2RAAGPV24KEP</strong></p>
-                            <p>Malad - 400 064</p>
-                            <p>Mumbai, Maharashtra, India</p>
-                            <p>Phone: +91 99205 21473</p>
-                            <p>Thursday, March 06th</p>
+                            <p><strong>{companyId}</strong></p>
+                            <p>{companyAddress1}</p>
+                            <p>{companyAddress2}</p>
+                            <p>Phone: {companyPhone}</p>
+                            <p>{companyDate}</p>
                         </div>
                     </div>
 
-                    <h2 className="section-title">Terms & Conditions</h2>
+                    <h2 className="section-title">
+                        <input
+                            type="text"
+                            value={termsHeading}
+                            onChange={(e) => setTermsHeading(e.target.value)}
+                            className="editable-field section-title-field"
+                        />
+                    </h2>
 
                     <div className="terms-content">
                         <h3 className="terms-heading">Delivery Schedule</h3>
@@ -722,20 +992,153 @@ export default function TechnoQuotationPage() {
 
             <style jsx global>{`
         @media print {
+          @page {
+            size: A4;
+            margin: 0;
+          }
+          
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 210mm !important;
+            height: 297mm !important;
+          }
+          
           .no-print {
             display: none !important;
           }
+          
+          .quotation-container {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+            width: 210mm !important;
+          }
+          
           .page {
-            page-break-after: always;
-            margin: 0;
-            box-shadow: none;
+            page-break-after: always !important;
+            page-break-inside: avoid !important;
+            margin: 0 !important;
+            padding: 15mm 20mm 25mm 20mm !important;
+            box-shadow: none !important;
+            width: 210mm !important;
+            height: 297mm !important;
+            min-height: 297mm !important;
+            max-height: 297mm !important;
+            background: white !important;
+            position: relative !important;
+            overflow: hidden !important;
           }
+          
           .page:last-child {
-            page-break-after: auto;
+            page-break-after: auto !important;
           }
-          .editable-field {
+          
+          .editable-field,
+          .company-name-field,
+          .main-title-field,
+          .section-title-field,
+          .section-heading-field,
+          .table-header-field {
             border: none !important;
             background: transparent !important;
+            outline: none !important;
+          }
+          
+          .header {
+            margin-bottom: 12px !important;
+            padding-bottom: 10px !important;
+          }
+          
+          .main-title {
+            margin: 15px 0 !important;
+            font-size: 16px !important;
+          }
+          
+          .section-title {
+            margin: 12px 0 !important;
+            font-size: 14px !important;
+          }
+          
+          .section-heading {
+            margin: 10px 0 8px 0 !important;
+            font-size: 12px !important;
+          }
+          
+          .data-table {
+            margin: 10px 0 !important;
+            font-size: 9px !important;
+          }
+          
+          .data-table th,
+          .data-table td {
+            padding: 5px !important;
+          }
+          
+          .ref-section,
+          .customer-section {
+            margin: 10px 0 !important;
+          }
+          
+          .terms-content {
+            font-size: 10px !important;
+          }
+          
+          .terms-heading {
+            font-size: 11px !important;
+            margin-top: 10px !important;
+            margin-bottom: 5px !important;
+          }
+          
+          .footer {
+            position: absolute !important;
+            bottom: 10mm !important;
+            left: 20mm !important;
+            right: 20mm !important;
+            font-size: 7px !important;
+            line-height: 1.3 !important;
+            padding-top: 8px !important;
+          }
+          
+          .company-signature {
+            margin-top: 20px !important;
+          }
+          
+          .signature-space {
+            height: 40px !important;
+            margin: 15px 0 !important;
+          }
+          
+          ul {
+            margin: 5px 0 !important;
+            padding-left: 18px !important;
+          }
+          
+          li {
+            margin: 3px 0 !important;
+          }
+          
+          p {
+            margin: 5px 0 !important;
+          }
+          
+          .note,
+          .subtitle {
+            font-size: 9px !important;
+            margin: 8px 0 !important;
+          }
+          
+          .mt-4 {
+            margin-top: 12px !important;
+          }
+          
+          .mt-6 {
+            margin-top: 16px !important;
           }
         }
 
@@ -886,6 +1289,87 @@ export default function TechnoQuotationPage() {
 
         .editable-field.text-right {
           text-align: right;
+        }
+
+        .logo-image {
+          width: 50px;
+          height: 50px;
+          object-fit: contain;
+          border-radius: 50%;
+        }
+
+        .company-name-field {
+          font-size: 14px;
+          font-weight: bold;
+          color: #4CAF50;
+          border: 1px dashed #ccc;
+          background: #fafafa;
+          padding: 4px 6px;
+        }
+
+        .company-name-field:focus {
+          outline: 2px solid #4CAF50;
+          background: white;
+        }
+
+        .main-title-field {
+          text-align: center;
+          font-size: 18px;
+          font-weight: bold;
+          width: 100%;
+          border: 1px dashed #ccc;
+          background: #fafafa;
+          padding: 8px;
+        }
+
+        .main-title-field:focus {
+          outline: 2px solid #4CAF50;
+          background: white;
+        }
+
+        .section-title-field {
+          text-align: center;
+          font-size: 16px;
+          font-weight: bold;
+          width: 100%;
+          border: 1px dashed #ccc;
+          background: #fafafa;
+          padding: 6px;
+        }
+
+        .section-title-field:focus {
+          outline: 2px solid #4CAF50;
+          background: white;
+        }
+
+        .section-heading-field {
+          font-size: 13px;
+          font-weight: bold;
+          width: auto;
+          min-width: 200px;
+          border: 1px dashed #ccc;
+          background: #fafafa;
+          padding: 4px 6px;
+        }
+
+        .section-heading-field:focus {
+          outline: 2px solid #4CAF50;
+          background: white;
+        }
+
+        .table-header-field {
+          font-weight: bold;
+          text-align: center;
+          width: 100%;
+          border: 1px dashed #ccc;
+          background: #f0f0f0;
+          padding: 4px;
+          font-size: 10px;
+        }
+
+        .table-header-field:focus {
+          outline: 2px solid #4CAF50;
+          background: white;
         }
 
         .note {
