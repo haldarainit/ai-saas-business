@@ -24,8 +24,7 @@ const handler = NextAuth({
         // Send id_token to your backend for verification
         try {
           const res = await fetch(
-            `${
-              process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXTAUTH_URL
+            `${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXTAUTH_URL
             }/api/auth/google/verify`,
             {
               method: "POST",
@@ -67,8 +66,13 @@ const handler = NextAuth({
       return session;
     },
   },
+  session: {
+    strategy: "jwt",
+    maxAge: 7 * 24 * 60 * 60, // 7 days
+  },
   pages: {
     signIn: "/",
+    signOut: "/",
     error: "/",
   },
   secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET,
