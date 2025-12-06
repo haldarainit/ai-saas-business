@@ -369,7 +369,7 @@ export default function EmailAutomationPage() {
           });
         } else {
           toast.success("Campaign started!", {
-            description: `Sending emails to ${emails.length} recipients at 1-minute intervals (max 20 per day)`,
+            description: `Sending emails to ${emails.length} recipients at 1-minute intervals (max 50 per day)`,
           });
         }
       } else {
