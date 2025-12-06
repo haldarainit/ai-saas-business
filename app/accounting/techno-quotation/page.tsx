@@ -4,31 +4,40 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { Printer, ArrowLeft } from "lucide-react";
+import { Printer, ArrowLeft, Plus, Trash2, PlusCircle, X } from "lucide-react";
 import Link from "next/link";
 
-interface PanelItem {
+// Types for dynamic structures
+interface Column {
+    id: string;
     name: string;
-    qty: string;
-    remarks: string;
+    width?: string;
 }
 
-interface TechnicalSpec {
-    parameter: string;
-    requirement: string;
-    offered: string;
+interface TableRow {
+    id: string;
+    cells: { [columnId: string]: string };
 }
 
-interface BillItem {
-    panel: string;
-    description: string;
+interface DynamicTable {
+    id: string;
+    name: string;
+    columns: Column[];
+    rows: TableRow[];
 }
 
-interface SupplyItem {
-    item: string;
-    qty: string;
-    unitPrice: string;
-    amount: string;
+interface Section {
+    id: string;
+    type: 'text' | 'list' | 'table' | 'heading';
+    heading?: string;
+    content?: string;
+    items?: string[];
+    table?: DynamicTable;
+}
+
+interface Page {
+    id: string;
+    sections: Section[];
 }
 
 export default function TechnoQuotationPage() {
@@ -45,115 +54,119 @@ export default function TechnoQuotationPage() {
     // Main Title
     const [mainTitle, setMainTitle] = useState('TECHNO COMMERCIAL QUOTATION');
 
-    // Section Headings
-    const [panelSectionHeading, setPanelSectionHeading] = useState('Panel');
-    const [technicalComplianceHeading, setTechnicalComplianceHeading] = useState('Technical Compliance');
-    const [billOfQuantityHeading, setBillOfQuantityHeading] = useState('Bill of Quantity Summary');
-    const [billOfQuantitySubtitle, setBillOfQuantitySubtitle] = useState('(Mentioned in RP TS — reference BOM\'s)');
-    const [commercialOffersHeading, setCommercialOffersHeading] = useState('Commercial Offers');
-    const [supplyHeading, setSupplyHeading] = useState('1. Supply');
-    const [erectionHeading, setErectionHeading] = useState('2. Erection, Testing & Commissioning');
-    const [freightHeading, setFreightHeading] = useState('3. Freight & Insurance');
-    const [termsHeading, setTermsHeading] = useState('Terms & Conditions');
-
-    // Table Column Headers - Panel Table
-    const [panelColPanel, setPanelColPanel] = useState('Panel');
-    const [panelColQty, setPanelColQty] = useState('Qty');
-    const [panelColRemarks, setPanelColRemarks] = useState('Remarks');
-
-    // Table Column Headers - Technical Compliance
-    const [techColParameter, setTechColParameter] = useState('Parameter');
-    const [techColRequirement, setTechColRequirement] = useState('Requirement');
-    const [techColOffered, setTechColOffered] = useState('Offered');
-
-    // Table Column Headers - Bill of Quantity
-    const [billColPanel, setBillColPanel] = useState('Panel');
-    const [billColComponents, setBillColComponents] = useState('Key Components');
-
-    // Table Column Headers - Commercial Tables
-    const [commColItem, setCommColItem] = useState('Item');
-    const [commColQty, setCommColQty] = useState('Qty');
-    const [commColQtyUnit, setCommColQtyUnit] = useState('(In Nos)');
-    const [commColUnitPrice, setCommColUnitPrice] = useState('Unit Price');
-    const [commColUnitPriceUnit, setCommColUnitPriceUnit] = useState('(In Rs.)');
-    const [commColAmount, setCommColAmount] = useState('Amount');
-    const [commColAmountUnit, setCommColAmountUnit] = useState('(In Rs.)');
-
-    const [refNo, setRefNo] = useState('PTP/305/DAAN/2025-26/0181');
-    const [date, setDate] = useState('04/05/2025');
-    const [customerName, setCustomerName] = useState('The Head Plant - SAIL');
-    const [customerAddress, setCustomerAddress] = useState('DSM, CSTL & SMRH');
-    const [customerCity, setCustomerCity] = useState('Bhilai, Chhattisgarh');
-
-    const [projectTitle, setProjectTitle] = useState('Supply & Erection of Crane Control Panels (Main Hoist, Aux Hoist, LT, CT, Aux CT)');
-    const [projectDescription, setProjectDescription] = useState('We thank you for the opportunity to submit the techno-commercial quotation for replacement of existing crane control panels as per the scope mentioned below. We are pleased to submit our quotation from a reputed & renowned manufacturer.');
-
-    const [scopeItems, setScopeItems] = useState([
-        'TP for Main Hoist, Aux Hoist, LT, CT, & Aux CT Panels',
-        'GA Drawings issued by BSP',
-        'Stinger',
-        'Supply, ereg, testing, setting, testing, documentation as EAT'
-    ]);
-
-    const [panels, setPanels] = useState<PanelItem[]>([
-        { name: 'Main Hoist Control + Festooning Panel', qty: '1 Sets', remarks: 'Includes 900A DC contactors & TKP replacement' },
-        { name: 'Aux Hoist Panel', qty: '1 Sets', remarks: 'As per TP spec' },
-        { name: 'Long Travel Panel', qty: '1 Sets', remarks: 'As per TP spec' },
-        { name: 'Cross Travel Panel', qty: '1 Sets', remarks: 'Suitable FLP enclosure' },
-        { name: 'Aux Cross Travel Panel', qty: '1 Sets', remarks: 'As per BOM' }
-    ]);
-
-    const [technicalSpecs, setTechnicalSpecs] = useState<TechnicalSpec[]>([
-        { parameter: 'Incoming Voltage', requirement: '415V AC', offered: 'Complied' },
-        { parameter: 'Control Voltage', requirement: '220V DC', offered: 'Complied' },
-        { parameter: 'IP Rating Dimensions', requirement: 'As per TP', offered: 'Complied' },
-        { parameter: 'FLP Short Mounting', requirement: 'Mandatory', offered: 'Provided' },
-        { parameter: 'Wiring', requirement: 'As per BOM', offered: 'Complied' },
-        { parameter: 'Enclosures', requirement: 'CRCA/SS, IP-65/IP67', offered: 'Complied' },
-        { parameter: 'Environment', requirement: 'High temperature & dusty', offered: 'Suitable components' }
-    ]);
-
-    const [billItems, setBillItems] = useState<BillItem[]>([
-        { panel: 'Main Hoist', description: '900A DC contactors, Bus-Duct Hoist, brush transfer switches' },
-        { panel: 'Aux Hoist', description: '500A DC contactors, without relays' },
-        { panel: 'LT', description: '500A DC contactors, mechanical interlocks, timers' },
-        { panel: 'CT', description: '500A DC contactors, plug-n relays' },
-        { panel: 'Aux CT', description: '100A DC contactors, RKC cams, isolators' }
-    ]);
-
-    const [supplyItems, setSupplyItems] = useState<SupplyItem[]>([
-        { item: 'Main Hoist Panels', qty: '1', unitPrice: '3225504', amount: '9625617' },
-        { item: 'Aux Hoist Panels', qty: '1', unitPrice: '432440', amount: '1297544' },
-        { item: 'Long Travel Panels', qty: '1', unitPrice: '167716', amount: '502736' },
-        { item: 'Cross Travel Panels', qty: '1', unitPrice: '62995', amount: '189456' },
-        { item: 'Auxiliary Cross Travel Panels', qty: '1', unitPrice: '44196', amount: '132670' }
-    ]);
-
-    const [erectionQty, setErectionQty] = useState('1');
-    const [erectionUnitPrice, setErectionUnitPrice] = useState('2300500');
-    const [erectionAmount, setErectionAmount] = useState('6901500');
-
-    const [freightQty, setFreightQty] = useState('1');
-    const [freightUnitPrice, setFreightUnitPrice] = useState('113000');
-    const [freightAmount, setFreightAmount] = useState('113000');
-
-    const [deliverySchedule, setDeliverySchedule] = useState('12-16 Weeks after approval of drawings');
-    const [paymentTerms, setPaymentTerms] = useState([
-        '60% Advance on Proforma PO',
-        '40% after FAT at our works',
-        '10% Before Dispatch'
-    ]);
-    const [warranty, setWarranty] = useState('18 Months from supply / 12 Months from commissioning');
-    const [documents, setDocuments] = useState([
-        'GA & SAT - soft formats',
-        'Instruction Manual, O&M Manual, FAT Report',
-        'Routine Philosophy & Cable Schedule'
-    ]);
-
     // Footer Content
     const [footerLine1, setFooterLine1] = useState('Solar Solutions | Owner & VP and Power Plans | Water Heater | Street Lights | Home Lighting');
     const [footerLine2, setFooterLine2] = useState('LED Lighting Solutions | Inverters | Commercial | Industrial | Customized solution');
     const [footerLine3, setFooterLine3] = useState('Authorized Submitter: SANTOSH - M.D. - SCADA / PDD');
+
+    // Dynamic Pages State
+    const [pages, setPages] = useState<Page[]>([
+        {
+            id: 'page-1',
+            sections: [
+                {
+                    id: 'section-1',
+                    type: 'heading',
+                    heading: 'Reference Information'
+                },
+                {
+                    id: 'section-2',
+                    type: 'text',
+                    heading: 'Ref No',
+                    content: 'PTP/305/DAAN/2025-26/0181'
+                },
+                {
+                    id: 'section-3',
+                    type: 'text',
+                    heading: 'Date',
+                    content: '04/05/2025'
+                },
+                {
+                    id: 'section-4',
+                    type: 'heading',
+                    heading: 'Customer Details'
+                },
+                {
+                    id: 'section-5',
+                    type: 'text',
+                    heading: 'Customer Name',
+                    content: 'The Head Plant - SAIL'
+                },
+                {
+                    id: 'section-6',
+                    type: 'text',
+                    heading: 'Address',
+                    content: 'DSM, CSTL & SMRH, Bhilai, Chhattisgarh'
+                }
+            ]
+        }
+    ]);
+
+    // Auto-pagination: detect overflow and create new pages
+    const pageContentRefs = React.useRef<(HTMLDivElement | null)[]>([]);
+    const [isProcessingOverflow, setIsProcessingOverflow] = React.useState(false);
+
+    React.useEffect(() => {
+        if (isProcessingOverflow) return;
+
+        const checkOverflow = () => {
+            pageContentRefs.current.forEach((contentEl, pageIndex) => {
+                if (!contentEl) return;
+
+                const page = pages[pageIndex];
+                if (!page || page.sections.length === 0) return;
+
+                // Get content height
+                const contentHeight = contentEl.scrollHeight;
+                // Calculate available space with safe margin to prevent footer overlap
+                const maxHeight = (215 * 96) / 25.4; // Convert mm to px (96 DPI)
+
+                // If content exceeds available space, move last section to next page
+                if (contentHeight > maxHeight && page.sections.length > 0) {
+                    setIsProcessingOverflow(true);
+
+                    // Move the last section to next page or create new page
+                    const lastSection = page.sections[page.sections.length - 1];
+                    const remainingSections = page.sections.slice(0, -1);
+
+                    setPages(prevPages => {
+                        const newPages = [...prevPages];
+
+                        // Update current page
+                        newPages[pageIndex] = {
+                            ...newPages[pageIndex],
+                            sections: remainingSections
+                        };
+
+                        // Check if next page exists
+                        if (pageIndex + 1 < newPages.length) {
+                            // Add to beginning of next page
+                            newPages[pageIndex + 1] = {
+                                ...newPages[pageIndex + 1],
+                                sections: [lastSection, ...newPages[pageIndex + 1].sections]
+                            };
+                        } else {
+                            // Create new page with the overflow section
+                            newPages.push({
+                                id: `page-${Date.now()}`,
+                                sections: [lastSection]
+                            });
+                        }
+
+                        return newPages;
+                    });
+
+                    // Reset flag after a shorter delay for faster response
+                    setTimeout(() => setIsProcessingOverflow(false), 200);
+                }
+            });
+        };
+
+        // Check after content settles to avoid premature pagination
+        const timeoutId = setTimeout(checkOverflow, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [pages, isProcessingOverflow]);
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -170,6 +183,305 @@ export default function TechnoQuotationPage() {
         window.print();
     };
 
+    // Page Management
+    const addPage = () => {
+        const newPage: Page = {
+            id: `page-${Date.now()}`,
+            sections: []
+        };
+        setPages([...pages, newPage]);
+    };
+
+    const deletePage = (pageId: string) => {
+        if (pages.length > 1) {
+            setPages(pages.filter(p => p.id !== pageId));
+        }
+    };
+
+    // Section Management
+    const addSection = (pageId: string, type: Section['type']) => {
+        setPages(pages.map(page => {
+            if (page.id === pageId) {
+                const newSection: Section = {
+                    id: `section-${Date.now()}`,
+                    type,
+                    heading: type === 'heading' ? 'New Heading' : type === 'list' ? 'New List' : type === 'table' ? 'New Table' : undefined,
+                    content: type === 'text' ? 'New content' : undefined,
+                    items: type === 'list' ? ['Item 1'] : undefined,
+                    table: type === 'table' ? {
+                        id: `table-${Date.now()}`,
+                        name: 'New Table',
+                        columns: [
+                            { id: 'col-1', name: 'Column 1', width: '50%' },
+                            { id: 'col-2', name: 'Column 2', width: '50%' }
+                        ],
+                        rows: [
+                            { id: 'row-1', cells: { 'col-1': 'Data 1', 'col-2': 'Data 2' } }
+                        ]
+                    } : undefined
+                };
+                return { ...page, sections: [...page.sections, newSection] };
+            }
+            return page;
+        }));
+    };
+
+    const deleteSection = (pageId: string, sectionId: string) => {
+        setPages(pages.map(page => {
+            if (page.id === pageId) {
+                return { ...page, sections: page.sections.filter(s => s.id !== sectionId) };
+            }
+            return page;
+        }));
+    };
+
+    const updateSection = (pageId: string, sectionId: string, updates: Partial<Section>) => {
+        setPages(pages.map(page => {
+            if (page.id === pageId) {
+                return {
+                    ...page,
+                    sections: page.sections.map(section =>
+                        section.id === sectionId ? { ...section, ...updates } : section
+                    )
+                };
+            }
+            return page;
+        }));
+    };
+
+    // Table Management
+    const addColumn = (pageId: string, sectionId: string) => {
+        setPages(pages.map(page => {
+            if (page.id === pageId) {
+                return {
+                    ...page,
+                    sections: page.sections.map(section => {
+                        if (section.id === sectionId && section.table) {
+                            const newColId = `col-${Date.now()}`;
+                            const newColumn: Column = { id: newColId, name: 'New Column' };
+                            const updatedRows = section.table.rows.map(row => ({
+                                ...row,
+                                cells: { ...row.cells, [newColId]: '' }
+                            }));
+                            return {
+                                ...section,
+                                table: {
+                                    ...section.table,
+                                    columns: [...section.table.columns, newColumn],
+                                    rows: updatedRows
+                                }
+                            };
+                        }
+                        return section;
+                    })
+                };
+            }
+            return page;
+        }));
+    };
+
+    const deleteColumn = (pageId: string, sectionId: string, columnId: string) => {
+        setPages(pages.map(page => {
+            if (page.id === pageId) {
+                return {
+                    ...page,
+                    sections: page.sections.map(section => {
+                        if (section.id === sectionId && section.table) {
+                            const updatedColumns = section.table.columns.filter(col => col.id !== columnId);
+                            if (updatedColumns.length === 0) return section;
+
+                            const updatedRows = section.table.rows.map(row => {
+                                const newCells = { ...row.cells };
+                                delete newCells[columnId];
+                                return { ...row, cells: newCells };
+                            });
+
+                            return {
+                                ...section,
+                                table: {
+                                    ...section.table,
+                                    columns: updatedColumns,
+                                    rows: updatedRows
+                                }
+                            };
+                        }
+                        return section;
+                    })
+                };
+            }
+            return page;
+        }));
+    };
+
+    const addRow = (pageId: string, sectionId: string) => {
+        setPages(pages.map(page => {
+            if (page.id === pageId) {
+                return {
+                    ...page,
+                    sections: page.sections.map(section => {
+                        if (section.id === sectionId && section.table) {
+                            const newRow: TableRow = {
+                                id: `row-${Date.now()}`,
+                                cells: section.table.columns.reduce((acc, col) => {
+                                    acc[col.id] = '';
+                                    return acc;
+                                }, {} as { [key: string]: string })
+                            };
+                            return {
+                                ...section,
+                                table: {
+                                    ...section.table,
+                                    rows: [...section.table.rows, newRow]
+                                }
+                            };
+                        }
+                        return section;
+                    })
+                };
+            }
+            return page;
+        }));
+    };
+
+    const deleteRow = (pageId: string, sectionId: string, rowId: string) => {
+        setPages(pages.map(page => {
+            if (page.id === pageId) {
+                return {
+                    ...page,
+                    sections: page.sections.map(section => {
+                        if (section.id === sectionId && section.table) {
+                            const updatedRows = section.table.rows.filter(row => row.id !== rowId);
+                            if (updatedRows.length === 0) return section;
+
+                            return {
+                                ...section,
+                                table: {
+                                    ...section.table,
+                                    rows: updatedRows
+                                }
+                            };
+                        }
+                        return section;
+                    })
+                };
+            }
+            return page;
+        }));
+    };
+
+    const updateCell = (pageId: string, sectionId: string, rowId: string, columnId: string, value: string) => {
+        setPages(pages.map(page => {
+            if (page.id === pageId) {
+                return {
+                    ...page,
+                    sections: page.sections.map(section => {
+                        if (section.id === sectionId && section.table) {
+                            return {
+                                ...section,
+                                table: {
+                                    ...section.table,
+                                    rows: section.table.rows.map(row =>
+                                        row.id === rowId
+                                            ? { ...row, cells: { ...row.cells, [columnId]: value } }
+                                            : row
+                                    )
+                                }
+                            };
+                        }
+                        return section;
+                    })
+                };
+            }
+            return page;
+        }));
+    };
+
+    const updateColumnName = (pageId: string, sectionId: string, columnId: string, name: string) => {
+        setPages(pages.map(page => {
+            if (page.id === pageId) {
+                return {
+                    ...page,
+                    sections: page.sections.map(section => {
+                        if (section.id === sectionId && section.table) {
+                            return {
+                                ...section,
+                                table: {
+                                    ...section.table,
+                                    columns: section.table.columns.map(col =>
+                                        col.id === columnId ? { ...col, name } : col
+                                    )
+                                }
+                            };
+                        }
+                        return section;
+                    })
+                };
+            }
+            return page;
+        }));
+    };
+
+    // List Management
+    const addListItem = (pageId: string, sectionId: string) => {
+        setPages(pages.map(page => {
+            if (page.id === pageId) {
+                return {
+                    ...page,
+                    sections: page.sections.map(section => {
+                        if (section.id === sectionId && section.items) {
+                            return {
+                                ...section,
+                                items: [...section.items, 'New item']
+                            };
+                        }
+                        return section;
+                    })
+                };
+            }
+            return page;
+        }));
+    };
+
+    const deleteListItem = (pageId: string, sectionId: string, index: number) => {
+        setPages(pages.map(page => {
+            if (page.id === pageId) {
+                return {
+                    ...page,
+                    sections: page.sections.map(section => {
+                        if (section.id === sectionId && section.items) {
+                            return {
+                                ...section,
+                                items: section.items.filter((_, i) => i !== index)
+                            };
+                        }
+                        return section;
+                    })
+                };
+            }
+            return page;
+        }));
+    };
+
+    const updateListItem = (pageId: string, sectionId: string, index: number, value: string) => {
+        setPages(pages.map(page => {
+            if (page.id === pageId) {
+                return {
+                    ...page,
+                    sections: page.sections.map(section => {
+                        if (section.id === sectionId && section.items) {
+                            return {
+                                ...section,
+                                items: section.items.map((item, i) => i === index ? value : item)
+                            };
+                        }
+                        return section;
+                    })
+                };
+            }
+            return page;
+        }));
+    };
+
     return (
         <>
             <div className="no-print">
@@ -181,833 +493,388 @@ export default function TechnoQuotationPage() {
                             Back to Accounting
                         </Link>
                         <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
-                            Techno Commercial Quotation
+                            Dynamic Techno Commercial Quotation
                         </h1>
                         <p className="text-muted-foreground mb-4">
-                            Fill in the details below. Click fields to edit. Print when ready.
+                            Fully customizable quotation - Add/delete pages, sections, tables, columns, and rows as needed.
+                            {isProcessingOverflow && (
+                                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">
+                                    📄 Auto-creating page...
+                                </span>
+                            )}
                         </p>
-                        <Button
-                            onClick={handlePrint}
-                            size="lg"
-                            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-                        >
-                            <Printer className="w-5 h-5 mr-2" />
-                            Print Quotation
-                        </Button>
+                        <div className="flex gap-3">
+                            <Button
+                                onClick={handlePrint}
+                                size="lg"
+                                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+                            >
+                                <Printer className="w-5 h-5 mr-2" />
+                                Print Quotation
+                            </Button>
+                            <Button
+                                onClick={addPage}
+                                size="lg"
+                                variant="outline"
+                                className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+                            >
+                                <PlusCircle className="w-5 h-5 mr-2" />
+                                Add New Page
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Quotation Pages */}
             <div className="quotation-container">
-                {/* PAGE 1 */}
-                <div className="page">
-                    <div className="header">
-                        <div className="logo-section">
-                            {logoUrl ? (
-                                <img src={logoUrl} alt="Company Logo" className="logo-image" />
-                            ) : (
-                                <div className="logo-circle" contentEditable suppressContentEditableWarning onBlur={(e) => setLogoLetter(e.currentTarget.textContent || 'G')}>
-                                    {logoLetter}
-                                </div>
-                            )}
-                            <div>
-                                <input
-                                    type="text"
-                                    value={companyName}
-                                    onChange={(e) => setCompanyName(e.target.value)}
-                                    className="editable-field company-name-field"
-                                />
-                                <div className="no-print" style={{ marginTop: '5px' }}>
-                                    <label htmlFor="logo-upload" style={{ cursor: 'pointer', fontSize: '9px', color: '#666', textDecoration: 'underline' }}>
-                                        Upload Logo
-                                    </label>
+                {pages.map((page, pageIndex) => (
+                    <div key={page.id} className="page">
+                        {/* Header */}
+                        <div className="header">
+                            <div className="logo-section">
+                                {logoUrl ? (
+                                    <img src={logoUrl} alt="Company Logo" className="logo-image" />
+                                ) : (
+                                    <div className="logo-circle" contentEditable suppressContentEditableWarning onBlur={(e) => setLogoLetter(e.currentTarget.textContent || 'G')}>
+                                        {logoLetter}
+                                    </div>
+                                )}
+                                <div>
                                     <input
-                                        id="logo-upload"
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleLogoUpload}
-                                        style={{ display: 'none' }}
+                                        type="text"
+                                        value={companyName}
+                                        onChange={(e) => setCompanyName(e.target.value)}
+                                        className="editable-field company-name-field"
                                     />
+                                    <div className="no-print" style={{ marginTop: '5px' }}>
+                                        <label htmlFor="logo-upload" style={{ cursor: 'pointer', fontSize: '9px', color: '#666', textDecoration: 'underline' }}>
+                                            Upload Logo
+                                        </label>
+                                        <input
+                                            id="logo-upload"
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleLogoUpload}
+                                            style={{ display: 'none' }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
+                            <div className="header-info">
+                                <p><strong><input type="text" value={companyId} onChange={(e) => setCompanyId(e.target.value)} className="editable-field" /></strong></p>
+                                <p><input type="text" value={companyAddress1} onChange={(e) => setCompanyAddress1(e.target.value)} className="editable-field" /></p>
+                                <p><input type="text" value={companyAddress2} onChange={(e) => setCompanyAddress2(e.target.value)} className="editable-field" /></p>
+                                <p>Phone: <input type="text" value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} className="editable-field" /></p>
+                                <p><input type="text" value={companyDate} onChange={(e) => setCompanyDate(e.target.value)} className="editable-field" /></p>
+                            </div>
                         </div>
-                        <div className="header-info">
-                            <p><strong><input type="text" value={companyId} onChange={(e) => setCompanyId(e.target.value)} className="editable-field" /></strong></p>
-                            <p><input type="text" value={companyAddress1} onChange={(e) => setCompanyAddress1(e.target.value)} className="editable-field" /></p>
-                            <p><input type="text" value={companyAddress2} onChange={(e) => setCompanyAddress2(e.target.value)} className="editable-field" /></p>
-                            <p>Phone: <input type="text" value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} className="editable-field" /></p>
-                            <p><input type="text" value={companyDate} onChange={(e) => setCompanyDate(e.target.value)} className="editable-field" /></p>
-                        </div>
-                    </div>
 
-                    <h1 className="main-title">
-                        <input
-                            type="text"
-                            value={mainTitle}
-                            onChange={(e) => setMainTitle(e.target.value)}
-                            className="editable-field main-title-field"
-                        />
-                    </h1>
-
-                    <div className="ref-section">
-                        <p>
-                            <strong>Ref No:</strong>{' '}
-                            <input
-                                type="text"
-                                value={refNo}
-                                onChange={(e) => setRefNo(e.target.value)}
-                                className="editable-field"
-                            />
-                        </p>
-                        <p>
-                            <strong>Date:</strong>{' '}
-                            <input
-                                type="text"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
-                                className="editable-field"
-                            />
-                        </p>
-                    </div>
-
-                    <div className="customer-section">
-                        <p><strong>To,</strong></p>
-                        <p>
-                            <input
-                                type="text"
-                                value={customerName}
-                                onChange={(e) => setCustomerName(e.target.value)}
-                                className="editable-field full-width"
-                            />
-                        </p>
-                        <p>
-                            <input
-                                type="text"
-                                value={customerAddress}
-                                onChange={(e) => setCustomerAddress(e.target.value)}
-                                className="editable-field full-width"
-                            />
-                        </p>
-                        <p>
-                            <input
-                                type="text"
-                                value={customerCity}
-                                onChange={(e) => setCustomerCity(e.target.value)}
-                                className="editable-field full-width"
-                            />
-                        </p>
-                    </div>
-
-                    <p><strong>Dear Sir,</strong></p>
-                    <p>
-                        <textarea
-                            value={projectDescription}
-                            onChange={(e) => setProjectDescription(e.target.value)}
-                            className="editable-field full-width"
-                            rows={3}
-                        />
-                    </p>
-
-                    <p><strong>Scope:</strong></p>
-                    <ul>
-                        {scopeItems.map((item, index) => (
-                            <li key={index}>
+                        {pageIndex === 0 && (
+                            <h1 className="main-title">
                                 <input
                                     type="text"
-                                    value={item}
-                                    onChange={(e) => {
-                                        const newItems = [...scopeItems];
-                                        newItems[index] = e.target.value;
-                                        setScopeItems(newItems);
-                                    }}
-                                    className="editable-field full-width"
+                                    value={mainTitle}
+                                    onChange={(e) => setMainTitle(e.target.value)}
+                                    className="editable-field main-title-field"
                                 />
-                            </li>
-                        ))}
-                    </ul>
+                            </h1>
+                        )}
 
-                    <h3 className="section-heading">
-                        <input
-                            type="text"
-                            value={panelSectionHeading}
-                            onChange={(e) => setPanelSectionHeading(e.target.value)}
-                            className="editable-field section-heading-field"
-                        />
-                    </h3>
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>
-                                    <input
-                                        type="text"
-                                        value={panelColPanel}
-                                        onChange={(e) => setPanelColPanel(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                </th>
-                                <th>
-                                    <input
-                                        type="text"
-                                        value={panelColQty}
-                                        onChange={(e) => setPanelColQty(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                </th>
-                                <th>
-                                    <input
-                                        type="text"
-                                        value={panelColRemarks}
-                                        onChange={(e) => setPanelColRemarks(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {panels.map((panel, index) => (
-                                <tr key={index}>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={panel.name}
-                                            onChange={(e) => {
-                                                const newPanels = [...panels];
-                                                newPanels[index].name = e.target.value;
-                                                setPanels(newPanels);
-                                            }}
-                                            className="editable-field full-width"
-                                        />
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={panel.qty}
-                                            onChange={(e) => {
-                                                const newPanels = [...panels];
-                                                newPanels[index].qty = e.target.value;
-                                                setPanels(newPanels);
-                                            }}
-                                            className="editable-field"
-                                        />
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={panel.remarks}
-                                            onChange={(e) => {
-                                                const newPanels = [...panels];
-                                                newPanels[index].remarks = e.target.value;
-                                                setPanels(newPanels);
-                                            }}
-                                            className="editable-field full-width"
-                                        />
-                                    </td>
-                                </tr>
+                        {/* Overflow Warning */}
+                        <div className="no-print overflow-warning" id={`overflow-warning-${pageIndex}`} style={{ display: 'none' }}>
+                            ⚠️ Page Full! Add a new page →
+                        </div>
+
+                        {/* Page Content Container */}
+                        <div
+                            className="page-content"
+                            id={`page-content-${pageIndex}`}
+                            ref={(el) => {
+                                pageContentRefs.current[pageIndex] = el;
+                            }}
+                        >
+                            {/* Page Controls */}
+                            <div className="no-print page-controls">
+                                <div className="control-buttons">
+                                    <Button
+                                        onClick={() => addSection(page.id, 'heading')}
+                                        size="sm"
+                                        variant="outline"
+                                        className="control-btn"
+                                    >
+                                        <Plus className="w-3 h-3 mr-1" />
+                                        Heading
+                                    </Button>
+                                    <Button
+                                        onClick={() => addSection(page.id, 'text')}
+                                        size="sm"
+                                        variant="outline"
+                                        className="control-btn"
+                                    >
+                                        <Plus className="w-3 h-3 mr-1" />
+                                        Text
+                                    </Button>
+                                    <Button
+                                        onClick={() => addSection(page.id, 'list')}
+                                        size="sm"
+                                        variant="outline"
+                                        className="control-btn"
+                                    >
+                                        <Plus className="w-3 h-3 mr-1" />
+                                        List
+                                    </Button>
+                                    <Button
+                                        onClick={() => addSection(page.id, 'table')}
+                                        size="sm"
+                                        variant="outline"
+                                        className="control-btn"
+                                    >
+                                        <Plus className="w-3 h-3 mr-1" />
+                                        Table
+                                    </Button>
+                                    {pages.length > 1 && (
+                                        <Button
+                                            onClick={() => deletePage(page.id)}
+                                            size="sm"
+                                            variant="destructive"
+                                            className="control-btn"
+                                        >
+                                            <Trash2 className="w-3 h-3 mr-1" />
+                                            Delete Page
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Sections */}
+                            {page.sections.map((section) => (
+                                <div key={section.id} className="section-wrapper">
+                                    <div className="no-print section-controls">
+                                        <Button
+                                            onClick={() => deleteSection(page.id, section.id)}
+                                            size="sm"
+                                            variant="ghost"
+                                            className="delete-section-btn"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </Button>
+                                    </div>
+
+                                    {section.type === 'heading' && (
+                                        <h2 className="section-title">
+                                            <input
+                                                type="text"
+                                                value={section.heading || ''}
+                                                onChange={(e) => updateSection(page.id, section.id, { heading: e.target.value })}
+                                                className="editable-field section-title-field"
+                                            />
+                                        </h2>
+                                    )}
+
+                                    {section.type === 'text' && (
+                                        <div className="text-section">
+                                            {section.heading && (
+                                                <p><strong>
+                                                    <input
+                                                        type="text"
+                                                        value={section.heading}
+                                                        onChange={(e) => updateSection(page.id, section.id, { heading: e.target.value })}
+                                                        className="editable-field"
+                                                        placeholder="Heading"
+                                                    />:
+                                                </strong></p>
+                                            )}
+                                            <textarea
+                                                value={section.content || ''}
+                                                onChange={(e) => updateSection(page.id, section.id, { content: e.target.value })}
+                                                className="editable-field full-width"
+                                                rows={3}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {section.type === 'list' && (
+                                        <div className="list-section">
+                                            {section.heading && (
+                                                <h3 className="section-heading">
+                                                    <input
+                                                        type="text"
+                                                        value={section.heading}
+                                                        onChange={(e) => updateSection(page.id, section.id, { heading: e.target.value })}
+                                                        className="editable-field section-heading-field"
+                                                    />
+                                                </h3>
+                                            )}
+                                            <ul>
+                                                {section.items?.map((item, index) => (
+                                                    <li key={index} className="list-item-wrapper">
+                                                        <input
+                                                            type="text"
+                                                            value={item}
+                                                            onChange={(e) => updateListItem(page.id, section.id, index, e.target.value)}
+                                                            className="editable-field full-width"
+                                                        />
+                                                        <button
+                                                            className="no-print delete-item-btn"
+                                                            onClick={() => deleteListItem(page.id, section.id, index)}
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            <Button
+                                                onClick={() => addListItem(page.id, section.id)}
+                                                size="sm"
+                                                variant="outline"
+                                                className="no-print mt-2"
+                                            >
+                                                <Plus className="w-3 h-3 mr-1" />
+                                                Add Item
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    {section.type === 'table' && section.table && (
+                                        <div className="table-section">
+                                            {section.heading && (
+                                                <h3 className="section-heading">
+                                                    <input
+                                                        type="text"
+                                                        value={section.heading}
+                                                        onChange={(e) => updateSection(page.id, section.id, { heading: e.target.value })}
+                                                        className="editable-field section-heading-field"
+                                                    />
+                                                </h3>
+                                            )}
+                                            <div className="table-controls no-print">
+                                                <Button
+                                                    onClick={() => addColumn(page.id, section.id)}
+                                                    size="sm"
+                                                    variant="outline"
+                                                >
+                                                    <Plus className="w-3 h-3 mr-1" />
+                                                    Add Column
+                                                </Button>
+                                                <Button
+                                                    onClick={() => addRow(page.id, section.id)}
+                                                    size="sm"
+                                                    variant="outline"
+                                                >
+                                                    <Plus className="w-3 h-3 mr-1" />
+                                                    Add Row
+                                                </Button>
+                                            </div>
+
+                                            {/* Split columns into groups of 3 */}
+                                            {(() => {
+                                                const columns = section.table.columns;
+                                                const columnGroups = [];
+                                                const maxColumnsPerGroup = 3;
+
+                                                for (let i = 0; i < columns.length; i += maxColumnsPerGroup) {
+                                                    columnGroups.push(columns.slice(i, i + maxColumnsPerGroup));
+                                                }
+
+                                                return columnGroups.map((columnGroup, groupIndex) => (
+                                                    <div key={groupIndex} className="table-group" style={{ marginBottom: groupIndex < columnGroups.length - 1 ? '20px' : '0' }}>
+                                                        {groupIndex > 0 && (
+                                                            <div className="table-continuation-label" style={{ fontSize: '9px', color: '#666', marginBottom: '5px', fontStyle: 'italic' }}>
+                                                                Continued from above...
+                                                            </div>
+                                                        )}
+                                                        <table className="data-table">
+                                                            <thead>
+                                                                <tr>
+                                                                    {columnGroup.map((column) => (
+                                                                        <th key={column.id}>
+                                                                            <div className="th-content">
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={column.name}
+                                                                                    onChange={(e) => updateColumnName(page.id, section.id, column.id, e.target.value)}
+                                                                                    className="editable-field table-header-field"
+                                                                                />
+                                                                                {section.table!.columns.length > 1 && (
+                                                                                    <button
+                                                                                        className="no-print delete-col-btn"
+                                                                                        onClick={() => deleteColumn(page.id, section.id, column.id)}
+                                                                                    >
+                                                                                        <X className="w-3 h-3" />
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        </th>
+                                                                    ))}
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {section.table.rows.map((row) => (
+                                                                    <tr key={row.id}>
+                                                                        {columnGroup.map((column) => (
+                                                                            <td key={column.id}>
+                                                                                <div className="td-content">
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={row.cells[column.id] || ''}
+                                                                                        onChange={(e) => updateCell(page.id, section.id, row.id, column.id, e.target.value)}
+                                                                                        className="editable-field full-width"
+                                                                                    />
+                                                                                </div>
+                                                                            </td>
+                                                                        ))}
+                                                                        {groupIndex === 0 && section.table!.rows.length > 1 && (
+                                                                            <td className="no-print delete-row-cell">
+                                                                                <button
+                                                                                    className="delete-row-btn"
+                                                                                    onClick={() => deleteRow(page.id, section.id, row.id)}
+                                                                                >
+                                                                                    <Trash2 className="w-3 h-3" />
+                                                                                </button>
+                                                                            </td>
+                                                                        )}
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                ));
+                                            })()}
+                                        </div>
+                                    )}
+                                </div>
                             ))}
-                        </tbody>
-                    </table>
-
-                    <p className="note">
-                        Cabling, FRP duct replacement, lugs, drawings, QAP, FAT, commissioning support included.
-                    </p>
-
-                    <div className="footer">
-                        <p>Page 1 of 4</p>
-                        <p>
-                            <input
-                                type="text"
-                                value={footerLine1}
-                                onChange={(e) => setFooterLine1(e.target.value)}
-                                className="editable-field full-width footer-field"
-                            />
-                            <br />
-                            <input
-                                type="text"
-                                value={footerLine2}
-                                onChange={(e) => setFooterLine2(e.target.value)}
-                                className="editable-field full-width footer-field"
-                            />
-                            <br />
-                            <input
-                                type="text"
-                                value={footerLine3}
-                                onChange={(e) => setFooterLine3(e.target.value)}
-                                className="editable-field full-width footer-field"
-                            />
-                        </p>
-                    </div>
-                </div>
-
-                {/* PAGE 2 */}
-                <div className="page">
-                    <div className="header">
-                        <div className="logo-section">
-                            {logoUrl ? (
-                                <img src={logoUrl} alt="Company Logo" className="logo-image" />
-                            ) : (
-                                <div className="logo-circle">{logoLetter}</div>
-                            )}
-                            <div className="company-name">{companyName}</div>
                         </div>
-                        <div className="header-info">
-                            <p><strong>{companyId}</strong></p>
-                            <p>{companyAddress1}</p>
-                            <p>{companyAddress2}</p>
-                            <p>Phone: {companyPhone}</p>
-                            <p>{companyDate}</p>
-                        </div>
-                    </div>
 
-                    <h2 className="section-title">
-                        <input
-                            type="text"
-                            value={technicalComplianceHeading}
-                            onChange={(e) => setTechnicalComplianceHeading(e.target.value)}
-                            className="editable-field section-title-field"
-                        />
-                    </h2>
-
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>
-                                    <input
-                                        type="text"
-                                        value={techColParameter}
-                                        onChange={(e) => setTechColParameter(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                </th>
-                                <th>
-                                    <input
-                                        type="text"
-                                        value={techColRequirement}
-                                        onChange={(e) => setTechColRequirement(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                </th>
-                                <th>
-                                    <input
-                                        type="text"
-                                        value={techColOffered}
-                                        onChange={(e) => setTechColOffered(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {technicalSpecs.map((spec, index) => (
-                                <tr key={index}>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={spec.parameter}
-                                            onChange={(e) => {
-                                                const newSpecs = [...technicalSpecs];
-                                                newSpecs[index].parameter = e.target.value;
-                                                setTechnicalSpecs(newSpecs);
-                                            }}
-                                            className="editable-field full-width"
-                                        />
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={spec.requirement}
-                                            onChange={(e) => {
-                                                const newSpecs = [...technicalSpecs];
-                                                newSpecs[index].requirement = e.target.value;
-                                                setTechnicalSpecs(newSpecs);
-                                            }}
-                                            className="editable-field full-width"
-                                        />
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={spec.offered}
-                                            onChange={(e) => {
-                                                const newSpecs = [...technicalSpecs];
-                                                newSpecs[index].offered = e.target.value;
-                                                setTechnicalSpecs(newSpecs);
-                                            }}
-                                            className="editable-field full-width"
-                                        />
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-
-                    <h3 className="section-heading mt-6">
-                        <input
-                            type="text"
-                            value={billOfQuantityHeading}
-                            onChange={(e) => setBillOfQuantityHeading(e.target.value)}
-                            className="editable-field section-heading-field"
-                        />
-                    </h3>
-                    <p className="subtitle">
-                        <input
-                            type="text"
-                            value={billOfQuantitySubtitle}
-                            onChange={(e) => setBillOfQuantitySubtitle(e.target.value)}
-                            className="editable-field full-width"
-                        />
-                    </p>
-
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>
-                                    <input
-                                        type="text"
-                                        value={billColPanel}
-                                        onChange={(e) => setBillColPanel(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                </th>
-                                <th>
-                                    <input
-                                        type="text"
-                                        value={billColComponents}
-                                        onChange={(e) => setBillColComponents(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {billItems.map((item, index) => (
-                                <tr key={index}>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={item.panel}
-                                            onChange={(e) => {
-                                                const newItems = [...billItems];
-                                                newItems[index].panel = e.target.value;
-                                                setBillItems(newItems);
-                                            }}
-                                            className="editable-field full-width"
-                                        />
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={item.description}
-                                            onChange={(e) => {
-                                                const newItems = [...billItems];
-                                                newItems[index].description = e.target.value;
-                                                setBillItems(newItems);
-                                            }}
-                                            className="editable-field full-width"
-                                        />
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-
-                    <div className="footer">
-                        <p>Page 2 of 4</p>
-                        <p>
-                            {footerLine1}
-                            <br />
-                            {footerLine2}
-                            <br />
-                            {footerLine3}
-                        </p>
-                    </div>
-                </div>
-
-                {/* PAGE 3 */}
-                <div className="page">
-                    <div className="header">
-                        <div className="logo-section">
-                            {logoUrl ? (
-                                <img src={logoUrl} alt="Company Logo" className="logo-image" />
-                            ) : (
-                                <div className="logo-circle">{logoLetter}</div>
-                            )}
-                            <div className="company-name">{companyName}</div>
-                        </div>
-                        <div className="header-info">
-                            <p><strong>{companyId}</strong></p>
-                            <p>{companyAddress1}</p>
-                            <p>{companyAddress2}</p>
-                            <p>Phone: {companyPhone}</p>
-                            <p>{companyDate}</p>
-                        </div>
-                    </div>
-
-                    <h2 className="section-title">
-                        <input
-                            type="text"
-                            value={commercialOffersHeading}
-                            onChange={(e) => setCommercialOffersHeading(e.target.value)}
-                            className="editable-field section-title-field"
-                        />
-                    </h2>
-
-                    <h3 className="section-heading">
-                        <input
-                            type="text"
-                            value={supplyHeading}
-                            onChange={(e) => setSupplyHeading(e.target.value)}
-                            className="editable-field section-heading-field"
-                        />
-                    </h3>
-                    <table className="data-table price-table">
-                        <thead>
-                            <tr>
-                                <th>
-                                    <input
-                                        type="text"
-                                        value={commColItem}
-                                        onChange={(e) => setCommColItem(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                </th>
-                                <th>
-                                    <input
-                                        type="text"
-                                        value={commColQty}
-                                        onChange={(e) => setCommColQty(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                    <br />
-                                    <input
-                                        type="text"
-                                        value={commColQtyUnit}
-                                        onChange={(e) => setCommColQtyUnit(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                </th>
-                                <th>
-                                    <input
-                                        type="text"
-                                        value={commColUnitPrice}
-                                        onChange={(e) => setCommColUnitPrice(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                    <br />
-                                    <input
-                                        type="text"
-                                        value={commColUnitPriceUnit}
-                                        onChange={(e) => setCommColUnitPriceUnit(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                </th>
-                                <th>
-                                    <input
-                                        type="text"
-                                        value={commColAmount}
-                                        onChange={(e) => setCommColAmount(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                    <br />
-                                    <input
-                                        type="text"
-                                        value={commColAmountUnit}
-                                        onChange={(e) => setCommColAmountUnit(e.target.value)}
-                                        className="editable-field table-header-field"
-                                    />
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {supplyItems.map((item, index) => (
-                                <tr key={index}>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={item.item}
-                                            onChange={(e) => {
-                                                const newItems = [...supplyItems];
-                                                newItems[index].item = e.target.value;
-                                                setSupplyItems(newItems);
-                                            }}
-                                            className="editable-field full-width"
-                                        />
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={item.qty}
-                                            onChange={(e) => {
-                                                const newItems = [...supplyItems];
-                                                newItems[index].qty = e.target.value;
-                                                setSupplyItems(newItems);
-                                            }}
-                                            className="editable-field text-right"
-                                        />
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={item.unitPrice}
-                                            onChange={(e) => {
-                                                const newItems = [...supplyItems];
-                                                newItems[index].unitPrice = e.target.value;
-                                                setSupplyItems(newItems);
-                                            }}
-                                            className="editable-field text-right"
-                                        />
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={item.amount}
-                                            onChange={(e) => {
-                                                const newItems = [...supplyItems];
-                                                newItems[index].amount = e.target.value;
-                                                setSupplyItems(newItems);
-                                            }}
-                                            className="editable-field text-right"
-                                        />
-                                    </td>
-                                </tr>
-                            ))}
-                            <tr className="total-row">
-                                <td colSpan={3}><strong>1. Total Amount (In Rs)</strong></td>
-                                <td><strong>19164864</strong></td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <h3 className="section-heading mt-4">
-                        <input
-                            type="text"
-                            value={erectionHeading}
-                            onChange={(e) => setErectionHeading(e.target.value)}
-                            className="editable-field section-heading-field"
-                        />
-                    </h3>
-                    <table className="data-table price-table">
-                        <thead>
-                            <tr>
-                                <th>Item</th>
-                                <th>Qty<br />(In Nos)</th>
-                                <th>Unit Price<br />(In Rs.)</th>
-                                <th>Amount<br />(In Rs.)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Erection, testing & Commissioning</td>
-                                <td>
-                                    <input
-                                        type="text"
-                                        value={erectionQty}
-                                        onChange={(e) => setErectionQty(e.target.value)}
-                                        className="editable-field text-right"
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        type="text"
-                                        value={erectionUnitPrice}
-                                        onChange={(e) => setErectionUnitPrice(e.target.value)}
-                                        className="editable-field text-right"
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        type="text"
-                                        value={erectionAmount}
-                                        onChange={(e) => setErectionAmount(e.target.value)}
-                                        className="editable-field text-right"
-                                    />
-                                </td>
-                            </tr>
-                            <tr className="total-row">
-                                <td colSpan={3}><strong>2. Total Amount (In Rs)</strong></td>
-                                <td><strong>{erectionAmount}</strong></td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <h3 className="section-heading mt-4">
-                        <input
-                            type="text"
-                            value={freightHeading}
-                            onChange={(e) => setFreightHeading(e.target.value)}
-                            className="editable-field section-heading-field"
-                        />
-                    </h3>
-                    <table className="data-table price-table">
-                        <thead>
-                            <tr>
-                                <th>Item</th>
-                                <th>Qty<br />(In Nos)</th>
-                                <th>Unit Price<br />(In Rs.)</th>
-                                <th>Amount<br />(In Rs.)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Freight & Insurance</td>
-                                <td>
-                                    <input
-                                        type="text"
-                                        value={freightQty}
-                                        onChange={(e) => setFreightQty(e.target.value)}
-                                        className="editable-field text-right"
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        type="text"
-                                        value={freightUnitPrice}
-                                        onChange={(e) => setFreightUnitPrice(e.target.value)}
-                                        className="editable-field text-right"
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        type="text"
-                                        value={freightAmount}
-                                        onChange={(e) => setFreightAmount(e.target.value)}
-                                        className="editable-field text-right"
-                                    />
-                                </td>
-                            </tr>
-                            <tr className="total-row">
-                                <td colSpan={3}><strong>3. Total Amount (In Rs)</strong></td>
-                                <td><strong>{freightAmount}</strong></td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <div className="footer">
-                        <p>Page 3 of 4</p>
-                        <p>
-                            {footerLine1}
-                            <br />
-                            {footerLine2}
-                            <br />
-                            {footerLine3}
-                        </p>
-                    </div>
-                </div>
-
-                {/* PAGE 4 */}
-                <div className="page">
-                    <div className="header">
-                        <div className="logo-section">
-                            {logoUrl ? (
-                                <img src={logoUrl} alt="Company Logo" className="logo-image" />
-                            ) : (
-                                <div className="logo-circle">{logoLetter}</div>
-                            )}
-                            <div className="company-name">{companyName}</div>
-                        </div>
-                        <div className="header-info">
-                            <p><strong>{companyId}</strong></p>
-                            <p>{companyAddress1}</p>
-                            <p>{companyAddress2}</p>
-                            <p>Phone: {companyPhone}</p>
-                            <p>{companyDate}</p>
-                        </div>
-                    </div>
-
-                    <h2 className="section-title">
-                        <input
-                            type="text"
-                            value={termsHeading}
-                            onChange={(e) => setTermsHeading(e.target.value)}
-                            className="editable-field section-title-field"
-                        />
-                    </h2>
-
-                    <div className="terms-content">
-                        <h3 className="terms-heading">Delivery Schedule</h3>
-                        <ul>
-                            <li>
+                        {/* Footer */}
+                        <div className="footer">
+                            <p>Page {pageIndex + 1} of {pages.length}</p>
+                            <p>
                                 <input
                                     type="text"
-                                    value={deliverySchedule}
-                                    onChange={(e) => setDeliverySchedule(e.target.value)}
-                                    className="editable-field full-width"
+                                    value={footerLine1}
+                                    onChange={(e) => setFooterLine1(e.target.value)}
+                                    className="editable-field full-width footer-field"
                                 />
-                            </li>
-                        </ul>
-
-                        <h3 className="terms-heading">Payment Terms</h3>
-                        <ul>
-                            {paymentTerms.map((term, index) => (
-                                <li key={index}>
-                                    <input
-                                        type="text"
-                                        value={term}
-                                        onChange={(e) => {
-                                            const newTerms = [...paymentTerms];
-                                            newTerms[index] = e.target.value;
-                                            setPaymentTerms(newTerms);
-                                        }}
-                                        className="editable-field full-width"
-                                    />
-                                </li>
-                            ))}
-                        </ul>
-
-                        <h3 className="terms-heading">Warranty</h3>
-                        <ul>
-                            <li>
+                                <br />
                                 <input
                                     type="text"
-                                    value={warranty}
-                                    onChange={(e) => setWarranty(e.target.value)}
-                                    className="editable-field full-width"
+                                    value={footerLine2}
+                                    onChange={(e) => setFooterLine2(e.target.value)}
+                                    className="editable-field full-width footer-field"
                                 />
-                            </li>
-                        </ul>
-
-                        <h3 className="terms-heading">Documents Submitted</h3>
-                        <ul>
-                            {documents.map((doc, index) => (
-                                <li key={index}>
-                                    <input
-                                        type="text"
-                                        value={doc}
-                                        onChange={(e) => {
-                                            const newDocs = [...documents];
-                                            newDocs[index] = e.target.value;
-                                            setDocuments(newDocs);
-                                        }}
-                                        className="editable-field full-width"
-                                    />
-                                </li>
-                            ))}
-                        </ul>
-
-                        <h3 className="terms-heading">Acceptance</h3>
-                        <p>We request you to review & issue PO.</p>
-
-                        <div className="company-signature">
-                            <p><strong>For GREEN ENERGY PVT LTD</strong></p>
-                            <p>General Bazar, Malad</p>
-                            <p>Email: info@greenenergy.com</p>
-                            <p>Phone: +91 99205 21473</p>
-                            <div className="signature-space"></div>
-                            <p><strong>SANTOSH - M.D. - SCADA / PDD</strong></p>
+                                <br />
+                                <input
+                                    type="text"
+                                    value={footerLine3}
+                                    onChange={(e) => setFooterLine3(e.target.value)}
+                                    className="editable-field full-width footer-field"
+                                />
+                            </p>
                         </div>
                     </div>
-
-                    <div className="footer">
-                        <p>Page 4 of 4</p>
-                        <p>
-                            {footerLine1}
-                            <br />
-                            {footerLine2}
-                            <br />
-                            {footerLine3}
-                        </p>
-                    </div>
-                </div>
+                ))}
             </div>
 
             <style jsx global>{`
@@ -1099,21 +966,7 @@ export default function TechnoQuotationPage() {
           .data-table th,
           .data-table td {
             padding: 5px !important;
-          }
-          
-          .ref-section,
-          .customer-section {
-            margin: 10px 0 !important;
-          }
-          
-          .terms-content {
-            font-size: 10px !important;
-          }
-          
-          .terms-heading {
-            font-size: 11px !important;
-            margin-top: 10px !important;
-            margin-bottom: 5px !important;
+            word-wrap: break-word !important;
           }
           
           .footer {
@@ -1124,15 +977,6 @@ export default function TechnoQuotationPage() {
             font-size: 7px !important;
             line-height: 1.3 !important;
             padding-top: 8px !important;
-          }
-          
-          .company-signature {
-            margin-top: 20px !important;
-          }
-          
-          .signature-space {
-            height: 40px !important;
-            margin: 15px 0 !important;
           }
           
           ul {
@@ -1148,18 +992,8 @@ export default function TechnoQuotationPage() {
             margin: 5px 0 !important;
           }
           
-          .note,
-          .subtitle {
-            font-size: 9px !important;
-            margin: 8px 0 !important;
-          }
-          
-          .mt-4 {
-            margin-top: 12px !important;
-          }
-          
-          .mt-6 {
-            margin-top: 16px !important;
+          .mt-2 {
+            margin-top: 8px !important;
           }
         }
 
@@ -1174,8 +1008,11 @@ export default function TechnoQuotationPage() {
 
         .page {
           width: 210mm;
+          height: 297mm;
+          max-height: 297mm;
           min-height: 297mm;
           padding: 20mm;
+          padding-bottom: 35mm;
           background: white;
           margin-bottom: 20px;
           box-shadow: 0 0 10px rgba(0,0,0,0.1);
@@ -1184,6 +1021,41 @@ export default function TechnoQuotationPage() {
           font-size: 11px;
           line-height: 1.6;
           color: #000;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .page-content {
+          flex: 1;
+          overflow: hidden;
+          padding-right: 5px;
+        }
+
+        .overflow-warning {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: #fef3c7;
+          border: 2px solid #fbbf24;
+          color: #92400e;
+          padding: 8px 12px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: bold;
+          z-index: 100;
+          box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
+          animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+
+        .section-wrapper {
+          transition: all 0.3s ease;
+          margin-bottom: 15px;
         }
 
         .header {
@@ -1248,21 +1120,12 @@ export default function TechnoQuotationPage() {
           margin: 15px 0 10px 0;
         }
 
-        .ref-section {
-          margin: 15px 0;
-          font-size: 11px;
-        }
-
-        .customer-section {
-          margin: 20px 0;
-          font-size: 11px;
-        }
-
         .data-table {
           width: 100%;
           border-collapse: collapse;
           margin: 15px 0;
           font-size: 10px;
+          table-layout: fixed;
         }
 
         .data-table th,
@@ -1270,23 +1133,14 @@ export default function TechnoQuotationPage() {
           border: 1px solid #000;
           padding: 8px;
           text-align: left;
+          word-wrap: break-word;
+          width: auto;
         }
 
         .data-table th {
           background-color: #f0f0f0;
           font-weight: bold;
           text-align: center;
-        }
-
-        .price-table td:nth-child(2),
-        .price-table td:nth-child(3),
-        .price-table td:nth-child(4) {
-          text-align: right;
-        }
-
-        .total-row {
-          background-color: #f9f9f9;
-          font-weight: bold;
         }
 
         .editable-field {
@@ -1306,10 +1160,6 @@ export default function TechnoQuotationPage() {
 
         .editable-field.full-width {
           width: 100%;
-        }
-
-        .editable-field.text-right {
-          text-align: right;
         }
 
         .logo-image {
@@ -1393,56 +1243,6 @@ export default function TechnoQuotationPage() {
           background: white;
         }
 
-        .note {
-          font-size: 10px;
-          font-style: italic;
-          margin: 10px 0;
-        }
-
-        .subtitle {
-          font-size: 10px;
-          font-style: italic;
-          margin-bottom: 10px;
-        }
-
-        .mt-4 {
-          margin-top: 16px;
-        }
-
-        .mt-6 {
-          margin-top: 24px;
-        }
-
-        .terms-content {
-          font-size: 11px;
-        }
-
-        .terms-heading {
-          font-size: 12px;
-          font-weight: bold;
-          margin-top: 15px;
-          margin-bottom: 8px;
-        }
-
-        .terms-content ul {
-          margin: 5px 0;
-          padding-left: 20px;
-        }
-
-        .terms-content li {
-          margin: 5px 0;
-        }
-
-        .company-signature {
-          margin-top: 40px;
-          font-size: 11px;
-        }
-
-        .signature-space {
-          height: 60px;
-          margin: 20px 0;
-        }
-
         .footer {
           position: absolute;
           bottom: 15mm;
@@ -1467,6 +1267,157 @@ export default function TechnoQuotationPage() {
         .footer-field:focus {
           outline: 2px solid #4CAF50;
           background: white;
+        }
+
+        .page-controls {
+          background: #f0f9ff;
+          border: 2px dashed #0ea5e9;
+          border-radius: 8px;
+          padding: 12px;
+          margin: 15px 0;
+        }
+
+        .control-buttons {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .control-btn {
+          font-size: 11px;
+          padding: 6px 12px;
+        }
+
+        .section-wrapper {
+          position: relative;
+          margin: 15px 0;
+        }
+
+        .section-controls {
+          position: absolute;
+          top: -10px;
+          right: -10px;
+          z-index: 10;
+        }
+
+        .delete-section-btn {
+          background: #ef4444;
+          color: white;
+          border-radius: 50%;
+          width: 24px;
+          height: 24px;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .delete-section-btn:hover {
+          background: #dc2626;
+        }
+
+        .table-controls {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+
+        .th-content {
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+        }
+
+        .delete-col-btn {
+          background: #ef4444;
+          color: white;
+          border: none;
+          border-radius: 50%;
+          width: 18px;
+          height: 18px;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+
+        .delete-col-btn:hover {
+          background: #dc2626;
+        }
+
+        .td-content {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .delete-row-cell {
+          border: none !important;
+          background: transparent !important;
+          padding: 4px !important;
+          width: 30px;
+        }
+
+        .delete-row-btn {
+          background: #ef4444;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+
+        .delete-row-btn:hover {
+          background: #dc2626;
+        }
+
+        .list-item-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .delete-item-btn {
+          background: #ef4444;
+          color: white;
+          border: none;
+          border-radius: 50%;
+          width: 18px;
+          height: 18px;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+
+        .delete-item-btn:hover {
+          background: #dc2626;
+        }
+
+        .mt-2 {
+          margin-top: 8px;
+        }
+
+        .text-section {
+          margin: 15px 0;
+        }
+
+        .list-section {
+          margin: 15px 0;
+        }
+
+        .table-section {
+          margin: 15px 0;
         }
       `}</style>
 
