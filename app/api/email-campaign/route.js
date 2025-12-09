@@ -63,6 +63,22 @@ export async function POST(request) {
           await campaignScheduler.updateCampaignData(campaignData);
         return Response.json(updateCampaignDataResult);
 
+      case "completeCampaign":
+        // campaignData may be undefined if called without payload - handle gracefully
+        const campaignIdToComplete = campaignData?.campaignId;
+        if (!campaignIdToComplete) {
+          return Response.json(
+            { success: false, error: "campaignId is required for completeCampaign action" },
+            { status: 400 }
+          );
+        }
+        const completeCampaignResult = await campaignScheduler.storage.updateCampaignStatus(
+          campaignIdToComplete,
+          "completed",
+          { completedAt: new Date() }
+        );
+        return Response.json(completeCampaignResult);
+
       case "generateTemplate":
         try {
           const {

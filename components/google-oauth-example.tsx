@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
  * This demonstrates accessing user data, auth tokens, and sign out functionality
  */
 export function GoogleOAuthExample() {
-  const { user, authToken, loading } = useAuth();
+  const { user, authToken, loading, logout } = useAuth();
   const { data: session } = useSession();
 
   if (loading) {
@@ -31,10 +31,8 @@ export function GoogleOAuthExample() {
   }
 
   const handleSignOut = async () => {
-    // Sign out from NextAuth (Google OAuth)
-    await signOut({ redirect: false });
-    // Also sign out from traditional auth if needed
-    // await logout();
+    // Use the logout function from auth context which handles both OAuth and traditional auth
+    await logout();
   };
 
   return (

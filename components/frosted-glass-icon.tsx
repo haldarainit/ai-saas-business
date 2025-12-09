@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import { useTheme } from "next-themes"
 
 interface FrostedGlassIconProps {
@@ -17,7 +17,14 @@ export default function FrostedGlassIcon({
   className = "",
 }: FrostedGlassIconProps) {
   const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === "dark"
+  const [mounted, setMounted] = useState(false)
+
+  // Prevent hydration mismatch by only using theme after mount
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const isDark = mounted ? resolvedTheme === "dark" : false
 
   const sizeClasses = {
     sm: "w-10 h-10",

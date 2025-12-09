@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 
 interface User {
   id: string;
@@ -134,10 +134,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
+      // Clear NextAuth session (for Google OAuth)
+      await signOut({ redirect: false });
+
+      // Clear local state
+      setUser(null);
+      setAuthToken(null);
+
+      // Clear traditional auth session
       await fetch("/api/auth/logout", {
         method: "POST",
       });
-      setUser(null);
     } catch (error) {
       console.error("Logout error:", error);
     }

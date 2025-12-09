@@ -805,8 +805,8 @@ export function EmailTemplateEditor({
         open={showTrackedButtonDialog}
         onOpenChange={setShowTrackedButtonDialog}
       >
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <MousePointerClick className="w-5 h-5 text-blue-600" />
               Insert Tracked CTA Button
@@ -815,80 +815,84 @@ export function EmailTemplateEditor({
               Add a clickable button that will track when recipients click it
             </p>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="tracked-button-text">Button Text</Label>
-              <Input
-                id="tracked-button-text"
-                value={trackedButtonText}
-                onChange={(e) => setTrackedButtonText(e.target.value)}
-                placeholder="Get Started"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tracked-button-url">Destination URL</Label>
-              <Input
-                id="tracked-button-url"
-                value={trackedButtonUrl}
-                onChange={(e) => setTrackedButtonUrl(e.target.value)}
-                placeholder="https://example.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tracked-button-style">Button Style</Label>
-              <div className="grid grid-cols-5 gap-2">
-                {["primary", "success", "danger", "warning", "dark"].map(
-                  (style) => (
-                    <button
-                      key={style}
-                      onClick={() => setTrackedButtonStyle(style)}
-                      className={`h-12 rounded-lg border-2 transition-all ${
-                        trackedButtonStyle === style
-                          ? "border-blue-500 scale-105"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                      style={{
-                        background: getButtonStyles(style).background,
-                      }}
-                      title={style.charAt(0).toUpperCase() + style.slice(1)}
-                    />
-                  )
-                )}
+
+          <div className="flex-1 overflow-y-auto py-4 custom-dialog-scroll">
+            <div className="space-y-4 pr-2">
+              <div className="space-y-2">
+                <Label htmlFor="tracked-button-text">Button Text</Label>
+                <Input
+                  id="tracked-button-text"
+                  value={trackedButtonText}
+                  onChange={(e) => setTrackedButtonText(e.target.value)}
+                  placeholder="Get Started"
+                />
               </div>
-            </div>
-            {trackedButtonText && trackedButtonUrl && (
-              <div className="mt-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                <p className="text-xs text-muted-foreground mb-3">Preview:</p>
-                <div style={{ textAlign: "center" }}>
-                  <a
-                    href={trackedButtonUrl}
-                    onClick={(e) => e.preventDefault()}
-                    style={{
-                      display: "inline-block",
-                      padding: "15px 40px",
-                      background:
-                        getButtonStyles(trackedButtonStyle).background,
-                      color: getButtonStyles(trackedButtonStyle).color,
-                      textDecoration: "none",
-                      borderRadius: "8px",
-                      fontWeight: "bold",
-                      fontSize: "16px",
-                      boxShadow: getButtonStyles(trackedButtonStyle).shadow,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {trackedButtonText}
-                  </a>
+              <div className="space-y-2">
+                <Label htmlFor="tracked-button-url">Destination URL</Label>
+                <Input
+                  id="tracked-button-url"
+                  value={trackedButtonUrl}
+                  onChange={(e) => setTrackedButtonUrl(e.target.value)}
+                  placeholder="https://example.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tracked-button-style">Button Style</Label>
+                <div className="grid grid-cols-5 gap-2">
+                  {["primary", "success", "danger", "warning", "dark"].map(
+                    (style) => (
+                      <button
+                        key={style}
+                        onClick={() => setTrackedButtonStyle(style)}
+                        className={`h-12 rounded-lg border-2 transition-all ${
+                          trackedButtonStyle === style
+                            ? "border-blue-500 scale-105"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                        style={{
+                          background: getButtonStyles(style).background,
+                        }}
+                        title={style.charAt(0).toUpperCase() + style.slice(1)}
+                      />
+                    )
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-3 text-center flex items-center justify-center gap-2">
-                  <MousePointerClick className="w-3 h-3" />
-                  Clicks will be automatically tracked & webhook will be
-                  triggered
-                </p>
               </div>
-            )}
+              {trackedButtonText && trackedButtonUrl && (
+                <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-xs text-muted-foreground mb-3">Preview:</p>
+                  <div style={{ textAlign: "center" }}>
+                    <a
+                      href={trackedButtonUrl}
+                      onClick={(e) => e.preventDefault()}
+                      style={{
+                        display: "inline-block",
+                        padding: "15px 40px",
+                        background:
+                          getButtonStyles(trackedButtonStyle).background,
+                        color: getButtonStyles(trackedButtonStyle).color,
+                        textDecoration: "none",
+                        borderRadius: "8px",
+                        fontWeight: "bold",
+                        fontSize: "16px",
+                        boxShadow: getButtonStyles(trackedButtonStyle).shadow,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {trackedButtonText}
+                    </a>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3 text-center flex items-center justify-center gap-2">
+                    <MousePointerClick className="w-3 h-3" />
+                    Clicks will be automatically tracked & webhook will be
+                    triggered
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="shrink-0 bg-background/95 backdrop-blur-sm">
             <Button
               variant="outline"
               onClick={() => setShowTrackedButtonDialog(false)}
