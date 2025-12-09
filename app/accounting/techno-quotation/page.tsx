@@ -2,10 +2,13 @@
 
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { Printer, ArrowLeft, Plus, Trash2, PlusCircle, X } from "lucide-react";
+import { Printer, ArrowLeft, Plus, Trash2, PlusCircle, X, Sparkles, FileEdit, Zap } from "lucide-react";
 import Link from "next/link";
+import { motion } from "framer-motion";
+import AutomatedQuotationQuestionnaire from "@/components/AutomatedQuotationQuestionnaire";
 
 // Types for dynamic structures
 interface Column {
@@ -41,6 +44,16 @@ interface Page {
 }
 
 export default function TechnoQuotationPage() {
+    // Selection state: null = show selection screen, 'manual' = manual quotation, 'automated' = AI quotation, 'ai-generated' = showing AI generated quotation
+    const [quotationType, setQuotationType] = useState<'manual' | 'automated' | 'ai-generated' | null>(null);
+
+    // Automated Quotation States
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [answers, setAnswers] = useState<{ [key: string]: string }>({});
+    const [currentAnswer, setCurrentAnswer] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generationProgress, setGenerationProgress] = useState(0);
+
     // Company Information & Logo
     const [logoUrl, setLogoUrl] = useState('');
     const [logoLetter, setLogoLetter] = useState('G');
@@ -107,7 +120,7 @@ export default function TechnoQuotationPage() {
     const [isProcessingOverflow, setIsProcessingOverflow] = React.useState(false);
 
     React.useEffect(() => {
-        if (isProcessingOverflow) return;
+        if (isProcessingOverflow || quotationType !== 'manual') return;
 
         const checkOverflow = () => {
             pageContentRefs.current.forEach((contentEl, pageIndex) => {
@@ -166,7 +179,7 @@ export default function TechnoQuotationPage() {
         const timeoutId = setTimeout(checkOverflow, 500);
 
         return () => clearTimeout(timeoutId);
-    }, [pages, isProcessingOverflow]);
+    }, [pages, isProcessingOverflow, quotationType]);
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -482,16 +495,353 @@ export default function TechnoQuotationPage() {
         }));
     };
 
+    // Questionnaire for Automated Quotation
+    const questions = [
+        {
+            id: 'company_name',
+            question: 'What is your company name?',
+            placeholder: 'e.g., GREEN ENERGY PVT. LTD',
+            type: 'text'
+        },
+        {
+            id: 'company_details',
+            question: 'Please provide your company details (address, phone, email)',
+            placeholder: 'e.g., Malad - 400 064, Mumbai, Maharashtra, India\nPhone: +91 99205 21473',
+            type: 'textarea'
+        },
+        {
+            id: 'client_name',
+            question: 'Who is the client/customer for this quotation?',
+            placeholder: 'e.g., The Head Plant - SAIL',
+            type: 'text'
+        },
+        {
+            id: 'client_details',
+            question: 'Please provide client details (address, contact information)',
+            placeholder: 'e.g., DSM, CSTL & SMRH, Bhilai, Chhattisgarh',
+            type: 'textarea'
+        },
+        {
+            id: 'project_type',
+            question: 'What type of project/product is this quotation for?',
+            placeholder: 'e.g., Solar Panel Installation, LED Lighting Solutions, etc.',
+            type: 'text'
+        },
+        {
+            id: 'project_scope',
+            question: 'Describe the scope of work and project requirements',
+            placeholder: 'Provide detailed information about what needs to be done, specifications, quantities, etc.',
+            type: 'textarea'
+        },
+        {
+            id: 'technical_specs',
+            question: 'What are the key technical specifications or compliance requirements?',
+            placeholder: 'e.g., Panel capacity, voltage requirements, certifications needed, etc.',
+            type: 'textarea'
+        },
+        {
+            id: 'items_services',
+            question: 'List the main items/services to be included in the quotation',
+            placeholder: 'e.g., Solar panels, inverters, installation, testing, etc.',
+            type: 'textarea'
+        },
+        {
+            id: 'terms_conditions',
+            question: 'Any specific terms and conditions or special requirements?',
+            placeholder: 'e.g., Payment terms, delivery schedule, warranty, etc.',
+            type: 'textarea'
+        },
+        {
+            id: 'additional_info',
+            question: 'Any additional information you\'d like to include?',
+            placeholder: 'Optional: Any other details that should be in the quotation',
+            type: 'textarea'
+        }
+    ];
+
+    const handleNextQuestion = () => {
+        if (currentAnswer.trim()) {
+            setAnswers({ ...answers, [questions[currentQuestionIndex].id]: currentAnswer });
+            setCurrentAnswer('');
+
+            if (currentQuestionIndex < questions.length - 1) {
+                setCurrentQuestionIndex(currentQuestionIndex + 1);
+            } else {
+                // All questions answered, generate quotation
+                generateQuotation();
+            }
+        }
+    };
+
+    const handlePreviousQuestion = () => {
+        if (currentQuestionIndex > 0) {
+            const prevQuestionId = questions[currentQuestionIndex - 1].id;
+            setCurrentAnswer(answers[prevQuestionId] || '');
+            setCurrentQuestionIndex(currentQuestionIndex - 1);
+        }
+    };
+
+    const handleSkipQuestion = () => {
+        setCurrentAnswer('');
+        if (currentQuestionIndex < questions.length - 1) {
+            setCurrentQuestionIndex(currentQuestionIndex + 1);
+        } else {
+            generateQuotation();
+        }
+    };
+
+    const generateQuotation = async () => {
+        setIsGenerating(true);
+        setGenerationProgress(0);
+
+        try {
+            // Simulate progress
+            const progressInterval = setInterval(() => {
+                setGenerationProgress(prev => {
+                    if (prev >= 90) {
+                        clearInterval(progressInterval);
+                        return 90;
+                    }
+                    return prev + 10;
+                });
+            }, 300);
+
+            // Call AI API to generate quotation
+            const response = await fetch('/api/generate-quotation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ answers }),
+            });
+
+            clearInterval(progressInterval);
+
+            if (!response.ok) {
+                throw new Error('Failed to generate quotation');
+            }
+
+            const data = await response.json();
+
+            setGenerationProgress(100);
+
+            // Parse the AI response and populate the quotation data
+            if (data.quotation) {
+                // Set company information
+                setCompanyName(data.quotation.companyName || answers.company_name || 'Your Company');
+                setCompanyAddress1(data.quotation.companyAddress1 || '');
+                setCompanyAddress2(data.quotation.companyAddress2 || '');
+                setCompanyPhone(data.quotation.companyPhone || '');
+
+                // Set pages with AI-generated content
+                if (data.quotation.pages && data.quotation.pages.length > 0) {
+                    setPages(data.quotation.pages);
+                }
+
+                // Switch to AI-generated view
+                setTimeout(() => {
+                    setQuotationType('ai-generated');
+                    setIsGenerating(false);
+                }, 500);
+            }
+        } catch (error) {
+            console.error('Error generating quotation:', error);
+            setIsGenerating(false);
+            alert('Failed to generate quotation. Please try again.');
+        }
+    };
+
+    const resetQuestionnaire = () => {
+        setCurrentQuestionIndex(0);
+        setAnswers({});
+        setCurrentAnswer('');
+        setIsGenerating(false);
+        setGenerationProgress(0);
+    };
+
+    // Selection Screen
+    if (quotationType === null) {
+        return (
+            <>
+                <div className="flex min-h-screen flex-col">
+                    <Navbar />
+
+                    <main className="flex-1 bg-gradient-to-br from-emerald-500/10 via-background to-teal-500/10">
+                        {/* Header */}
+                        <section className="py-12 border-b">
+                            <div className="container px-4">
+                                <Link href="/accounting" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6 transition-colors">
+                                    <ArrowLeft className="w-4 h-4 mr-2" />
+                                    Back to Accounting
+                                </Link>
+                                <div className="text-center max-w-3xl mx-auto">
+                                    <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
+                                        Techno Commercial Quotation
+                                    </h1>
+                                    <p className="text-lg text-muted-foreground">
+                                        Choose how you'd like to create your quotation
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Selection Cards */}
+                        <section className="py-16">
+                            <div className="container px-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                                    {/* Manual Quotation Card */}
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.1 }}
+                                    >
+                                        <Card className="relative overflow-hidden border-2 border-border/50 hover:border-emerald-500/50 transition-all duration-300 hover:shadow-xl group cursor-pointer h-full"
+                                            onClick={() => setQuotationType('manual')}
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                            <div className="relative p-8 flex flex-col h-full">
+                                                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 mb-6 group-hover:scale-110 transition-transform">
+                                                    <FileEdit className="w-8 h-8 text-white" />
+                                                </div>
+
+                                                <h3 className="text-2xl font-bold mb-3 text-emerald-600">
+                                                    Manual Quotation
+                                                </h3>
+
+                                                <p className="text-muted-foreground mb-6 flex-grow">
+                                                    Create a fully customizable quotation with complete control over every detail. Add pages, sections, tables, and customize the layout to match your exact requirements.
+                                                </p>
+
+                                                <div className="space-y-2 mb-6">
+                                                    <div className="flex items-center text-sm text-muted-foreground">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2" />
+                                                        Dynamic page management
+                                                    </div>
+                                                    <div className="flex items-center text-sm text-muted-foreground">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2" />
+                                                        Custom tables & sections
+                                                    </div>
+                                                    <div className="flex items-center text-sm text-muted-foreground">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2" />
+                                                        Full design control
+                                                    </div>
+                                                </div>
+
+                                                <Button
+                                                    className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 group-hover:shadow-lg transition-all"
+                                                    size="lg"
+                                                >
+                                                    Start Manual Creation
+                                                    <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+                                                </Button>
+                                            </div>
+                                        </Card>
+                                    </motion.div>
+
+                                    {/* Automated Quotation Card */}
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.2 }}
+                                    >
+                                        <Card className="relative overflow-hidden border-2 border-border/50 hover:border-teal-500/50 transition-all duration-300 hover:shadow-xl group cursor-pointer h-full"
+                                            onClick={() => setQuotationType('automated')}
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                            {/* AI Badge */}
+                                            <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-xs font-bold flex items-center gap-1">
+                                                <Sparkles className="w-3 h-3" />
+                                                AI Powered
+                                            </div>
+
+                                            <div className="relative p-8 flex flex-col h-full">
+                                                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 mb-6 group-hover:scale-110 transition-transform">
+                                                    <Zap className="w-8 h-8 text-white" />
+                                                </div>
+
+                                                <h3 className="text-2xl font-bold mb-3 text-teal-600">
+                                                    Automated Quotation
+                                                </h3>
+
+                                                <p className="text-muted-foreground mb-6 flex-grow">
+                                                    Let AI generate professional quotations instantly. Simply provide your requirements and let our intelligent system create a comprehensive quotation for you.
+                                                </p>
+
+                                                <div className="space-y-2 mb-6">
+                                                    <div className="flex items-center text-sm text-muted-foreground">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mr-2" />
+                                                        AI-powered generation
+                                                    </div>
+                                                    <div className="flex items-center text-sm text-muted-foreground">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mr-2" />
+                                                        Instant results
+                                                    </div>
+                                                    <div className="flex items-center text-sm text-muted-foreground">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mr-2" />
+                                                        Smart formatting
+                                                    </div>
+                                                </div>
+
+                                                <Button
+                                                    className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 group-hover:shadow-lg transition-all"
+                                                    size="lg"
+                                                >
+                                                    <Sparkles className="w-4 h-4 mr-2" />
+                                                    Generate with AI
+                                                </Button>
+                                            </div>
+                                        </Card>
+                                    </motion.div>
+                                </div>
+                            </div>
+                        </section>
+                    </main>
+
+                    <Footer />
+                </div>
+            </>
+        );
+    }
+
+    // Automated Quotation Placeholder
+    if (quotationType === 'automated') {
+        return (
+            <AutomatedQuotationQuestionnaire
+                questions={questions}
+                currentQuestionIndex={currentQuestionIndex}
+                currentAnswer={currentAnswer}
+                answers={answers}
+                isGenerating={isGenerating}
+                generationProgress={generationProgress}
+                onAnswerChange={setCurrentAnswer}
+                onNext={handleNextQuestion}
+                onPrevious={handlePreviousQuestion}
+                onSkip={handleSkipQuestion}
+                onBack={() => {
+                    resetQuestionnaire();
+                    setQuotationType(null);
+                }}
+            />
+        );
+    }
+
+    // Manual Quotation (existing functionality)
     return (
         <>
             <div className="no-print">
                 <Navbar />
                 <div className="bg-gradient-to-br from-emerald-500/10 via-background to-teal-500/10 py-8">
                     <div className="container px-4">
-                        <Link href="/accounting" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4 transition-colors">
+                        <Button
+                            onClick={() => setQuotationType(null)}
+                            variant="ghost"
+                            className="mb-4"
+                        >
                             <ArrowLeft className="w-4 h-4 mr-2" />
-                            Back to Accounting
-                        </Link>
+                            Back to Selection
+                        </Button>
                         <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
                             Dynamic Techno Commercial Quotation
                         </h1>
@@ -798,7 +1148,7 @@ export default function TechnoQuotationPage() {
                                                                                 />
                                                                                 {section.table!.columns.length > 1 && (
                                                                                     <button
-                                                                                        className="no-print delete-col-btn"
+                                                                                        className="no-print delete-column-btn"
                                                                                         onClick={() => deleteColumn(page.id, section.id, column.id)}
                                                                                     >
                                                                                         <X className="w-3 h-3" />
@@ -814,24 +1164,24 @@ export default function TechnoQuotationPage() {
                                                                     <tr key={row.id}>
                                                                         {columnGroup.map((column) => (
                                                                             <td key={column.id}>
-                                                                                <div className="td-content">
-                                                                                    <input
-                                                                                        type="text"
-                                                                                        value={row.cells[column.id] || ''}
-                                                                                        onChange={(e) => updateCell(page.id, section.id, row.id, column.id, e.target.value)}
-                                                                                        className="editable-field full-width"
-                                                                                    />
-                                                                                </div>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={row.cells[column.id] || ''}
+                                                                                    onChange={(e) => updateCell(page.id, section.id, row.id, column.id, e.target.value)}
+                                                                                    className="editable-field table-cell-field"
+                                                                                />
                                                                             </td>
                                                                         ))}
-                                                                        {groupIndex === 0 && section.table!.rows.length > 1 && (
-                                                                            <td className="no-print delete-row-cell">
-                                                                                <button
-                                                                                    className="delete-row-btn"
-                                                                                    onClick={() => deleteRow(page.id, section.id, row.id)}
-                                                                                >
-                                                                                    <Trash2 className="w-3 h-3" />
-                                                                                </button>
+                                                                        {groupIndex === 0 && (
+                                                                            <td className="no-print" style={{ width: '40px', padding: '5px' }}>
+                                                                                {section.table!.rows.length > 1 && (
+                                                                                    <button
+                                                                                        className="delete-row-btn"
+                                                                                        onClick={() => deleteRow(page.id, section.id, row.id)}
+                                                                                    >
+                                                                                        <Trash2 className="w-3 h-3" />
+                                                                                    </button>
+                                                                                )}
                                                                             </td>
                                                                         )}
                                                                     </tr>
@@ -849,581 +1199,397 @@ export default function TechnoQuotationPage() {
 
                         {/* Footer */}
                         <div className="footer">
-                            <p>Page {pageIndex + 1} of {pages.length}</p>
-                            <p>
-                                <input
-                                    type="text"
-                                    value={footerLine1}
-                                    onChange={(e) => setFooterLine1(e.target.value)}
-                                    className="editable-field full-width footer-field"
-                                />
-                                <br />
-                                <input
-                                    type="text"
-                                    value={footerLine2}
-                                    onChange={(e) => setFooterLine2(e.target.value)}
-                                    className="editable-field full-width footer-field"
-                                />
-                                <br />
-                                <input
-                                    type="text"
-                                    value={footerLine3}
-                                    onChange={(e) => setFooterLine3(e.target.value)}
-                                    className="editable-field full-width footer-field"
-                                />
-                            </p>
+                            <p><input type="text" value={footerLine1} onChange={(e) => setFooterLine1(e.target.value)} className="editable-field footer-field" /></p>
+                            <p><input type="text" value={footerLine2} onChange={(e) => setFooterLine2(e.target.value)} className="editable-field footer-field" /></p>
+                            <p><input type="text" value={footerLine3} onChange={(e) => setFooterLine3(e.target.value)} className="editable-field footer-field" /></p>
                         </div>
                     </div>
                 ))}
             </div>
 
+            {/* Print Styles */}
             <style jsx global>{`
-        @media print {
-          @page {
-            size: A4;
-            margin: 0;
-          }
-          
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          
-          html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 210mm !important;
-            height: 297mm !important;
-          }
-          
-          .no-print {
-            display: none !important;
-          }
-          
-          .quotation-container {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: transparent !important;
-            width: 210mm !important;
-          }
-          
-          .page {
-            page-break-after: always !important;
-            page-break-inside: avoid !important;
-            margin: 0 !important;
-            padding: 15mm 20mm 25mm 20mm !important;
-            box-shadow: none !important;
-            width: 210mm !important;
-            height: 297mm !important;
-            min-height: 297mm !important;
-            max-height: 297mm !important;
-            background: white !important;
-            position: relative !important;
-            overflow: hidden !important;
-          }
-          
-          .page:last-child {
-            page-break-after: auto !important;
-          }
-          
-          .editable-field,
-          .company-name-field,
-          .main-title-field,
-          .section-title-field,
-          .section-heading-field,
-          .table-header-field,
-          .footer-field {
-            border: none !important;
-            background: transparent !important;
-            outline: none !important;
-          }
-          
-          .header {
-            margin-bottom: 12px !important;
-            padding-bottom: 10px !important;
-          }
-          
-          .main-title {
-            margin: 15px 0 !important;
-            font-size: 16px !important;
-          }
-          
-          .section-title {
-            margin: 12px 0 !important;
-            font-size: 14px !important;
-          }
-          
-          .section-heading {
-            margin: 10px 0 8px 0 !important;
-            font-size: 12px !important;
-          }
-          
-          .data-table {
-            margin: 10px 0 !important;
-            font-size: 9px !important;
-          }
-          
-          .data-table th,
-          .data-table td {
-            padding: 5px !important;
-            word-wrap: break-word !important;
-          }
-          
-          .footer {
-            position: absolute !important;
-            bottom: 10mm !important;
-            left: 20mm !important;
-            right: 20mm !important;
-            font-size: 7px !important;
-            line-height: 1.3 !important;
-            padding-top: 8px !important;
-          }
-          
-          ul {
-            margin: 5px 0 !important;
-            padding-left: 18px !important;
-          }
-          
-          li {
-            margin: 3px 0 !important;
-          }
-          
-          p {
-            margin: 5px 0 !important;
-          }
-          
-          .mt-2 {
-            margin-top: 8px !important;
-          }
-        }
+                @media print {
+                    .no-print {
+                        display: none !important;
+                    }
+                    
+                    .page {
+                        page-break-after: always;
+                        page-break-inside: avoid;
+                    }
+                    
+                    .page:last-child {
+                        page-break-after: auto;
+                    }
+                }
 
-        @media screen {
-          .quotation-container {
-            max-width: 210mm;
-            margin: 20px auto;
-            background: #f5f5f5;
-            padding: 20px;
-          }
-        }
+                .quotation-container {
+                    max-width: 210mm;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background: white;
+                }
 
-        .page {
-          width: 210mm;
-          height: 297mm;
-          max-height: 297mm;
-          min-height: 297mm;
-          padding: 20mm;
-          padding-bottom: 35mm;
-          background: white;
-          margin-bottom: 20px;
-          box-shadow: 0 0 10px rgba(0,0,0,0.1);
-          position: relative;
-          font-family: Arial, sans-serif;
-          font-size: 11px;
-          line-height: 1.6;
-          color: #000;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-        }
+                .page {
+                    width: 210mm;
+                    min-height: 297mm;
+                    padding: 15mm;
+                    margin: 0 auto 20px;
+                    background: white;
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                    position: relative;
+                    display: flex;
+                    flex-direction: column;
+                }
 
-        .page-content {
-          flex: 1;
-          overflow: hidden;
-          padding-right: 5px;
-        }
+                .header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    padding-bottom: 10px;
+                    border-bottom: 2px solid #10b981;
+                    margin-bottom: 15px;
+                }
 
-        .overflow-warning {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background: #fef3c7;
-          border: 2px solid #fbbf24;
-          color: #92400e;
-          padding: 8px 12px;
-          border-radius: 6px;
-          font-size: 11px;
-          font-weight: bold;
-          z-index: 100;
-          box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
-          animation: pulse 2s infinite;
-        }
+                .logo-section {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
 
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.7; }
-        }
+                .logo-circle {
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #10b981, #14b8a6);
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    font-weight: bold;
+                }
 
-        .section-wrapper {
-          transition: all 0.3s ease;
-          margin-bottom: 15px;
-        }
+                .logo-image {
+                    width: 50px;
+                    height: 50px;
+                    object-fit: contain;
+                }
 
-        .header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          border-bottom: 3px solid #4CAF50;
-          padding-bottom: 15px;
-          margin-bottom: 20px;
-        }
+                .company-name-field {
+                    font-size: 14px;
+                    font-weight: bold;
+                    color: #10b981;
+                }
 
-        .logo-section {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
+                .header-info {
+                    text-align: right;
+                    font-size: 10px;
+                }
 
-        .logo-circle {
-          width: 50px;
-          height: 50px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #4CAF50, #45a049);
-          color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 28px;
-          font-weight: bold;
-        }
+                .header-info p {
+                    margin: 2px 0;
+                }
 
-        .company-name {
-          font-size: 14px;
-          font-weight: bold;
-          color: #4CAF50;
-        }
+                .main-title {
+                    text-align: center;
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #10b981;
+                    margin: 15px 0;
+                    padding: 10px;
+                    background: linear-gradient(135deg, #f0fdf4, #ccfbf1);
+                    border-radius: 8px;
+                }
 
-        .header-info {
-          text-align: right;
-          font-size: 9px;
-          line-height: 1.4;
-        }
+                .main-title-field {
+                    text-align: center;
+                    width: 100%;
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #10b981;
+                }
 
-        .main-title {
-          text-align: center;
-          font-size: 18px;
-          font-weight: bold;
-          text-decoration: underline;
-          margin: 25px 0;
-        }
+                .page-content {
+                    flex: 1;
+                    overflow: visible;
+                }
 
-        .section-title {
-          text-align: center;
-          font-size: 16px;
-          font-weight: bold;
-          text-decoration: underline;
-          margin: 20px 0;
-        }
+                .page-controls {
+                    margin-bottom: 15px;
+                    padding: 10px;
+                    background: #f9fafb;
+                    border-radius: 8px;
+                }
 
-        .section-heading {
-          font-size: 13px;
-          font-weight: bold;
-          margin: 15px 0 10px 0;
-        }
+                .control-buttons {
+                    display: flex;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                }
 
-        .data-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 15px 0;
-          font-size: 10px;
-          table-layout: fixed;
-        }
+                .control-btn {
+                    font-size: 11px;
+                    padding: 6px 12px;
+                }
 
-        .data-table th,
-        .data-table td {
-          border: 1px solid #000;
-          padding: 8px;
-          text-align: left;
-          word-wrap: break-word;
-          width: auto;
-        }
+                .section-wrapper {
+                    position: relative;
+                    margin-bottom: 15px;
+                }
 
-        .data-table th {
-          background-color: #f0f0f0;
-          font-weight: bold;
-          text-align: center;
-        }
+                .section-controls {
+                    position: absolute;
+                    top: -10px;
+                    right: -10px;
+                    z-index: 10;
+                }
 
-        .editable-field {
-          border: 1px dashed #ccc;
-          background: #fafafa;
-          padding: 4px 6px;
-          font-family: Arial, sans-serif;
-          font-size: inherit;
-          width: auto;
-          min-width: 60px;
-        }
+                .delete-section-btn {
+                    background: #fee2e2;
+                    color: #dc2626;
+                    border-radius: 50%;
+                    width: 24px;
+                    height: 24px;
+                    padding: 0;
+                }
 
-        .editable-field:focus {
-          outline: 2px solid #4CAF50;
-          background: white;
-        }
+                .section-title {
+                    font-size: 14px;
+                    font-weight: bold;
+                    color: #10b981;
+                    margin: 10px 0;
+                    padding: 8px;
+                    background: #f0fdf4;
+                    border-left: 4px solid #10b981;
+                }
 
-        .editable-field.full-width {
-          width: 100%;
-        }
+                .section-title-field {
+                    width: 100%;
+                    font-size: 14px;
+                    font-weight: bold;
+                    color: #10b981;
+                    background: transparent;
+                }
 
-        .logo-image {
-          width: 50px;
-          height: 50px;
-          object-fit: contain;
-          border-radius: 50%;
-        }
+                .text-section {
+                    margin: 10px 0;
+                    font-size: 11px;
+                }
 
-        .company-name-field {
-          font-size: 14px;
-          font-weight: bold;
-          color: #4CAF50;
-          border: 1px dashed #ccc;
-          background: #fafafa;
-          padding: 4px 6px;
-        }
+                .list-section {
+                    margin: 10px 0;
+                }
 
-        .company-name-field:focus {
-          outline: 2px solid #4CAF50;
-          background: white;
-        }
+                .section-heading {
+                    font-size: 12px;
+                    font-weight: bold;
+                    margin-bottom: 8px;
+                    color: #059669;
+                }
 
-        .main-title-field {
-          text-align: center;
-          font-size: 18px;
-          font-weight: bold;
-          width: 100%;
-          border: 1px dashed #ccc;
-          background: #fafafa;
-          padding: 8px;
-        }
+                .section-heading-field {
+                    width: 100%;
+                    font-size: 12px;
+                    font-weight: bold;
+                    color: #059669;
+                    background: transparent;
+                }
 
-        .main-title-field:focus {
-          outline: 2px solid #4CAF50;
-          background: white;
-        }
+                .list-section ul {
+                    margin-left: 20px;
+                    font-size: 11px;
+                }
 
-        .section-title-field {
-          text-align: center;
-          font-size: 16px;
-          font-weight: bold;
-          width: 100%;
-          border: 1px dashed #ccc;
-          background: #fafafa;
-          padding: 6px;
-        }
+                .list-item-wrapper {
+                    position: relative;
+                    margin: 5px 0;
+                }
 
-        .section-title-field:focus {
-          outline: 2px solid #4CAF50;
-          background: white;
-        }
+                .delete-item-btn {
+                    position: absolute;
+                    right: -25px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: #fee2e2;
+                    color: #dc2626;
+                    border: none;
+                    border-radius: 50%;
+                    width: 20px;
+                    height: 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                }
 
-        .section-heading-field {
-          font-size: 13px;
-          font-weight: bold;
-          width: auto;
-          min-width: 200px;
-          border: 1px dashed #ccc;
-          background: #fafafa;
-          padding: 4px 6px;
-        }
+                .table-section {
+                    margin: 10px 0;
+                }
 
-        .section-heading-field:focus {
-          outline: 2px solid #4CAF50;
-          background: white;
-        }
+                .table-controls {
+                    display: flex;
+                    gap: 8px;
+                    margin-bottom: 10px;
+                }
 
-        .table-header-field {
-          font-weight: bold;
-          text-align: center;
-          width: 100%;
-          border: 1px dashed #ccc;
-          background: #f0f0f0;
-          padding: 4px;
-          font-size: 10px;
-        }
+                .data-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 10px;
+                    margin-bottom: 10px;
+                }
 
-        .table-header-field:focus {
-          outline: 2px solid #4CAF50;
-          background: white;
-        }
+                .data-table th,
+                .data-table td {
+                    border: 1px solid #d1d5db;
+                    padding: 6px;
+                }
 
-        .footer {
-          position: absolute;
-          bottom: 15mm;
-          left: 20mm;
-          right: 20mm;
-          border-top: 1px solid #ccc;
-          padding-top: 10px;
-          font-size: 8px;
-          text-align: center;
-          line-height: 1.4;
-        }
+                .data-table th {
+                    background: #10b981;
+                    color: white;
+                    font-weight: bold;
+                }
 
-        .footer-field {
-          font-size: 8px;
-          line-height: 1.4;
-          text-align: center;
-          border: 1px dashed #ccc;
-          background: #fafafa;
-          padding: 2px 4px;
-        }
+                .th-content {
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                    position: relative;
+                }
 
-        .footer-field:focus {
-          outline: 2px solid #4CAF50;
-          background: white;
-        }
+                .table-header-field {
+                    flex: 1;
+                    background: transparent;
+                    color: white;
+                    font-weight: bold;
+                    text-align: center;
+                }
 
-        .page-controls {
-          background: #f0f9ff;
-          border: 2px dashed #0ea5e9;
-          border-radius: 8px;
-          padding: 12px;
-          margin: 15px 0;
-        }
+                .delete-column-btn {
+                    background: #fee2e2;
+                    color: #dc2626;
+                    border: none;
+                    border-radius: 50%;
+                    width: 18px;
+                    height: 18px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    flex-shrink: 0;
+                }
 
-        .control-buttons {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
+                .table-cell-field {
+                    width: 100%;
+                    background: transparent;
+                    text-align: left;
+                }
 
-        .control-btn {
-          font-size: 11px;
-          padding: 6px 12px;
-        }
+                .delete-row-btn {
+                    background: #fee2e2;
+                    color: #dc2626;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 4px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
 
-        .section-wrapper {
-          position: relative;
-          margin: 15px 0;
-        }
+                .footer {
+                    margin-top: auto;
+                    padding-top: 10px;
+                    border-top: 2px solid #10b981;
+                    font-size: 9px;
+                    text-align: center;
+                    color: #6b7280;
+                }
 
-        .section-controls {
-          position: absolute;
-          top: -10px;
-          right: -10px;
-          z-index: 10;
-        }
+                .footer p {
+                    margin: 3px 0;
+                }
 
-        .delete-section-btn {
-          background: #ef4444;
-          color: white;
-          border-radius: 50%;
-          width: 24px;
-          height: 24px;
-          padding: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
+                .footer-field {
+                    width: 100%;
+                    text-align: center;
+                    font-size: 9px;
+                    color: #6b7280;
+                }
 
-        .delete-section-btn:hover {
-          background: #dc2626;
-        }
+                .editable-field {
+                    border: 1px solid transparent;
+                    padding: 2px 4px;
+                    border-radius: 3px;
+                    transition: all 0.2s;
+                    font-family: inherit;
+                }
 
-        .table-controls {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 10px;
-        }
+                .editable-field:hover {
+                    border-color: #d1d5db;
+                    background: #f9fafb;
+                }
 
-        .th-content {
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 4px;
-        }
+                .editable-field:focus {
+                    outline: none;
+                    border-color: #10b981;
+                    background: white;
+                }
 
-        .delete-col-btn {
-          background: #ef4444;
-          color: white;
-          border: none;
-          border-radius: 50%;
-          width: 18px;
-          height: 18px;
-          padding: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          flex-shrink: 0;
-        }
+                .full-width {
+                    width: 100%;
+                }
 
-        .delete-col-btn:hover {
-          background: #dc2626;
-        }
+                .overflow-warning {
+                    background: #fef3c7;
+                    color: #92400e;
+                    padding: 8px;
+                    border-radius: 4px;
+                    text-align: center;
+                    font-size: 12px;
+                    margin: 10px 0;
+                    font-weight: bold;
+                }
 
-        .td-content {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
+                @media print {
+                    body {
+                        margin: 0;
+                        padding: 0;
+                    }
 
-        .delete-row-cell {
-          border: none !important;
-          background: transparent !important;
-          padding: 4px !important;
-          width: 30px;
-        }
+                    .quotation-container {
+                        padding: 0;
+                        max-width: none;
+                    }
 
-        .delete-row-btn {
-          background: #ef4444;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          padding: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-        }
+                    .page {
+                        width: 210mm;
+                        height: 297mm;
+                        margin: 0;
+                        padding: 15mm;
+                        box-shadow: none;
+                        page-break-after: always;
+                    }
 
-        .delete-row-btn:hover {
-          background: #dc2626;
-        }
+                    .page:last-child {
+                        page-break-after: auto;
+                    }
 
-        .list-item-wrapper {
-          position: relative;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
+                    .editable-field {
+                        border: none !important;
+                        background: transparent !important;
+                        padding: 0;
+                    }
 
-        .delete-item-btn {
-          background: #ef4444;
-          color: white;
-          border: none;
-          border-radius: 50%;
-          width: 18px;
-          height: 18px;
-          padding: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          flex-shrink: 0;
-        }
-
-        .delete-item-btn:hover {
-          background: #dc2626;
-        }
-
-        .mt-2 {
-          margin-top: 8px;
-        }
-
-        .text-section {
-          margin: 15px 0;
-        }
-
-        .list-section {
-          margin: 15px 0;
-        }
-
-        .table-section {
-          margin: 15px 0;
-        }
-      `}</style>
-
-            <div className="no-print">
-                <Footer />
-            </div>
+                    input, textarea {
+                        border: none !important;
+                        background: transparent !important;
+                    }
+                }
+            `}</style>
         </>
     );
 }
