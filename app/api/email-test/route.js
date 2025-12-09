@@ -26,11 +26,11 @@ export async function POST(request) {
     // Send a test email
     const testResult = await emailService.sendEmail(
       testEmail,
-      "BusinessAI - Email Configuration Test",
-      "<h1>Email Configuration Test</h1><p>If you receive this email, your BusinessAI email configuration is working correctly!</p><p>Test sent at: " +
+      "HAI - Email Configuration Test",
+      "<h1>Email Configuration Test</h1><p>If you receive this email, your HAI email configuration is working correctly!</p><p>Test sent at: " +
         new Date().toISOString() +
         "</p>",
-      "Email Configuration Test - If you receive this email, your BusinessAI email configuration is working correctly! Test sent at: " +
+      "Email Configuration Test - If you receive this email, your HAI email configuration is working correctly! Test sent at: " +
         new Date().toISOString()
     );
 
