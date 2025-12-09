@@ -93,6 +93,17 @@ export default function Features() {
       iconColor: "text-purple-500",
       link: "/employee-management",
     },
+    {
+      image:
+        "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+      title: "Accounting & Finance",
+      description:
+        "Streamline your financial operations with AI-powered accounting tools, automated invoicing, expense tracking, and comprehensive financial reporting.",
+      benefits: ["Invoice Management", "Expense Tracking", "Financial Reports"],
+      accentColor: "rgba(6, 182, 212, 0.5)",
+      iconColor: "text-cyan-500",
+      link: "/accounting",
+    },
   ];
 
   const containerVariants = {
