@@ -1,0 +1,11 @@
+name,sku,description,category,price,cost,quantity,shelf,expiryDate,supplier
+Laptop Pro 15,LP001,High-performance laptop with 16GB RAM,Electronics,999.99,750.00,25,A1,2024-12-31,TechCorp
+Wireless Mouse,WM002,Ergonomic wireless mouse,Electronics,29.99,15.99,50,B2,2025-06-30,MouseTech
+USB-C Cable,UC003,Type-C charging cable 2m,Electronics,12.99,6.50,100,A1,2025-12-31,CableCo
+Office Chair,OC004,Ergonomic office chair with lumbar support,Furniture,299.99,180.00,15,B1,2024-09-30,ChairWorld
+Standing Desk,SD005,Adjustable standing desk 120x60cm,Furniture,599.99,350.00,8,A2,2024-11-30,DeskPro
+Notebook Set,NS006,Premium notebook set of 3,Stationery,19.99,8.50,75,B2,2025-03-31,NotebookInc
+Pen Pack,PP007,Assorted color pens pack of 12,Stationery,9.99,4.25,200,A1,2025-08-31,PenCorp
+Water Bottle,WB008,Stainless steel water bottle 750ml,Accessories,24.99,12.50,60,B1,2024-07-31,BottleTech
+Phone Case,PC009,Protective phone case for iPhone 15,Accessories,34.99,15.75,45,A2,2025-01-31,CasePro
+Coffee Maker,CM010,Programmable coffee maker 12 cup,Appliances,149.99,85.00,12,B2,2024-10-31,BrewMaster

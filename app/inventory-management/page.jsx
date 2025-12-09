@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import Analytics from './components/Analytics';
+import CSVUpload from './components/CSVUpload';
 
 export default function InventoryManagement() {
   const [products, setProducts] = useState([]);
@@ -22,6 +23,7 @@ export default function InventoryManagement() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [activeTab, setActiveTab] = useState('inventory');
+  const [showCSVUpload, setShowCSVUpload] = useState(false);
   const { toast } = useToast();
 
   // Form state
@@ -73,6 +75,39 @@ export default function InventoryManagement() {
     fetchProducts();
   }, [toast]);
 
+  // Handle CSV upload success
+  const handleCSVUploadSuccess = (result) => {
+    // Refresh products list
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/inventory/products', {
+          cache: 'no-store',
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setProducts(Array.isArray(data) ? data : []);
+        
+      } catch (error) {
+        console.error('Error refreshing products:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to refresh products list',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  };
+
   // Handle empty or error states
   const renderContent = () => {
     if (loading) {
@@ -123,10 +158,10 @@ export default function InventoryManagement() {
                 </div>
               </TableHead>
               <TableHead 
-                className="cursor-pointer hover:bg-accent transition-colors"
+                className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('sku')}
               >
-                <div className="flex items-center">
+                <div className="flex items-center justify-center">
                   SKU
                   {sortConfig.key === 'sku' && (
                     <span className="ml-1">
@@ -136,10 +171,10 @@ export default function InventoryManagement() {
                 </div>
               </TableHead>
               <TableHead 
-                className="cursor-pointer hover:bg-accent transition-colors"
+                className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('category')}
               >
-                <div className="flex items-center">
+                <div className="flex items-center justify-center">
                   Category
                   {sortConfig.key === 'category' && (
                     <span className="ml-1">
@@ -149,10 +184,10 @@ export default function InventoryManagement() {
                 </div>
               </TableHead>
               <TableHead 
-                className="cursor-pointer hover:bg-accent transition-colors"
+                className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('price')}
               >
-                <div className="flex items-center">
+                <div className="flex items-center justify-center">
                   Cost Price
                   {sortConfig.key === 'price' && (
                     <span className="ml-1">
@@ -162,10 +197,10 @@ export default function InventoryManagement() {
                 </div>
               </TableHead>
               <TableHead 
-                className="cursor-pointer hover:bg-accent transition-colors"
+                className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('price')}
               >
-                <div className="flex items-center">
+                <div className="flex items-center justify-center">
                   Selling Price
                   {sortConfig.key === 'price' && (
                     <span className="ml-1">
@@ -175,10 +210,10 @@ export default function InventoryManagement() {
                 </div>
               </TableHead>
               <TableHead 
-                className="cursor-pointer hover:bg-accent transition-colors"
+                className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('profit')}
               >
-                <div className="flex items-center">
+                <div className="flex items-center justify-center">
                   Profit
                   {sortConfig.key === 'profit' && (
                     <span className="ml-1">
@@ -188,10 +223,10 @@ export default function InventoryManagement() {
                 </div>
               </TableHead>
               <TableHead 
-                className="cursor-pointer hover:bg-accent transition-colors"
+                className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('quantity')}
               >
-                <div className="flex items-center">
+                <div className="flex items-center justify-center">
                   In Stock
                   {sortConfig.key === 'quantity' && (
                     <span className="ml-1">
@@ -201,10 +236,10 @@ export default function InventoryManagement() {
                 </div>
               </TableHead>
               <TableHead 
-                className="cursor-pointer hover:bg-accent transition-colors"
+                className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('shelf')}
               >
-                <div className="flex items-center">
+                <div className="flex items-center justify-center">
                   Shelf
                   {sortConfig.key === 'shelf' && (
                     <span className="ml-1">
@@ -214,10 +249,10 @@ export default function InventoryManagement() {
                 </div>
               </TableHead>
               <TableHead 
-                className="cursor-pointer hover:bg-accent transition-colors"
+                className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('expiryDate')}
               >
-                <div className="flex items-center">
+                <div className="flex items-center justify-center">
                   Expires
                   {sortConfig.key === 'expiryDate' && (
                     <span className="ml-1">
@@ -241,22 +276,22 @@ export default function InventoryManagement() {
                     {renderExpiryBadge(product)}
                   </div>
                 </TableCell>
-                <TableCell>{product.sku}</TableCell>
-                <TableCell>{product.category}</TableCell>
-                <TableCell className="font-medium">
-                  <div className="text-right">
+                <TableCell className="text-center">{product.sku}</TableCell>
+                <TableCell className="text-center">{product.category}</TableCell>
+                <TableCell className="text-center">
+                  <div className="inline-block text-left">
                     <div>₹{product.cost?.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground">Cost</div>
                   </div>
                 </TableCell>
-                <TableCell className="font-medium">
-                  <div className="text-right">
+                <TableCell className="text-center">
+                  <div className="inline-block text-left">
                     <div>₹{product.price?.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground">Selling</div>
                   </div>
                 </TableCell>
-                <TableCell className="font-medium">
-                  <div className="text-right">
+                <TableCell className="text-center">
+                  <div className="inline-block text-left">
                     <div className={product.profit >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
                       ₹{((product.price - product.cost) * product.quantity).toFixed(2)}
                     </div>
@@ -265,13 +300,13 @@ export default function InventoryManagement() {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>{product.quantity}</TableCell>
-                <TableCell>
+                <TableCell className="text-center">{product.quantity}</TableCell>
+                <TableCell className="text-center">
                   <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary border border-primary/20">
                     {product.shelf || 'N/A'}
                   </span>
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-center">
                   {product.expiryDate 
                     ? new Date(product.expiryDate).toLocaleDateString() 
                     : 'N/A'}
@@ -820,7 +855,19 @@ export default function InventoryManagement() {
             <Activity className="h-4 w-4" />
             Analytics
           </Button>
-        </div>
+          <Button
+            variant={activeTab === 'csv-upload' ? 'default' : 'ghost'}
+            onClick={() => setActiveTab('csv-upload')}
+            className={`flex items-center gap-2 transition-all duration-200 ${
+              activeTab === 'csv-upload' 
+                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                : 'hover:bg-muted'
+            }`}
+          >
+            <Upload className="h-4 w-4" />
+            CSV Upload
+          </Button>
+                  </div>
       </div>
 
       {/* Tab Content */}
@@ -1036,6 +1083,10 @@ export default function InventoryManagement() {
               </AlertDescription>
             </Alert>
           )}
+        </div>
+      ) : activeTab === 'csv-upload' ? (
+        <div className="space-y-8">
+          <CSVUpload onUploadSuccess={handleCSVUploadSuccess} />
         </div>
       ) : (
         <Analytics products={products} />
