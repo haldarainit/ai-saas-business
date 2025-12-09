@@ -1207,6 +1207,7 @@ export default function TechnoQuotationPage() {
                 ))}
             </div>
 
+
             {/* Print Styles */}
             <style jsx global>{`
                 @media print {
@@ -1241,6 +1242,47 @@ export default function TechnoQuotationPage() {
                     position: relative;
                     display: flex;
                     flex-direction: column;
+                }
+
+                /* Force light theme INSIDE the printable quotation pages so PDFs/print view stay consistent */
+                .page, .page * {
+                    color: #0f172a !important; /* dark text */
+                }
+
+                .page {
+                    background: white !important; /* always light */
+                }
+
+                /* Inputs / editable fields inside the page should appear with light backgrounds */
+                .page input,
+                .page textarea,
+                .page .editable-field,
+                .page .table-cell-field,
+                .page .table-header-field,
+                .page .company-name-field,
+                .page .section-title,
+                .page .main-title {
+                    background: white !important;
+                    color: #0f172a !important;
+                    border-color: #d1d5db !important;
+                }
+
+                /* Tables headers remain green with white text */
+                .page .data-table th {
+                    background: #10b981 !important;
+                    color: #ffffff !important;
+                }
+
+                /* Subtle adjustments for footer / meta text */
+                .page .footer {
+                    color: #6b7280 !important;
+                }
+
+                /* Ensure interactive control areas (no-print) still follow theme, but printed pages remain light */
+                .no-print .page-controls,
+                .no-print .delete-section-btn,
+                .no-print .delete-item-btn {
+                    /* leave these to site theme; no override here */
                 }
 
                 .header {
