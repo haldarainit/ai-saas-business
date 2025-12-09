@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Mail,
@@ -58,6 +58,7 @@ interface Campaign {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  currentIndex: number;
 }
 
 interface EmailLog {
@@ -91,6 +92,7 @@ export default function EmailHistoryPage() {
     bounced: 0,
     opened: 0,
     clicked: 0,
+    pending: 0,
   });
 
   const [pagination, setPagination] = useState({
@@ -104,18 +106,11 @@ export default function EmailHistoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Fetch data based on view mode
-  useEffect(() => {
-    if (viewMode === "campaigns") {
-      fetchCampaigns();
-    } else {
-      fetchEmailHistory();
-    }
-  }, [viewMode, pagination.currentPage, statusFilter, selectedCampaign]);
-
-  const fetchCampaigns = async () => {
+  // Fetch campaigns - wrapped in useCallback to prevent stale closures
+  const fetchCampaigns = useCallback(async () => {
     try {
       setIsLoading(true);
+      console.log("📊 Fetching campaigns...");
       const params = new URLSearchParams({
         page: pagination.currentPage.toString(),
         limit: "20",
@@ -129,6 +124,8 @@ export default function EmailHistoryPage() {
       const response = await fetch(`/api/email-history?${params}`);
       const result = await response.json();
 
+      console.log("📊 Campaigns API response:", result);
+
       if (result.success) {
         // Deduplicate campaigns based on _id
         const uniqueCampaigns = result.data.campaigns.filter(
@@ -136,22 +133,31 @@ export default function EmailHistoryPage() {
             index === self.findIndex((c) => c._id === campaign._id)
         );
 
+        console.log(`✅ Loaded ${uniqueCampaigns.length} unique campaigns`);
         setCampaigns(uniqueCampaigns);
         setPagination(result.data.pagination);
       } else {
         toast.error("Failed to load campaigns");
       }
     } catch (error) {
-      console.error("Failed to fetch campaigns:", error);
+      console.error("❌ Failed to fetch campaigns:", error);
       toast.error("Failed to load campaigns");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pagination.currentPage, statusFilter]);
 
-  const fetchEmailHistory = async () => {
+  // Fetch email history - wrapped in useCallback to prevent stale closures
+  const fetchEmailHistory = useCallback(async () => {
     try {
       setIsLoading(true);
+      console.log("📧 Fetching email history...", {
+        selectedCampaign: selectedCampaign?._id,
+        statusFilter,
+        searchTerm,
+        page: pagination.currentPage
+      });
+
       const params = new URLSearchParams({
         page: pagination.currentPage.toString(),
         limit: "20",
@@ -166,26 +172,51 @@ export default function EmailHistoryPage() {
       }
 
       if (selectedCampaign) {
+        console.log("🎯 Filtering by campaign ID:", selectedCampaign._id);
         params.append("campaignId", selectedCampaign._id);
       }
 
-      const response = await fetch(`/api/email-history?${params}`);
+      const url = `/api/email-history?${params}`;
+      console.log("🔗 Fetching from:", url);
+
+      const response = await fetch(url);
       const result = await response.json();
 
+      console.log("📧 Email history API response:", result);
+
       if (result.success) {
+        console.log(`✅ Loaded ${result.data.emailLogs.length} email logs`);
+        console.log("📊 Stats:", result.data.stats);
         setEmailLogs(result.data.emailLogs);
         setPagination(result.data.pagination);
         setStats(result.data.stats);
       } else {
+        console.error("❌ API returned error:", result.error);
         toast.error("Failed to load email history");
       }
     } catch (error) {
-      console.error("Failed to fetch email history:", error);
+      console.error("❌ Failed to fetch email history:", error);
       toast.error("Failed to load email history");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pagination.currentPage, statusFilter, searchTerm, selectedCampaign]);
+
+  // Fetch data based on view mode
+  useEffect(() => {
+    console.log("🔄 View mode changed:", viewMode, {
+      selectedCampaign: selectedCampaign?._id,
+      page: pagination.currentPage,
+      statusFilter
+    });
+
+    if (viewMode === "campaigns") {
+      fetchCampaigns();
+    } else {
+      fetchEmailHistory();
+    }
+  }, [viewMode, fetchCampaigns, fetchEmailHistory]);
+
 
   const handleSearch = () => {
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
@@ -268,6 +299,10 @@ export default function EmailHistoryPage() {
 
   const getStatusBadge = (status: string) => {
     const config: Record<string, { className: string; icon: React.ReactNode }> = {
+      pending: {
+        className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300 font-semibold",
+        icon: <Clock className="w-3 h-3" />,
+      },
       sent: {
         className: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300 font-semibold",
         icon: <CheckCircle2 className="w-3 h-3" />,
@@ -375,7 +410,7 @@ export default function EmailHistoryPage() {
 
             {/* Statistics Cards - Only show in Logs view */}
             {viewMode === "logs" && (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
                 <Card className="p-5 frost-glass border-l-4 border-l-primary hover:shadow-xl transition-all duration-300">
                   <div className="flex items-center justify-between mb-3">
                     <div className="p-2 bg-primary/10 rounded-lg">
@@ -387,6 +422,20 @@ export default function EmailHistoryPage() {
                   </p>
                   <p className="text-2xl font-bold">
                     {stats.total.toLocaleString()}
+                  </p>
+                </Card>
+
+                <Card className="p-5 frost-glass border-l-4 border-l-yellow-500 hover:shadow-xl transition-all duration-300">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-2 bg-yellow-500/10 rounded-lg">
+                      <Clock className="w-5 h-5 text-yellow-500" />
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">
+                    Pending
+                  </p>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {stats.pending.toLocaleString()}
                   </p>
                 </Card>
 
@@ -503,6 +552,7 @@ export default function EmailHistoryPage() {
                         </>
                       ) : (
                         <>
+                          <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="sent">Sent</SelectItem>
                           <SelectItem value="failed">Failed</SelectItem>
                           <SelectItem value="bounced">Bounced</SelectItem>
@@ -624,7 +674,7 @@ export default function EmailHistoryPage() {
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center justify-between text-xs mb-1">
                                   <span>{Math.round((campaign.sentCount / (campaign.totalEmails || 1)) * 100)}%</span>
-                                  <span className="text-muted-foreground">{campaign.sentCount}/{campaign.totalEmails}</span>
+                                  <span className="text-muted-foreground">{campaign.sentCount}/{campaign.currentIndex}</span>
                                 </div>
                                 <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                                   <div

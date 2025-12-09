@@ -356,3 +356,32 @@
 .animate-rotate-y-smooth {
   animation: rotateY 1.6s linear infinite;
 }
+
+/* Custom Dialog Scrollbar - Elegant and subtle */
+.custom-dialog-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-dialog-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-dialog-scroll::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.2);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+.custom-dialog-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.4);
+}
+.dark .custom-dialog-scroll::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.3);
+}
+.dark .custom-dialog-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.5);
+}
+.custom-dialog-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.2) transparent;
+}
+.dark .custom-dialog-scroll {
+  scrollbar-color: rgba(59, 130, 246, 0.3) transparent;
+}

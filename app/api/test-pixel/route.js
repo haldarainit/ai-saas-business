@@ -56,7 +56,7 @@ export async function POST(request) {
     // Send email WITH tracking enabled
     const result = await emailService.sendEmail(
       testEmail,
-      "🔍 Tracking Pixel Test - BusinessAI",
+      "🔍 Tracking Pixel Test - HAI",
       htmlContent,
       "This is a tracking pixel test email. Please check the HTML source to see the pixel.",
       {
