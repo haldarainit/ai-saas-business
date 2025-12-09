@@ -53,6 +53,7 @@ export async function GET(request) {
                 status: employee.status,
                 joinDate: employee.joinDate,
                 workSchedule: employee.workSchedule,
+                leaveBalance: employee.leaveBalance || { casual: 0, sick: 0, annual: 0 },
                 passwordChangeRequired: employee.passwordChangeRequired,
                 lastLogin: employee.lastLogin,
             },

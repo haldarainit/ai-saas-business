@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Leave from '@/lib/models/Leave';
 import Employee from '@/lib/models/Employee';
+import LeavePolicy from '@/lib/models/LeavePolicy';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
@@ -64,6 +65,38 @@ export async function POST(request) {
     // Calculate number of days (excluding weekends if needed)
     const days = Math.ceil((to - from) / (1000 * 60 * 60 * 24)) + 1;
 
+    // Load leave policy and validate leave type + rules
+    const policy = await LeavePolicy.findOne({ companyId: 'default' }).lean();
+    if (policy && Array.isArray(policy.leaveTypes)) {
+      const typeConfig = policy.leaveTypes.find(
+        (t) => t.code === leaveType && t.isActive !== false
+      );
+
+      if (!typeConfig) {
+        return NextResponse.json(
+          { success: false, error: 'Selected leave type is not allowed in current policy' },
+          { status: 400 }
+        );
+      }
+
+      if (
+        typeConfig.maxConsecutiveDays &&
+        Number(typeConfig.maxConsecutiveDays) > 0 &&
+        days > Number(typeConfig.maxConsecutiveDays)
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `You cannot take more than ${typeConfig.maxConsecutiveDays} consecutive days for ${typeConfig.name || leaveType}.`,
+            maxConsecutiveDays: Number(typeConfig.maxConsecutiveDays),
+            requestedDays: days,
+            validationError: 'EXCEEDS_CONSECUTIVE_LIMIT'
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Get employee info
     const employee = await Employee.findOne({ employeeId: decoded.employeeId });
     if (!employee) {
@@ -74,14 +107,22 @@ export async function POST(request) {
     }
 
     // Check leave balance
-    const leaveBalanceKey = leaveType === 'casual' ? 'casual' : leaveType === 'sick' ? 'sick' : 'annual';
+    let leaveBalanceKey = 'annual'; // default
+    if (leaveType === 'casual') leaveBalanceKey = 'casual';
+    else if (leaveType === 'sick') leaveBalanceKey = 'sick';
+    
     const balance = employee.leaveBalance?.[leaveBalanceKey] || 0;
 
-    if (days > balance) {
+    // Only check balance if it's explicitly set and greater than 0
+    // If balance is 0 or not set, allow the request (admin can manage balances)
+    if (balance > 0 && days > balance) {
       return NextResponse.json(
         { 
           success: false, 
-          error: `Insufficient leave balance. Available: ${balance} days, Requested: ${days} days` 
+          error: `Insufficient leave balance. Available: ${balance} days, Requested: ${days} days`,
+          availableBalance: balance,
+          requestedDays: days,
+          validationError: 'INSUFFICIENT_BALANCE'
         },
         { status: 400 }
       );

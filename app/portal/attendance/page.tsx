@@ -65,6 +65,7 @@ export default function AttendancePortal() {
     const [retryCount, setRetryCount] = useState(0);
     const [leaveOpen, setLeaveOpen] = useState(false);
     const [leaves, setLeaves] = useState<any[]>([]);
+    const [leavePolicy, setLeavePolicy] = useState<any | null>(null);
     const [leaveForm, setLeaveForm] = useState({
         leaveType: "",
         fromDate: "",
@@ -159,6 +160,7 @@ export default function AttendancePortal() {
         loadTodayAttendance();
         loadAttendanceHistory();
         loadLeaves();
+        loadLeavePolicy();
         
         // Restore background tracking if user was clocked in
         const trackingData = localStorage.getItem('activeTracking');
@@ -202,6 +204,19 @@ export default function AttendancePortal() {
             console.error("Failed to load employee data:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadLeavePolicy = async () => {
+        try {
+            const response = await fetch("/api/leave/policy");
+            const data = await response.json();
+
+            if (data.success) {
+                setLeavePolicy(data.policy);
+            }
+        } catch (error) {
+            console.error("Failed to load leave policy:", error);
         }
     };
 
@@ -262,6 +277,63 @@ export default function AttendancePortal() {
             return;
         }
 
+        // Validate dates and calculate days
+        const fromDate = new Date(leaveForm.fromDate);
+        const toDate = new Date(leaveForm.toDate);
+        
+        if (fromDate > toDate) {
+            toast({
+                title: "Validation Error",
+                description: "From date must be before or equal to To date",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const days = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+        // Get leave balance from employee data
+        const leaveBalanceKey = leaveForm.leaveType === 'casual' ? 'casual' : 
+                               leaveForm.leaveType === 'sick' ? 'sick' : 'annual';
+        const availableBalance = employee?.leaveBalance?.[leaveBalanceKey] || 0;
+
+        // Get policy for this leave type
+        const leaveTypePolicy = leavePolicy?.leaveTypes?.find(
+            (t: any) => t.code === leaveForm.leaveType
+        );
+
+        // Log for debugging
+        console.log('Leave Application Debug:', {
+            leaveType: leaveForm.leaveType,
+            days,
+            availableBalance,
+            leaveBalanceKey,
+            employeeBalance: employee?.leaveBalance,
+            leaveTypePolicy
+        });
+
+        // Check balance - only if balance is explicitly set and greater than 0
+        if (availableBalance > 0 && days > availableBalance) {
+            toast({
+                title: "Insufficient Leave Balance",
+                description: `You only have ${availableBalance} days available, but you're requesting ${days} days. Only ${availableBalance} days left.`,
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Check consecutive days limit
+        if (leaveTypePolicy?.maxConsecutiveDays && 
+            leaveTypePolicy.maxConsecutiveDays > 0 && 
+            days > leaveTypePolicy.maxConsecutiveDays) {
+            toast({
+                title: "Exceeds Consecutive Days Limit",
+                description: `You can only take up to ${leaveTypePolicy.maxConsecutiveDays} consecutive days for ${leaveTypePolicy.name || leaveForm.leaveType}, but you're requesting ${days} days.`,
+                variant: "destructive",
+            });
+            return;
+        }
+
         setSubmittingLeave(true);
         try {
             const response = await employeeAuth.apiCall("/api/leave/apply", {
@@ -279,12 +351,28 @@ export default function AttendancePortal() {
                 setLeaveOpen(false);
                 setLeaveForm({ leaveType: "", fromDate: "", toDate: "", reason: "" });
                 loadLeaves();
+                loadEmployeeData(); // Refresh employee data to update leave balance
             } else {
-                toast({
-                    title: "Error",
-                    description: data.error || "Failed to submit leave request",
-                    variant: "destructive",
-                });
+                // Handle specific validation errors from API
+                if (data.validationError === 'INSUFFICIENT_BALANCE') {
+                    toast({
+                        title: "Insufficient Leave Balance",
+                        description: `You only have ${data.availableBalance} days available, but you're requesting ${data.requestedDays} days.`,
+                        variant: "destructive",
+                    });
+                } else if (data.validationError === 'EXCEEDS_CONSECUTIVE_LIMIT') {
+                    toast({
+                        title: "Exceeds Consecutive Days Limit",
+                        description: `You can only take up to ${data.maxConsecutiveDays} consecutive days, but you're requesting ${data.requestedDays} days.`,
+                        variant: "destructive",
+                    });
+                } else {
+                    toast({
+                        title: "Error",
+                        description: data.error || "Failed to submit leave request",
+                        variant: "destructive",
+                    });
+                }
             }
         } catch (error: any) {
             console.error("Failed to apply leave:", error);
@@ -560,6 +648,18 @@ export default function AttendancePortal() {
             day: "numeric",
         });
     };
+
+    const totalYearlyQuota =
+        leavePolicy?.leaveTypes
+            ?.filter((t: any) => t.isActive !== false)
+            .reduce((sum: number, t: any) => sum + (Number(t.yearlyQuota) || 0), 0) || 0;
+
+    const totalUsedLeaveDays =
+        leaves
+            ?.filter((l: any) => l.status === "approved")
+            .reduce((sum: number, l: any) => sum + (Number(l.days) || 0), 0) || 0;
+
+    const remainingLeave = Math.max(totalYearlyQuota - totalUsedLeaveDays, 0);
 
     if (loading) {
         return (
@@ -943,6 +1043,50 @@ export default function AttendancePortal() {
                                         Fill in the details for your leave request.
                                     </DialogDescription>
                                 </DialogHeader>
+
+                                {/* Leave Balance Display */}
+                                {employee && (
+                                    <div className="p-3 bg-muted rounded-lg text-center">
+                                        <div className="text-xs text-muted-foreground mb-1">
+                                            Remaining Leave This Year
+                                        </div>
+                                        <div className="text-2xl font-bold text-green-600">
+                                            {remainingLeave}
+                                        </div>
+                                        <div className="text-[11px] text-muted-foreground mt-1">
+                                            Yearly quota minus approved leave days
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Leave Type Policy Info */}
+                                {leaveForm.leaveType && leavePolicy?.leaveTypes && (
+                                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                                        {(() => {
+                                            const policy = leavePolicy.leaveTypes.find(
+                                                (t: any) => t.code === leaveForm.leaveType
+                                            );
+                                            return (
+                                                <div className="text-sm space-y-1">
+                                                    <p className="font-semibold text-blue-700">
+                                                        {policy?.name || leaveForm.leaveType}
+                                                    </p>
+                                                    {policy?.description && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {policy.description}
+                                                        </p>
+                                                    )}
+                                                    {policy?.maxConsecutiveDays && policy.maxConsecutiveDays > 0 && (
+                                                        <p className="text-xs text-orange-600 font-medium">
+                                                            ⚠️ Max consecutive days: {policy.maxConsecutiveDays}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
+
                                 <div className="grid gap-4 py-4">
                                     <div className="grid gap-2">
                                         <Label htmlFor="leave-type">Leave Type</Label>
@@ -956,12 +1100,23 @@ export default function AttendancePortal() {
                                                 <SelectValue placeholder="Select leave type" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="sick">Sick Leave</SelectItem>
-                                                <SelectItem value="vacation">Vacation</SelectItem>
-                                                <SelectItem value="personal">Personal Leave</SelectItem>
-                                                <SelectItem value="emergency">Emergency Leave</SelectItem>
-                                                <SelectItem value="casual">Casual Leave</SelectItem>
-                                                <SelectItem value="annual">Annual Leave</SelectItem>
+                                                {leavePolicy?.leaveTypes
+                                                    ?.filter((t: any) => t.isActive !== false)
+                                                    .map((t: any) => (
+                                                        <SelectItem key={t.code} value={t.code}>
+                                                            {t.name || t.code}
+                                                        </SelectItem>
+                                                    ))}
+                                                {!leavePolicy && (
+                                                    <>
+                                                        <SelectItem value="sick">Sick Leave</SelectItem>
+                                                        <SelectItem value="vacation">Vacation</SelectItem>
+                                                        <SelectItem value="personal">Personal Leave</SelectItem>
+                                                        <SelectItem value="emergency">Emergency Leave</SelectItem>
+                                                        <SelectItem value="casual">Casual Leave</SelectItem>
+                                                        <SelectItem value="annual">Annual Leave</SelectItem>
+                                                    </>
+                                                )}
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -1023,6 +1178,27 @@ export default function AttendancePortal() {
                                 </div>
                             </DialogContent>
                         </Dialog>
+
+                        {/* Leave Balance Summary */}
+                        {employee && (
+                            <Card className="p-6 mt-6 bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-2 border-orange-200">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
+                                            <TrendingUp className="w-5 h-5 text-orange-500" />
+                                            Total Leave Available
+                                        </h2>
+                                        <p className="text-sm text-muted-foreground">Annual leave balance for this year</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-5xl font-bold text-orange-600 mb-2">
+                                            {remainingLeave}
+                                        </div>
+                                        <p className="text-sm font-medium text-muted-foreground">Days</p>
+                                    </div>
+                                </div>
+                            </Card>
+                        )}
 
                         {/* Leave Status */}
                         <Card className="p-6 mt-6">
