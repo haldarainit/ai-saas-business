@@ -34,6 +34,7 @@ export async function POST(request) {
         completed: 0,
         fixed: 0,
         kept: 0,
+        fixedLogsUserId: 0,
       };
 
       for (const campaign of campaigns) {
@@ -128,15 +129,23 @@ export async function POST(request) {
           results.fixed++;
         }
 
+        // Backfill missing/anonymous userId on logs for this campaign
+        const fixableUserIds = [null, "", "dev-user-anonymous", "system"];
+        const backfill = await CampaignEmailHistory.updateMany(
+          { campaignId: campaign._id, userId: { $in: fixableUserIds } },
+          { $set: { userId: campaign.userId || userId } }
+        );
+        results.fixedLogsUserId += backfill.modifiedCount || 0;
+
         results.kept++;
       }
 
       // 2. Clean up orphaned email logs (logs without a valid campaign)
       const allCampaignIds = campaigns.map((c) => c._id);
-      const orphanedLogs = await CampaignEmailHistory.deleteMany({
-        userId,
-        campaignId: { $nin: allCampaignIds },
-      });
+      const orphanedDeletionQuery = allUsers
+        ? { campaignId: { $nin: allCampaignIds } }
+        : { userId, campaignId: { $nin: allCampaignIds } };
+      const orphanedLogs = await CampaignEmailHistory.deleteMany(orphanedDeletionQuery);
 
       console.log(`🧹 Deleted ${orphanedLogs.deletedCount} orphaned email logs`);
 
