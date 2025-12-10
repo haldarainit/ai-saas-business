@@ -205,18 +205,27 @@ export default function InvoicePage() {
             const discountAmount = (subtotal * item.discount) / 100
             const taxableValue = subtotal - discountAmount
 
-            let cgst = 0
-            let sgst = 0
+            // Use editable GST values from item
+            let cgst = item.cgst || 0
+            let sgst = item.sgst || 0
             let igst = 0
+            let totalGst = item.totalGst || 0
 
-            if (invoiceData.taxType === "GST") {
-                cgst = (taxableValue * (item.taxRate / 2)) / 100
-                sgst = (taxableValue * (item.taxRate / 2)) / 100
-            } else if (invoiceData.taxType === "IGST") {
+            if (invoiceData.taxType === "IGST") {
                 igst = (taxableValue * item.taxRate) / 100
             }
 
-            const itemTotal = taxableValue + cgst + sgst + igst
+            // Calculate item total based on GST mode
+            let itemTotal = taxableValue
+            if (invoiceData.taxType === "GST") {
+                if (invoiceData.gstDisplayMode === "simple") {
+                    itemTotal = taxableValue + totalGst
+                } else {
+                    itemTotal = taxableValue + cgst + sgst
+                }
+            } else if (invoiceData.taxType === "IGST") {
+                itemTotal = taxableValue + igst
+            }
 
             totalTaxable += taxableValue
             totalCGST += cgst
@@ -233,6 +242,7 @@ export default function InvoicePage() {
                 cgst,
                 sgst,
                 igst,
+                totalGst,
                 itemTotal
             }
         })
@@ -287,7 +297,49 @@ export default function InvoicePage() {
     const updateItem = (id: string, field: keyof InvoiceItem, value: any) => {
         setInvoiceData(prev => ({
             ...prev,
-            items: prev.items.map(item => item.id === id ? { ...item, [field]: value } : item)
+            items: prev.items.map(item => {
+                if (item.id !== id) return item
+
+                const updated = { ...item, [field]: value }
+                const subtotal = updated.quantity * updated.rate
+                const discountAmount = (subtotal * updated.discount) / 100
+                const taxableValue = subtotal - discountAmount
+
+                // Complete auto-calculation for GST fields
+                if (invoiceData.taxType === "GST") {
+                    if (field === 'taxRate') {
+                        // When Tax % changes: split equally to CGST% and SGST%, then calculate amounts
+                        const cgstPercent = value / 2
+                        const sgstPercent = value / 2
+                        updated.cgst = (taxableValue * cgstPercent) / 100
+                        updated.sgst = (taxableValue * sgstPercent) / 100
+                        updated.totalGst = updated.cgst + updated.sgst
+                    } else if (field === 'cgst') {
+                        // When CGST amount changes: calculate CGST%, make SGST equal, update Tax%
+                        const cgstPercent = taxableValue > 0 ? (value / taxableValue) * 100 : 0
+                        const sgstPercent = cgstPercent // Equal split
+                        updated.sgst = (taxableValue * sgstPercent) / 100
+                        updated.totalGst = value + updated.sgst
+                        updated.taxRate = parseFloat((cgstPercent + sgstPercent).toFixed(2))
+                    } else if (field === 'sgst') {
+                        // When SGST amount changes: calculate SGST%, make CGST equal, update Tax%
+                        const sgstPercent = taxableValue > 0 ? (value / taxableValue) * 100 : 0
+                        const cgstPercent = sgstPercent // Equal split
+                        updated.cgst = (taxableValue * cgstPercent) / 100
+                        updated.totalGst = updated.cgst + value
+                        updated.taxRate = parseFloat((cgstPercent + sgstPercent).toFixed(2))
+                    } else if (field === 'totalGst') {
+                        // When Total GST changes: split equally to CGST and SGST, calculate Tax%
+                        updated.cgst = value / 2
+                        updated.sgst = value / 2
+                        if (taxableValue > 0) {
+                            updated.taxRate = parseFloat(((value / taxableValue) * 100).toFixed(2))
+                        }
+                    }
+                }
+
+                return updated
+            })
         }))
     }
 
@@ -493,6 +545,22 @@ export default function InvoicePage() {
                                             </SelectContent>
                                         </Select>
                                     </div>
+
+                                    {invoiceData.taxType === "GST" && (
+                                        <div className="flex items-center gap-2">
+                                            <Label className="text-sm whitespace-nowrap">GST Mode:</Label>
+                                            <Select value={invoiceData.gstDisplayMode} onValueChange={(v: any) => setInvoiceData({ ...invoiceData, gstDisplayMode: v })}>
+                                                <SelectTrigger className="w-[180px] h-8">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="simple">Total GST Only</SelectItem>
+                                                    <SelectItem value="split">CGST + SGST</SelectItem>
+                                                    <SelectItem value="detailed">CGST + SGST + Total</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="space-y-4">
                                     {invoiceData.items.map((item, index) => (
@@ -524,6 +592,34 @@ export default function InvoicePage() {
                                                     <Label className="text-xs">Tax %</Label>
                                                     <Input className="h-8 text-sm" type="number" min="0" value={item.taxRate} onChange={e => updateItem(item.id, 'taxRate', parseFloat(e.target.value) || 0)} />
                                                 </div>
+
+                                                {/* GST Fields based on mode */}
+                                                {invoiceData.taxType === "GST" && invoiceData.gstDisplayMode === "simple" && (
+                                                    <div className="col-span-6 md:col-span-3">
+                                                        <Label className="text-xs">Total GST</Label>
+                                                        <Input className="h-8 text-sm" type="number" min="0" value={item.totalGst} onChange={e => updateItem(item.id, 'totalGst', parseFloat(e.target.value) || 0)} />
+                                                    </div>
+                                                )}
+
+                                                {invoiceData.taxType === "GST" && (invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
+                                                    <>
+                                                        <div className="col-span-6 md:col-span-3">
+                                                            <Label className="text-xs">CGST</Label>
+                                                            <Input className="h-8 text-sm" type="number" min="0" value={item.cgst} onChange={e => updateItem(item.id, 'cgst', parseFloat(e.target.value) || 0)} />
+                                                        </div>
+                                                        <div className="col-span-6 md:col-span-3">
+                                                            <Label className="text-xs">SGST</Label>
+                                                            <Input className="h-8 text-sm" type="number" min="0" value={item.sgst} onChange={e => updateItem(item.id, 'sgst', parseFloat(e.target.value) || 0)} />
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                {invoiceData.taxType === "GST" && invoiceData.gstDisplayMode === "detailed" && (
+                                                    <div className="col-span-6 md:col-span-3">
+                                                        <Label className="text-xs">Total GST</Label>
+                                                        <Input className="h-8 text-sm" type="number" min="0" value={item.totalGst} onChange={e => updateItem(item.id, 'totalGst', parseFloat(e.target.value) || 0)} />
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {invoiceData.items.length > 1 && (
@@ -593,22 +689,6 @@ export default function InvoicePage() {
                                         <input type="checkbox" id="showTaxColumns" checked={invoiceData.showTaxColumns} onChange={e => setInvoiceData({ ...invoiceData, showTaxColumns: e.target.checked })} className="rounded" />
                                         <Label htmlFor="showTaxColumns" className="font-normal cursor-pointer">Show Tax Columns (CGST/SGST/IGST)</Label>
                                     </div>
-
-                                    {invoiceData.showTaxColumns && invoiceData.taxType === "GST" && (
-                                        <div className="ml-6 mt-2">
-                                            <Label className="text-sm mb-2 block">GST Display Mode:</Label>
-                                            <Select value={invoiceData.gstDisplayMode} onValueChange={(v: any) => setInvoiceData({ ...invoiceData, gstDisplayMode: v })}>
-                                                <SelectTrigger className="w-full">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="simple">Simple (Total GST only)</SelectItem>
-                                                    <SelectItem value="split">Split (CGST + SGST)</SelectItem>
-                                                    <SelectItem value="detailed">Detailed (CGST + SGST + Total)</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    )}
                                 </div>
                             </Card>
 
@@ -790,8 +870,23 @@ export default function InvoicePage() {
                                                 <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[40px]">GST<br />%</th>
                                                 {invoiceData.taxType === "GST" && (
                                                     <>
-                                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">CGST</th>
-                                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">SGST</th>
+                                                        {/* Simple Mode: Only GST */}
+                                                        {invoiceData.gstDisplayMode === "simple" && (
+                                                            <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">GST</th>
+                                                        )}
+
+                                                        {/* Split Mode: CGST + SGST */}
+                                                        {(invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
+                                                            <>
+                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">CGST</th>
+                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">SGST</th>
+                                                            </>
+                                                        )}
+
+                                                        {/* Detailed Mode: Also show GST Total */}
+                                                        {invoiceData.gstDisplayMode === "detailed" && (
+                                                            <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">GST<br />Total</th>
+                                                        )}
                                                     </>
                                                 )}
                                                 {invoiceData.taxType === "IGST" && (
@@ -822,8 +917,23 @@ export default function InvoicePage() {
                                                     <td className="p-2 border-r border-slate-300 text-center align-top">{item.taxRate}%</td>
                                                     {invoiceData.taxType === "GST" && (
                                                         <>
-                                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.cgst.toFixed(2)}</td>
-                                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.sgst.toFixed(2)}</td>
+                                                            {/* Simple Mode: Only Total GST */}
+                                                            {invoiceData.gstDisplayMode === "simple" && (
+                                                                <td className="p-2 border-r border-slate-300 text-center align-top">{item.totalGst.toFixed(2)}</td>
+                                                            )}
+
+                                                            {/* Split Mode: CGST + SGST */}
+                                                            {(invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
+                                                                <>
+                                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.cgst.toFixed(2)}</td>
+                                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.sgst.toFixed(2)}</td>
+                                                                </>
+                                                            )}
+
+                                                            {/* Detailed Mode: Also show Total GST */}
+                                                            {invoiceData.gstDisplayMode === "detailed" && (
+                                                                <td className="p-2 border-r border-slate-300 text-center align-top">{item.totalGst.toFixed(2)}</td>
+                                                            )}
                                                         </>
                                                     )}
                                                     {invoiceData.taxType === "IGST" && (
@@ -855,8 +965,18 @@ export default function InvoicePage() {
                                                     <td className="p-2 border-r border-slate-300"></td>
                                                     {invoiceData.taxType === "GST" && (
                                                         <>
-                                                            <td className="p-2 border-r border-slate-300"></td>
-                                                            <td className="p-2 border-r border-slate-300"></td>
+                                                            {invoiceData.gstDisplayMode === "simple" && (
+                                                                <td className="p-2 border-r border-slate-300"></td>
+                                                            )}
+                                                            {(invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
+                                                                <>
+                                                                    <td className="p-2 border-r border-slate-300"></td>
+                                                                    <td className="p-2 border-r border-slate-300"></td>
+                                                                </>
+                                                            )}
+                                                            {invoiceData.gstDisplayMode === "detailed" && (
+                                                                <td className="p-2 border-r border-slate-300"></td>
+                                                            )}
                                                         </>
                                                     )}
                                                     {invoiceData.taxType === "IGST" && (
