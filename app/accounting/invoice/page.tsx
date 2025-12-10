@@ -633,11 +633,19 @@ export default function InvoicePage() {
                                     page-break-after: avoid;
                                 }
                                 
+                                
                                 /* Keep totals section together */
                                 .totals-section,
                                 .footer-section {
                                     page-break-inside: avoid;
                                     page-break-before: auto;
+                                }
+                                
+                                /* Table cell text wrapping */
+                                table td, table th {
+                                    word-wrap: break-word;
+                                    word-break: break-word;
+                                    overflow-wrap: break-word;
                                 }
                                 
                                 @media print {
@@ -725,7 +733,7 @@ export default function InvoicePage() {
                                 <thead className="table-header">
                                     <tr className="bg-slate-100">
                                         <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[40px]">SI</th>
-                                        <th className="p-2 border-r border-b border-slate-300 text-left font-bold">Description of Goods</th>
+                                        <th className="p-2 border-r border-b border-slate-300 text-left font-bold min-w-[200px]">Description of Goods</th>
                                         <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[80px]">HSN/SAC</th>
                                         <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">Qty</th>
                                         <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">Rate</th>
@@ -737,14 +745,14 @@ export default function InvoicePage() {
                                 <tbody>
                                     {calculations.itemDetails.map((item, index) => (
                                         <tr key={item.id} className="table-row border-b border-slate-200">
-                                            <td className="p-2 border-r border-slate-300 text-center">{index + 1}</td>
-                                            <td className="p-2 border-r border-slate-300 text-left font-medium">{item.description}</td>
-                                            <td className="p-2 border-r border-slate-300 text-center">{item.hsnsac}</td>
-                                            <td className="p-2 border-r border-slate-300 text-center">{item.quantity}</td>
-                                            <td className="p-2 border-r border-slate-300 text-center">{item.rate.toFixed(2)}</td>
-                                            <td className="p-2 border-r border-slate-300 text-center">{item.taxableValue.toFixed(2)}</td>
-                                            <td className="p-2 border-r border-slate-300 text-center">{item.taxRate}%</td>
-                                            <td className="p-2 text-right font-semibold">{item.itemTotal.toFixed(2)}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center align-top">{index + 1}</td>
+                                            <td className="p-2 border-r border-slate-300 text-left font-medium align-top break-words" style={{ wordWrap: 'break-word', whiteSpace: 'normal', maxWidth: '200px' }}>{item.description}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.hsnsac}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.quantity}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.rate.toFixed(2)}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.taxableValue.toFixed(2)}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.taxRate}%</td>
+                                            <td className="p-2 text-right font-semibold align-top">{item.itemTotal.toFixed(2)}</td>
                                         </tr>
                                     ))}
 
