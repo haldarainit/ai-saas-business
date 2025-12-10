@@ -9,11 +9,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Navbar from "@/components/navbar"
-import { motion } from "framer-motion"
-import { Plus, Trash2, ArrowLeft, Building2, Banknote, Printer, Settings, Sun, Moon } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, Building2, Banknote, Printer } from "lucide-react"
 import Link from "next/link"
 import { useReactToPrint } from 'react-to-print';
-import { useTheme } from "next-themes"
 
 interface InvoiceItem {
     id: string
@@ -28,6 +26,12 @@ interface InvoiceItem {
 interface InvoiceData {
     // Meta
     title: string
+
+    // Visibility toggles
+    showBankDetails: boolean
+    showTerms: boolean
+    showJurisdiction: boolean
+    showDeclaration: boolean
 
     // Company Info
     companyName: string
@@ -103,6 +107,10 @@ interface InvoiceData {
 
 const defaultInvoiceData: InvoiceData = {
     title: "TAX INVOICE",
+    showBankDetails: true,
+    showTerms: true,
+    showJurisdiction: true,
+    showDeclaration: false,
     companyName: "",
     companyAddress: "",
     companyCity: "",
@@ -168,11 +176,9 @@ export default function InvoicePage() {
     const [invoiceData, setInvoiceData] = useState<InvoiceData>(defaultInvoiceData)
     const [activeTab, setActiveTab] = useState("company")
     const printRef = useRef<HTMLDivElement>(null)
-    const { theme, setTheme } = useTheme()
 
     const handlePrint = useReactToPrint({
-        // @ts-ignore
-        content: () => printRef.current,
+        contentRef: printRef,
         documentTitle: invoiceData.invoiceNumber,
     });
 
@@ -297,15 +303,6 @@ export default function InvoicePage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                        className="mr-2"
-                    >
-                        <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                        <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                    </Button>
 
                     <Button
                         onClick={() => handlePrint()}
@@ -555,6 +552,24 @@ export default function InvoicePage() {
                                 </div>
                             </Card>
 
+                            <Card className="p-4 border-l-4 border-l-indigo-500">
+                                <h3 className="font-semibold text-lg mb-4">Customize Invoice Sections</h3>
+                                <div className="space-y-3">
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showBank" checked={invoiceData.showBankDetails} onChange={e => setInvoiceData({ ...invoiceData, showBankDetails: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showBank" className="font-normal cursor-pointer">Show Bank Details</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showTerms" checked={invoiceData.showTerms} onChange={e => setInvoiceData({ ...invoiceData, showTerms: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showTerms" className="font-normal cursor-pointer">Show Terms & Conditions</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showJurisdiction" checked={invoiceData.showJurisdiction} onChange={e => setInvoiceData({ ...invoiceData, showJurisdiction: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showJurisdiction" className="font-normal cursor-pointer">Show Jurisdiction Footer</Label>
+                                    </div>
+                                </div>
+                            </Card>
+
                             <Card className="p-4 border-l-4 border-l-gray-500">
                                 <h3 className="font-semibold text-lg mb-4">Terms & Conditions</h3>
                                 <Textarea value={invoiceData.termsConditions} onChange={e => setInvoiceData({ ...invoiceData, termsConditions: e.target.value })} rows={4} />
@@ -564,228 +579,255 @@ export default function InvoicePage() {
                 </div>
 
                 {/* Preview / Print Panel (Right Side) */}
-                <div className="lg:col-span-7 bg-muted/40 p-4 rounded-xl overflow-auto h-[calc(100vh-140px)] flex justify-center border border-border">
+                <div className="lg:col-span-7 bg-muted/40 p-6 rounded-xl overflow-y-auto h-[calc(100vh-140px)] border border-border">
+                    <div className="flex flex-col items-center gap-6 pb-6">
 
-                    {/* The Actual Invoice Sheet - FORCE WHITE BACKGROUND AND BLACK TEXT for print consistency */}
-                    <div className="bg-white text-black shadow-2xl w-[210mm] min-h-[297mm] p-[10mm] text-xs font-sans leading-tight print:w-full print:shadow-none print:m-0 print:p-0" ref={printRef}>
+                        {/* The Actual Invoice Sheet - FORCE WHITE BACKGROUND AND BLACK TEXT for print consistency */}
+                        <div className="bg-white text-black shadow-2xl w-[210mm] p-[15mm] text-xs font-sans leading-tight print:w-full print:shadow-none print:m-0 print:p-[15mm]" ref={printRef}>
 
-                        {/* Print Only Styles */}
-                        <style type="text/css" media="print">
-                            {`
-                                @page { size: A4; margin: 10mm; }
-                                body { -webkit-print-color-adjust: exact; }
+                            {/* Print Only Styles */}
+                            <style type="text/css" media="print">
+                                {`
+                                @page { 
+                                    size: A4; 
+                                    margin: 0; 
+                                }
+                                body { 
+                                    -webkit-print-color-adjust: exact;
+                                    print-color-adjust: exact; 
+                                }
+                                .page-break {
+                                    page-break-after: always;
+                                    break-after: page;
+                                }
+                                .avoid-break {
+                                    page-break-inside: avoid;
+                                    break-inside: avoid;
+                                }
+                                @media print {
+                                    html, body {
+                                        height: 100%;
+                                        margin: 0;
+                                        padding: 0;
+                                    }
+                                }
                             `}
-                        </style>
+                            </style>
 
-                        {/* Invoice Header */}
-                        <div className="text-center font-bold text-xl mb-4 border-b pb-2 uppercase tracking-wide">
-                            {invoiceData.title}
-                        </div>
-
-                        {/* Top Section: Company & Buyer */}
-                        <div className="grid grid-cols-2 border border-slate-300">
-                            {/* Seller Details (Left) */}
-                            <div className="p-3 border-r border-slate-300">
-                                <div className="font-bold text-base mb-1">{invoiceData.companyName || "Seller Name"}</div>
-                                <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.companyAddress}</div>
-                                <div className="grid grid-cols-[60px_1fr] gap-y-0.5">
-                                    <span className="font-semibold text-slate-500">GSTIN:</span>
-                                    <span>{invoiceData.companyGSTIN}</span>
-                                    <span className="font-semibold text-slate-500">State:</span>
-                                    <span>{invoiceData.companyState}</span>
-                                    <span className="font-semibold text-slate-500">Email:</span>
-                                    <span>{invoiceData.companyEmail}</span>
-                                </div>
+                            {/* Invoice Header */}
+                            <div className="text-center font-bold text-xl mb-4 border-b pb-2 uppercase tracking-wide">
+                                {invoiceData.title}
                             </div>
 
-                            {/* Invoice Meta (Right) */}
-                            <div className="p-0">
-                                <div className="grid grid-cols-2 border-b border-slate-300">
-                                    <div className="p-2 border-r border-slate-300">
-                                        <div className="text-[10px] text-slate-500 font-semibold uppercase">Invoice No.</div>
-                                        <div className="font-bold">{invoiceData.invoiceNumber}</div>
+                            {/* Top Section: Company & Buyer */}
+                            <div className="grid grid-cols-2 border border-slate-300">
+                                {/* Seller Details (Left) */}
+                                <div className="p-3 border-r border-slate-300">
+                                    <div className="font-bold text-base mb-1">{invoiceData.companyName || "Seller Name"}</div>
+                                    <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.companyAddress}</div>
+                                    <div className="grid grid-cols-[60px_1fr] gap-y-0.5">
+                                        <span className="font-semibold text-slate-500">GSTIN:</span>
+                                        <span>{invoiceData.companyGSTIN}</span>
+                                        <span className="font-semibold text-slate-500">State:</span>
+                                        <span>{invoiceData.companyState}</span>
+                                        <span className="font-semibold text-slate-500">Email:</span>
+                                        <span>{invoiceData.companyEmail}</span>
+                                    </div>
+                                </div>
+
+                                {/* Invoice Meta (Right) */}
+                                <div className="p-0">
+                                    <div className="grid grid-cols-2 border-b border-slate-300">
+                                        <div className="p-2 border-r border-slate-300">
+                                            <div className="text-[10px] text-slate-500 font-semibold uppercase">Invoice No.</div>
+                                            <div className="font-bold">{invoiceData.invoiceNumber}</div>
+                                        </div>
+                                        <div className="p-2">
+                                            <div className="text-[10px] text-slate-500 font-semibold uppercase">Date</div>
+                                            <div className="font-bold">{new Date(invoiceData.invoiceDate).toLocaleDateString('en-IN')}</div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 border-b border-slate-300">
+                                        <div className="p-2">
+                                            <div className="text-[10px] text-slate-500 font-semibold uppercase">Buyer's Order No.</div>
+                                            <div className="font-bold">{invoiceData.poNumber}</div>
+                                        </div>
                                     </div>
                                     <div className="p-2">
-                                        <div className="text-[10px] text-slate-500 font-semibold uppercase">Date</div>
-                                        <div className="font-bold">{new Date(invoiceData.invoiceDate).toLocaleDateString('en-IN')}</div>
+                                        <div className="text-[10px] text-slate-500 font-semibold uppercase">Mode/Terms of Payment</div>
+                                        <div className="">{invoiceData.dueDate ? `Due by ${new Date(invoiceData.dueDate).toLocaleDateString('en-IN')}` : 'Immediate'}</div>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 border-b border-slate-300">
-                                    <div className="p-2">
-                                        <div className="text-[10px] text-slate-500 font-semibold uppercase">Buyer's Order No.</div>
-                                        <div className="font-bold">{invoiceData.poNumber}</div>
+                            </div>
+
+                            {/* Consignee / Buyer Section */}
+                            <div className="grid grid-cols-2 border-x border-b border-slate-300">
+                                <div className="p-3 border-r border-slate-300">
+                                    <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Bill To (Buyer)</div>
+                                    <div className="font-bold text-sm mb-1">{invoiceData.clientName || "Buyer Name"}</div>
+                                    <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.clientAddress}</div>
+                                    <div className="grid grid-cols-[50px_1fr] gap-y-0.5">
+                                        <span className="font-semibold text-slate-500">GSTIN:</span>
+                                        <span>{invoiceData.clientGSTIN}</span>
+                                        <span className="font-semibold text-slate-500">State:</span>
+                                        <span>{invoiceData.clientState}</span>
                                     </div>
                                 </div>
-                                <div className="p-2">
-                                    <div className="text-[10px] text-slate-500 font-semibold uppercase">Mode/Terms of Payment</div>
-                                    <div className="">{invoiceData.dueDate ? `Due by ${new Date(invoiceData.dueDate).toLocaleDateString('en-IN')}` : 'Immediate'}</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Consignee / Buyer Section */}
-                        <div className="grid grid-cols-2 border-x border-b border-slate-300">
-                            <div className="p-3 border-r border-slate-300">
-                                <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Bill To (Buyer)</div>
-                                <div className="font-bold text-sm mb-1">{invoiceData.clientName || "Buyer Name"}</div>
-                                <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.clientAddress}</div>
-                                <div className="grid grid-cols-[50px_1fr] gap-y-0.5">
-                                    <span className="font-semibold text-slate-500">GSTIN:</span>
-                                    <span>{invoiceData.clientGSTIN}</span>
-                                    <span className="font-semibold text-slate-500">State:</span>
-                                    <span>{invoiceData.clientState}</span>
-                                </div>
-                            </div>
-                            <div className="p-3">
-                                <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Ship To (Consignee)</div>
-                                <div className="font-bold text-sm mb-1">{invoiceData.sameAsBillTo ? (invoiceData.clientName || "Buyer Name") : (invoiceData.shipToName || "Consignee Name")}</div>
-                                <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.sameAsBillTo ? invoiceData.clientAddress : invoiceData.shipToAddress}</div>
-                                <div className="grid grid-cols-[50px_1fr] gap-y-0.5">
-                                    <span className="font-semibold text-slate-500">State:</span>
-                                    <span>{invoiceData.sameAsBillTo ? invoiceData.clientState : invoiceData.shipToState}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Item Table */}
-                        <div className="mt-4 border border-slate-300">
-                            {/* Table Header */}
-                            <div className="grid grid-cols-[40px_1fr_80px_60px_60px_80px_40px_100px] bg-slate-100 border-b border-slate-300 font-bold text-center">
-                                <div className="p-2 border-r border-slate-300">SI</div>
-                                <div className="p-2 border-r border-slate-300 text-left">Description of Goods</div>
-                                <div className="p-2 border-r border-slate-300">HSN/SAC</div>
-                                <div className="p-2 border-r border-slate-300">Qty</div>
-                                <div className="p-2 border-r border-slate-300">Rate</div>
-                                <div className="p-2 border-r border-slate-300">Taxable</div>
-                                <div className="p-2 border-r border-slate-300">%</div>
-                                <div className="p-2 text-right">Amount</div>
-                            </div>
-
-                            {/* Table Rows */}
-                            {calculations.itemDetails.map((item, index) => (
-                                <div key={item.id} className="grid grid-cols-[40px_1fr_80px_60px_60px_80px_40px_100px] border-b border-slate-200 text-center last:border-b-0">
-                                    <div className="p-2 border-r border-slate-300">{index + 1}</div>
-                                    <div className="p-2 border-r border-slate-300 text-left font-medium">{item.description}</div>
-                                    <div className="p-2 border-r border-slate-300">{item.hsnsac}</div>
-                                    <div className="p-2 border-r border-slate-300">{item.quantity}</div>
-                                    <div className="p-2 border-r border-slate-300">{item.rate.toFixed(2)}</div>
-                                    <div className="p-2 border-r border-slate-300">{item.taxableValue.toFixed(2)}</div>
-                                    <div className="p-2 border-r border-slate-300">{item.taxRate}%</div>
-                                    <div className="p-2 text-right font-semibold">{item.itemTotal.toFixed(2)}</div>
-                                </div>
-                            ))}
-
-                            {/* Blank filler rows to ensure height if needed */}
-                            {invoiceData.items.length < 5 && Array.from({ length: 5 - invoiceData.items.length }).map((_, i) => (
-                                <div key={`fill-${i}`} className="grid grid-cols-[40px_1fr_80px_60px_60px_80px_40px_100px] border-b border-slate-200 text-center last:border-b-0 h-10">
-                                    <div className="p-2 border-r border-slate-300"></div>
-                                    <div className="p-2 border-r border-slate-300"></div>
-                                    <div className="p-2 border-r border-slate-300"></div>
-                                    <div className="p-2 border-r border-slate-300"></div>
-                                    <div className="p-2 border-r border-slate-300"></div>
-                                    <div className="p-2 border-r border-slate-300"></div>
-                                    <div className="p-2 border-r border-slate-300"></div>
-                                    <div className="p-2 text-right"></div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Totals Section */}
-                        <div className="border-x border-b border-slate-300">
-                            <div className="flex justify-end">
-                                <div className="w-[300px] border-l border-slate-300">
-                                    {/* Tax Breakdowns */}
-                                    <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
-                                        <span>Total Taxable Value</span>
-                                        <span>{calculations.totalTaxable.toFixed(2)}</span>
+                                <div className="p-3">
+                                    <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Ship To (Consignee)</div>
+                                    <div className="font-bold text-sm mb-1">{invoiceData.sameAsBillTo ? (invoiceData.clientName || "Buyer Name") : (invoiceData.shipToName || "Consignee Name")}</div>
+                                    <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.sameAsBillTo ? invoiceData.clientAddress : invoiceData.shipToAddress}</div>
+                                    <div className="grid grid-cols-[50px_1fr] gap-y-0.5">
+                                        <span className="font-semibold text-slate-500">State:</span>
+                                        <span>{invoiceData.sameAsBillTo ? invoiceData.clientState : invoiceData.shipToState}</span>
                                     </div>
+                                </div>
+                            </div>
 
-                                    {calculations.totalCGST > 0 && (
+                            {/* Item Table */}
+                            <div className="mt-4 border border-slate-300">
+                                {/* Table Header */}
+                                <div className="grid grid-cols-[40px_1fr_80px_60px_60px_80px_40px_100px] bg-slate-100 border-b border-slate-300 font-bold text-center">
+                                    <div className="p-2 border-r border-slate-300">SI</div>
+                                    <div className="p-2 border-r border-slate-300 text-left">Description of Goods</div>
+                                    <div className="p-2 border-r border-slate-300">HSN/SAC</div>
+                                    <div className="p-2 border-r border-slate-300">Qty</div>
+                                    <div className="p-2 border-r border-slate-300">Rate</div>
+                                    <div className="p-2 border-r border-slate-300">Taxable</div>
+                                    <div className="p-2 border-r border-slate-300">%</div>
+                                    <div className="p-2 text-right">Amount</div>
+                                </div>
+
+                                {/* Table Rows */}
+                                {calculations.itemDetails.map((item, index) => (
+                                    <div key={item.id} className="grid grid-cols-[40px_1fr_80px_60px_60px_80px_40px_100px] border-b border-slate-200 text-center last:border-b-0">
+                                        <div className="p-2 border-r border-slate-300">{index + 1}</div>
+                                        <div className="p-2 border-r border-slate-300 text-left font-medium">{item.description}</div>
+                                        <div className="p-2 border-r border-slate-300">{item.hsnsac}</div>
+                                        <div className="p-2 border-r border-slate-300">{item.quantity}</div>
+                                        <div className="p-2 border-r border-slate-300">{item.rate.toFixed(2)}</div>
+                                        <div className="p-2 border-r border-slate-300">{item.taxableValue.toFixed(2)}</div>
+                                        <div className="p-2 border-r border-slate-300">{item.taxRate}%</div>
+                                        <div className="p-2 text-right font-semibold">{item.itemTotal.toFixed(2)}</div>
+                                    </div>
+                                ))}
+
+                                {/* Blank filler rows to ensure height if needed */}
+                                {invoiceData.items.length < 5 && Array.from({ length: 5 - invoiceData.items.length }).map((_, i) => (
+                                    <div key={`fill-${i}`} className="grid grid-cols-[40px_1fr_80px_60px_60px_80px_40px_100px] border-b border-slate-200 text-center last:border-b-0 h-10">
+                                        <div className="p-2 border-r border-slate-300"></div>
+                                        <div className="p-2 border-r border-slate-300"></div>
+                                        <div className="p-2 border-r border-slate-300"></div>
+                                        <div className="p-2 border-r border-slate-300"></div>
+                                        <div className="p-2 border-r border-slate-300"></div>
+                                        <div className="p-2 border-r border-slate-300"></div>
+                                        <div className="p-2 border-r border-slate-300"></div>
+                                        <div className="p-2 text-right"></div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Totals Section */}
+                            <div className="border-x border-b border-slate-300">
+                                <div className="flex justify-end">
+                                    <div className="w-[300px] border-l border-slate-300">
+                                        {/* Tax Breakdowns */}
                                         <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
-                                            <span>CGST</span>
-                                            <span>{calculations.totalCGST.toFixed(2)}</span>
+                                            <span>Total Taxable Value</span>
+                                            <span>{calculations.totalTaxable.toFixed(2)}</span>
+                                        </div>
+
+                                        {calculations.totalCGST > 0 && (
+                                            <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
+                                                <span>CGST</span>
+                                                <span>{calculations.totalCGST.toFixed(2)}</span>
+                                            </div>
+                                        )}
+                                        {calculations.totalSGST > 0 && (
+                                            <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
+                                                <span>SGST</span>
+                                                <span>{calculations.totalSGST.toFixed(2)}</span>
+                                            </div>
+                                        )}
+                                        {calculations.totalIGST > 0 && (
+                                            <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
+                                                <span>IGST</span>
+                                                <span>{calculations.totalIGST.toFixed(2)}</span>
+                                            </div>
+                                        )}
+
+                                        <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
+                                            <span>Round Off</span>
+                                            <span>{calculations.roundOff.toFixed(2)}</span>
+                                        </div>
+
+                                        <div className="flex justify-between p-2 bg-slate-100 font-bold text-base">
+                                            <span>Grand Total</span>
+                                            <span>{invoiceData.currencySymbol} {calculations.grandTotal.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Amount in Words */}
+                                <div className="border-t border-slate-300 p-2 text-sm italic border-b">
+                                    <span className="font-semibold not-italic">Amount in Words:</span> {convertNumberToWords(calculations.grandTotal)}
+                                </div>
+
+                                {/* Tax Summary Table (Simplified) */}
+                                {invoiceData.taxType !== "None" && (
+                                    <div className="grid grid-cols-[100px_1fr_1fr_1fr] border-b border-slate-300 text-center text-[10px]">
+                                        <div className="p-1 font-bold border-r border-slate-300">HSN/SAC</div>
+                                        <div className="p-1 font-bold border-r border-slate-300">Taxable Value</div>
+                                        <div className="p-1 font-bold border-r border-slate-300">{invoiceData.taxType === "IGST" ? "IGST" : "CGST + SGST"}</div>
+                                        <div className="p-1 font-bold">Total Tax</div>
+
+                                        {/* Row */}
+                                        <div className="p-1 border-r border-slate-300 border-t">-</div>
+                                        <div className="p-1 border-r border-slate-300 border-t">{calculations.totalTaxable.toFixed(2)}</div>
+                                        <div className="p-1 border-r border-slate-300 border-t">{(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST).toFixed(2)}</div>
+                                        <div className="p-1 border-t">{(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST).toFixed(2)}</div>
+                                    </div>
+                                )}
+
+                            </div>
+
+                            {/* Footer Section */}
+                            <div className="grid grid-cols-2 mt-4 gap-4">
+                                <div>
+                                    {invoiceData.showBankDetails && invoiceData.bankName && (
+                                        <>
+                                            <div className="font-semibold underline mb-1 text-xs">Bank Details</div>
+                                            <div className="text-xs space-y-0.5">
+                                                <p>Bank Name: <span className="font-semibold">{invoiceData.bankName}</span></p>
+                                                <p>A/c No.: <span className="font-semibold">{invoiceData.accountNumber}</span></p>
+                                                <p>Branch & IFS Code: <span className="font-semibold">{invoiceData.branch} {invoiceData.ifscCode}</span></p>
+                                            </div>
+                                        </>
+                                    )}
+                                    {invoiceData.showTerms && invoiceData.termsConditions && (
+                                        <div className={(invoiceData.showBankDetails && invoiceData.bankName) ? "mt-4" : ""}>
+                                            <div className="font-semibold underline mb-1 text-xs">Terms & Conditions</div>
+                                            <div className="text-[10px] whitespace-pre-wrap text-slate-600">{invoiceData.termsConditions}</div>
                                         </div>
                                     )}
-                                    {calculations.totalSGST > 0 && (
-                                        <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
-                                            <span>SGST</span>
-                                            <span>{calculations.totalSGST.toFixed(2)}</span>
-                                        </div>
-                                    )}
-                                    {calculations.totalIGST > 0 && (
-                                        <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
-                                            <span>IGST</span>
-                                            <span>{calculations.totalIGST.toFixed(2)}</span>
-                                        </div>
-                                    )}
-
-                                    <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
-                                        <span>Round Off</span>
-                                        <span>{calculations.roundOff.toFixed(2)}</span>
+                                </div>
+                                <div className="flex flex-col justify-between items-end text-center">
+                                    <div className="text-xs mb-10">
+                                        For <span className="font-bold">{invoiceData.companyName}</span>
                                     </div>
-
-                                    <div className="flex justify-between p-2 bg-slate-100 font-bold text-base">
-                                        <span>Grand Total</span>
-                                        <span>{invoiceData.currencySymbol} {calculations.grandTotal.toFixed(2)}</span>
+                                    <div className="text-[10px] border-t border-slate-400 px-4 pt-1">
+                                        {invoiceData.authorizedSignatory || "Authorized Signatory"}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Amount in Words */}
-                            <div className="border-t border-slate-300 p-2 text-sm italic border-b">
-                                <span className="font-semibold not-italic">Amount in Words:</span> {convertNumberToWords(calculations.grandTotal)}
-                            </div>
-
-                            {/* Tax Summary Table (Simplified) */}
-                            {invoiceData.taxType !== "None" && (
-                                <div className="grid grid-cols-[100px_1fr_1fr_1fr] border-b border-slate-300 text-center text-[10px]">
-                                    <div className="p-1 font-bold border-r border-slate-300">HSN/SAC</div>
-                                    <div className="p-1 font-bold border-r border-slate-300">Taxable Value</div>
-                                    <div className="p-1 font-bold border-r border-slate-300">{invoiceData.taxType === "IGST" ? "IGST" : "CGST + SGST"}</div>
-                                    <div className="p-1 font-bold">Total Tax</div>
-
-                                    {/* Row */}
-                                    <div className="p-1 border-r border-slate-300 border-t">-</div>
-                                    <div className="p-1 border-r border-slate-300 border-t">{calculations.totalTaxable.toFixed(2)}</div>
-                                    <div className="p-1 border-r border-slate-300 border-t">{(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST).toFixed(2)}</div>
-                                    <div className="p-1 border-t">{(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST).toFixed(2)}</div>
+                            {invoiceData.showJurisdiction && (
+                                <div className="mt-8 text-[9px] text-center text-slate-400 border-t border-slate-200 pt-2">
+                                    Subject to {invoiceData.jurisdictionCity || "City"} Jurisdiction. This is a Computer Generated Invoice.
                                 </div>
                             )}
 
                         </div>
-
-                        {/* Footer Section */}
-                        <div className="grid grid-cols-2 mt-4 gap-4">
-                            <div>
-                                {invoiceData.bankName && (
-                                    <>
-                                        <div className="font-semibold underline mb-1 text-xs">Bank Details</div>
-                                        <div className="text-xs space-y-0.5">
-                                            <p>Bank Name: <span className="font-semibold">{invoiceData.bankName}</span></p>
-                                            <p>A/c No.: <span className="font-semibold">{invoiceData.accountNumber}</span></p>
-                                            <p>Branch & IFS Code: <span className="font-semibold">{invoiceData.branch} {invoiceData.ifscCode}</span></p>
-                                        </div>
-                                    </>
-                                )}
-                                <div className="mt-4">
-                                    <div className="font-semibold underline mb-1 text-xs">Terms & Conditions</div>
-                                    <div className="text-[10px] whitespace-pre-wrap text-slate-600">{invoiceData.termsConditions}</div>
-                                </div>
-                            </div>
-                            <div className="flex flex-col justify-between items-end text-center">
-                                <div className="text-xs mb-10">
-                                    For <span className="font-bold">{invoiceData.companyName}</span>
-                                </div>
-                                <div className="text-[10px] border-t border-slate-400 px-4 pt-1">
-                                    {invoiceData.authorizedSignatory || "Authorized Signatory"}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-8 text-[9px] text-center text-slate-400 border-t border-slate-200 pt-2">
-                            Subject to {invoiceData.jurisdictionCity || "City"} Jurisdiction. This is a Computer Generated Invoice.
-                        </div>
-
                     </div>
                 </div>
             </div>
