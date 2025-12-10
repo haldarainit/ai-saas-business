@@ -72,6 +72,11 @@ export default function TechnoQuotationPage() {
     const [footerLine2, setFooterLine2] = useState('LED Lighting Solutions | Inverters | Commercial | Industrial | Customized solution');
     const [footerLine3, setFooterLine3] = useState('Authorized Submitter: SANTOSH - M.D. - SCADA / PDD');
 
+    // Watermark
+    const [watermarkType, setWatermarkType] = useState<'text' | 'logo'>('text');
+    const [watermarkText, setWatermarkText] = useState('CONFIDENTIAL');
+    const [watermarkLogoUrl, setWatermarkLogoUrl] = useState('');
+
     // Dynamic Pages State
     const [pages, setPages] = useState<Page[]>([
         {
@@ -187,6 +192,18 @@ export default function TechnoQuotationPage() {
             const reader = new FileReader();
             reader.onloadend = () => {
                 setLogoUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleWatermarkLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setWatermarkLogoUrl(reader.result as string);
+                setWatermarkType('logo');
             };
             reader.readAsDataURL(file);
         }
@@ -853,7 +870,7 @@ export default function TechnoQuotationPage() {
                                 </span>
                             )}
                         </p>
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 flex-wrap">
                             <Button
                                 onClick={handlePrint}
                                 size="lg"
@@ -871,6 +888,54 @@ export default function TechnoQuotationPage() {
                                 <PlusCircle className="w-5 h-5 mr-2" />
                                 Add New Page
                             </Button>
+                            <div className="flex items-center gap-2 ml-4 p-3 border border-border rounded-lg bg-background">
+                                <label className="text-sm font-medium text-muted-foreground">
+                                    Watermark:
+                                </label>
+                                <div className="flex gap-2">
+                                    <Button
+                                        onClick={() => setWatermarkType('text')}
+                                        size="sm"
+                                        variant={watermarkType === 'text' ? 'default' : 'outline'}
+                                        className={watermarkType === 'text' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+                                    >
+                                        Text
+                                    </Button>
+                                    <Button
+                                        onClick={() => setWatermarkType('logo')}
+                                        size="sm"
+                                        variant={watermarkType === 'logo' ? 'default' : 'outline'}
+                                        className={watermarkType === 'logo' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+                                    >
+                                        Logo
+                                    </Button>
+                                </div>
+                                {watermarkType === 'text' ? (
+                                    <input
+                                        type="text"
+                                        value={watermarkText}
+                                        onChange={(e) => setWatermarkText(e.target.value)}
+                                        placeholder="Enter watermark text"
+                                        className="px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                    />
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <label htmlFor="watermark-logo-upload" className="cursor-pointer px-3 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+                                            {watermarkLogoUrl ? 'Change Logo' : 'Upload Logo'}
+                                        </label>
+                                        <input
+                                            id="watermark-logo-upload"
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleWatermarkLogoUpload}
+                                            style={{ display: 'none' }}
+                                        />
+                                        {watermarkLogoUrl && (
+                                            <span className="text-xs text-emerald-600">✓ Logo uploaded</span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -880,6 +945,18 @@ export default function TechnoQuotationPage() {
             <div className="quotation-container">
                 {pages.map((page, pageIndex) => (
                     <div key={page.id} className="page">
+                        {/* Watermark Overlay */}
+                        {watermarkType === 'text' && watermarkText && (
+                            <div className="watermark-overlay watermark-text">
+                                {watermarkText}
+                            </div>
+                        )}
+                        {watermarkType === 'logo' && watermarkLogoUrl && (
+                            <div className="watermark-overlay watermark-logo">
+                                <img src={watermarkLogoUrl} alt="Watermark" />
+                            </div>
+                        )}
+
                         {/* Header */}
                         <div className="header">
                             <div className="logo-section">
@@ -1244,6 +1321,38 @@ export default function TechnoQuotationPage() {
                     flex-direction: column;
                 }
 
+                /* Watermark Overlay */
+                .watermark-overlay {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%) rotate(-45deg);
+                    pointer-events: none;
+                    user-select: none;
+                    z-index: 1;
+                }
+
+                .watermark-text {
+                    font-size: 80px;
+                    font-weight: bold;
+                    color: rgba(16, 185, 129, 0.08);
+                    text-transform: uppercase;
+                    white-space: nowrap;
+                    letter-spacing: 0.1em;
+                }
+
+                .watermark-logo {
+                    max-width: 400px;
+                    max-height: 400px;
+                    opacity: 0.08;
+                }
+
+                .watermark-logo img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                }
+
                 /* Force light theme INSIDE the printable quotation pages so PDFs/print view stay consistent */
                 .page, .page * {
                     color: #0f172a !important; /* dark text */
@@ -1278,6 +1387,15 @@ export default function TechnoQuotationPage() {
                     color: #6b7280 !important;
                 }
 
+                /* Ensure watermark stays semi-transparent */
+                .page .watermark-text {
+                    color: rgba(16, 185, 129, 0.08) !important;
+                }
+
+                .page .watermark-logo {
+                    opacity: 0.08 !important;
+                }
+
                 /* Ensure interactive control areas (no-print) still follow theme, but printed pages remain light */
                 .no-print .page-controls,
                 .no-print .delete-section-btn,
@@ -1292,6 +1410,8 @@ export default function TechnoQuotationPage() {
                     padding-bottom: 10px;
                     border-bottom: 2px solid #10b981;
                     margin-bottom: 15px;
+                    position: relative;
+                    z-index: 2;
                 }
 
                 .logo-section {
@@ -1343,6 +1463,8 @@ export default function TechnoQuotationPage() {
                     padding: 10px;
                     background: linear-gradient(135deg, #f0fdf4, #ccfbf1);
                     border-radius: 8px;
+                    position: relative;
+                    z-index: 2;
                 }
 
                 .main-title-field {
@@ -1356,6 +1478,8 @@ export default function TechnoQuotationPage() {
                 .page-content {
                     flex: 1;
                     overflow: visible;
+                    position: relative;
+                    z-index: 2;
                 }
 
                 .page-controls {
@@ -1549,6 +1673,8 @@ export default function TechnoQuotationPage() {
                     font-size: 9px;
                     text-align: center;
                     color: #6b7280;
+                    position: relative;
+                    z-index: 2;
                 }
 
                 .footer p {
@@ -1629,6 +1755,12 @@ export default function TechnoQuotationPage() {
                     input, textarea {
                         border: none !important;
                         background: transparent !important;
+                    }
+
+                    /* Ensure watermark is visible in print */
+                    .watermark-overlay {
+                        display: block !important;
+                        opacity: 1 !important;
                     }
                 }
             `}</style>
