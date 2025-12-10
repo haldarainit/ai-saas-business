@@ -590,12 +590,19 @@ export default function InvoicePage() {
                                 {`
                                 @page { 
                                     size: A4; 
-                                    margin: 15mm; 
+                                    margin: 15mm 15mm 20mm 15mm;
+                                    @bottom-right {
+                                        content: "Page " counter(page) " of " counter(pages);
+                                        font-size: 9px;
+                                        color: #94a3b8;
+                                    }
                                 }
                                 body { 
                                     -webkit-print-color-adjust: exact;
                                     print-color-adjust: exact; 
                                 }
+                                
+                                /* Page break controls */
                                 .page-break {
                                     page-break-after: always;
                                     break-after: page;
@@ -604,6 +611,35 @@ export default function InvoicePage() {
                                     page-break-inside: avoid;
                                     break-inside: avoid;
                                 }
+                                
+                                /* Prevent table headers from breaking */
+                                table, .invoice-table {
+                                    page-break-inside: auto;
+                                }
+                                thead, .table-header {
+                                    display: table-header-group;
+                                    page-break-inside: avoid;
+                                    page-break-after: avoid;
+                                }
+                                tr, .table-row {
+                                    page-break-inside: avoid;
+                                    page-break-after: auto;
+                                }
+                                
+                                /* Hide header sections on pages after first */
+                                .invoice-header,
+                                .company-buyer-section,
+                                .consignee-section {
+                                    page-break-after: avoid;
+                                }
+                                
+                                /* Keep totals section together */
+                                .totals-section,
+                                .footer-section {
+                                    page-break-inside: avoid;
+                                    page-break-before: auto;
+                                }
+                                
                                 @media print {
                                     html, body {
                                         height: 100%;
@@ -615,12 +651,12 @@ export default function InvoicePage() {
                             </style>
 
                             {/* Invoice Header */}
-                            <div className="text-center font-bold text-xl mb-4 border-b pb-2 uppercase tracking-wide">
+                            <div className="invoice-header text-center font-bold text-xl mb-4 border-b pb-2 uppercase tracking-wide">
                                 {invoiceData.title}
                             </div>
 
                             {/* Top Section: Company & Buyer */}
-                            <div className="grid grid-cols-2 border border-slate-300">
+                            <div className="company-buyer-section grid grid-cols-2 border border-slate-300">
                                 {/* Seller Details (Left) */}
                                 <div className="p-3 border-r border-slate-300">
                                     <div className="font-bold text-base mb-1">{invoiceData.companyName || "Seller Name"}</div>
@@ -661,7 +697,7 @@ export default function InvoicePage() {
                             </div>
 
                             {/* Consignee / Buyer Section */}
-                            <div className="grid grid-cols-2 border-x border-b border-slate-300">
+                            <div className="consignee-section grid grid-cols-2 border-x border-b border-slate-300">
                                 <div className="p-3 border-r border-slate-300">
                                     <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Bill To (Buyer)</div>
                                     <div className="font-bold text-sm mb-1">{invoiceData.clientName || "Buyer Name"}</div>
@@ -685,50 +721,51 @@ export default function InvoicePage() {
                             </div>
 
                             {/* Item Table */}
-                            <div className="mt-4 border border-slate-300">
-                                {/* Table Header */}
-                                <div className="grid grid-cols-[40px_1fr_80px_60px_60px_80px_40px_100px] bg-slate-100 border-b border-slate-300 font-bold text-center">
-                                    <div className="p-2 border-r border-slate-300">SI</div>
-                                    <div className="p-2 border-r border-slate-300 text-left">Description of Goods</div>
-                                    <div className="p-2 border-r border-slate-300">HSN/SAC</div>
-                                    <div className="p-2 border-r border-slate-300">Qty</div>
-                                    <div className="p-2 border-r border-slate-300">Rate</div>
-                                    <div className="p-2 border-r border-slate-300">Taxable</div>
-                                    <div className="p-2 border-r border-slate-300">%</div>
-                                    <div className="p-2 text-right">Amount</div>
-                                </div>
+                            <table className="invoice-table mt-4 w-full border-collapse border border-slate-300 text-xs">
+                                <thead className="table-header">
+                                    <tr className="bg-slate-100">
+                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[40px]">SI</th>
+                                        <th className="p-2 border-r border-b border-slate-300 text-left font-bold">Description of Goods</th>
+                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[80px]">HSN/SAC</th>
+                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">Qty</th>
+                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">Rate</th>
+                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[80px]">Taxable</th>
+                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[40px]">%</th>
+                                        <th className="p-2 border-b border-slate-300 text-right font-bold w-[100px]">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {calculations.itemDetails.map((item, index) => (
+                                        <tr key={item.id} className="table-row border-b border-slate-200">
+                                            <td className="p-2 border-r border-slate-300 text-center">{index + 1}</td>
+                                            <td className="p-2 border-r border-slate-300 text-left font-medium">{item.description}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center">{item.hsnsac}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center">{item.quantity}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center">{item.rate.toFixed(2)}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center">{item.taxableValue.toFixed(2)}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center">{item.taxRate}%</td>
+                                            <td className="p-2 text-right font-semibold">{item.itemTotal.toFixed(2)}</td>
+                                        </tr>
+                                    ))}
 
-                                {/* Table Rows */}
-                                {calculations.itemDetails.map((item, index) => (
-                                    <div key={item.id} className="grid grid-cols-[40px_1fr_80px_60px_60px_80px_40px_100px] border-b border-slate-200 text-center last:border-b-0">
-                                        <div className="p-2 border-r border-slate-300">{index + 1}</div>
-                                        <div className="p-2 border-r border-slate-300 text-left font-medium">{item.description}</div>
-                                        <div className="p-2 border-r border-slate-300">{item.hsnsac}</div>
-                                        <div className="p-2 border-r border-slate-300">{item.quantity}</div>
-                                        <div className="p-2 border-r border-slate-300">{item.rate.toFixed(2)}</div>
-                                        <div className="p-2 border-r border-slate-300">{item.taxableValue.toFixed(2)}</div>
-                                        <div className="p-2 border-r border-slate-300">{item.taxRate}%</div>
-                                        <div className="p-2 text-right font-semibold">{item.itemTotal.toFixed(2)}</div>
-                                    </div>
-                                ))}
-
-                                {/* Blank filler rows to ensure height if needed */}
-                                {invoiceData.items.length < 5 && Array.from({ length: 5 - invoiceData.items.length }).map((_, i) => (
-                                    <div key={`fill-${i}`} className="grid grid-cols-[40px_1fr_80px_60px_60px_80px_40px_100px] border-b border-slate-200 text-center last:border-b-0 h-10">
-                                        <div className="p-2 border-r border-slate-300"></div>
-                                        <div className="p-2 border-r border-slate-300"></div>
-                                        <div className="p-2 border-r border-slate-300"></div>
-                                        <div className="p-2 border-r border-slate-300"></div>
-                                        <div className="p-2 border-r border-slate-300"></div>
-                                        <div className="p-2 border-r border-slate-300"></div>
-                                        <div className="p-2 border-r border-slate-300"></div>
-                                        <div className="p-2 text-right"></div>
-                                    </div>
-                                ))}
-                            </div>
+                                    {/* Blank filler rows */}
+                                    {invoiceData.items.length < 5 && Array.from({ length: 5 - invoiceData.items.length }).map((_, i) => (
+                                        <tr key={`fill-${i}`} className="border-b border-slate-200 h-10">
+                                            <td className="p-2 border-r border-slate-300"></td>
+                                            <td className="p-2 border-r border-slate-300"></td>
+                                            <td className="p-2 border-r border-slate-300"></td>
+                                            <td className="p-2 border-r border-slate-300"></td>
+                                            <td className="p-2 border-r border-slate-300"></td>
+                                            <td className="p-2 border-r border-slate-300"></td>
+                                            <td className="p-2 border-r border-slate-300"></td>
+                                            <td className="p-2"></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
 
                             {/* Totals Section */}
-                            <div className="border-x border-b border-slate-300">
+                            <div className="totals-section border-x border-b border-slate-300">
                                 <div className="flex justify-end">
                                     <div className="w-[300px] border-l border-slate-300">
                                         {/* Tax Breakdowns */}
@@ -792,7 +829,7 @@ export default function InvoicePage() {
                             </div>
 
                             {/* Footer Section */}
-                            <div className="grid grid-cols-2 mt-4 gap-4">
+                            <div className="footer-section grid grid-cols-2 mt-4 gap-4">
                                 <div>
                                     {invoiceData.showBankDetails && invoiceData.bankName && (
                                         <>
