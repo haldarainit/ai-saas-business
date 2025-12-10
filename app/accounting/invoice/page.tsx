@@ -20,7 +20,9 @@ interface InvoiceItem {
     quantity: number
     rate: number
     discount: number
-    taxRate: number // GST Rate %
+    taxRate: number // GST Rate % (total)
+    cgstPercent: number // CGST %
+    sgstPercent: number // SGST %
     cgst: number // Editable CGST amount
     sgst: number // Editable SGST amount
     totalGst: number // Editable Total GST amount
@@ -156,7 +158,7 @@ const defaultInvoiceData: InvoiceData = {
     placeOfSupply: "",
     reverseCharge: "No",
 
-    items: [{ id: "1", description: "", hsnsac: "", quantity: 1, rate: 0, discount: 0, taxRate: 18, cgst: 0, sgst: 0, totalGst: 0 }],
+    items: [{ id: "1", description: "", hsnsac: "", quantity: 1, rate: 0, discount: 0, taxRate: 18, cgstPercent: 9, sgstPercent: 9, cgst: 0, sgst: 0, totalGst: 0 }],
 
     shippingCharges: 0,
     otherCharges: 0,
@@ -278,6 +280,8 @@ export default function InvoicePage() {
             rate: 0,
             discount: 0,
             taxRate: 18,
+            cgstPercent: 9,
+            sgstPercent: 9,
             cgst: 0,
             sgst: 0,
             totalGst: 0,
@@ -309,31 +313,36 @@ export default function InvoicePage() {
                 if (invoiceData.taxType === "GST") {
                     if (field === 'taxRate') {
                         // When Tax % changes: split equally to CGST% and SGST%, then calculate amounts
-                        const cgstPercent = value / 2
-                        const sgstPercent = value / 2
-                        updated.cgst = (taxableValue * cgstPercent) / 100
-                        updated.sgst = (taxableValue * sgstPercent) / 100
+                        updated.cgstPercent = value / 2
+                        updated.sgstPercent = value / 2
+                        updated.cgst = (taxableValue * updated.cgstPercent) / 100
+                        updated.sgst = (taxableValue * updated.sgstPercent) / 100
                         updated.totalGst = updated.cgst + updated.sgst
                     } else if (field === 'cgst') {
                         // When CGST amount changes: calculate CGST%, make SGST equal, update Tax%
                         const cgstPercent = taxableValue > 0 ? (value / taxableValue) * 100 : 0
-                        const sgstPercent = cgstPercent // Equal split
-                        updated.sgst = (taxableValue * sgstPercent) / 100
+                        updated.cgstPercent = parseFloat(cgstPercent.toFixed(2))
+                        updated.sgstPercent = updated.cgstPercent
+                        updated.sgst = (taxableValue * updated.sgstPercent) / 100
                         updated.totalGst = value + updated.sgst
-                        updated.taxRate = parseFloat((cgstPercent + sgstPercent).toFixed(2))
+                        updated.taxRate = parseFloat((updated.cgstPercent + updated.sgstPercent).toFixed(2))
                     } else if (field === 'sgst') {
                         // When SGST amount changes: calculate SGST%, make CGST equal, update Tax%
                         const sgstPercent = taxableValue > 0 ? (value / taxableValue) * 100 : 0
-                        const cgstPercent = sgstPercent // Equal split
-                        updated.cgst = (taxableValue * cgstPercent) / 100
+                        updated.sgstPercent = parseFloat(sgstPercent.toFixed(2))
+                        updated.cgstPercent = updated.sgstPercent
+                        updated.cgst = (taxableValue * updated.cgstPercent) / 100
                         updated.totalGst = updated.cgst + value
-                        updated.taxRate = parseFloat((cgstPercent + sgstPercent).toFixed(2))
+                        updated.taxRate = parseFloat((updated.cgstPercent + updated.sgstPercent).toFixed(2))
                     } else if (field === 'totalGst') {
-                        // When Total GST changes: split equally to CGST and SGST, calculate Tax%
+                        // When Total GST changes: split equally to CGST and SGST, calculate percentages and Tax%
                         updated.cgst = value / 2
                         updated.sgst = value / 2
                         if (taxableValue > 0) {
-                            updated.taxRate = parseFloat(((value / taxableValue) * 100).toFixed(2))
+                            const gstPercent = (value / taxableValue) * 100
+                            updated.cgstPercent = parseFloat((gstPercent / 2).toFixed(2))
+                            updated.sgstPercent = updated.cgstPercent
+                            updated.taxRate = parseFloat(gstPercent.toFixed(2))
                         }
                     }
                 }
