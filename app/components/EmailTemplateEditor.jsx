@@ -76,27 +76,35 @@ export function EmailTemplateEditor({
   const getAvailableColumns = () => {
     if (!csvData) return [];
 
-    const emailCount = csvData.data.filter(
+    // Get rows that have valid emails
+    const validEmailRows = csvData.data.filter(
       (row) => row.email && row.email.includes("@")
-    ).length;
+    );
+    const emailCount = validEmailRows.length;
 
     return csvData.headers
       .filter((header) => header.toLowerCase() !== "email")
       .map((header) => {
-        const filledCount = csvData.data.filter(
+        // Count how many rows with valid emails also have this column filled
+        const filledCountInValidRows = validEmailRows.filter(
           (row) => row[header] && row[header].toString().trim() !== ""
         ).length;
 
-        const isExactMatch = filledCount === emailCount;
-        const hasTooMuchData = filledCount > emailCount;
+        // A column is complete if ALL rows with valid emails have this column filled
+        const isComplete = filledCountInValidRows === emailCount && emailCount > 0;
+
+        // Total filled count across all rows (for display purposes)
+        const totalFilledCount = csvData.data.filter(
+          (row) => row[header] && row[header].toString().trim() !== ""
+        ).length;
 
         return {
           name: header,
-          filledCount,
-          totalCount: csvData.totalRows,
-          isComplete: isExactMatch,
-          hasTooMuchData,
-          percentage: Math.round((filledCount / csvData.totalRows) * 100),
+          filledCount: filledCountInValidRows,
+          totalCount: emailCount, // Show count relative to valid emails, not total rows
+          isComplete: isComplete,
+          hasTooMuchData: false, // Remove this confusing flag
+          percentage: emailCount > 0 ? Math.round((filledCountInValidRows / emailCount) * 100) : 0,
         };
       });
   };
@@ -418,11 +426,10 @@ export function EmailTemplateEditor({
               size="sm"
               onClick={() => setShowChecklistDialog(true)}
               disabled={disabled || !csvData}
-              className={`h-9 px-3 hover:bg-primary/10 hover:text-primary ${
-                csvData
-                  ? "bg-primary/5 border border-primary/20 text-primary"
-                  : "text-muted-foreground"
-              }`}
+              className={`h-9 px-3 hover:bg-primary/10 hover:text-primary ${csvData
+                ? "bg-primary/5 border border-primary/20 text-primary"
+                : "text-muted-foreground"
+                }`}
               title="Insert template variables"
             >
               <FileText className="w-4 h-4 mr-2" />
@@ -611,22 +618,18 @@ export function EmailTemplateEditor({
             {getAvailableColumns().map((column) => (
               <div
                 key={column.name}
-                className={`flex items-center justify-between p-3 rounded-lg border ${
-                  column.isComplete
-                    ? "bg-green-50 border-green-200"
-                    : column.hasTooMuchData
-                    ? "bg-red-50 border-red-200"
-                    : "bg-gray-50 border-gray-200"
-                }`}
+                className={`flex items-center justify-between p-3 rounded-lg border ${column.isComplete
+                  ? "bg-green-50 border-green-200"
+                  : "bg-gray-50 border-gray-200"
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => toggleColumn(column.name)}
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                      enabledColumns.has(column.name)
-                        ? "bg-emerald-600 border-emerald-600 text-white"
-                        : "border-gray-300 hover:border-emerald-400"
-                    }`}
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center ${enabledColumns.has(column.name)
+                      ? "bg-emerald-600 border-emerald-600 text-white"
+                      : "border-gray-300 hover:border-emerald-400"
+                      }`}
                     disabled={!column.isComplete}
                   >
                     {enabledColumns.has(column.name) && (
@@ -652,10 +655,6 @@ export function EmailTemplateEditor({
                   >
                     Insert {`{{${column.name}}}`}
                   </Button>
-                ) : column.hasTooMuchData ? (
-                  <span className="text-xs text-red-600 font-medium">
-                    You can't use this
-                  </span>
                 ) : (
                   <span className="text-xs text-orange-600 font-medium">
                     Incomplete
@@ -844,11 +843,10 @@ export function EmailTemplateEditor({
                       <button
                         key={style}
                         onClick={() => setTrackedButtonStyle(style)}
-                        className={`h-12 rounded-lg border-2 transition-all ${
-                          trackedButtonStyle === style
-                            ? "border-blue-500 scale-105"
-                            : "border-gray-200 hover:border-gray-300"
-                        }`}
+                        className={`h-12 rounded-lg border-2 transition-all ${trackedButtonStyle === style
+                          ? "border-blue-500 scale-105"
+                          : "border-gray-200 hover:border-gray-300"
+                          }`}
                         style={{
                           background: getButtonStyles(style).background,
                         }}
@@ -910,6 +908,6 @@ export function EmailTemplateEditor({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </Card >
   );
 }
