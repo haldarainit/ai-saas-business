@@ -76,6 +76,9 @@ export default function TechnoQuotationPage() {
     const [watermarkType, setWatermarkType] = useState<'text' | 'logo'>('text');
     const [watermarkText, setWatermarkText] = useState('CONFIDENTIAL');
     const [watermarkLogoUrl, setWatermarkLogoUrl] = useState('');
+    const [watermarkSize, setWatermarkSize] = useState(80); // Font size for text, max-width for logo
+    const [watermarkOpacity, setWatermarkOpacity] = useState(0.15);
+    const [watermarkColorMode, setWatermarkColorMode] = useState<'original' | 'grayscale'>('original');
 
     // Dynamic Pages State
     const [pages, setPages] = useState<Page[]>([
@@ -888,53 +891,111 @@ export default function TechnoQuotationPage() {
                                 <PlusCircle className="w-5 h-5 mr-2" />
                                 Add New Page
                             </Button>
-                            <div className="flex items-center gap-2 ml-4 p-3 border border-border rounded-lg bg-background">
-                                <label className="text-sm font-medium text-muted-foreground">
-                                    Watermark:
-                                </label>
-                                <div className="flex gap-2">
-                                    <Button
-                                        onClick={() => setWatermarkType('text')}
-                                        size="sm"
-                                        variant={watermarkType === 'text' ? 'default' : 'outline'}
-                                        className={watermarkType === 'text' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-                                    >
-                                        Text
-                                    </Button>
-                                    <Button
-                                        onClick={() => setWatermarkType('logo')}
-                                        size="sm"
-                                        variant={watermarkType === 'logo' ? 'default' : 'outline'}
-                                        className={watermarkType === 'logo' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-                                    >
-                                        Logo
-                                    </Button>
-                                </div>
-                                {watermarkType === 'text' ? (
-                                    <input
-                                        type="text"
-                                        value={watermarkText}
-                                        onChange={(e) => setWatermarkText(e.target.value)}
-                                        placeholder="Enter watermark text"
-                                        className="px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                                    />
-                                ) : (
-                                    <div className="flex items-center gap-2">
-                                        <label htmlFor="watermark-logo-upload" className="cursor-pointer px-3 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors">
-                                            {watermarkLogoUrl ? 'Change Logo' : 'Upload Logo'}
-                                        </label>
-                                        <input
-                                            id="watermark-logo-upload"
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleWatermarkLogoUpload}
-                                            style={{ display: 'none' }}
-                                        />
-                                        {watermarkLogoUrl && (
-                                            <span className="text-xs text-emerald-600">✓ Logo uploaded</span>
-                                        )}
+                            <div className="flex flex-col gap-3 ml-4 p-4 border border-border rounded-lg bg-background">
+                                <div className="flex items-center gap-2">
+                                    <label className="text-sm font-medium text-muted-foreground min-w-[80px]">
+                                        Watermark:
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={() => setWatermarkType('text')}
+                                            size="sm"
+                                            variant={watermarkType === 'text' ? 'default' : 'outline'}
+                                            className={watermarkType === 'text' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+                                        >
+                                            Text
+                                        </Button>
+                                        <Button
+                                            onClick={() => setWatermarkType('logo')}
+                                            size="sm"
+                                            variant={watermarkType === 'logo' ? 'default' : 'outline'}
+                                            className={watermarkType === 'logo' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+                                        >
+                                            Logo
+                                        </Button>
                                     </div>
-                                )}
+                                    {watermarkType === 'text' ? (
+                                        <input
+                                            type="text"
+                                            value={watermarkText}
+                                            onChange={(e) => setWatermarkText(e.target.value)}
+                                            placeholder="Enter watermark text"
+                                            className="px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                        />
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <label htmlFor="watermark-logo-upload" className="cursor-pointer px-3 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors">
+                                                {watermarkLogoUrl ? 'Change Logo' : 'Upload Logo'}
+                                            </label>
+                                            <input
+                                                id="watermark-logo-upload"
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleWatermarkLogoUpload}
+                                                style={{ display: 'none' }}
+                                            />
+                                            {watermarkLogoUrl && (
+                                                <span className="text-xs text-emerald-600">✓ Logo uploaded</span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Size Control */}
+                                <div className="flex items-center gap-3">
+                                    <label className="text-xs text-muted-foreground min-w-[80px]">
+                                        Size: {watermarkSize}px
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="40"
+                                        max="200"
+                                        value={watermarkSize}
+                                        onChange={(e) => setWatermarkSize(Number(e.target.value))}
+                                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                                    />
+                                </div>
+
+                                {/* Opacity Control */}
+                                <div className="flex items-center gap-3">
+                                    <label className="text-xs text-muted-foreground min-w-[80px]">
+                                        Opacity: {Math.round(watermarkOpacity * 100)}%
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0.05"
+                                        max="0.5"
+                                        step="0.05"
+                                        value={watermarkOpacity}
+                                        onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
+                                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                                    />
+                                </div>
+
+                                {/* Color Mode Control */}
+                                <div className="flex items-center gap-3">
+                                    <label className="text-xs text-muted-foreground min-w-[80px]">
+                                        Color Mode:
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={() => setWatermarkColorMode('original')}
+                                            size="sm"
+                                            variant={watermarkColorMode === 'original' ? 'default' : 'outline'}
+                                            className={watermarkColorMode === 'original' ? 'bg-emerald-600 hover:bg-emerald-700 text-xs' : 'text-xs'}
+                                        >
+                                            Original
+                                        </Button>
+                                        <Button
+                                            onClick={() => setWatermarkColorMode('grayscale')}
+                                            size="sm"
+                                            variant={watermarkColorMode === 'grayscale' ? 'default' : 'outline'}
+                                            className={watermarkColorMode === 'grayscale' ? 'bg-emerald-600 hover:bg-emerald-700 text-xs' : 'text-xs'}
+                                        >
+                                            B&W
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -947,13 +1008,42 @@ export default function TechnoQuotationPage() {
                     <div key={page.id} className="page">
                         {/* Watermark Overlay */}
                         {watermarkType === 'text' && watermarkText && (
-                            <div className="watermark-overlay watermark-text">
+                            <div
+                                className="watermark-overlay watermark-text"
+                                style={{
+                                    fontSize: `${watermarkSize}px`,
+                                    color: watermarkColorMode === 'grayscale'
+                                        ? `rgba(0, 0, 0, ${watermarkOpacity})`
+                                        : `rgba(16, 185, 129, ${watermarkOpacity})`,
+                                    opacity: 1
+                                } as React.CSSProperties}
+                            >
                                 {watermarkText}
                             </div>
                         )}
                         {watermarkType === 'logo' && watermarkLogoUrl && (
-                            <div className="watermark-overlay watermark-logo">
-                                <img src={watermarkLogoUrl} alt="Watermark" />
+                            <div
+                                className="watermark-overlay watermark-logo"
+                                style={{
+                                    width: `${watermarkSize * 5}px`,
+                                    height: `${watermarkSize * 5}px`,
+                                    maxWidth: `${watermarkSize * 5}px`,
+                                    maxHeight: `${watermarkSize * 5}px`,
+                                    opacity: watermarkOpacity,
+                                    filter: watermarkColorMode === 'grayscale' ? 'grayscale(100%)' : 'none'
+                                } as React.CSSProperties}
+                            >
+                                <img
+                                    src={watermarkLogoUrl}
+                                    alt="Watermark"
+                                    style={{
+                                        opacity: 1,
+                                        maxWidth: '100%',
+                                        maxHeight: '100%',
+                                        width: 'auto',
+                                        height: 'auto'
+                                    }}
+                                />
                             </div>
                         )}
 
@@ -1326,25 +1416,23 @@ export default function TechnoQuotationPage() {
                     position: absolute;
                     top: 50%;
                     left: 50%;
-                    transform: translate(-50%, -50%) rotate(-45deg);
+                    transform: translate(-50%, -50%);
                     pointer-events: none;
                     user-select: none;
                     z-index: 1;
                 }
 
                 .watermark-text {
-                    font-size: 80px;
                     font-weight: bold;
-                    color: rgba(16, 185, 129, 0.08);
                     text-transform: uppercase;
                     white-space: nowrap;
                     letter-spacing: 0.1em;
                 }
 
                 .watermark-logo {
-                    max-width: 400px;
-                    max-height: 400px;
-                    opacity: 0.08;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
 
                 .watermark-logo img {
@@ -1385,15 +1473,6 @@ export default function TechnoQuotationPage() {
                 /* Subtle adjustments for footer / meta text */
                 .page .footer {
                     color: #6b7280 !important;
-                }
-
-                /* Ensure watermark stays semi-transparent */
-                .page .watermark-text {
-                    color: rgba(16, 185, 129, 0.08) !important;
-                }
-
-                .page .watermark-logo {
-                    opacity: 0.08 !important;
                 }
 
                 /* Ensure interactive control areas (no-print) still follow theme, but printed pages remain light */
