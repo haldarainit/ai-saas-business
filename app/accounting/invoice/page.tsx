@@ -32,6 +32,8 @@ interface InvoiceData {
     showTerms: boolean
     showJurisdiction: boolean
     showDeclaration: boolean
+    showDiscount: boolean
+    showTaxColumns: boolean
 
     // Company Info
     companyName: string
@@ -111,6 +113,8 @@ const defaultInvoiceData: InvoiceData = {
     showTerms: true,
     showJurisdiction: true,
     showDeclaration: false,
+    showDiscount: true,
+    showTaxColumns: true,
     companyName: "",
     companyAddress: "",
     companyCity: "",
@@ -189,6 +193,7 @@ export default function InvoicePage() {
         let totalSGST = 0
         let totalIGST = 0
         let totalAmount = 0
+        let totalDiscount = 0
 
         const itemDetails = invoiceData.items.map(item => {
             const subtotal = item.quantity * item.rate
@@ -213,6 +218,7 @@ export default function InvoicePage() {
             totalSGST += sgst
             totalIGST += igst
             totalAmount += itemTotal
+            totalDiscount += discountAmount
 
             return {
                 ...item,
@@ -230,6 +236,8 @@ export default function InvoicePage() {
         const roundedTotal = Math.round(finalTotal)
         const roundOff = roundedTotal - finalTotal
 
+        const hasDiscount = totalDiscount > 0
+
         return {
             itemDetails,
             totalTaxable,
@@ -237,8 +245,10 @@ export default function InvoicePage() {
             totalSGST,
             totalIGST,
             totalAmount,
+            totalDiscount,
             roundOff,
-            grandTotal: roundedTotal
+            grandTotal: roundedTotal,
+            hasDiscount
         }
     }, [invoiceData.items, invoiceData.taxType, invoiceData.shippingCharges, invoiceData.otherCharges])
 
@@ -567,6 +577,14 @@ export default function InvoicePage() {
                                         <input type="checkbox" id="showJurisdiction" checked={invoiceData.showJurisdiction} onChange={e => setInvoiceData({ ...invoiceData, showJurisdiction: e.target.checked })} className="rounded" />
                                         <Label htmlFor="showJurisdiction" className="font-normal cursor-pointer">Show Jurisdiction Footer</Label>
                                     </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showDiscount" checked={invoiceData.showDiscount} onChange={e => setInvoiceData({ ...invoiceData, showDiscount: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showDiscount" className="font-normal cursor-pointer">Show Discount Column</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showTaxColumns" checked={invoiceData.showTaxColumns} onChange={e => setInvoiceData({ ...invoiceData, showTaxColumns: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showTaxColumns" className="font-normal cursor-pointer">Show Tax Columns (CGST/SGST/IGST)</Label>
+                                    </div>
                                 </div>
                             </Card>
 
@@ -727,19 +745,37 @@ export default function InvoicePage() {
                                     </div>
                                 </div>
                             </div>
-
                             {/* Item Table */}
                             <table className="invoice-table mt-4 w-full border-collapse border border-slate-300 text-xs">
                                 <thead className="table-header">
                                     <tr className="bg-slate-100">
-                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[40px]">SI</th>
-                                        <th className="p-2 border-r border-b border-slate-300 text-left font-bold min-w-[200px]">Description of Goods</th>
-                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[80px]">HSN/SAC</th>
-                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">Qty</th>
+                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[40px]">Sl.<br />No.</th>
+                                        <th className="p-2 border-r border-b border-slate-300 text-left font-bold min-w-[150px]">Description of Goods</th>
+                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[70px]">HSN/SAC</th>
+                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[50px]">Quantity</th>
                                         <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">Rate</th>
-                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[80px]">Taxable</th>
-                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[40px]">%</th>
-                                        <th className="p-2 border-b border-slate-300 text-right font-bold w-[100px]">Amount</th>
+                                        {(invoiceData.showDiscount && calculations.hasDiscount) && (
+                                            <>
+                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[45px]">Disc.<br />%</th>
+                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">Disc.<br />Amt</th>
+                                            </>
+                                        )}
+                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[70px]">Taxable<br />Value</th>
+                                        {invoiceData.showTaxColumns && invoiceData.taxType !== "None" && (
+                                            <>
+                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[40px]">GST<br />%</th>
+                                                {invoiceData.taxType === "GST" && (
+                                                    <>
+                                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">CGST</th>
+                                                        <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">SGST</th>
+                                                    </>
+                                                )}
+                                                {invoiceData.taxType === "IGST" && (
+                                                    <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">IGST</th>
+                                                )}
+                                            </>
+                                        )}
+                                        <th className="p-2 border-b border-slate-300 text-right font-bold w-[80px]">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -750,8 +786,27 @@ export default function InvoicePage() {
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{item.hsnsac}</td>
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{item.quantity}</td>
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{item.rate.toFixed(2)}</td>
+                                            {(invoiceData.showDiscount && calculations.hasDiscount) && (
+                                                <>
+                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.discount}%</td>
+                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.discountAmount.toFixed(2)}</td>
+                                                </>
+                                            )}
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{item.taxableValue.toFixed(2)}</td>
-                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.taxRate}%</td>
+                                            {invoiceData.showTaxColumns && invoiceData.taxType !== "None" && (
+                                                <>
+                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.taxRate}%</td>
+                                                    {invoiceData.taxType === "GST" && (
+                                                        <>
+                                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.cgst.toFixed(2)}</td>
+                                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.sgst.toFixed(2)}</td>
+                                                        </>
+                                                    )}
+                                                    {invoiceData.taxType === "IGST" && (
+                                                        <td className="p-2 border-r border-slate-300 text-center align-top">{item.igst.toFixed(2)}</td>
+                                                    )}
+                                                </>
+                                            )}
                                             <td className="p-2 text-right font-semibold align-top">{item.itemTotal.toFixed(2)}</td>
                                         </tr>
                                     ))}
@@ -764,8 +819,27 @@ export default function InvoicePage() {
                                             <td className="p-2 border-r border-slate-300"></td>
                                             <td className="p-2 border-r border-slate-300"></td>
                                             <td className="p-2 border-r border-slate-300"></td>
+                                            {(invoiceData.showDiscount && calculations.hasDiscount) && (
+                                                <>
+                                                    <td className="p-2 border-r border-slate-300"></td>
+                                                    <td className="p-2 border-r border-slate-300"></td>
+                                                </>
+                                            )}
                                             <td className="p-2 border-r border-slate-300"></td>
-                                            <td className="p-2 border-r border-slate-300"></td>
+                                            {invoiceData.showTaxColumns && invoiceData.taxType !== "None" && (
+                                                <>
+                                                    <td className="p-2 border-r border-slate-300"></td>
+                                                    {invoiceData.taxType === "GST" && (
+                                                        <>
+                                                            <td className="p-2 border-r border-slate-300"></td>
+                                                            <td className="p-2 border-r border-slate-300"></td>
+                                                        </>
+                                                    )}
+                                                    {invoiceData.taxType === "IGST" && (
+                                                        <td className="p-2 border-r border-slate-300"></td>
+                                                    )}
+                                                </>
+                                            )}
                                             <td className="p-2"></td>
                                         </tr>
                                     ))}
