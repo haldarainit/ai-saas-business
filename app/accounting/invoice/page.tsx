@@ -94,7 +94,7 @@ interface InvoiceData {
     // Terms & Conditions
     notes: string
     termsConditions: string
-    jurisdictionCity: string
+    jurisdictionText: string
 
     // Footer
     authorizedSignatory: string
@@ -140,7 +140,7 @@ const defaultInvoiceData: InvoiceData = {
     shipToPincode: "",
     sameAsBillTo: true,
 
-    invoiceNumber: `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
+    invoiceNumber: "INV-2025-0001",
     invoiceDate: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     poNumber: "",
@@ -163,7 +163,7 @@ const defaultInvoiceData: InvoiceData = {
 
     notes: "",
     termsConditions: "1. Goods once sold will not be taken back.\n2. Interest @ 18% p.a. will be charged if the payment is not made within the stipulated time.",
-    jurisdictionCity: "Bhubaneswar",
+    jurisdictionText: "Subject to Bhubaneswar Jurisdiction. This is a Computer Generated Invoice.",
 
     authorizedSignatory: "",
     declarationText: "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.",
@@ -546,8 +546,8 @@ export default function InvoicePage() {
                                         <Input value={invoiceData.poNumber} onChange={e => setInvoiceData({ ...invoiceData, poNumber: e.target.value })} />
                                     </div>
                                     <div className="col-span-2">
-                                        <Label>Jurisdiction City</Label>
-                                        <Input value={invoiceData.jurisdictionCity} onChange={e => setInvoiceData({ ...invoiceData, jurisdictionCity: e.target.value })} placeholder="City name for legal jurisdiction" />
+                                        <Label>Jurisdiction Text</Label>
+                                        <Input value={invoiceData.jurisdictionText} onChange={e => setInvoiceData({ ...invoiceData, jurisdictionText: e.target.value })} placeholder="Subject to City Jurisdiction. This is a Computer Generated Invoice." />
                                     </div>
                                 </div>
                             </Card>
@@ -583,14 +583,14 @@ export default function InvoicePage() {
                     <div className="flex flex-col items-center gap-6 pb-6">
 
                         {/* The Actual Invoice Sheet - FORCE WHITE BACKGROUND AND BLACK TEXT for print consistency */}
-                        <div className="bg-white text-black shadow-2xl w-[210mm] p-[15mm] text-xs font-sans leading-tight print:w-full print:shadow-none print:m-0 print:p-[15mm]" ref={printRef}>
+                        <div className="bg-white text-black shadow-2xl w-[210mm] p-[15mm] text-xs font-sans leading-tight print:w-full print:shadow-none print:m-0 print:p-0" ref={printRef}>
 
                             {/* Print Only Styles */}
                             <style type="text/css" media="print">
                                 {`
                                 @page { 
                                     size: A4; 
-                                    margin: 0; 
+                                    margin: 15mm; 
                                 }
                                 body { 
                                     -webkit-print-color-adjust: exact;
@@ -823,7 +823,7 @@ export default function InvoicePage() {
 
                             {invoiceData.showJurisdiction && (
                                 <div className="mt-8 text-[9px] text-center text-slate-400 border-t border-slate-200 pt-2">
-                                    Subject to {invoiceData.jurisdictionCity || "City"} Jurisdiction. This is a Computer Generated Invoice.
+                                    {invoiceData.jurisdictionText}
                                 </div>
                             )}
 
