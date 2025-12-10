@@ -21,6 +21,9 @@ interface InvoiceItem {
     rate: number
     discount: number
     taxRate: number // GST Rate %
+    cgst: number // Editable CGST amount
+    sgst: number // Editable SGST amount
+    totalGst: number // Editable Total GST amount
 }
 
 interface InvoiceData {
@@ -85,6 +88,7 @@ interface InvoiceData {
 
     // Tax Settings
     taxType: "GST" | "IGST" | "None"
+    gstDisplayMode: "simple" | "split" | "detailed" // simple = Total GST only, split = CGST+SGST, detailed = CGST+SGST+Total
 
     // Bank Details
     bankName: string
@@ -152,12 +156,13 @@ const defaultInvoiceData: InvoiceData = {
     placeOfSupply: "",
     reverseCharge: "No",
 
-    items: [{ id: "1", description: "", hsnsac: "", quantity: 1, rate: 0, discount: 0, taxRate: 18 }],
+    items: [{ id: "1", description: "", hsnsac: "", quantity: 1, rate: 0, discount: 0, taxRate: 18, cgst: 0, sgst: 0, totalGst: 0 }],
 
     shippingCharges: 0,
     otherCharges: 0,
 
     taxType: "GST",
+    gstDisplayMode: "split",
 
     bankName: "",
     accountNumber: "",
@@ -263,6 +268,9 @@ export default function InvoicePage() {
             rate: 0,
             discount: 0,
             taxRate: 18,
+            cgst: 0,
+            sgst: 0,
+            totalGst: 0,
         }
         setInvoiceData(prev => ({ ...prev, items: [...prev.items, newItem] }))
     }
@@ -585,6 +593,22 @@ export default function InvoicePage() {
                                         <input type="checkbox" id="showTaxColumns" checked={invoiceData.showTaxColumns} onChange={e => setInvoiceData({ ...invoiceData, showTaxColumns: e.target.checked })} className="rounded" />
                                         <Label htmlFor="showTaxColumns" className="font-normal cursor-pointer">Show Tax Columns (CGST/SGST/IGST)</Label>
                                     </div>
+
+                                    {invoiceData.showTaxColumns && invoiceData.taxType === "GST" && (
+                                        <div className="ml-6 mt-2">
+                                            <Label className="text-sm mb-2 block">GST Display Mode:</Label>
+                                            <Select value={invoiceData.gstDisplayMode} onValueChange={(v: any) => setInvoiceData({ ...invoiceData, gstDisplayMode: v })}>
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="simple">Simple (Total GST only)</SelectItem>
+                                                    <SelectItem value="split">Split (CGST + SGST)</SelectItem>
+                                                    <SelectItem value="detailed">Detailed (CGST + SGST + Total)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
                                 </div>
                             </Card>
 
