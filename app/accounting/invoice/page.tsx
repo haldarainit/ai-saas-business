@@ -709,6 +709,82 @@ export default function InvoicePage() {
                                         <Label>Invoice Date</Label>
                                         <Input type="date" value={invoiceData.invoiceDate} onChange={e => setInvoiceData({ ...invoiceData, invoiceDate: e.target.value })} />
                                     </div>
+                                    <div>
+                                        <Label>Currency</Label>
+                                        <Select value={invoiceData.currency} onValueChange={(v) => {
+                                            const currencyMap: { [key: string]: string } = {
+                                                'INR': '₹',
+                                                'USD': '$',
+                                                'EUR': '€',
+                                                'GBP': '£',
+                                                'JPY': '¥',
+                                                'CNY': '¥',
+                                                'AUD': 'A$',
+                                                'CAD': 'C$',
+                                                'CHF': 'CHF',
+                                                'SGD': 'S$',
+                                                'AED': 'د.إ',
+                                                'SAR': 'ر.س',
+                                                'QAR': 'ر.ق',
+                                                'KWD': 'د.ك',
+                                                'BHD': 'د.ب',
+                                                'OMR': 'ر.ع',
+                                                'MYR': 'RM',
+                                                'THB': '฿',
+                                                'IDR': 'Rp',
+                                                'PHP': '₱',
+                                                'VND': '₫',
+                                                'KRW': '₩',
+                                                'HKD': 'HK$',
+                                                'NZD': 'NZ$',
+                                                'ZAR': 'R',
+                                                'BRL': 'R$',
+                                                'MXN': 'Mex$',
+                                                'RUB': '₽',
+                                                'TRY': '₺',
+                                            };
+                                            setInvoiceData({ ...invoiceData, currency: v, currencySymbol: currencyMap[v] || v })
+                                        }}>
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="INR">INR (₹) - Indian Rupee</SelectItem>
+                                                <SelectItem value="USD">USD ($) - US Dollar</SelectItem>
+                                                <SelectItem value="EUR">EUR (€) - Euro</SelectItem>
+                                                <SelectItem value="GBP">GBP (£) - British Pound</SelectItem>
+                                                <SelectItem value="JPY">JPY (¥) - Japanese Yen</SelectItem>
+                                                <SelectItem value="CNY">CNY (¥) - Chinese Yuan</SelectItem>
+                                                <SelectItem value="AUD">AUD (A$) - Australian Dollar</SelectItem>
+                                                <SelectItem value="CAD">CAD (C$) - Canadian Dollar</SelectItem>
+                                                <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
+                                                <SelectItem value="SGD">SGD (S$) - Singapore Dollar</SelectItem>
+                                                <SelectItem value="AED">AED (د.إ) - UAE Dirham</SelectItem>
+                                                <SelectItem value="SAR">SAR (ر.س) - Saudi Riyal</SelectItem>
+                                                <SelectItem value="QAR">QAR (ر.ق) - Qatari Riyal</SelectItem>
+                                                <SelectItem value="KWD">KWD (د.ك) - Kuwaiti Dinar</SelectItem>
+                                                <SelectItem value="BHD">BHD (د.ب) - Bahraini Dinar</SelectItem>
+                                                <SelectItem value="OMR">OMR (ر.ع) - Omani Rial</SelectItem>
+                                                <SelectItem value="MYR">MYR (RM) - Malaysian Ringgit</SelectItem>
+                                                <SelectItem value="THB">THB (฿) - Thai Baht</SelectItem>
+                                                <SelectItem value="IDR">IDR (Rp) - Indonesian Rupiah</SelectItem>
+                                                <SelectItem value="PHP">PHP (₱) - Philippine Peso</SelectItem>
+                                                <SelectItem value="VND">VND (₫) - Vietnamese Dong</SelectItem>
+                                                <SelectItem value="KRW">KRW (₩) - South Korean Won</SelectItem>
+                                                <SelectItem value="HKD">HKD (HK$) - Hong Kong Dollar</SelectItem>
+                                                <SelectItem value="NZD">NZD (NZ$) - New Zealand Dollar</SelectItem>
+                                                <SelectItem value="ZAR">ZAR (R) - South African Rand</SelectItem>
+                                                <SelectItem value="BRL">BRL (R$) - Brazilian Real</SelectItem>
+                                                <SelectItem value="MXN">MXN (Mex$) - Mexican Peso</SelectItem>
+                                                <SelectItem value="RUB">RUB (₽) - Russian Ruble</SelectItem>
+                                                <SelectItem value="TRY">TRY (₺) - Turkish Lira</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label>Currency Symbol</Label>
+                                        <Input value={invoiceData.currencySymbol} onChange={e => setInvoiceData({ ...invoiceData, currencySymbol: e.target.value })} placeholder="₹" readOnly className="bg-muted" />
+                                    </div>
                                     <div className="col-span-2">
                                         <Label>Jurisdiction Text</Label>
                                         <Input value={invoiceData.jurisdictionText} onChange={e => setInvoiceData({ ...invoiceData, jurisdictionText: e.target.value })} placeholder="Subject to City Jurisdiction. This is a Computer Generated Invoice." />
@@ -879,7 +955,7 @@ export default function InvoicePage() {
                                             <div className="font-bold">{new Date(invoiceData.invoiceDate).toLocaleDateString('en-IN')}</div>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-1 border-b border-slate-300">
+                                    <div className={`grid grid-cols-1 ${!invoiceData.showDueDate ? '' : 'border-b border-slate-300'}`}>
                                         <div className="p-2">
                                             <div className="text-[10px] text-slate-500 font-semibold uppercase">Payment Mode</div>
                                             <div className="font-bold">{invoiceData.paymentMode}</div>
