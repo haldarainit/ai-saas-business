@@ -13,10 +13,84 @@ import { Plus, Trash2, ArrowLeft, Building2, Banknote, Printer } from "lucide-re
 import Link from "next/link"
 import { useReactToPrint } from 'react-to-print';
 
+// Helper function to convert numbers to words
+const convertNumberToWords = (num: number, currency?: string): string => {
+    const curr = currency || "INR";
+
+    // Currency names mapping
+    const currencyNames: { [key: string]: { major: string, minor: string } } = {
+        'INR': { major: 'Rupees', minor: 'Paise' },
+        'USD': { major: 'Dollars', minor: 'Cents' },
+        'EUR': { major: 'Euros', minor: 'Cents' },
+        'GBP': { major: 'Pounds', minor: 'Pence' },
+        'JPY': { major: 'Yen', minor: 'Sen' },
+        'CNY': { major: 'Yuan', minor: 'Fen' },
+        'AUD': { major: 'Australian Dollars', minor: 'Cents' },
+        'CAD': { major: 'Canadian Dollars', minor: 'Cents' },
+        'CHF': { major: 'Swiss Francs', minor: 'Centimes' },
+        'SGD': { major: 'Singapore Dollars', minor: 'Cents' },
+        'AED': { major: 'Dirhams', minor: 'Fils' },
+        'SAR': { major: 'Riyals', minor: 'Halalas' },
+        'QAR': { major: 'Qatari Riyals', minor: 'Dirhams' },
+        'KWD': { major: 'Kuwaiti Dinars', minor: 'Fils' },
+        'BHD': { major: 'Bahraini Dinars', minor: 'Fils' },
+        'OMR': { major: 'Omani Rials', minor: 'Baisa' },
+        'MYR': { major: 'Malaysian Ringgit', minor: 'Sen' },
+        'THB': { major: 'Thai Baht', minor: 'Satang' },
+        'IDR': { major: 'Indonesian Rupiah', minor: 'Sen' },
+        'PHP': { major: 'Philippine Pesos', minor: 'Centavos' },
+        'VND': { major: 'Vietnamese Dong', minor: 'Hao' },
+        'KRW': { major: 'South Korean Won', minor: 'Jeon' },
+        'HKD': { major: 'Hong Kong Dollars', minor: 'Cents' },
+        'NZD': { major: 'New Zealand Dollars', minor: 'Cents' },
+        'ZAR': { major: 'South African Rand', minor: 'Cents' },
+        'BRL': { major: 'Brazilian Reais', minor: 'Centavos' },
+        'MXN': { major: 'Mexican Pesos', minor: 'Centavos' },
+        'RUB': { major: 'Russian Rubles', minor: 'Kopecks' },
+        'TRY': { major: 'Turkish Lira', minor: 'Kurus' },
+    };
+
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const numToWords = (n: number): string => {
+        if (n === 0) return '';
+        if (n < 20) return ones[n];
+        if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+        if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' and ' + numToWords(n % 100) : '');
+        if (n < 100000) return numToWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + numToWords(n % 1000) : '');
+        if (n < 10000000) return numToWords(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + numToWords(n % 100000) : '');
+        return numToWords(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 ? ' ' + numToWords(n % 10000000) : '');
+    };
+
+    if (num === 0) {
+        const names = currencyNames[curr] || { major: curr, minor: 'Cents' };
+        return 'Zero ' + names.major + ' Only';
+    }
+
+    const absNum = Math.abs(num);
+    const wholePart = Math.floor(absNum);
+    const decimalPart = Math.round((absNum - wholePart) * 100);
+
+    const names = currencyNames[curr] || { major: curr, minor: 'Cents' };
+
+    let result = numToWords(wholePart);
+    console.log('Converting:', num, 'Whole:', wholePart, 'Words:', result, 'Currency:', curr, 'Names:', names);
+
+    if (!result) result = 'Zero';
+    result += ' ' + names.major;
+
+    if (decimalPart > 0) {
+        result += ' and ' + numToWords(decimalPart) + ' ' + names.minor;
+    }
+
+    return result + ' Only';
+};
+
+
 interface InvoiceItem {
     id: string
     description: string
-    hsnsac: string
     quantity: number
     rate: number
     discount: number
@@ -43,6 +117,7 @@ interface InvoiceData {
     showDeliveryDetails: boolean
     showDispatchDetails: boolean
     showRoundOff: boolean
+    showHSNSAC: boolean
 
     // Company Info
     companyName: string
@@ -82,6 +157,7 @@ interface InvoiceData {
     poDate: string
     placeOfSupply: string
     reverseCharge: string
+    hsnsac: string
 
     // Delivery & Dispatch Details
     deliveryNote: string
@@ -138,6 +214,7 @@ const defaultInvoiceData: InvoiceData = {
     showDeliveryDetails: false,
     showDispatchDetails: false,
     showRoundOff: true,
+    showHSNSAC: true,
     companyName: "",
     companyAddress: "",
     companyCity: "",
@@ -172,6 +249,7 @@ const defaultInvoiceData: InvoiceData = {
     poDate: "",
     placeOfSupply: "",
     reverseCharge: "No",
+    hsnsac: "",
 
     deliveryNote: "",
     deliveryNoteDate: "",
@@ -183,7 +261,7 @@ const defaultInvoiceData: InvoiceData = {
     destination: "",
     termsOfDelivery: "",
 
-    items: [{ id: "1", description: "", hsnsac: "", quantity: 1, rate: 0, discount: 0, taxRate: 18, cgstPercent: 9, sgstPercent: 9, cgst: 0, sgst: 0, totalGst: 0 }],
+    items: [{ id: "1", description: "", quantity: 1, rate: 0, discount: 0, taxRate: 18, cgstPercent: 9, sgstPercent: 9, cgst: 0, sgst: 0, totalGst: 0 }],
 
     shippingCharges: 0,
     otherCharges: 0,
@@ -313,7 +391,6 @@ export default function InvoicePage() {
         const newItem: InvoiceItem = {
             id: Date.now().toString(),
             description: "",
-            hsnsac: "",
             quantity: 1,
             rate: 0,
             discount: 0,
@@ -577,6 +654,21 @@ export default function InvoicePage() {
                                                 </SelectContent>
                                             </Select>
                                         </div>
+                                        {invoiceData.showHSNSAC && (
+                                            <div>
+                                                <Label>HSN/SAC Code (6-8 digits)</Label>
+                                                <Input
+                                                    type="text"
+                                                    maxLength={8}
+                                                    value={invoiceData.hsnsac}
+                                                    onChange={e => {
+                                                        const val = e.target.value.replace(/\D/g, ''); // Only allow digits
+                                                        setInvoiceData({ ...invoiceData, hsnsac: val });
+                                                    }}
+                                                    placeholder="Ex: 85171300"
+                                                />
+                                            </div>
+                                        )}
                                         <div>
                                             <Label>Due Date</Label>
                                             <Input type="date" value={invoiceData.dueDate} onChange={e => setInvoiceData({ ...invoiceData, dueDate: e.target.value })} />
@@ -656,19 +748,15 @@ export default function InvoicePage() {
                                     {invoiceData.items.map((item, index) => (
                                         <div key={item.id} className="p-3 bg-muted/30 rounded border relative group">
                                             <div className="grid grid-cols-12 gap-2 mb-2">
-                                                <div className="col-span-12 md:col-span-5">
+                                                <div className="col-span-12 md:col-span-6">
                                                     <Label className="text-xs">Description</Label>
                                                     <Input className="h-8 text-sm" value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} placeholder="Item name" />
-                                                </div>
-                                                <div className="col-span-4 md:col-span-2">
-                                                    <Label className="text-xs">HSN/SAC</Label>
-                                                    <Input className="h-8 text-sm" value={item.hsnsac} onChange={e => updateItem(item.id, 'hsnsac', e.target.value)} />
                                                 </div>
                                                 <div className="col-span-4 md:col-span-2">
                                                     <Label className="text-xs">Qty</Label>
                                                     <Input className="h-8 text-sm" type="number" min="0" value={item.quantity} onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} />
                                                 </div>
-                                                <div className="col-span-4 md:col-span-3">
+                                                <div className="col-span-4 md:col-span-4">
                                                     <Label className="text-xs">Rate</Label>
                                                     <Input className="h-8 text-sm" type="number" min="0" value={item.rate} onChange={e => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)} />
                                                 </div>
@@ -720,11 +808,13 @@ export default function InvoicePage() {
                                                 )}
                                             </div>
 
-                                            {invoiceData.items.length > 1 && (
-                                                <Button size="icon" variant="ghost" className="absolute -top-2 -right-2 h-6 w-6 text-destructive hover:text-destructive/90 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeItem(item.id)}>
-                                                    <Trash2 className="w-3 h-3" />
-                                                </Button>
-                                            )}
+                                            {
+                                                invoiceData.items.length > 1 && (
+                                                    <Button size="icon" variant="ghost" className="absolute -top-2 -right-2 h-6 w-6 text-destructive hover:text-destructive/90 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeItem(item.id)}>
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </Button>
+                                                )
+                                            }
                                         </div>
                                     ))}
                                     <Button onClick={addItem} variant="outline" className="w-full border-dashed gap-2"><Plus className="w-4 h-4" /> Add Line Item</Button>
@@ -883,6 +973,10 @@ export default function InvoicePage() {
                             <Card className="p-4 border-l-4 border-l-indigo-500">
                                 <h3 className="font-semibold text-lg mb-4">Customize Invoice Sections</h3>
                                 <div className="space-y-3">
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showHSNSAC" checked={invoiceData.showHSNSAC} onChange={e => setInvoiceData({ ...invoiceData, showHSNSAC: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showHSNSAC" className="font-normal cursor-pointer">Show HSN/SAC Code</Label>
+                                    </div>
                                     <div className="flex items-center space-x-2">
                                         <input type="checkbox" id="showRoundOff" checked={invoiceData.showRoundOff} onChange={e => setInvoiceData({ ...invoiceData, showRoundOff: e.target.checked })} className="rounded" />
                                         <Label htmlFor="showRoundOff" className="font-normal cursor-pointer">Show Round Off</Label>
@@ -1271,7 +1365,7 @@ export default function InvoicePage() {
                                         <tr key={item.id} className="table-row border-b border-slate-200">
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{index + 1}</td>
                                             <td className="p-2 border-r border-slate-300 text-left font-medium align-top break-words" style={{ wordWrap: 'break-word', whiteSpace: 'normal', maxWidth: '200px' }}>{item.description}</td>
-                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.hsnsac}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center align-top">{invoiceData.hsnsac || "-"}</td>
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{item.quantity}</td>
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{item.rate.toFixed(2)}</td>
                                             {(invoiceData.showDiscount && calculations.hasDiscount) && (
@@ -1399,22 +1493,109 @@ export default function InvoicePage() {
 
                                 {/* Amount in Words */}
                                 <div className="border-t border-slate-300 p-2 text-sm italic border-b">
-                                    <span className="font-semibold not-italic">Amount in Words:</span> {convertNumberToWords(calculations.grandTotal)}
+                                    <span className="font-semibold not-italic">Amount in Words:</span> {convertNumberToWords(calculations.grandTotal, invoiceData.currency)}
                                 </div>
 
-                                {/* Tax Summary Table (Simplified) */}
+                                {/* Tax Summary Table */}
                                 {invoiceData.taxType !== "None" && (
-                                    <div className="grid grid-cols-[100px_1fr_1fr_1fr] border-b border-slate-300 text-center text-[10px]">
-                                        <div className="p-1 font-bold border-r border-slate-300">HSN/SAC</div>
-                                        <div className="p-1 font-bold border-r border-slate-300">Taxable Value</div>
-                                        <div className="p-1 font-bold border-r border-slate-300">{invoiceData.taxType === "IGST" ? "IGST" : "CGST + SGST"}</div>
-                                        <div className="p-1 font-bold">Total Tax</div>
+                                    <div className="border-t border-slate-300 mt-2">
+                                        <div className="text-xs font-semibold p-2 italic">
+                                            <span className="not-italic">Amount Chargeable (in words)</span> E. & O.E
+                                        </div>
+                                        <div className="p-2 pt-0 text-xs font-semibold italic">
+                                            {convertNumberToWords(calculations.grandTotal, invoiceData.currency)}
+                                        </div>
 
-                                        {/* Row */}
-                                        <div className="p-1 border-r border-slate-300 border-t">-</div>
-                                        <div className="p-1 border-r border-slate-300 border-t">{calculations.totalTaxable.toFixed(2)}</div>
-                                        <div className="p-1 border-r border-slate-300 border-t">{(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST).toFixed(2)}</div>
-                                        <div className="p-1 border-t">{(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST).toFixed(2)}</div>
+                                        {/* HSN/SAC wise tax table */}
+                                        <table className="w-full border-collapse border border-slate-300 text-xs mt-2">
+                                            <thead>
+                                                <tr className="bg-slate-100">
+                                                    <th className="border border-slate-300 p-1.5 text-left">HSN/SAC</th>
+                                                    <th className="border border-slate-300 p-1.5 text-right">Taxable<br />Value</th>
+                                                    {invoiceData.taxType === "GST" && (
+                                                        <>
+                                                            <th className="border border-slate-300 p-1.5 text-center" colSpan={2}>CGST</th>
+                                                            <th className="border border-slate-300 p-1.5 text-center" colSpan={2}>SGST/UTGST</th>
+                                                        </>
+                                                    )}
+                                                    {invoiceData.taxType === "IGST" && (
+                                                        <th className="border border-slate-300 p-1.5 text-center" colSpan={2}>IGST</th>
+                                                    )}
+                                                    <th className="border border-slate-300 p-1.5 text-right">Total<br />Tax Amount</th>
+                                                </tr>
+                                                {invoiceData.taxType === "GST" && (
+                                                    <tr className="bg-slate-50">
+                                                        <th className="border border-slate-300 p-1"></th>
+                                                        <th className="border border-slate-300 p-1"></th>
+                                                        <th className="border border-slate-300 p-1 text-center">Rate</th>
+                                                        <th className="border border-slate-300 p-1 text-right">Amount</th>
+                                                        <th className="border border-slate-300 p-1 text-center">Rate</th>
+                                                        <th className="border border-slate-300 p-1 text-right">Amount</th>
+                                                        <th className="border border-slate-300 p-1"></th>
+                                                    </tr>
+                                                )}
+                                                {invoiceData.taxType === "IGST" && (
+                                                    <tr className="bg-slate-50">
+                                                        <th className="border border-slate-300 p-1"></th>
+                                                        <th className="border border-slate-300 p-1"></th>
+                                                        <th className="border border-slate-300 p-1 text-center">Rate</th>
+                                                        <th className="border border-slate-300 p-1 text-right">Amount</th>
+                                                        <th className="border border-slate-300 p-1"></th>
+                                                    </tr>
+                                                )}
+                                            </thead>
+                                            <tbody>
+                                                {/* Single row with global HSN/SAC */}
+                                                <tr>
+                                                    <td className="border border-slate-300 p-1.5">{invoiceData.hsnsac || "Not Specified"}</td>
+                                                    <td className="border border-slate-300 p-1.5 text-right">{calculations.totalTaxable.toFixed(2)}</td>
+                                                    {invoiceData.taxType === "GST" && (
+                                                        <>
+                                                            <td className="border border-slate-300 p-1.5 text-center">{invoiceData.items[0]?.cgstPercent || 9}%</td>
+                                                            <td className="border border-slate-300 p-1.5 text-right">{calculations.totalCGST.toFixed(2)}</td>
+                                                            <td className="border border-slate-300 p-1.5 text-center">{invoiceData.items[0]?.sgstPercent || 9}%</td>
+                                                            <td className="border border-slate-300 p-1.5 text-right">{calculations.totalSGST.toFixed(2)}</td>
+                                                        </>
+                                                    )}
+                                                    {invoiceData.taxType === "IGST" && (
+                                                        <>
+                                                            <td className="border border-slate-300 p-1.5 text-center">{invoiceData.items[0]?.taxRate || 18}%</td>
+                                                            <td className="border border-slate-300 p-1.5 text-right">{calculations.totalIGST.toFixed(2)}</td>
+                                                        </>
+                                                    )}
+                                                    <td className="border border-slate-300 p-1.5 text-right">
+                                                        {(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST).toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                                {/* Total Row */}
+                                                <tr className="font-bold bg-slate-100">
+                                                    <td className="border border-slate-300 p-1.5">Total</td>
+                                                    <td className="border border-slate-300 p-1.5 text-right">{calculations.totalTaxable.toFixed(2)}</td>
+                                                    {invoiceData.taxType === "GST" && (
+                                                        <>
+                                                            <td className="border border-slate-300 p-1.5"></td>
+                                                            <td className="border border-slate-300 p-1.5 text-right">{calculations.totalCGST.toFixed(2)}</td>
+                                                            <td className="border border-slate-300 p-1.5"></td>
+                                                            <td className="border border-slate-300 p-1.5 text-right">{calculations.totalSGST.toFixed(2)}</td>
+                                                        </>
+                                                    )}
+                                                    {invoiceData.taxType === "IGST" && (
+                                                        <>
+                                                            <td className="border border-slate-300 p-1.5"></td>
+                                                            <td className="border border-slate-300 p-1.5 text-right">{calculations.totalIGST.toFixed(2)}</td>
+                                                        </>
+                                                    )}
+                                                    <td className="border border-slate-300 p-1.5 text-right">
+                                                        {(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST).toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+
+                                        {/* Tax Amount in Words */}
+                                        <div className="p-2 text-xs italic">
+                                            <span className="font-semibold not-italic">Tax Amount (in words):</span> {convertNumberToWords(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST, invoiceData.currency)}
+                                        </div>
                                     </div>
                                 )}
 
