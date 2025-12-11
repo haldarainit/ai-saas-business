@@ -434,6 +434,10 @@ export default function InvoicePage() {
                                             <Label>Phone</Label>
                                             <Input value={invoiceData.companyPhone} onChange={e => setInvoiceData({ ...invoiceData, companyPhone: e.target.value })} placeholder="+91..." />
                                         </div>
+                                        <div>
+                                            <Label>Email</Label>
+                                            <Input value={invoiceData.companyEmail} onChange={e => setInvoiceData({ ...invoiceData, companyEmail: e.target.value })} placeholder="company@example.com" />
+                                        </div>
                                         <div className="col-span-2">
                                             <Label>Address</Label>
                                             <Textarea value={invoiceData.companyAddress} onChange={e => setInvoiceData({ ...invoiceData, companyAddress: e.target.value })} placeholder="Street Address" rows={2} />
@@ -494,6 +498,14 @@ export default function InvoicePage() {
                                         <div className="col-span-2">
                                             <Label>Address</Label>
                                             <Textarea value={invoiceData.clientAddress} onChange={e => setInvoiceData({ ...invoiceData, clientAddress: e.target.value })} placeholder="Client Address" rows={2} />
+                                        </div>
+                                        <div>
+                                            <Label>Phone</Label>
+                                            <Input value={invoiceData.clientPhone} onChange={e => setInvoiceData({ ...invoiceData, clientPhone: e.target.value })} placeholder="+91..." />
+                                        </div>
+                                        <div>
+                                            <Label>Email</Label>
+                                            <Input value={invoiceData.clientEmail} onChange={e => setInvoiceData({ ...invoiceData, clientEmail: e.target.value })} placeholder="client@example.com" />
                                         </div>
                                         <div>
                                             <Label>City</Label>
@@ -820,12 +832,14 @@ export default function InvoicePage() {
                                     <div className="font-bold text-base mb-1">{invoiceData.companyName || "Seller Name"}</div>
                                     <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.companyAddress}</div>
                                     <div className="grid grid-cols-[60px_1fr] gap-y-0.5">
+                                        <span className="font-semibold text-slate-500">Phone:</span>
+                                        <span>{invoiceData.companyPhone}</span>
+                                        <span className="font-semibold text-slate-500">Email:</span>
+                                        <span>{invoiceData.companyEmail}</span>
                                         <span className="font-semibold text-slate-500">GSTIN:</span>
                                         <span>{invoiceData.companyGSTIN}</span>
                                         <span className="font-semibold text-slate-500">State:</span>
                                         <span>{invoiceData.companyState}</span>
-                                        <span className="font-semibold text-slate-500">Email:</span>
-                                        <span>{invoiceData.companyEmail}</span>
                                     </div>
                                 </div>
 
@@ -861,6 +875,10 @@ export default function InvoicePage() {
                                     <div className="font-bold text-sm mb-1">{invoiceData.clientName || "Buyer Name"}</div>
                                     <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.clientAddress}</div>
                                     <div className="grid grid-cols-[50px_1fr] gap-y-0.5">
+                                        <span className="font-semibold text-slate-500">Phone:</span>
+                                        <span>{invoiceData.clientPhone}</span>
+                                        <span className="font-semibold text-slate-500">Email:</span>
+                                        <span>{invoiceData.clientEmail}</span>
                                         <span className="font-semibold text-slate-500">GSTIN:</span>
                                         <span>{invoiceData.clientGSTIN}</span>
                                         <span className="font-semibold text-slate-500">State:</span>
