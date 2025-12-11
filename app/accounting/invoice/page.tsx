@@ -451,6 +451,10 @@ export default function InvoicePage() {
                                             <Input value={invoiceData.companyState} onChange={e => setInvoiceData({ ...invoiceData, companyState: e.target.value })} />
                                         </div>
                                         <div>
+                                            <Label>Pin Code</Label>
+                                            <Input value={invoiceData.companyPincode} onChange={e => setInvoiceData({ ...invoiceData, companyPincode: e.target.value })} placeholder="123456" />
+                                        </div>
+                                        <div>
                                             <Label>GSTIN</Label>
                                             <Input value={invoiceData.companyGSTIN} onChange={e => setInvoiceData({ ...invoiceData, companyGSTIN: e.target.value })} placeholder="22AAAAA0000A1Z5" />
                                         </div>
@@ -514,6 +518,10 @@ export default function InvoicePage() {
                                         <div>
                                             <Label>State</Label>
                                             <Input value={invoiceData.clientState} onChange={e => setInvoiceData({ ...invoiceData, clientState: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <Label>Pin Code</Label>
+                                            <Input value={invoiceData.clientPincode} onChange={e => setInvoiceData({ ...invoiceData, clientPincode: e.target.value })} placeholder="123456" />
                                         </div>
                                         <div>
                                             <Label>GSTIN</Label>
@@ -830,7 +838,16 @@ export default function InvoicePage() {
                                 {/* Seller Details (Left) */}
                                 <div className="p-3 border-r border-slate-300">
                                     <div className="font-bold text-base mb-1">{invoiceData.companyName || "Seller Name"}</div>
-                                    <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.companyAddress}</div>
+                                    <div className="whitespace-pre-line text-slate-600 mb-2">
+                                        {invoiceData.companyAddress && <div>{invoiceData.companyAddress}</div>}
+                                        {(invoiceData.companyCity || invoiceData.companyState || invoiceData.companyPincode) && (
+                                            <div>
+                                                {invoiceData.companyCity && `${invoiceData.companyCity}`}
+                                                {invoiceData.companyState && `, ${invoiceData.companyState}`}
+                                                {invoiceData.companyPincode && ` - ${invoiceData.companyPincode}`}
+                                            </div>
+                                        )}
+                                    </div>
                                     <div className="grid grid-cols-[60px_1fr] gap-y-0.5">
                                         <span className="font-semibold text-slate-500">Phone:</span>
                                         <span>{invoiceData.companyPhone}</span>
@@ -873,7 +890,16 @@ export default function InvoicePage() {
                                 <div className="p-3 border-r border-slate-300">
                                     <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Bill To (Buyer)</div>
                                     <div className="font-bold text-sm mb-1">{invoiceData.clientName || "Buyer Name"}</div>
-                                    <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.clientAddress}</div>
+                                    <div className="whitespace-pre-line text-slate-600 mb-2">
+                                        {invoiceData.clientAddress && <div>{invoiceData.clientAddress}</div>}
+                                        {(invoiceData.clientCity || invoiceData.clientState || invoiceData.clientPincode) && (
+                                            <div>
+                                                {invoiceData.clientCity && `${invoiceData.clientCity}`}
+                                                {invoiceData.clientState && `, ${invoiceData.clientState}`}
+                                                {invoiceData.clientPincode && ` - ${invoiceData.clientPincode}`}
+                                            </div>
+                                        )}
+                                    </div>
                                     <div className="grid grid-cols-[50px_1fr] gap-y-0.5">
                                         <span className="font-semibold text-slate-500">Phone:</span>
                                         <span>{invoiceData.clientPhone}</span>
@@ -888,7 +914,31 @@ export default function InvoicePage() {
                                 <div className="p-3">
                                     <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Ship To (Consignee)</div>
                                     <div className="font-bold text-sm mb-1">{invoiceData.sameAsBillTo ? (invoiceData.clientName || "Buyer Name") : (invoiceData.shipToName || "Consignee Name")}</div>
-                                    <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.sameAsBillTo ? invoiceData.clientAddress : invoiceData.shipToAddress}</div>
+                                    <div className="whitespace-pre-line text-slate-600 mb-2">
+                                        {invoiceData.sameAsBillTo ? (
+                                            <>
+                                                {invoiceData.clientAddress && <div>{invoiceData.clientAddress}</div>}
+                                                {(invoiceData.clientCity || invoiceData.clientState || invoiceData.clientPincode) && (
+                                                    <div>
+                                                        {invoiceData.clientCity && `${invoiceData.clientCity}`}
+                                                        {invoiceData.clientState && `, ${invoiceData.clientState}`}
+                                                        {invoiceData.clientPincode && ` - ${invoiceData.clientPincode}`}
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <>
+                                                {invoiceData.shipToAddress && <div>{invoiceData.shipToAddress}</div>}
+                                                {(invoiceData.shipToCity || invoiceData.shipToState || invoiceData.shipToPincode) && (
+                                                    <div>
+                                                        {invoiceData.shipToCity && `${invoiceData.shipToCity}`}
+                                                        {invoiceData.shipToState && `, ${invoiceData.shipToState}`}
+                                                        {invoiceData.shipToPincode && ` - ${invoiceData.shipToPincode}`}
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
                                     <div className="grid grid-cols-[50px_1fr] gap-y-0.5">
                                         <span className="font-semibold text-slate-500">State:</span>
                                         <span>{invoiceData.sameAsBillTo ? invoiceData.clientState : invoiceData.shipToState}</span>
