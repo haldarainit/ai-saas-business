@@ -748,7 +748,7 @@ export default function InvoicePage() {
                                             <SelectTrigger>
                                                 <SelectValue />
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent className="max-h-[300px] overflow-y-auto">
                                                 <SelectItem value="INR">INR (₹) - Indian Rupee</SelectItem>
                                                 <SelectItem value="USD">USD ($) - US Dollar</SelectItem>
                                                 <SelectItem value="EUR">EUR (€) - Euro</SelectItem>
@@ -1267,7 +1267,7 @@ export default function InvoicePage() {
                                 </div>
                                 <div className="flex flex-col justify-between items-end text-center">
                                     <div className="text-xs mb-10">
-                                        For <span className="font-bold">{invoiceData.companyName}</span>
+                                        {/* For <span className="font-bold">{invoiceData.companyName}</span> */}
                                     </div>
                                     <div className="text-[10px] border-t border-slate-400 px-4 pt-1">
                                         {invoiceData.authorizedSignatory || "Authorized Signatory"}
