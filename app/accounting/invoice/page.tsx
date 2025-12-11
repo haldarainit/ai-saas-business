@@ -489,11 +489,6 @@ export default function InvoicePage() {
         }
     }
 
-    // --- Components ---
-    const convertNumberToWords = (amount: number) => {
-        return `INR ${amount.toLocaleString('en-IN')} Only`
-    }
-
     return (
         <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300">
             <Navbar />
