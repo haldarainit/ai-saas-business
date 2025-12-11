@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,6 +40,8 @@ interface InvoiceData {
     showDiscount: boolean
     showTaxColumns: boolean
     showDueDate: boolean
+    showDeliveryDetails: boolean
+    showDispatchDetails: boolean
 
     // Company Info
     companyName: string
@@ -79,6 +81,17 @@ interface InvoiceData {
     poDate: string
     placeOfSupply: string
     reverseCharge: string
+
+    // Delivery & Dispatch Details
+    deliveryNote: string
+    deliveryNoteDate: string
+    referenceNo: string
+    referenceDate: string
+    otherReferences: string
+    dispatchDocNo: string
+    dispatchedThrough: string
+    destination: string
+    termsOfDelivery: string
 
     // Items
     items: InvoiceItem[]
@@ -121,6 +134,8 @@ const defaultInvoiceData: InvoiceData = {
     showDiscount: true,
     showTaxColumns: true,
     showDueDate: true,
+    showDeliveryDetails: false,
+    showDispatchDetails: false,
     companyName: "",
     companyAddress: "",
     companyCity: "",
@@ -150,11 +165,21 @@ const defaultInvoiceData: InvoiceData = {
     sameAsBillTo: true,
 
     invoiceNumber: "INV-2025-0001",
-    invoiceDate: new Date().toISOString().split('T')[0],
-    dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    invoiceDate: "",
+    dueDate: "",
     poDate: "",
     placeOfSupply: "",
     reverseCharge: "No",
+
+    deliveryNote: "",
+    deliveryNoteDate: "",
+    referenceNo: "",
+    referenceDate: "",
+    otherReferences: "",
+    dispatchDocNo: "",
+    dispatchedThrough: "",
+    destination: "",
+    termsOfDelivery: "",
 
     items: [{ id: "1", description: "", hsnsac: "", quantity: 1, rate: 0, discount: 0, taxRate: 18, cgstPercent: 9, sgstPercent: 9, cgst: 0, sgst: 0, totalGst: 0 }],
 
@@ -181,10 +206,23 @@ const defaultInvoiceData: InvoiceData = {
     currencySymbol: "₹",
 }
 
+
 export default function InvoicePage() {
     const [invoiceData, setInvoiceData] = useState<InvoiceData>(defaultInvoiceData)
     const [activeTab, setActiveTab] = useState("company")
     const printRef = useRef<HTMLDivElement>(null)
+
+    // Set dates on client side to avoid hydration errors
+    useEffect(() => {
+        const today = new Date().toISOString().split('T')[0];
+        const dueDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        setInvoiceData(prev => ({
+            ...prev,
+            invoiceDate: today,
+            dueDate: dueDate,
+        }));
+    }, []);
 
     const handlePrint = useReactToPrint({
         contentRef: printRef,
@@ -792,9 +830,65 @@ export default function InvoicePage() {
                                 </div>
                             </Card>
 
+                            <Card className="p-4 border-l-4 border-l-yellow-500">
+                                <h3 className="font-semibold text-lg mb-4">Delivery Details</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <Label>Delivery Note</Label>
+                                        <Input value={invoiceData.deliveryNote} onChange={e => setInvoiceData({ ...invoiceData, deliveryNote: e.target.value })} placeholder="DN-001" />
+                                    </div>
+                                    <div>
+                                        <Label>Delivery Note Date</Label>
+                                        <Input type="date" value={invoiceData.deliveryNoteDate} onChange={e => setInvoiceData({ ...invoiceData, deliveryNoteDate: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <Label>Reference No.</Label>
+                                        <Input value={invoiceData.referenceNo} onChange={e => setInvoiceData({ ...invoiceData, referenceNo: e.target.value })} placeholder="REF-001" />
+                                    </div>
+                                    <div>
+                                        <Label>Reference Date</Label>
+                                        <Input type="date" value={invoiceData.referenceDate} onChange={e => setInvoiceData({ ...invoiceData, referenceDate: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <Label>Destination</Label>
+                                        <Input value={invoiceData.destination} onChange={e => setInvoiceData({ ...invoiceData, destination: e.target.value })} placeholder="City/Location" />
+                                    </div>
+                                    <div>
+                                        <Label>Terms of Delivery</Label>
+                                        <Input value={invoiceData.termsOfDelivery} onChange={e => setInvoiceData({ ...invoiceData, termsOfDelivery: e.target.value })} placeholder="Ex-works, FOB, etc." />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <Label>Other References</Label>
+                                        <Input value={invoiceData.otherReferences} onChange={e => setInvoiceData({ ...invoiceData, otherReferences: e.target.value })} placeholder="Additional references" />
+                                    </div>
+                                </div>
+                            </Card>
+
+                            <Card className="p-4 border-l-4 border-l-pink-500">
+                                <h3 className="font-semibold text-lg mb-4">Dispatch Details</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <Label>Dispatch Doc No.</Label>
+                                        <Input value={invoiceData.dispatchDocNo} onChange={e => setInvoiceData({ ...invoiceData, dispatchDocNo: e.target.value })} placeholder="DISP-001" />
+                                    </div>
+                                    <div>
+                                        <Label>Dispatched Through</Label>
+                                        <Input value={invoiceData.dispatchedThrough} onChange={e => setInvoiceData({ ...invoiceData, dispatchedThrough: e.target.value })} placeholder="Courier/Transport name" />
+                                    </div>
+                                </div>
+                            </Card>
+
                             <Card className="p-4 border-l-4 border-l-indigo-500">
                                 <h3 className="font-semibold text-lg mb-4">Customize Invoice Sections</h3>
                                 <div className="space-y-3">
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showDeliveryDetails" checked={invoiceData.showDeliveryDetails} onChange={e => setInvoiceData({ ...invoiceData, showDeliveryDetails: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showDeliveryDetails" className="font-normal cursor-pointer">Show Delivery Details</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showDispatchDetails" checked={invoiceData.showDispatchDetails} onChange={e => setInvoiceData({ ...invoiceData, showDispatchDetails: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showDispatchDetails" className="font-normal cursor-pointer">Show Dispatch Details</Label>
+                                    </div>
                                     <div className="flex items-center space-x-2">
                                         <input type="checkbox" id="showDueDate" checked={invoiceData.showDueDate} onChange={e => setInvoiceData({ ...invoiceData, showDueDate: e.target.checked })} className="rounded" />
                                         <Label htmlFor="showDueDate" className="font-normal cursor-pointer">Show Due Date</Label>
@@ -818,6 +912,10 @@ export default function InvoicePage() {
                                     <div className="flex items-center space-x-2">
                                         <input type="checkbox" id="showTaxColumns" checked={invoiceData.showTaxColumns} onChange={e => setInvoiceData({ ...invoiceData, showTaxColumns: e.target.checked })} className="rounded" />
                                         <Label htmlFor="showTaxColumns" className="font-normal cursor-pointer">Show Tax Columns (CGST/SGST/IGST)</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showDeclaration" checked={invoiceData.showDeclaration} onChange={e => setInvoiceData({ ...invoiceData, showDeclaration: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showDeclaration" className="font-normal cursor-pointer">Show Declaration</Label>
                                     </div>
                                 </div>
                             </Card>
@@ -1040,6 +1138,80 @@ export default function InvoicePage() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Delivery & Dispatch Details Section */}
+                            {(invoiceData.showDeliveryDetails || invoiceData.showDispatchDetails) && (
+                                <div className="delivery-dispatch-section grid grid-cols-2 border-x border-b border-slate-300">
+                                    {invoiceData.showDeliveryDetails && (
+                                        <div className={`p-3 ${invoiceData.showDispatchDetails ? 'border-r border-slate-300' : ''}`}>
+                                            <div className="text-[10px] text-slate-500 font-semibold uppercase mb-2">Delivery Details</div>
+                                            <div className="grid grid-cols-[100px_1fr] gap-y-0.5 text-xs">
+                                                {invoiceData.deliveryNote && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Delivery Note:</span>
+                                                        <span>{invoiceData.deliveryNote}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.deliveryNoteDate && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Del. Note Date:</span>
+                                                        <span>{new Date(invoiceData.deliveryNoteDate).toLocaleDateString('en-IN')}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.referenceNo && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Reference No.:</span>
+                                                        <span>{invoiceData.referenceNo}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.referenceDate && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Ref. Date:</span>
+                                                        <span>{new Date(invoiceData.referenceDate).toLocaleDateString('en-IN')}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.destination && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Destination:</span>
+                                                        <span>{invoiceData.destination}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.termsOfDelivery && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Terms of Delivery:</span>
+                                                        <span>{invoiceData.termsOfDelivery}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.otherReferences && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Other Ref.:</span>
+                                                        <span>{invoiceData.otherReferences}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {invoiceData.showDispatchDetails && (
+                                        <div className="p-3">
+                                            <div className="text-[10px] text-slate-500 font-semibold uppercase mb-2">Dispatch Details</div>
+                                            <div className="grid grid-cols-[120px_1fr] gap-y-0.5 text-xs">
+                                                {invoiceData.dispatchDocNo && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Dispatch Doc No.:</span>
+                                                        <span>{invoiceData.dispatchDocNo}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.dispatchedThrough && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Dispatched Through:</span>
+                                                        <span>{invoiceData.dispatchedThrough}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             {/* Item Table */}
                             <table className="invoice-table mt-4 w-full border-collapse border border-slate-300 text-xs">
                                 <thead className="table-header">
