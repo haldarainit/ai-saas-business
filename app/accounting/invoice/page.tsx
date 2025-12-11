@@ -903,13 +903,11 @@ export default function InvoicePage() {
                                                             <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">GST<br />(₹)</th>
                                                         )}
 
-                                                        {/* Split Mode: CGST + SGST */}
+                                                        {/* Split Mode: CGST % and SGST % only */}
                                                         {(invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
                                                             <>
-                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[45px]">CGST<br />%</th>
-                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">CGST<br />(₹)</th>
-                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[45px]">SGST<br />%</th>
-                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">SGST<br />(₹)</th>
+                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[50px]">CGST<br />%</th>
+                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[50px]">SGST<br />%</th>
                                                             </>
                                                         )}
 
@@ -952,13 +950,11 @@ export default function InvoicePage() {
                                                                 <td className="p-2 border-r border-slate-300 text-center align-top">{item.totalGst.toFixed(2)}</td>
                                                             )}
 
-                                                            {/* Split Mode: CGST + SGST with percentages */}
+                                                            {/* Split Mode: CGST % and SGST % only */}
                                                             {(invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
                                                                 <>
                                                                     <td className="p-2 border-r border-slate-300 text-center align-top">{item.cgstPercent}%</td>
-                                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.cgst.toFixed(2)}</td>
                                                                     <td className="p-2 border-r border-slate-300 text-center align-top">{item.sgstPercent}%</td>
-                                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.sgst.toFixed(2)}</td>
                                                                 </>
                                                             )}
 
@@ -1002,8 +998,6 @@ export default function InvoicePage() {
                                                             )}
                                                             {(invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
                                                                 <>
-                                                                    <td className="p-2 border-r border-slate-300"></td>
-                                                                    <td className="p-2 border-r border-slate-300"></td>
                                                                     <td className="p-2 border-r border-slate-300"></td>
                                                                     <td className="p-2 border-r border-slate-300"></td>
                                                                 </>
