@@ -39,6 +39,7 @@ interface InvoiceData {
     showDeclaration: boolean
     showDiscount: boolean
     showTaxColumns: boolean
+    showDueDate: boolean
 
     // Company Info
     companyName: string
@@ -49,9 +50,7 @@ interface InvoiceData {
     companyEmail: string
     companyPhone: string
     companyGSTIN: string
-    companyPAN: string
     companyStateCode: string
-    companyLogo: string
 
     // Client Info (Bill To)
     clientName: string
@@ -62,7 +61,8 @@ interface InvoiceData {
     clientEmail: string
     clientPhone: string
     clientGSTIN: string
-    clientStateCode: string
+    paymentMode: string
+    poNumber: string
 
     // Ship To (Optional)
     shipToName: string
@@ -76,7 +76,6 @@ interface InvoiceData {
     invoiceNumber: string
     invoiceDate: string
     dueDate: string
-    poNumber: string
     poDate: string
     placeOfSupply: string
     reverseCharge: string
@@ -121,6 +120,7 @@ const defaultInvoiceData: InvoiceData = {
     showDeclaration: false,
     showDiscount: true,
     showTaxColumns: true,
+    showDueDate: true,
     companyName: "",
     companyAddress: "",
     companyCity: "",
@@ -129,9 +129,7 @@ const defaultInvoiceData: InvoiceData = {
     companyEmail: "",
     companyPhone: "",
     companyGSTIN: "",
-    companyPAN: "",
     companyStateCode: "",
-    companyLogo: "",
 
     clientName: "",
     clientAddress: "",
@@ -141,7 +139,8 @@ const defaultInvoiceData: InvoiceData = {
     clientEmail: "",
     clientPhone: "",
     clientGSTIN: "",
-    clientStateCode: "",
+    paymentMode: "Online",
+    poNumber: "",
 
     shipToName: "",
     shipToAddress: "",
@@ -153,7 +152,6 @@ const defaultInvoiceData: InvoiceData = {
     invoiceNumber: "INV-2025-0001",
     invoiceDate: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    poNumber: "",
     poDate: "",
     placeOfSupply: "",
     reverseCharge: "No",
@@ -427,10 +425,6 @@ export default function InvoicePage() {
                                             <Input value={invoiceData.companyName} onChange={e => setInvoiceData({ ...invoiceData, companyName: e.target.value })} placeholder="Your Business Name" />
                                         </div>
                                         <div>
-                                            <Label>Logo</Label>
-                                            <Input type="file" onChange={handleLogoUpload} className="text-xs" />
-                                        </div>
-                                        <div>
                                             <Label>Phone</Label>
                                             <Input value={invoiceData.companyPhone} onChange={e => setInvoiceData({ ...invoiceData, companyPhone: e.target.value })} placeholder="+91..." />
                                         </div>
@@ -457,10 +451,6 @@ export default function InvoicePage() {
                                         <div>
                                             <Label>GSTIN</Label>
                                             <Input value={invoiceData.companyGSTIN} onChange={e => setInvoiceData({ ...invoiceData, companyGSTIN: e.target.value })} placeholder="22AAAAA0000A1Z5" />
-                                        </div>
-                                        <div>
-                                            <Label>PAN</Label>
-                                            <Input value={invoiceData.companyPAN} onChange={e => setInvoiceData({ ...invoiceData, companyPAN: e.target.value })} placeholder="ABCDE1234F" />
                                         </div>
                                     </div>
                                 </div>
@@ -524,12 +514,32 @@ export default function InvoicePage() {
                                             <Input value={invoiceData.clientPincode} onChange={e => setInvoiceData({ ...invoiceData, clientPincode: e.target.value })} placeholder="123456" />
                                         </div>
                                         <div>
-                                            <Label>GSTIN</Label>
-                                            <Input value={invoiceData.clientGSTIN} onChange={e => setInvoiceData({ ...invoiceData, clientGSTIN: e.target.value })} />
+                                            <Label>GSTIN (Optional)</Label>
+                                            <Input value={invoiceData.clientGSTIN} onChange={e => setInvoiceData({ ...invoiceData, clientGSTIN: e.target.value })} placeholder="Enter if GST registered" />
                                         </div>
                                         <div>
-                                            <Label>State Code</Label>
-                                            <Input value={invoiceData.clientStateCode} onChange={e => setInvoiceData({ ...invoiceData, clientStateCode: e.target.value })} />
+                                            <Label>Buyer's Order No.</Label>
+                                            <Input value={invoiceData.poNumber} onChange={e => setInvoiceData({ ...invoiceData, poNumber: e.target.value })} placeholder="PO Number" />
+                                        </div>
+                                        <div>
+                                            <Label>Payment Mode</Label>
+                                            <Select value={invoiceData.paymentMode} onValueChange={(v) => setInvoiceData({ ...invoiceData, paymentMode: v })}>
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Online">Online</SelectItem>
+                                                    <SelectItem value="Offline">Offline</SelectItem>
+                                                    <SelectItem value="Card">Card</SelectItem>
+                                                    <SelectItem value="Bank Account">Bank Account</SelectItem>
+                                                    <SelectItem value="Cash">Cash</SelectItem>
+                                                    <SelectItem value="Cheque">Cheque</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label>Due Date</Label>
+                                            <Input type="date" value={invoiceData.dueDate} onChange={e => setInvoiceData({ ...invoiceData, dueDate: e.target.value })} />
                                         </div>
                                     </div>
                                 </div>
@@ -696,16 +706,8 @@ export default function InvoicePage() {
                                         <Input value={invoiceData.invoiceNumber} onChange={e => setInvoiceData({ ...invoiceData, invoiceNumber: e.target.value })} />
                                     </div>
                                     <div>
-                                        <Label>Date</Label>
+                                        <Label>Invoice Date</Label>
                                         <Input type="date" value={invoiceData.invoiceDate} onChange={e => setInvoiceData({ ...invoiceData, invoiceDate: e.target.value })} />
-                                    </div>
-                                    <div>
-                                        <Label>Due Date</Label>
-                                        <Input type="date" value={invoiceData.dueDate} onChange={e => setInvoiceData({ ...invoiceData, dueDate: e.target.value })} />
-                                    </div>
-                                    <div>
-                                        <Label>PO No.</Label>
-                                        <Input value={invoiceData.poNumber} onChange={e => setInvoiceData({ ...invoiceData, poNumber: e.target.value })} />
                                     </div>
                                     <div className="col-span-2">
                                         <Label>Jurisdiction Text</Label>
@@ -717,6 +719,10 @@ export default function InvoicePage() {
                             <Card className="p-4 border-l-4 border-l-indigo-500">
                                 <h3 className="font-semibold text-lg mb-4">Customize Invoice Sections</h3>
                                 <div className="space-y-3">
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showDueDate" checked={invoiceData.showDueDate} onChange={e => setInvoiceData({ ...invoiceData, showDueDate: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showDueDate" className="font-normal cursor-pointer">Show Due Date</Label>
+                                    </div>
                                     <div className="flex items-center space-x-2">
                                         <input type="checkbox" id="showBank" checked={invoiceData.showBankDetails} onChange={e => setInvoiceData({ ...invoiceData, showBankDetails: e.target.checked })} className="rounded" />
                                         <Label htmlFor="showBank" className="font-normal cursor-pointer">Show Bank Details</Label>
@@ -761,15 +767,16 @@ export default function InvoicePage() {
                                 @page { 
                                     size: A4; 
                                     margin: 15mm 15mm 20mm 15mm;
-                                    @bottom-right {
-                                        content: "Page " counter(page) " of " counter(pages);
-                                        font-size: 9px;
-                                        color: #94a3b8;
-                                    }
                                 }
                                 body { 
                                     -webkit-print-color-adjust: exact;
                                     print-color-adjust: exact; 
+                                }
+                                
+                                /* Hide browser default headers and footers */
+                                @media print {
+                                    @page { margin: 0; }
+                                    body { margin: 1.6cm; }
                                 }
                                 
                                 /* Page break controls */
@@ -874,14 +881,16 @@ export default function InvoicePage() {
                                     </div>
                                     <div className="grid grid-cols-1 border-b border-slate-300">
                                         <div className="p-2">
-                                            <div className="text-[10px] text-slate-500 font-semibold uppercase">Buyer's Order No.</div>
-                                            <div className="font-bold">{invoiceData.poNumber}</div>
+                                            <div className="text-[10px] text-slate-500 font-semibold uppercase">Payment Mode</div>
+                                            <div className="font-bold">{invoiceData.paymentMode}</div>
                                         </div>
                                     </div>
-                                    <div className="p-2">
-                                        <div className="text-[10px] text-slate-500 font-semibold uppercase">Mode/Terms of Payment</div>
-                                        <div className="">{invoiceData.dueDate ? `Due by ${new Date(invoiceData.dueDate).toLocaleDateString('en-IN')}` : 'Immediate'}</div>
-                                    </div>
+                                    {invoiceData.showDueDate && (
+                                        <div className="p-2">
+                                            <div className="text-[10px] text-slate-500 font-semibold uppercase">Due Date</div>
+                                            <div className="font-bold">{new Date(invoiceData.dueDate).toLocaleDateString('en-IN')}</div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -905,8 +914,18 @@ export default function InvoicePage() {
                                         <span>{invoiceData.clientPhone}</span>
                                         <span className="font-semibold text-slate-500">Email:</span>
                                         <span>{invoiceData.clientEmail}</span>
-                                        <span className="font-semibold text-slate-500">GSTIN:</span>
-                                        <span>{invoiceData.clientGSTIN}</span>
+                                        {invoiceData.clientGSTIN && (
+                                            <>
+                                                <span className="font-semibold text-slate-500">GSTIN:</span>
+                                                <span>{invoiceData.clientGSTIN}</span>
+                                            </>
+                                        )}
+                                        {invoiceData.poNumber && (
+                                            <>
+                                                <span className="font-semibold text-slate-500">PO No.:</span>
+                                                <span>{invoiceData.poNumber}</span>
+                                            </>
+                                        )}
                                         <span className="font-semibold text-slate-500">State:</span>
                                         <span>{invoiceData.clientState}</span>
                                     </div>
