@@ -42,6 +42,7 @@ interface InvoiceData {
     showDueDate: boolean
     showDeliveryDetails: boolean
     showDispatchDetails: boolean
+    showRoundOff: boolean
 
     // Company Info
     companyName: string
@@ -136,6 +137,7 @@ const defaultInvoiceData: InvoiceData = {
     showDueDate: true,
     showDeliveryDetails: false,
     showDispatchDetails: false,
+    showRoundOff: true,
     companyName: "",
     companyAddress: "",
     companyCity: "",
@@ -286,8 +288,8 @@ export default function InvoicePage() {
         })
 
         const finalTotal = totalAmount + invoiceData.shippingCharges + invoiceData.otherCharges
-        const roundedTotal = Math.round(finalTotal)
-        const roundOff = roundedTotal - finalTotal
+        const roundedTotal = invoiceData.showRoundOff ? Math.round(finalTotal) : finalTotal
+        const roundOff = invoiceData.showRoundOff ? (roundedTotal - finalTotal) : 0
 
         const hasDiscount = totalDiscount > 0
 
@@ -303,7 +305,7 @@ export default function InvoicePage() {
             grandTotal: roundedTotal,
             hasDiscount
         }
-    }, [invoiceData.items, invoiceData.taxType, invoiceData.shippingCharges, invoiceData.otherCharges])
+    }, [invoiceData.items, invoiceData.taxType, invoiceData.shippingCharges, invoiceData.otherCharges, invoiceData.showRoundOff])
 
 
     // --- Handlers ---
@@ -882,6 +884,10 @@ export default function InvoicePage() {
                                 <h3 className="font-semibold text-lg mb-4">Customize Invoice Sections</h3>
                                 <div className="space-y-3">
                                     <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showRoundOff" checked={invoiceData.showRoundOff} onChange={e => setInvoiceData({ ...invoiceData, showRoundOff: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showRoundOff" className="font-normal cursor-pointer">Show Round Off</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
                                         <input type="checkbox" id="showDeliveryDetails" checked={invoiceData.showDeliveryDetails} onChange={e => setInvoiceData({ ...invoiceData, showDeliveryDetails: e.target.checked })} className="rounded" />
                                         <Label htmlFor="showDeliveryDetails" className="font-normal cursor-pointer">Show Delivery Details</Label>
                                     </div>
@@ -1363,16 +1369,11 @@ export default function InvoicePage() {
                                             <span>{calculations.totalTaxable.toFixed(2)}</span>
                                         </div>
 
-                                        {calculations.totalCGST > 0 && (
+
+                                        {(calculations.totalCGST > 0 || calculations.totalSGST > 0) && (
                                             <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
-                                                <span>CGST</span>
-                                                <span>{calculations.totalCGST.toFixed(2)}</span>
-                                            </div>
-                                        )}
-                                        {calculations.totalSGST > 0 && (
-                                            <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
-                                                <span>SGST</span>
-                                                <span>{calculations.totalSGST.toFixed(2)}</span>
+                                                <span>GST</span>
+                                                <span>{(calculations.totalCGST + calculations.totalSGST).toFixed(2)}</span>
                                             </div>
                                         )}
                                         {calculations.totalIGST > 0 && (
@@ -1382,10 +1383,12 @@ export default function InvoicePage() {
                                             </div>
                                         )}
 
-                                        <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
-                                            <span>Round Off</span>
-                                            <span>{calculations.roundOff.toFixed(2)}</span>
-                                        </div>
+                                        {invoiceData.showRoundOff && calculations.roundOff !== 0 && (
+                                            <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
+                                                <span>Round Off</span>
+                                                <span>{calculations.roundOff.toFixed(2)}</span>
+                                            </div>
+                                        )}
 
                                         <div className="flex justify-between p-2 bg-slate-100 font-bold text-base">
                                             <span>Grand Total</span>
