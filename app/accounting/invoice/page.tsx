@@ -318,20 +318,26 @@ export default function InvoicePage() {
                         updated.cgst = (taxableValue * updated.cgstPercent) / 100
                         updated.sgst = (taxableValue * updated.sgstPercent) / 100
                         updated.totalGst = updated.cgst + updated.sgst
+                    } else if (field === 'cgstPercent') {
+                        // When CGST % changes: calculate CGST amount, update Tax% (CGST% + SGST%)
+                        updated.cgst = (taxableValue * value) / 100
+                        updated.totalGst = updated.cgst + updated.sgst
+                        updated.taxRate = parseFloat((value + updated.sgstPercent).toFixed(2))
+                    } else if (field === 'sgstPercent') {
+                        // When SGST % changes: calculate SGST amount, update Tax% (CGST% + SGST%)
+                        updated.sgst = (taxableValue * value) / 100
+                        updated.totalGst = updated.cgst + updated.sgst
+                        updated.taxRate = parseFloat((updated.cgstPercent + value).toFixed(2))
                     } else if (field === 'cgst') {
-                        // When CGST amount changes: calculate CGST%, make SGST equal, update Tax%
+                        // When CGST amount changes: calculate CGST%, update Tax%
                         const cgstPercent = taxableValue > 0 ? (value / taxableValue) * 100 : 0
                         updated.cgstPercent = parseFloat(cgstPercent.toFixed(2))
-                        updated.sgstPercent = updated.cgstPercent
-                        updated.sgst = (taxableValue * updated.sgstPercent) / 100
                         updated.totalGst = value + updated.sgst
                         updated.taxRate = parseFloat((updated.cgstPercent + updated.sgstPercent).toFixed(2))
                     } else if (field === 'sgst') {
-                        // When SGST amount changes: calculate SGST%, make CGST equal, update Tax%
+                        // When SGST amount changes: calculate SGST%, update Tax%
                         const sgstPercent = taxableValue > 0 ? (value / taxableValue) * 100 : 0
                         updated.sgstPercent = parseFloat(sgstPercent.toFixed(2))
-                        updated.cgstPercent = updated.sgstPercent
-                        updated.cgst = (taxableValue * updated.cgstPercent) / 100
                         updated.totalGst = updated.cgst + value
                         updated.taxRate = parseFloat((updated.cgstPercent + updated.sgstPercent).toFixed(2))
                     } else if (field === 'totalGst') {
@@ -344,6 +350,11 @@ export default function InvoicePage() {
                             updated.sgstPercent = updated.cgstPercent
                             updated.taxRate = parseFloat(gstPercent.toFixed(2))
                         }
+                    } else if (field === 'quantity' || field === 'rate' || field === 'discount') {
+                        // When quantity, rate, or discount changes: recalculate all GST amounts based on percentages
+                        updated.cgst = (taxableValue * updated.cgstPercent) / 100
+                        updated.sgst = (taxableValue * updated.sgstPercent) / 100
+                        updated.totalGst = updated.cgst + updated.sgst
                     }
                 }
 
@@ -598,34 +609,42 @@ export default function InvoicePage() {
                                                     <Input className="h-8 text-sm" type="number" min="0" value={item.discount} onChange={e => updateItem(item.id, 'discount', parseFloat(e.target.value) || 0)} />
                                                 </div>
                                                 <div className="col-span-6 md:col-span-3">
-                                                    <Label className="text-xs">Tax %</Label>
+                                                    <Label className="text-xs">Tax % (Total)</Label>
                                                     <Input className="h-8 text-sm" type="number" min="0" value={item.taxRate} onChange={e => updateItem(item.id, 'taxRate', parseFloat(e.target.value) || 0)} />
                                                 </div>
 
                                                 {/* GST Fields based on mode */}
                                                 {invoiceData.taxType === "GST" && invoiceData.gstDisplayMode === "simple" && (
                                                     <div className="col-span-6 md:col-span-3">
-                                                        <Label className="text-xs">Total GST</Label>
+                                                        <Label className="text-xs">Total GST (₹)</Label>
                                                         <Input className="h-8 text-sm" type="number" min="0" value={item.totalGst} onChange={e => updateItem(item.id, 'totalGst', parseFloat(e.target.value) || 0)} />
                                                     </div>
                                                 )}
 
                                                 {invoiceData.taxType === "GST" && (invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
                                                     <>
-                                                        <div className="col-span-6 md:col-span-3">
-                                                            <Label className="text-xs">CGST</Label>
+                                                        <div className="col-span-6 md:col-span-2">
+                                                            <Label className="text-xs">CGST %</Label>
+                                                            <Input className="h-8 text-sm" type="number" min="0" step="0.01" value={item.cgstPercent} onChange={e => updateItem(item.id, 'cgstPercent', parseFloat(e.target.value) || 0)} />
+                                                        </div>
+                                                        <div className="col-span-6 md:col-span-2">
+                                                            <Label className="text-xs">CGST (₹)</Label>
                                                             <Input className="h-8 text-sm" type="number" min="0" value={item.cgst} onChange={e => updateItem(item.id, 'cgst', parseFloat(e.target.value) || 0)} />
                                                         </div>
-                                                        <div className="col-span-6 md:col-span-3">
-                                                            <Label className="text-xs">SGST</Label>
+                                                        <div className="col-span-6 md:col-span-2">
+                                                            <Label className="text-xs">SGST %</Label>
+                                                            <Input className="h-8 text-sm" type="number" min="0" step="0.01" value={item.sgstPercent} onChange={e => updateItem(item.id, 'sgstPercent', parseFloat(e.target.value) || 0)} />
+                                                        </div>
+                                                        <div className="col-span-6 md:col-span-2">
+                                                            <Label className="text-xs">SGST (₹)</Label>
                                                             <Input className="h-8 text-sm" type="number" min="0" value={item.sgst} onChange={e => updateItem(item.id, 'sgst', parseFloat(e.target.value) || 0)} />
                                                         </div>
                                                     </>
                                                 )}
 
                                                 {invoiceData.taxType === "GST" && invoiceData.gstDisplayMode === "detailed" && (
-                                                    <div className="col-span-6 md:col-span-3">
-                                                        <Label className="text-xs">Total GST</Label>
+                                                    <div className="col-span-6 md:col-span-2">
+                                                        <Label className="text-xs">Total GST (₹)</Label>
                                                         <Input className="h-8 text-sm" type="number" min="0" value={item.totalGst} onChange={e => updateItem(item.id, 'totalGst', parseFloat(e.target.value) || 0)} />
                                                     </div>
                                                 )}
@@ -881,25 +900,27 @@ export default function InvoicePage() {
                                                     <>
                                                         {/* Simple Mode: Only GST */}
                                                         {invoiceData.gstDisplayMode === "simple" && (
-                                                            <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">GST</th>
+                                                            <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">GST<br />(₹)</th>
                                                         )}
 
                                                         {/* Split Mode: CGST + SGST */}
                                                         {(invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
                                                             <>
-                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">CGST</th>
-                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">SGST</th>
+                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[45px]">CGST<br />%</th>
+                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">CGST<br />(₹)</th>
+                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[45px]">SGST<br />%</th>
+                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">SGST<br />(₹)</th>
                                                             </>
                                                         )}
 
                                                         {/* Detailed Mode: Also show GST Total */}
                                                         {invoiceData.gstDisplayMode === "detailed" && (
-                                                            <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">GST<br />Total</th>
+                                                            <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">GST<br />Total (₹)</th>
                                                         )}
                                                     </>
                                                 )}
                                                 {invoiceData.taxType === "IGST" && (
-                                                    <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">IGST</th>
+                                                    <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">IGST<br />(₹)</th>
                                                 )}
                                             </>
                                         )}
@@ -931,10 +952,12 @@ export default function InvoicePage() {
                                                                 <td className="p-2 border-r border-slate-300 text-center align-top">{item.totalGst.toFixed(2)}</td>
                                                             )}
 
-                                                            {/* Split Mode: CGST + SGST */}
+                                                            {/* Split Mode: CGST + SGST with percentages */}
                                                             {(invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
                                                                 <>
+                                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.cgstPercent}%</td>
                                                                     <td className="p-2 border-r border-slate-300 text-center align-top">{item.cgst.toFixed(2)}</td>
+                                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.sgstPercent}%</td>
                                                                     <td className="p-2 border-r border-slate-300 text-center align-top">{item.sgst.toFixed(2)}</td>
                                                                 </>
                                                             )}
@@ -979,6 +1002,8 @@ export default function InvoicePage() {
                                                             )}
                                                             {(invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
                                                                 <>
+                                                                    <td className="p-2 border-r border-slate-300"></td>
+                                                                    <td className="p-2 border-r border-slate-300"></td>
                                                                     <td className="p-2 border-r border-slate-300"></td>
                                                                     <td className="p-2 border-r border-slate-300"></td>
                                                                 </>
