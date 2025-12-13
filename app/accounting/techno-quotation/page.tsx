@@ -347,29 +347,46 @@ export default function TechnoQuotationDashboard() {
             <Footer />
 
             <AlertDialog open={showNameDialog} onOpenChange={setShowNameDialog}>
-                <AlertDialogContent>
+                <AlertDialogContent className="border-emerald-200 dark:border-emerald-800">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Name your Quotation</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500">
+                                <Sparkles className="w-5 h-5 text-white" />
+                            </div>
+                            <AlertDialogTitle className="text-emerald-700 dark:text-emerald-400 text-xl">
+                                Name Your Quotation
+                            </AlertDialogTitle>
+                        </div>
+                        <AlertDialogDescription className="text-muted-foreground">
                             Please enter a name for this quotation to identify it later.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className="py-4">
-                        <Label htmlFor="quotation-name" className="mb-2 block">Quotation Name</Label>
+                        <Label htmlFor="quotation-name" className="mb-2 block text-sm font-medium">
+                            Quotation Name
+                        </Label>
                         <Input
                             id="quotation-name"
                             value={newQuotationName}
                             onChange={(e) => setNewQuotationName(e.target.value)}
                             placeholder="e.g., Solar Installation - Client X"
                             autoFocus
+                            className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500"
                         />
                     </div>
                     <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setShowNameDialog(false)}>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel
+                            onClick={() => setShowNameDialog(false)}
+                            className="border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800"
+                        >
+                            Cancel
+                        </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={createQuotation}
                             disabled={!newQuotationName.trim()}
+                            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
+                            <Plus className="w-4 h-4 mr-2" />
                             Create Quotation
                         </AlertDialogAction>
                     </AlertDialogFooter>
