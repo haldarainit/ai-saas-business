@@ -5,7 +5,7 @@ import { generatePresentationContent } from '@/lib/geminiService';
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { prompt } = body;
+        const { prompt, slideCount = 8, outlineOnly = false, existingOutline } = body;
 
         if (!prompt) {
             return NextResponse.json(
@@ -14,7 +14,21 @@ export async function POST(req: Request) {
             );
         }
 
-        const presentationData = await generatePresentationContent(prompt);
+        // If we have an existing outline and not outline-only, just add image keywords
+        if (existingOutline && !outlineOnly) {
+            // Add image keywords to the existing outline
+            const enhancedSlides = existingOutline.slides.map((slide: any, index: number) => ({
+                ...slide,
+                imageKeyword: slide.imageKeyword || generateImageKeyword(slide.title, prompt, index)
+            }));
+
+            return NextResponse.json({
+                ...existingOutline,
+                slides: enhancedSlides
+            });
+        }
+
+        const presentationData = await generatePresentationContent(prompt, slideCount, outlineOnly);
 
         return NextResponse.json(presentationData);
     } catch (error: any) {
@@ -24,4 +38,17 @@ export async function POST(req: Request) {
             { status: 500 }
         );
     }
+}
+
+// Helper function to generate image keywords based on slide content
+function generateImageKeyword(title: string, topic: string, index: number): string {
+    const baseKeywords = [
+        "professional business presentation",
+        "modern corporate visualization",
+        "high quality illustration",
+        "clean professional design"
+    ];
+
+    const randomStyle = baseKeywords[index % baseKeywords.length];
+    return `${title} related to ${topic}, ${randomStyle}, vibrant colors, 4k quality`;
 }
