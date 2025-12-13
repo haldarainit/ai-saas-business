@@ -180,17 +180,20 @@ export default function TechnoQuotationPage() {
 
                 if (q) {
                     setQuotationType(q.quotationType);
-                    setMainTitle(q.title || 'TECHNO COMMERCIAL QUOTATION');
-                    setCompanyName(q.companyDetails?.name || 'GREEN ENERGY PVT. LTD');
-                    setCompanyAddress1(q.companyDetails?.address1 || 'Malad - 400 064');
-                    setCompanyAddress2(q.companyDetails?.address2 || 'Mumbai, Maharashtra, India');
-                    setCompanyPhone(q.companyDetails?.phone || '+91 99205 21473');
+                    setMainTitle(q.mainTitle || q.title || 'TECHNO COMMERCIAL QUOTATION');
+                    setCompanyName(q.companyDetails?.name || 'Your Company Name');
+                    setCompanyId(q.companyId || '');
+                    setCompanyAddress1(q.companyDetails?.address1 || '');
+                    setCompanyAddress2(q.companyDetails?.address2 || '');
+                    setCompanyPhone(q.companyDetails?.phone || '');
+                    setCompanyDate(q.companyDate || '');
                     setLogoUrl(q.companyDetails?.logo || '');
+                    setLogoLetter(q.logoLetter || 'G');
 
-                    // Footer defaults
-                    setFooterLine1('Solar Solutions | Owner & VP and Power Plans | Water Heater | Street Lights | Home Lighting');
-                    setFooterLine2('LED Lighting Solutions | Inverters | Commercial | Industrial | Customized solution');
-                    setFooterLine3('Authorized Submitter: SANTOSH - M.D. - SCADA / PDD');
+                    // Load footer from database or use defaults
+                    setFooterLine1(q.footer?.line1 || 'Solar Solutions | Owner & VP and Power Plans | Water Heater | Street Lights | Home Lighting');
+                    setFooterLine2(q.footer?.line2 || 'LED Lighting Solutions | Inverters | Commercial | Industrial | Customized solution');
+                    setFooterLine3(q.footer?.line3 || 'Authorized Submitter: Your Name - Your Position');
 
                     if (q.watermarkSettings) {
                         setWatermarkType(q.watermarkSettings.type || 'text');
@@ -268,7 +271,7 @@ export default function TechnoQuotationPage() {
             setHasChanges(true);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pages, mainTitle, companyName, companyAddress1, companyAddress2, companyPhone, logoUrl, quotationType, watermarkType, watermarkText, watermarkLogoUrl, watermarkSize, watermarkOpacity, watermarkColorMode, isLoading, isInitialized]);
+    }, [pages, mainTitle, companyName, companyId, companyAddress1, companyAddress2, companyPhone, companyDate, logoUrl, logoLetter, quotationType, watermarkType, watermarkText, watermarkLogoUrl, watermarkSize, watermarkOpacity, watermarkColorMode, footerLine1, footerLine2, footerLine3, isLoading, isInitialized]);
 
     React.useEffect(() => {
         // Don't save if:
@@ -292,8 +295,17 @@ export default function TechnoQuotationPage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         title: debouncedTitle,
+                        mainTitle: debouncedTitle,
                         pages: debouncedPages,
                         companyDetails: debouncedCompanyMap,
+                        companyId: companyId,
+                        companyDate: companyDate,
+                        logoLetter: logoLetter,
+                        footer: {
+                            line1: footerLine1,
+                            line2: footerLine2,
+                            line3: footerLine3
+                        },
                         quotationType: debouncedQuotationType,
                         watermarkSettings: debouncedWatermarkSettings
                     })
@@ -1129,8 +1141,8 @@ export default function TechnoQuotationPage() {
                                             <label
                                                 htmlFor="watermark-logo-upload"
                                                 className={`px-3 py-2 border border-border rounded-md text-sm transition-colors flex items-center gap-2 ${isUploadingWatermark
-                                                        ? 'cursor-not-allowed bg-emerald-50 border-emerald-300 text-emerald-600'
-                                                        : 'cursor-pointer hover:bg-accent'
+                                                    ? 'cursor-not-allowed bg-emerald-50 border-emerald-300 text-emerald-600'
+                                                    : 'cursor-pointer hover:bg-accent'
                                                     }`}
                                             >
                                                 {isUploadingWatermark ? (

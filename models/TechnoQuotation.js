@@ -62,6 +62,21 @@ const TechnoQuotationSchema = new mongoose.Schema({
         type: String,
         default: 'New Quotation'
     },
+    mainTitle: {
+        type: String,
+        default: 'TECHNO COMMERCIAL QUOTATION'
+    },
+    companyId: String,
+    companyDate: String,
+    logoLetter: {
+        type: String,
+        default: 'G'
+    },
+    footer: {
+        line1: String,
+        line2: String,
+        line3: String
+    },
     pages: [PageSchema],
     answers: { type: mongoose.Schema.Types.Mixed }, // Store questionnaire answers
     status: {
