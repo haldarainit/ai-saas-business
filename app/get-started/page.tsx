@@ -73,6 +73,17 @@ export default function Features() {
     },
     {
       image:
+        "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+      title: "AI Presentations",
+      description:
+        "Generate professional presentations in seconds. Just describe your topic and let AI create the slides and find images.",
+      benefits: ["Instant Generation", "Professional Layouts", "PowerPoint Export"],
+      accentColor: "rgba(234, 179, 8, 0.5)",
+      iconColor: "text-yellow-500",
+      link: "/presentations",
+    },
+    {
+      image:
         "https://images.unsplash.com/photo-1557200134-90327ee9fafa?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
       title: "Email Automation",
       description:
