@@ -73,4 +73,9 @@ const TechnoQuotationSchema = new mongoose.Schema({
     timestamps: true
 });
 
+// Prevent model overwrite error in development
+if (mongoose.models.TechnoQuotation) {
+    delete mongoose.models.TechnoQuotation;
+}
+
 export default mongoose.models.TechnoQuotation || mongoose.model('TechnoQuotation', TechnoQuotationSchema);

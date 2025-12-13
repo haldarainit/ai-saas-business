@@ -50,6 +50,7 @@ export default function TechnoQuotationPage() {
     const params = useParams();
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
+    const [isInitialized, setIsInitialized] = useState(false); // Tracks if debounce has caught up after loading
     const [isSaving, setIsSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [hasChanges, setHasChanges] = useState(false);
@@ -67,20 +68,20 @@ export default function TechnoQuotationPage() {
     // Company Information & Logo
     const [logoUrl, setLogoUrl] = useState('');
     const [logoLetter, setLogoLetter] = useState('G');
-    const [companyName, setCompanyName] = useState('GREEN ENERGY PVT. LTD');
-    const [companyId, setCompanyId] = useState('GREEN - 2RAAGPV24KEP');
-    const [companyAddress1, setCompanyAddress1] = useState('Malad - 400 064');
-    const [companyAddress2, setCompanyAddress2] = useState('Mumbai, Maharashtra, India');
-    const [companyPhone, setCompanyPhone] = useState('+91 99205 21473');
-    const [companyDate, setCompanyDate] = useState('Thursday, March 06th');
+    const [companyName, setCompanyName] = useState('');
+    const [companyId, setCompanyId] = useState('');
+    const [companyAddress1, setCompanyAddress1] = useState('');
+    const [companyAddress2, setCompanyAddress2] = useState('');
+    const [companyPhone, setCompanyPhone] = useState('');
+    const [companyDate, setCompanyDate] = useState('');
 
     // Main Title
-    const [mainTitle, setMainTitle] = useState('TECHNO COMMERCIAL QUOTATION');
+    const [mainTitle, setMainTitle] = useState('');
 
     // Footer Content
-    const [footerLine1, setFooterLine1] = useState('Solar Solutions | Owner & VP and Power Plans | Water Heater | Street Lights | Home Lighting');
-    const [footerLine2, setFooterLine2] = useState('LED Lighting Solutions | Inverters | Commercial | Industrial | Customized solution');
-    const [footerLine3, setFooterLine3] = useState('Authorized Submitter: SANTOSH - M.D. - SCADA / PDD');
+    const [footerLine1, setFooterLine1] = useState('');
+    const [footerLine2, setFooterLine2] = useState('');
+    const [footerLine3, setFooterLine3] = useState('');
 
     // Watermark
     const [watermarkType, setWatermarkType] = useState<'text' | 'logo'>('text');
@@ -91,47 +92,7 @@ export default function TechnoQuotationPage() {
     const [watermarkColorMode, setWatermarkColorMode] = useState<'original' | 'grayscale'>('original');
 
     // Dynamic Pages State
-    const [pages, setPages] = useState<Page[]>([
-        {
-            id: 'page-1',
-            sections: [
-                {
-                    id: 'section-1',
-                    type: 'heading',
-                    heading: 'Reference Information'
-                },
-                {
-                    id: 'section-2',
-                    type: 'text',
-                    heading: 'Ref No',
-                    content: 'PTP/305/DAAN/2025-26/0181'
-                },
-                {
-                    id: 'section-3',
-                    type: 'text',
-                    heading: 'Date',
-                    content: '04/05/2025'
-                },
-                {
-                    id: 'section-4',
-                    type: 'heading',
-                    heading: 'Customer Details'
-                },
-                {
-                    id: 'section-5',
-                    type: 'text',
-                    heading: 'Customer Name',
-                    content: 'The Head Plant - SAIL'
-                },
-                {
-                    id: 'section-6',
-                    type: 'text',
-                    heading: 'Address',
-                    content: 'DSM, CSTL & SMRH, Bhilai, Chhattisgarh'
-                }
-            ]
-        }
-    ]);
+    const [pages, setPages] = useState<Page[]>([]);
 
     // Auto-pagination: detect overflow and create new pages
     const pageContentRefs = React.useRef<(HTMLDivElement | null)[]>([]);
@@ -204,7 +165,7 @@ export default function TechnoQuotationPage() {
     React.useEffect(() => {
         const fetchQuotation = async () => {
             try {
-                const response = await fetch(`/api/techno-quotation/${params.id}`);
+                const response = await fetch(`/api/techno-quotation/${params.id}`, { cache: 'no-store' });
                 if (!response.ok) {
                     if (response.status === 404) {
                         alert("Quotation not found");
@@ -220,10 +181,15 @@ export default function TechnoQuotationPage() {
                     setQuotationType(q.quotationType);
                     setMainTitle(q.title || 'TECHNO COMMERCIAL QUOTATION');
                     setCompanyName(q.companyDetails?.name || 'GREEN ENERGY PVT. LTD');
-                    setCompanyAddress1(q.companyDetails?.address1 || '');
-                    setCompanyAddress2(q.companyDetails?.address2 || '');
-                    setCompanyPhone(q.companyDetails?.phone || '');
+                    setCompanyAddress1(q.companyDetails?.address1 || 'Malad - 400 064');
+                    setCompanyAddress2(q.companyDetails?.address2 || 'Mumbai, Maharashtra, India');
+                    setCompanyPhone(q.companyDetails?.phone || '+91 99205 21473');
                     setLogoUrl(q.companyDetails?.logo || '');
+
+                    // Footer defaults
+                    setFooterLine1('Solar Solutions | Owner & VP and Power Plans | Water Heater | Street Lights | Home Lighting');
+                    setFooterLine2('LED Lighting Solutions | Inverters | Commercial | Industrial | Customized solution');
+                    setFooterLine3('Authorized Submitter: SANTOSH - M.D. - SCADA / PDD');
 
                     if (q.watermarkSettings) {
                         setWatermarkType(q.watermarkSettings.type || 'text');
@@ -235,10 +201,33 @@ export default function TechnoQuotationPage() {
                     }
 
                     if (q.answers) setAnswers(q.answers);
-                    if (q.pages && q.pages.length > 0) setPages(q.pages);
+
+                    // If pages exist, use them. If not, set default pages ONLY if it's a new/empty quotation
+                    if (q.pages && q.pages.length > 0) {
+                        setPages(q.pages);
+                    } else {
+                        // Default pages for new quotation
+                        setPages([{
+                            id: 'page-1',
+                            sections: [
+                                { id: 'section-1', type: 'heading', heading: 'Reference Information' },
+                                { id: 'section-2', type: 'text', heading: 'Ref No', content: 'PTP/305/DAAN/2025-26/0181' },
+                                { id: 'section-3', type: 'text', heading: 'Date', content: '04/05/2025' },
+                                { id: 'section-4', type: 'heading', heading: 'Customer Details' },
+                                { id: 'section-5', type: 'text', heading: 'Customer Name', content: 'The Head Plant - SAIL' },
+                                { id: 'section-6', type: 'text', heading: 'Address', content: 'DSM, CSTL & SMRH, Bhilai, Chhattisgarh' }
+                            ]
+                        }]);
+                    }
                 }
                 // Set lastSaved after initial load to enable change tracking
                 setLastSaved(new Date());
+
+                // Wait for debounce to catch up before allowing auto-save
+                setTimeout(() => {
+                    setIsInitialized(true);
+                    console.log("Initialization complete - auto-save now enabled");
+                }, 2500);
             } catch (error) {
                 console.error("Error loading quotation:", error);
             } finally {
@@ -272,24 +261,31 @@ export default function TechnoQuotationPage() {
     }, 2000);
 
     // Track changes - set hasChanges to true when user modifies anything
+    // ONLY after initialization is complete (debounce caught up)
     React.useEffect(() => {
-        if (!isLoading && lastSaved) {
+        if (!isLoading && isInitialized && lastSaved) {
             setHasChanges(true);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pages, mainTitle, companyName, companyAddress1, companyAddress2, companyPhone, logoUrl, quotationType, watermarkType, watermarkText, watermarkLogoUrl, watermarkSize, watermarkOpacity, watermarkColorMode, isLoading]);
+    }, [pages, mainTitle, companyName, companyAddress1, companyAddress2, companyPhone, logoUrl, quotationType, watermarkType, watermarkText, watermarkLogoUrl, watermarkSize, watermarkOpacity, watermarkColorMode, isLoading, isInitialized]);
 
     React.useEffect(() => {
         // Don't save if:
         // 1. Still loading initial data
-        // 2. No changes have been made
-        if (isLoading || !hasChanges) {
+        // 2. Not yet initialized (debounce hasn't caught up)
+        // 3. No changes have been made
+        if (isLoading || !isInitialized || !hasChanges) {
             return;
         }
 
         const saveQuotation = async () => {
             setIsSaving(true);
             try {
+                console.log("Auto-saving quotation:", {
+                    title: debouncedTitle,
+                    watermarkSettings: debouncedWatermarkSettings
+                });
+
                 await fetch(`/api/techno-quotation/${params.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
