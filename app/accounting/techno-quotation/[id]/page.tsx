@@ -89,6 +89,8 @@ export default function TechnoQuotationPage() {
     const [watermarkSize, setWatermarkSize] = useState(80); // Font size for text, max-width for logo
     const [watermarkOpacity, setWatermarkOpacity] = useState(0.15);
     const [watermarkColorMode, setWatermarkColorMode] = useState<'original' | 'grayscale'>('original');
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+    const [isUploadingWatermark, setIsUploadingWatermark] = useState(false);
 
     // Dynamic Pages State
     const [pages, setPages] = useState<Page[]>([]);
@@ -335,18 +337,22 @@ export default function TechnoQuotationPage() {
         }
     };
 
-    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            handleImageUpload(file, setLogoUrl);
+            setIsUploadingLogo(true);
+            await handleImageUpload(file, setLogoUrl);
+            setIsUploadingLogo(false);
         }
     };
 
-    const handleWatermarkLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleWatermarkLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             setWatermarkType('logo');
-            handleImageUpload(file, setWatermarkLogoUrl);
+            setIsUploadingWatermark(true);
+            await handleImageUpload(file, setWatermarkLogoUrl);
+            setIsUploadingWatermark(false);
         }
     };
 
@@ -1120,8 +1126,21 @@ export default function TechnoQuotationPage() {
                                         />
                                     ) : (
                                         <div className="flex items-center gap-2">
-                                            <label htmlFor="watermark-logo-upload" className="cursor-pointer px-3 py-2 border border-border rounded-md text-sm hover:bg-accent transition-colors">
-                                                {watermarkLogoUrl ? 'Change Logo' : 'Upload Logo'}
+                                            <label
+                                                htmlFor="watermark-logo-upload"
+                                                className={`px-3 py-2 border border-border rounded-md text-sm transition-colors flex items-center gap-2 ${isUploadingWatermark
+                                                        ? 'cursor-not-allowed bg-emerald-50 border-emerald-300 text-emerald-600'
+                                                        : 'cursor-pointer hover:bg-accent'
+                                                    }`}
+                                            >
+                                                {isUploadingWatermark ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                        Uploading...
+                                                    </>
+                                                ) : (
+                                                    watermarkLogoUrl ? 'Change Logo' : 'Upload Logo'
+                                                )}
                                             </label>
                                             <input
                                                 id="watermark-logo-upload"
@@ -1129,8 +1148,9 @@ export default function TechnoQuotationPage() {
                                                 accept="image/*"
                                                 onChange={handleWatermarkLogoUpload}
                                                 style={{ display: 'none' }}
+                                                disabled={isUploadingWatermark}
                                             />
-                                            {watermarkLogoUrl && (
+                                            {watermarkLogoUrl && !isUploadingWatermark && (
                                                 <span className="text-xs text-emerald-600">✓ Logo uploaded</span>
                                             )}
                                         </div>
@@ -1261,8 +1281,26 @@ export default function TechnoQuotationPage() {
                                         className="editable-field company-name-field"
                                     />
                                     <div className="no-print" style={{ marginTop: '5px' }}>
-                                        <label htmlFor="logo-upload" style={{ cursor: 'pointer', fontSize: '9px', color: '#666', textDecoration: 'underline' }}>
-                                            Upload Logo
+                                        <label
+                                            htmlFor="logo-upload"
+                                            style={{
+                                                cursor: isUploadingLogo ? 'not-allowed' : 'pointer',
+                                                fontSize: '9px',
+                                                color: isUploadingLogo ? '#10b981' : '#666',
+                                                textDecoration: 'underline',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}
+                                        >
+                                            {isUploadingLogo ? (
+                                                <>
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                    Uploading...
+                                                </>
+                                            ) : (
+                                                'Upload Logo'
+                                            )}
                                         </label>
                                         <input
                                             id="logo-upload"
@@ -1270,6 +1308,7 @@ export default function TechnoQuotationPage() {
                                             accept="image/*"
                                             onChange={handleLogoUpload}
                                             style={{ display: 'none' }}
+                                            disabled={isUploadingLogo}
                                         />
                                     </div>
                                 </div>
