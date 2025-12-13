@@ -50,6 +50,14 @@ const TechnoQuotationSchema = new mongoose.Schema({
         address: String,
         contact: String
     },
+    watermarkSettings: {
+        type: { type: String, enum: ['text', 'logo'], default: 'text' },
+        text: { type: String, default: 'CONFIDENTIAL' },
+        logoUrl: String,
+        size: { type: Number, default: 80 },
+        opacity: { type: Number, default: 0.15 },
+        colorMode: { type: String, enum: ['original', 'grayscale'], default: 'original' }
+    },
     title: {
         type: String,
         default: 'New Quotation'

@@ -224,6 +224,16 @@ export default function TechnoQuotationPage() {
                     setCompanyAddress2(q.companyDetails?.address2 || '');
                     setCompanyPhone(q.companyDetails?.phone || '');
                     setLogoUrl(q.companyDetails?.logo || '');
+
+                    if (q.watermarkSettings) {
+                        setWatermarkType(q.watermarkSettings.type || 'text');
+                        setWatermarkText(q.watermarkSettings.text || 'CONFIDENTIAL');
+                        setWatermarkLogoUrl(q.watermarkSettings.logoUrl || '');
+                        setWatermarkSize(q.watermarkSettings.size || 80);
+                        setWatermarkOpacity(q.watermarkSettings.opacity || 0.15);
+                        setWatermarkColorMode(q.watermarkSettings.colorMode || 'original');
+                    }
+
                     if (q.answers) setAnswers(q.answers);
                     if (q.pages && q.pages.length > 0) setPages(q.pages);
                 }
@@ -252,6 +262,14 @@ export default function TechnoQuotationPage() {
         logo: logoUrl
     }, 2000);
     const debouncedQuotationType = useDebounce(quotationType, 2000);
+    const debouncedWatermarkSettings = useDebounce({
+        type: watermarkType,
+        text: watermarkText,
+        logoUrl: watermarkLogoUrl,
+        size: watermarkSize,
+        opacity: watermarkOpacity,
+        colorMode: watermarkColorMode
+    }, 2000);
 
     // Track changes - set hasChanges to true when user modifies anything
     React.useEffect(() => {
@@ -259,7 +277,7 @@ export default function TechnoQuotationPage() {
             setHasChanges(true);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pages, mainTitle, companyName, companyAddress1, companyAddress2, companyPhone, logoUrl, quotationType, isLoading]);
+    }, [pages, mainTitle, companyName, companyAddress1, companyAddress2, companyPhone, logoUrl, quotationType, watermarkType, watermarkText, watermarkLogoUrl, watermarkSize, watermarkOpacity, watermarkColorMode, isLoading]);
 
     React.useEffect(() => {
         // Don't save if:
@@ -279,7 +297,8 @@ export default function TechnoQuotationPage() {
                         title: debouncedTitle,
                         pages: debouncedPages,
                         companyDetails: debouncedCompanyMap,
-                        quotationType: debouncedQuotationType
+                        quotationType: debouncedQuotationType,
+                        watermarkSettings: debouncedWatermarkSettings
                     })
                 });
                 setLastSaved(new Date());
@@ -293,28 +312,46 @@ export default function TechnoQuotationPage() {
 
         saveQuotation();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [debouncedPages, debouncedTitle, debouncedCompanyMap, debouncedQuotationType, params.id, isLoading]);
+    }, [debouncedPages, debouncedTitle, debouncedCompanyMap, debouncedQuotationType, debouncedWatermarkSettings, params.id, isLoading]);
+
+    const handleImageUpload = async (file: File, setUrl: (url: string) => void) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            setIsSaving(true); // Show saving indicator during upload
+            const response = await fetch('/api/upload-file', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setUrl(data.file.url);
+            } else {
+                console.error("Upload failed:", data.error);
+                alert(`Upload failed: ${data.error}`);
+            }
+        } catch (error) {
+            console.error("Error uploading image:", error);
+            alert("Error uploading image. Please try again.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setLogoUrl(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            handleImageUpload(file, setLogoUrl);
         }
     };
 
     const handleWatermarkLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setWatermarkLogoUrl(reader.result as string);
-                setWatermarkType('logo');
-            };
-            reader.readAsDataURL(file);
+            setWatermarkType('logo');
+            handleImageUpload(file, setWatermarkLogoUrl);
         }
     };
 
@@ -622,7 +659,7 @@ export default function TechnoQuotationPage() {
     };
 
     // Questionnaire for Automated Quotation
-    const questions = [
+    const questions: { id: string; question: string; placeholder: string; type: 'text' | 'textarea' }[] = [
         {
             id: 'company_name',
             question: 'What is your company name?',
