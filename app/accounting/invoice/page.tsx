@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,10 +13,84 @@ import { Plus, Trash2, ArrowLeft, Building2, Banknote, Printer } from "lucide-re
 import Link from "next/link"
 import { useReactToPrint } from 'react-to-print';
 
+// Helper function to convert numbers to words
+const convertNumberToWords = (num: number, currency?: string): string => {
+    const curr = currency || "INR";
+
+    // Currency names mapping
+    const currencyNames: { [key: string]: { major: string, minor: string } } = {
+        'INR': { major: 'Rupees', minor: 'Paise' },
+        'USD': { major: 'Dollars', minor: 'Cents' },
+        'EUR': { major: 'Euros', minor: 'Cents' },
+        'GBP': { major: 'Pounds', minor: 'Pence' },
+        'JPY': { major: 'Yen', minor: 'Sen' },
+        'CNY': { major: 'Yuan', minor: 'Fen' },
+        'AUD': { major: 'Australian Dollars', minor: 'Cents' },
+        'CAD': { major: 'Canadian Dollars', minor: 'Cents' },
+        'CHF': { major: 'Swiss Francs', minor: 'Centimes' },
+        'SGD': { major: 'Singapore Dollars', minor: 'Cents' },
+        'AED': { major: 'Dirhams', minor: 'Fils' },
+        'SAR': { major: 'Riyals', minor: 'Halalas' },
+        'QAR': { major: 'Qatari Riyals', minor: 'Dirhams' },
+        'KWD': { major: 'Kuwaiti Dinars', minor: 'Fils' },
+        'BHD': { major: 'Bahraini Dinars', minor: 'Fils' },
+        'OMR': { major: 'Omani Rials', minor: 'Baisa' },
+        'MYR': { major: 'Malaysian Ringgit', minor: 'Sen' },
+        'THB': { major: 'Thai Baht', minor: 'Satang' },
+        'IDR': { major: 'Indonesian Rupiah', minor: 'Sen' },
+        'PHP': { major: 'Philippine Pesos', minor: 'Centavos' },
+        'VND': { major: 'Vietnamese Dong', minor: 'Hao' },
+        'KRW': { major: 'South Korean Won', minor: 'Jeon' },
+        'HKD': { major: 'Hong Kong Dollars', minor: 'Cents' },
+        'NZD': { major: 'New Zealand Dollars', minor: 'Cents' },
+        'ZAR': { major: 'South African Rand', minor: 'Cents' },
+        'BRL': { major: 'Brazilian Reais', minor: 'Centavos' },
+        'MXN': { major: 'Mexican Pesos', minor: 'Centavos' },
+        'RUB': { major: 'Russian Rubles', minor: 'Kopecks' },
+        'TRY': { major: 'Turkish Lira', minor: 'Kurus' },
+    };
+
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const numToWords = (n: number): string => {
+        if (n === 0) return '';
+        if (n < 20) return ones[n];
+        if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+        if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' and ' + numToWords(n % 100) : '');
+        if (n < 100000) return numToWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + numToWords(n % 1000) : '');
+        if (n < 10000000) return numToWords(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + numToWords(n % 100000) : '');
+        return numToWords(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 ? ' ' + numToWords(n % 10000000) : '');
+    };
+
+    if (num === 0) {
+        const names = currencyNames[curr] || { major: curr, minor: 'Cents' };
+        return 'Zero ' + names.major + ' Only';
+    }
+
+    const absNum = Math.abs(num);
+    const wholePart = Math.floor(absNum);
+    const decimalPart = Math.round((absNum - wholePart) * 100);
+
+    const names = currencyNames[curr] || { major: curr, minor: 'Cents' };
+
+    let result = numToWords(wholePart);
+    console.log('Converting:', num, 'Whole:', wholePart, 'Words:', result, 'Currency:', curr, 'Names:', names);
+
+    if (!result) result = 'Zero';
+    result += ' ' + names.major;
+
+    if (decimalPart > 0) {
+        result += ' and ' + numToWords(decimalPart) + ' ' + names.minor;
+    }
+
+    return result + ' Only';
+};
+
+
 interface InvoiceItem {
     id: string
     description: string
-    hsnsac: string
     quantity: number
     rate: number
     discount: number
@@ -39,6 +113,11 @@ interface InvoiceData {
     showDeclaration: boolean
     showDiscount: boolean
     showTaxColumns: boolean
+    showDueDate: boolean
+    showDeliveryDetails: boolean
+    showDispatchDetails: boolean
+    showRoundOff: boolean
+    showHSNSAC: boolean
 
     // Company Info
     companyName: string
@@ -49,9 +128,7 @@ interface InvoiceData {
     companyEmail: string
     companyPhone: string
     companyGSTIN: string
-    companyPAN: string
     companyStateCode: string
-    companyLogo: string
 
     // Client Info (Bill To)
     clientName: string
@@ -62,7 +139,8 @@ interface InvoiceData {
     clientEmail: string
     clientPhone: string
     clientGSTIN: string
-    clientStateCode: string
+    paymentMode: string
+    poNumber: string
 
     // Ship To (Optional)
     shipToName: string
@@ -76,10 +154,21 @@ interface InvoiceData {
     invoiceNumber: string
     invoiceDate: string
     dueDate: string
-    poNumber: string
     poDate: string
     placeOfSupply: string
     reverseCharge: string
+    hsnsac: string
+
+    // Delivery & Dispatch Details
+    deliveryNote: string
+    deliveryNoteDate: string
+    referenceNo: string
+    referenceDate: string
+    otherReferences: string
+    dispatchDocNo: string
+    dispatchedThrough: string
+    destination: string
+    termsOfDelivery: string
 
     // Items
     items: InvoiceItem[]
@@ -121,6 +210,11 @@ const defaultInvoiceData: InvoiceData = {
     showDeclaration: false,
     showDiscount: true,
     showTaxColumns: true,
+    showDueDate: true,
+    showDeliveryDetails: false,
+    showDispatchDetails: false,
+    showRoundOff: true,
+    showHSNSAC: true,
     companyName: "",
     companyAddress: "",
     companyCity: "",
@@ -129,9 +223,7 @@ const defaultInvoiceData: InvoiceData = {
     companyEmail: "",
     companyPhone: "",
     companyGSTIN: "",
-    companyPAN: "",
     companyStateCode: "",
-    companyLogo: "",
 
     clientName: "",
     clientAddress: "",
@@ -141,7 +233,8 @@ const defaultInvoiceData: InvoiceData = {
     clientEmail: "",
     clientPhone: "",
     clientGSTIN: "",
-    clientStateCode: "",
+    paymentMode: "Online",
+    poNumber: "",
 
     shipToName: "",
     shipToAddress: "",
@@ -151,14 +244,24 @@ const defaultInvoiceData: InvoiceData = {
     sameAsBillTo: true,
 
     invoiceNumber: "INV-2025-0001",
-    invoiceDate: new Date().toISOString().split('T')[0],
-    dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    poNumber: "",
+    invoiceDate: "",
+    dueDate: "",
     poDate: "",
     placeOfSupply: "",
     reverseCharge: "No",
+    hsnsac: "",
 
-    items: [{ id: "1", description: "", hsnsac: "", quantity: 1, rate: 0, discount: 0, taxRate: 18, cgstPercent: 9, sgstPercent: 9, cgst: 0, sgst: 0, totalGst: 0 }],
+    deliveryNote: "",
+    deliveryNoteDate: "",
+    referenceNo: "",
+    referenceDate: "",
+    otherReferences: "",
+    dispatchDocNo: "",
+    dispatchedThrough: "",
+    destination: "",
+    termsOfDelivery: "",
+
+    items: [{ id: "1", description: "", quantity: 1, rate: 0, discount: 0, taxRate: 18, cgstPercent: 9, sgstPercent: 9, cgst: 0, sgst: 0, totalGst: 0 }],
 
     shippingCharges: 0,
     otherCharges: 0,
@@ -183,10 +286,23 @@ const defaultInvoiceData: InvoiceData = {
     currencySymbol: "₹",
 }
 
+
 export default function InvoicePage() {
     const [invoiceData, setInvoiceData] = useState<InvoiceData>(defaultInvoiceData)
     const [activeTab, setActiveTab] = useState("company")
     const printRef = useRef<HTMLDivElement>(null)
+
+    // Set dates on client side to avoid hydration errors
+    useEffect(() => {
+        const today = new Date().toISOString().split('T')[0];
+        const dueDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        setInvoiceData(prev => ({
+            ...prev,
+            invoiceDate: today,
+            dueDate: dueDate,
+        }));
+    }, []);
 
     const handlePrint = useReactToPrint({
         contentRef: printRef,
@@ -250,8 +366,8 @@ export default function InvoicePage() {
         })
 
         const finalTotal = totalAmount + invoiceData.shippingCharges + invoiceData.otherCharges
-        const roundedTotal = Math.round(finalTotal)
-        const roundOff = roundedTotal - finalTotal
+        const roundedTotal = invoiceData.showRoundOff ? Math.round(finalTotal) : finalTotal
+        const roundOff = invoiceData.showRoundOff ? (roundedTotal - finalTotal) : 0
 
         const hasDiscount = totalDiscount > 0
 
@@ -267,7 +383,7 @@ export default function InvoicePage() {
             grandTotal: roundedTotal,
             hasDiscount
         }
-    }, [invoiceData.items, invoiceData.taxType, invoiceData.shippingCharges, invoiceData.otherCharges])
+    }, [invoiceData.items, invoiceData.taxType, invoiceData.shippingCharges, invoiceData.otherCharges, invoiceData.showRoundOff])
 
 
     // --- Handlers ---
@@ -275,7 +391,6 @@ export default function InvoicePage() {
         const newItem: InvoiceItem = {
             id: Date.now().toString(),
             description: "",
-            hsnsac: "",
             quantity: 1,
             rate: 0,
             discount: 0,
@@ -318,20 +433,26 @@ export default function InvoicePage() {
                         updated.cgst = (taxableValue * updated.cgstPercent) / 100
                         updated.sgst = (taxableValue * updated.sgstPercent) / 100
                         updated.totalGst = updated.cgst + updated.sgst
+                    } else if (field === 'cgstPercent') {
+                        // When CGST % changes: calculate CGST amount, update Tax% (CGST% + SGST%)
+                        updated.cgst = (taxableValue * value) / 100
+                        updated.totalGst = updated.cgst + updated.sgst
+                        updated.taxRate = parseFloat((value + updated.sgstPercent).toFixed(2))
+                    } else if (field === 'sgstPercent') {
+                        // When SGST % changes: calculate SGST amount, update Tax% (CGST% + SGST%)
+                        updated.sgst = (taxableValue * value) / 100
+                        updated.totalGst = updated.cgst + updated.sgst
+                        updated.taxRate = parseFloat((updated.cgstPercent + value).toFixed(2))
                     } else if (field === 'cgst') {
-                        // When CGST amount changes: calculate CGST%, make SGST equal, update Tax%
+                        // When CGST amount changes: calculate CGST%, update Tax%
                         const cgstPercent = taxableValue > 0 ? (value / taxableValue) * 100 : 0
                         updated.cgstPercent = parseFloat(cgstPercent.toFixed(2))
-                        updated.sgstPercent = updated.cgstPercent
-                        updated.sgst = (taxableValue * updated.sgstPercent) / 100
                         updated.totalGst = value + updated.sgst
                         updated.taxRate = parseFloat((updated.cgstPercent + updated.sgstPercent).toFixed(2))
                     } else if (field === 'sgst') {
-                        // When SGST amount changes: calculate SGST%, make CGST equal, update Tax%
+                        // When SGST amount changes: calculate SGST%, update Tax%
                         const sgstPercent = taxableValue > 0 ? (value / taxableValue) * 100 : 0
                         updated.sgstPercent = parseFloat(sgstPercent.toFixed(2))
-                        updated.cgstPercent = updated.sgstPercent
-                        updated.cgst = (taxableValue * updated.cgstPercent) / 100
                         updated.totalGst = updated.cgst + value
                         updated.taxRate = parseFloat((updated.cgstPercent + updated.sgstPercent).toFixed(2))
                     } else if (field === 'totalGst') {
@@ -344,6 +465,11 @@ export default function InvoicePage() {
                             updated.sgstPercent = updated.cgstPercent
                             updated.taxRate = parseFloat(gstPercent.toFixed(2))
                         }
+                    } else if (field === 'quantity' || field === 'rate' || field === 'discount') {
+                        // When quantity, rate, or discount changes: recalculate all GST amounts based on percentages
+                        updated.cgst = (taxableValue * updated.cgstPercent) / 100
+                        updated.sgst = (taxableValue * updated.sgstPercent) / 100
+                        updated.totalGst = updated.cgst + updated.sgst
                     }
                 }
 
@@ -361,11 +487,6 @@ export default function InvoicePage() {
             }
             reader.readAsDataURL(file)
         }
-    }
-
-    // --- Components ---
-    const convertNumberToWords = (amount: number) => {
-        return `INR ${amount.toLocaleString('en-IN')} Only`
     }
 
     return (
@@ -416,12 +537,12 @@ export default function InvoicePage() {
                                             <Input value={invoiceData.companyName} onChange={e => setInvoiceData({ ...invoiceData, companyName: e.target.value })} placeholder="Your Business Name" />
                                         </div>
                                         <div>
-                                            <Label>Logo</Label>
-                                            <Input type="file" onChange={handleLogoUpload} className="text-xs" />
-                                        </div>
-                                        <div>
                                             <Label>Phone</Label>
                                             <Input value={invoiceData.companyPhone} onChange={e => setInvoiceData({ ...invoiceData, companyPhone: e.target.value })} placeholder="+91..." />
+                                        </div>
+                                        <div>
+                                            <Label>Email</Label>
+                                            <Input value={invoiceData.companyEmail} onChange={e => setInvoiceData({ ...invoiceData, companyEmail: e.target.value })} placeholder="company@example.com" />
                                         </div>
                                         <div className="col-span-2">
                                             <Label>Address</Label>
@@ -436,12 +557,12 @@ export default function InvoicePage() {
                                             <Input value={invoiceData.companyState} onChange={e => setInvoiceData({ ...invoiceData, companyState: e.target.value })} />
                                         </div>
                                         <div>
-                                            <Label>GSTIN</Label>
-                                            <Input value={invoiceData.companyGSTIN} onChange={e => setInvoiceData({ ...invoiceData, companyGSTIN: e.target.value })} placeholder="22AAAAA0000A1Z5" />
+                                            <Label>Pin Code</Label>
+                                            <Input value={invoiceData.companyPincode} onChange={e => setInvoiceData({ ...invoiceData, companyPincode: e.target.value })} placeholder="123456" />
                                         </div>
                                         <div>
-                                            <Label>PAN</Label>
-                                            <Input value={invoiceData.companyPAN} onChange={e => setInvoiceData({ ...invoiceData, companyPAN: e.target.value })} placeholder="ABCDE1234F" />
+                                            <Label>GSTIN</Label>
+                                            <Input value={invoiceData.companyGSTIN} onChange={e => setInvoiceData({ ...invoiceData, companyGSTIN: e.target.value })} placeholder="22AAAAA0000A1Z5" />
                                         </div>
                                     </div>
                                 </div>
@@ -485,6 +606,14 @@ export default function InvoicePage() {
                                             <Textarea value={invoiceData.clientAddress} onChange={e => setInvoiceData({ ...invoiceData, clientAddress: e.target.value })} placeholder="Client Address" rows={2} />
                                         </div>
                                         <div>
+                                            <Label>Phone</Label>
+                                            <Input value={invoiceData.clientPhone} onChange={e => setInvoiceData({ ...invoiceData, clientPhone: e.target.value })} placeholder="+91..." />
+                                        </div>
+                                        <div>
+                                            <Label>Email</Label>
+                                            <Input value={invoiceData.clientEmail} onChange={e => setInvoiceData({ ...invoiceData, clientEmail: e.target.value })} placeholder="client@example.com" />
+                                        </div>
+                                        <div>
                                             <Label>City</Label>
                                             <Input value={invoiceData.clientCity} onChange={e => setInvoiceData({ ...invoiceData, clientCity: e.target.value })} />
                                         </div>
@@ -493,12 +622,51 @@ export default function InvoicePage() {
                                             <Input value={invoiceData.clientState} onChange={e => setInvoiceData({ ...invoiceData, clientState: e.target.value })} />
                                         </div>
                                         <div>
-                                            <Label>GSTIN</Label>
-                                            <Input value={invoiceData.clientGSTIN} onChange={e => setInvoiceData({ ...invoiceData, clientGSTIN: e.target.value })} />
+                                            <Label>Pin Code</Label>
+                                            <Input value={invoiceData.clientPincode} onChange={e => setInvoiceData({ ...invoiceData, clientPincode: e.target.value })} placeholder="123456" />
                                         </div>
                                         <div>
-                                            <Label>State Code</Label>
-                                            <Input value={invoiceData.clientStateCode} onChange={e => setInvoiceData({ ...invoiceData, clientStateCode: e.target.value })} />
+                                            <Label>GSTIN (Optional)</Label>
+                                            <Input value={invoiceData.clientGSTIN} onChange={e => setInvoiceData({ ...invoiceData, clientGSTIN: e.target.value })} placeholder="Enter if GST registered" />
+                                        </div>
+                                        <div>
+                                            <Label>Buyer's Order No.</Label>
+                                            <Input value={invoiceData.poNumber} onChange={e => setInvoiceData({ ...invoiceData, poNumber: e.target.value })} placeholder="PO Number" />
+                                        </div>
+                                        <div>
+                                            <Label>Payment Mode</Label>
+                                            <Select value={invoiceData.paymentMode} onValueChange={(v) => setInvoiceData({ ...invoiceData, paymentMode: v })}>
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Online">Online</SelectItem>
+                                                    <SelectItem value="Offline">Offline</SelectItem>
+                                                    <SelectItem value="Card">Card</SelectItem>
+                                                    <SelectItem value="Bank Account">Bank Account</SelectItem>
+                                                    <SelectItem value="Cash">Cash</SelectItem>
+                                                    <SelectItem value="Cheque">Cheque</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        {invoiceData.showHSNSAC && (
+                                            <div>
+                                                <Label>HSN/SAC Code (6-8 digits)</Label>
+                                                <Input
+                                                    type="text"
+                                                    maxLength={8}
+                                                    value={invoiceData.hsnsac}
+                                                    onChange={e => {
+                                                        const val = e.target.value.replace(/\D/g, ''); // Only allow digits
+                                                        setInvoiceData({ ...invoiceData, hsnsac: val });
+                                                    }}
+                                                    placeholder="Ex: 85171300"
+                                                />
+                                            </div>
+                                        )}
+                                        <div>
+                                            <Label>Due Date</Label>
+                                            <Input type="date" value={invoiceData.dueDate} onChange={e => setInvoiceData({ ...invoiceData, dueDate: e.target.value })} />
                                         </div>
                                     </div>
                                 </div>
@@ -575,19 +743,15 @@ export default function InvoicePage() {
                                     {invoiceData.items.map((item, index) => (
                                         <div key={item.id} className="p-3 bg-muted/30 rounded border relative group">
                                             <div className="grid grid-cols-12 gap-2 mb-2">
-                                                <div className="col-span-12 md:col-span-5">
+                                                <div className="col-span-12 md:col-span-6">
                                                     <Label className="text-xs">Description</Label>
                                                     <Input className="h-8 text-sm" value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} placeholder="Item name" />
-                                                </div>
-                                                <div className="col-span-4 md:col-span-2">
-                                                    <Label className="text-xs">HSN/SAC</Label>
-                                                    <Input className="h-8 text-sm" value={item.hsnsac} onChange={e => updateItem(item.id, 'hsnsac', e.target.value)} />
                                                 </div>
                                                 <div className="col-span-4 md:col-span-2">
                                                     <Label className="text-xs">Qty</Label>
                                                     <Input className="h-8 text-sm" type="number" min="0" value={item.quantity} onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} />
                                                 </div>
-                                                <div className="col-span-4 md:col-span-3">
+                                                <div className="col-span-4 md:col-span-4">
                                                     <Label className="text-xs">Rate</Label>
                                                     <Input className="h-8 text-sm" type="number" min="0" value={item.rate} onChange={e => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)} />
                                                 </div>
@@ -598,44 +762,54 @@ export default function InvoicePage() {
                                                     <Input className="h-8 text-sm" type="number" min="0" value={item.discount} onChange={e => updateItem(item.id, 'discount', parseFloat(e.target.value) || 0)} />
                                                 </div>
                                                 <div className="col-span-6 md:col-span-3">
-                                                    <Label className="text-xs">Tax %</Label>
+                                                    <Label className="text-xs">Tax % (Total)</Label>
                                                     <Input className="h-8 text-sm" type="number" min="0" value={item.taxRate} onChange={e => updateItem(item.id, 'taxRate', parseFloat(e.target.value) || 0)} />
                                                 </div>
 
                                                 {/* GST Fields based on mode */}
                                                 {invoiceData.taxType === "GST" && invoiceData.gstDisplayMode === "simple" && (
                                                     <div className="col-span-6 md:col-span-3">
-                                                        <Label className="text-xs">Total GST</Label>
+                                                        <Label className="text-xs">Total GST (₹)</Label>
                                                         <Input className="h-8 text-sm" type="number" min="0" value={item.totalGst} onChange={e => updateItem(item.id, 'totalGst', parseFloat(e.target.value) || 0)} />
                                                     </div>
                                                 )}
 
                                                 {invoiceData.taxType === "GST" && (invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
                                                     <>
-                                                        <div className="col-span-6 md:col-span-3">
-                                                            <Label className="text-xs">CGST</Label>
+                                                        <div className="col-span-6 md:col-span-2">
+                                                            <Label className="text-xs">CGST %</Label>
+                                                            <Input className="h-8 text-sm" type="number" min="0" step="0.01" value={item.cgstPercent} onChange={e => updateItem(item.id, 'cgstPercent', parseFloat(e.target.value) || 0)} />
+                                                        </div>
+                                                        <div className="col-span-6 md:col-span-2">
+                                                            <Label className="text-xs">CGST (₹)</Label>
                                                             <Input className="h-8 text-sm" type="number" min="0" value={item.cgst} onChange={e => updateItem(item.id, 'cgst', parseFloat(e.target.value) || 0)} />
                                                         </div>
-                                                        <div className="col-span-6 md:col-span-3">
-                                                            <Label className="text-xs">SGST</Label>
+                                                        <div className="col-span-6 md:col-span-2">
+                                                            <Label className="text-xs">SGST %</Label>
+                                                            <Input className="h-8 text-sm" type="number" min="0" step="0.01" value={item.sgstPercent} onChange={e => updateItem(item.id, 'sgstPercent', parseFloat(e.target.value) || 0)} />
+                                                        </div>
+                                                        <div className="col-span-6 md:col-span-2">
+                                                            <Label className="text-xs">SGST (₹)</Label>
                                                             <Input className="h-8 text-sm" type="number" min="0" value={item.sgst} onChange={e => updateItem(item.id, 'sgst', parseFloat(e.target.value) || 0)} />
                                                         </div>
                                                     </>
                                                 )}
 
                                                 {invoiceData.taxType === "GST" && invoiceData.gstDisplayMode === "detailed" && (
-                                                    <div className="col-span-6 md:col-span-3">
-                                                        <Label className="text-xs">Total GST</Label>
+                                                    <div className="col-span-6 md:col-span-2">
+                                                        <Label className="text-xs">Total GST (₹)</Label>
                                                         <Input className="h-8 text-sm" type="number" min="0" value={item.totalGst} onChange={e => updateItem(item.id, 'totalGst', parseFloat(e.target.value) || 0)} />
                                                     </div>
                                                 )}
                                             </div>
 
-                                            {invoiceData.items.length > 1 && (
-                                                <Button size="icon" variant="ghost" className="absolute -top-2 -right-2 h-6 w-6 text-destructive hover:text-destructive/90 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeItem(item.id)}>
-                                                    <Trash2 className="w-3 h-3" />
-                                                </Button>
-                                            )}
+                                            {
+                                                invoiceData.items.length > 1 && (
+                                                    <Button size="icon" variant="ghost" className="absolute -top-2 -right-2 h-6 w-6 text-destructive hover:text-destructive/90 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeItem(item.id)}>
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </Button>
+                                                )
+                                            }
                                         </div>
                                     ))}
                                     <Button onClick={addItem} variant="outline" className="w-full border-dashed gap-2"><Plus className="w-4 h-4" /> Add Line Item</Button>
@@ -657,16 +831,84 @@ export default function InvoicePage() {
                                         <Input value={invoiceData.invoiceNumber} onChange={e => setInvoiceData({ ...invoiceData, invoiceNumber: e.target.value })} />
                                     </div>
                                     <div>
-                                        <Label>Date</Label>
+                                        <Label>Invoice Date</Label>
                                         <Input type="date" value={invoiceData.invoiceDate} onChange={e => setInvoiceData({ ...invoiceData, invoiceDate: e.target.value })} />
                                     </div>
                                     <div>
-                                        <Label>Due Date</Label>
-                                        <Input type="date" value={invoiceData.dueDate} onChange={e => setInvoiceData({ ...invoiceData, dueDate: e.target.value })} />
+                                        <Label>Currency</Label>
+                                        <Select value={invoiceData.currency} onValueChange={(v) => {
+                                            const currencyMap: { [key: string]: string } = {
+                                                'INR': '₹',
+                                                'USD': '$',
+                                                'EUR': '€',
+                                                'GBP': '£',
+                                                'JPY': '¥',
+                                                'CNY': '¥',
+                                                'AUD': 'A$',
+                                                'CAD': 'C$',
+                                                'CHF': 'CHF',
+                                                'SGD': 'S$',
+                                                'AED': 'د.إ',
+                                                'SAR': 'ر.س',
+                                                'QAR': 'ر.ق',
+                                                'KWD': 'د.ك',
+                                                'BHD': 'د.ب',
+                                                'OMR': 'ر.ع',
+                                                'MYR': 'RM',
+                                                'THB': '฿',
+                                                'IDR': 'Rp',
+                                                'PHP': '₱',
+                                                'VND': '₫',
+                                                'KRW': '₩',
+                                                'HKD': 'HK$',
+                                                'NZD': 'NZ$',
+                                                'ZAR': 'R',
+                                                'BRL': 'R$',
+                                                'MXN': 'Mex$',
+                                                'RUB': '₽',
+                                                'TRY': '₺',
+                                            };
+                                            setInvoiceData({ ...invoiceData, currency: v, currencySymbol: currencyMap[v] || v })
+                                        }}>
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="max-h-[300px] overflow-y-auto">
+                                                <SelectItem value="INR">INR (₹) - Indian Rupee</SelectItem>
+                                                <SelectItem value="USD">USD ($) - US Dollar</SelectItem>
+                                                <SelectItem value="EUR">EUR (€) - Euro</SelectItem>
+                                                <SelectItem value="GBP">GBP (£) - British Pound</SelectItem>
+                                                <SelectItem value="JPY">JPY (¥) - Japanese Yen</SelectItem>
+                                                <SelectItem value="CNY">CNY (¥) - Chinese Yuan</SelectItem>
+                                                <SelectItem value="AUD">AUD (A$) - Australian Dollar</SelectItem>
+                                                <SelectItem value="CAD">CAD (C$) - Canadian Dollar</SelectItem>
+                                                <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
+                                                <SelectItem value="SGD">SGD (S$) - Singapore Dollar</SelectItem>
+                                                <SelectItem value="AED">AED (د.إ) - UAE Dirham</SelectItem>
+                                                <SelectItem value="SAR">SAR (ر.س) - Saudi Riyal</SelectItem>
+                                                <SelectItem value="QAR">QAR (ر.ق) - Qatari Riyal</SelectItem>
+                                                <SelectItem value="KWD">KWD (د.ك) - Kuwaiti Dinar</SelectItem>
+                                                <SelectItem value="BHD">BHD (د.ب) - Bahraini Dinar</SelectItem>
+                                                <SelectItem value="OMR">OMR (ر.ع) - Omani Rial</SelectItem>
+                                                <SelectItem value="MYR">MYR (RM) - Malaysian Ringgit</SelectItem>
+                                                <SelectItem value="THB">THB (฿) - Thai Baht</SelectItem>
+                                                <SelectItem value="IDR">IDR (Rp) - Indonesian Rupiah</SelectItem>
+                                                <SelectItem value="PHP">PHP (₱) - Philippine Peso</SelectItem>
+                                                <SelectItem value="VND">VND (₫) - Vietnamese Dong</SelectItem>
+                                                <SelectItem value="KRW">KRW (₩) - South Korean Won</SelectItem>
+                                                <SelectItem value="HKD">HKD (HK$) - Hong Kong Dollar</SelectItem>
+                                                <SelectItem value="NZD">NZD (NZ$) - New Zealand Dollar</SelectItem>
+                                                <SelectItem value="ZAR">ZAR (R) - South African Rand</SelectItem>
+                                                <SelectItem value="BRL">BRL (R$) - Brazilian Real</SelectItem>
+                                                <SelectItem value="MXN">MXN (Mex$) - Mexican Peso</SelectItem>
+                                                <SelectItem value="RUB">RUB (₽) - Russian Ruble</SelectItem>
+                                                <SelectItem value="TRY">TRY (₺) - Turkish Lira</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div>
-                                        <Label>PO No.</Label>
-                                        <Input value={invoiceData.poNumber} onChange={e => setInvoiceData({ ...invoiceData, poNumber: e.target.value })} />
+                                        <Label>Currency Symbol</Label>
+                                        <Input value={invoiceData.currencySymbol} onChange={e => setInvoiceData({ ...invoiceData, currencySymbol: e.target.value })} placeholder="₹" readOnly className="bg-muted" />
                                     </div>
                                     <div className="col-span-2">
                                         <Label>Jurisdiction Text</Label>
@@ -675,9 +917,77 @@ export default function InvoicePage() {
                                 </div>
                             </Card>
 
+                            <Card className="p-4 border-l-4 border-l-yellow-500">
+                                <h3 className="font-semibold text-lg mb-4">Delivery Details</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <Label>Delivery Note</Label>
+                                        <Input value={invoiceData.deliveryNote} onChange={e => setInvoiceData({ ...invoiceData, deliveryNote: e.target.value })} placeholder="DN-001" />
+                                    </div>
+                                    <div>
+                                        <Label>Delivery Note Date</Label>
+                                        <Input type="date" value={invoiceData.deliveryNoteDate} onChange={e => setInvoiceData({ ...invoiceData, deliveryNoteDate: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <Label>Reference No.</Label>
+                                        <Input value={invoiceData.referenceNo} onChange={e => setInvoiceData({ ...invoiceData, referenceNo: e.target.value })} placeholder="REF-001" />
+                                    </div>
+                                    <div>
+                                        <Label>Reference Date</Label>
+                                        <Input type="date" value={invoiceData.referenceDate} onChange={e => setInvoiceData({ ...invoiceData, referenceDate: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <Label>Destination</Label>
+                                        <Input value={invoiceData.destination} onChange={e => setInvoiceData({ ...invoiceData, destination: e.target.value })} placeholder="City/Location" />
+                                    </div>
+                                    <div>
+                                        <Label>Terms of Delivery</Label>
+                                        <Input value={invoiceData.termsOfDelivery} onChange={e => setInvoiceData({ ...invoiceData, termsOfDelivery: e.target.value })} placeholder="Ex-works, FOB, etc." />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <Label>Other References</Label>
+                                        <Input value={invoiceData.otherReferences} onChange={e => setInvoiceData({ ...invoiceData, otherReferences: e.target.value })} placeholder="Additional references" />
+                                    </div>
+                                </div>
+                            </Card>
+
+                            <Card className="p-4 border-l-4 border-l-pink-500">
+                                <h3 className="font-semibold text-lg mb-4">Dispatch Details</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <Label>Dispatch Doc No.</Label>
+                                        <Input value={invoiceData.dispatchDocNo} onChange={e => setInvoiceData({ ...invoiceData, dispatchDocNo: e.target.value })} placeholder="DISP-001" />
+                                    </div>
+                                    <div>
+                                        <Label>Dispatched Through</Label>
+                                        <Input value={invoiceData.dispatchedThrough} onChange={e => setInvoiceData({ ...invoiceData, dispatchedThrough: e.target.value })} placeholder="Courier/Transport name" />
+                                    </div>
+                                </div>
+                            </Card>
+
                             <Card className="p-4 border-l-4 border-l-indigo-500">
                                 <h3 className="font-semibold text-lg mb-4">Customize Invoice Sections</h3>
                                 <div className="space-y-3">
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showHSNSAC" checked={invoiceData.showHSNSAC} onChange={e => setInvoiceData({ ...invoiceData, showHSNSAC: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showHSNSAC" className="font-normal cursor-pointer">Show HSN/SAC Code</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showRoundOff" checked={invoiceData.showRoundOff} onChange={e => setInvoiceData({ ...invoiceData, showRoundOff: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showRoundOff" className="font-normal cursor-pointer">Show Round Off</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showDeliveryDetails" checked={invoiceData.showDeliveryDetails} onChange={e => setInvoiceData({ ...invoiceData, showDeliveryDetails: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showDeliveryDetails" className="font-normal cursor-pointer">Show Delivery Details</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showDispatchDetails" checked={invoiceData.showDispatchDetails} onChange={e => setInvoiceData({ ...invoiceData, showDispatchDetails: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showDispatchDetails" className="font-normal cursor-pointer">Show Dispatch Details</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showDueDate" checked={invoiceData.showDueDate} onChange={e => setInvoiceData({ ...invoiceData, showDueDate: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showDueDate" className="font-normal cursor-pointer">Show Due Date</Label>
+                                    </div>
                                     <div className="flex items-center space-x-2">
                                         <input type="checkbox" id="showBank" checked={invoiceData.showBankDetails} onChange={e => setInvoiceData({ ...invoiceData, showBankDetails: e.target.checked })} className="rounded" />
                                         <Label htmlFor="showBank" className="font-normal cursor-pointer">Show Bank Details</Label>
@@ -697,6 +1007,10 @@ export default function InvoicePage() {
                                     <div className="flex items-center space-x-2">
                                         <input type="checkbox" id="showTaxColumns" checked={invoiceData.showTaxColumns} onChange={e => setInvoiceData({ ...invoiceData, showTaxColumns: e.target.checked })} className="rounded" />
                                         <Label htmlFor="showTaxColumns" className="font-normal cursor-pointer">Show Tax Columns (CGST/SGST/IGST)</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="showDeclaration" checked={invoiceData.showDeclaration} onChange={e => setInvoiceData({ ...invoiceData, showDeclaration: e.target.checked })} className="rounded" />
+                                        <Label htmlFor="showDeclaration" className="font-normal cursor-pointer">Show Declaration</Label>
                                     </div>
                                 </div>
                             </Card>
@@ -722,15 +1036,16 @@ export default function InvoicePage() {
                                 @page { 
                                     size: A4; 
                                     margin: 15mm 15mm 20mm 15mm;
-                                    @bottom-right {
-                                        content: "Page " counter(page) " of " counter(pages);
-                                        font-size: 9px;
-                                        color: #94a3b8;
-                                    }
                                 }
                                 body { 
                                     -webkit-print-color-adjust: exact;
                                     print-color-adjust: exact; 
+                                }
+                                
+                                /* Hide browser default headers and footers */
+                                @media print {
+                                    @page { margin: 0; }
+                                    body { margin: 1.6cm; }
                                 }
                                 
                                 /* Page break controls */
@@ -799,14 +1114,25 @@ export default function InvoicePage() {
                                 {/* Seller Details (Left) */}
                                 <div className="p-3 border-r border-slate-300">
                                     <div className="font-bold text-base mb-1">{invoiceData.companyName || "Seller Name"}</div>
-                                    <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.companyAddress}</div>
+                                    <div className="whitespace-pre-line text-slate-600 mb-2">
+                                        {invoiceData.companyAddress && <div>{invoiceData.companyAddress}</div>}
+                                        {(invoiceData.companyCity || invoiceData.companyState || invoiceData.companyPincode) && (
+                                            <div>
+                                                {invoiceData.companyCity && `${invoiceData.companyCity}`}
+                                                {invoiceData.companyState && `, ${invoiceData.companyState}`}
+                                                {invoiceData.companyPincode && ` - ${invoiceData.companyPincode}`}
+                                            </div>
+                                        )}
+                                    </div>
                                     <div className="grid grid-cols-[60px_1fr] gap-y-0.5">
+                                        <span className="font-semibold text-slate-500">Phone:</span>
+                                        <span>{invoiceData.companyPhone}</span>
+                                        <span className="font-semibold text-slate-500">Email:</span>
+                                        <span>{invoiceData.companyEmail}</span>
                                         <span className="font-semibold text-slate-500">GSTIN:</span>
                                         <span>{invoiceData.companyGSTIN}</span>
                                         <span className="font-semibold text-slate-500">State:</span>
                                         <span>{invoiceData.companyState}</span>
-                                        <span className="font-semibold text-slate-500">Email:</span>
-                                        <span>{invoiceData.companyEmail}</span>
                                     </div>
                                 </div>
 
@@ -822,16 +1148,18 @@ export default function InvoicePage() {
                                             <div className="font-bold">{new Date(invoiceData.invoiceDate).toLocaleDateString('en-IN')}</div>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-1 border-b border-slate-300">
+                                    <div className={`grid grid-cols-1 ${!invoiceData.showDueDate ? '' : 'border-b border-slate-300'}`}>
                                         <div className="p-2">
-                                            <div className="text-[10px] text-slate-500 font-semibold uppercase">Buyer's Order No.</div>
-                                            <div className="font-bold">{invoiceData.poNumber}</div>
+                                            <div className="text-[10px] text-slate-500 font-semibold uppercase">Payment Mode</div>
+                                            <div className="font-bold">{invoiceData.paymentMode}</div>
                                         </div>
                                     </div>
-                                    <div className="p-2">
-                                        <div className="text-[10px] text-slate-500 font-semibold uppercase">Mode/Terms of Payment</div>
-                                        <div className="">{invoiceData.dueDate ? `Due by ${new Date(invoiceData.dueDate).toLocaleDateString('en-IN')}` : 'Immediate'}</div>
-                                    </div>
+                                    {invoiceData.showDueDate && (
+                                        <div className="p-2">
+                                            <div className="text-[10px] text-slate-500 font-semibold uppercase">Due Date</div>
+                                            <div className="font-bold">{new Date(invoiceData.dueDate).toLocaleDateString('en-IN')}</div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -840,10 +1168,33 @@ export default function InvoicePage() {
                                 <div className="p-3 border-r border-slate-300">
                                     <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Bill To (Buyer)</div>
                                     <div className="font-bold text-sm mb-1">{invoiceData.clientName || "Buyer Name"}</div>
-                                    <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.clientAddress}</div>
+                                    <div className="whitespace-pre-line text-slate-600 mb-2">
+                                        {invoiceData.clientAddress && <div>{invoiceData.clientAddress}</div>}
+                                        {(invoiceData.clientCity || invoiceData.clientState || invoiceData.clientPincode) && (
+                                            <div>
+                                                {invoiceData.clientCity && `${invoiceData.clientCity}`}
+                                                {invoiceData.clientState && `, ${invoiceData.clientState}`}
+                                                {invoiceData.clientPincode && ` - ${invoiceData.clientPincode}`}
+                                            </div>
+                                        )}
+                                    </div>
                                     <div className="grid grid-cols-[50px_1fr] gap-y-0.5">
-                                        <span className="font-semibold text-slate-500">GSTIN:</span>
-                                        <span>{invoiceData.clientGSTIN}</span>
+                                        <span className="font-semibold text-slate-500">Phone:</span>
+                                        <span>{invoiceData.clientPhone}</span>
+                                        <span className="font-semibold text-slate-500">Email:</span>
+                                        <span>{invoiceData.clientEmail}</span>
+                                        {invoiceData.clientGSTIN && (
+                                            <>
+                                                <span className="font-semibold text-slate-500">GSTIN:</span>
+                                                <span>{invoiceData.clientGSTIN}</span>
+                                            </>
+                                        )}
+                                        {invoiceData.poNumber && (
+                                            <>
+                                                <span className="font-semibold text-slate-500">PO No.:</span>
+                                                <span>{invoiceData.poNumber}</span>
+                                            </>
+                                        )}
                                         <span className="font-semibold text-slate-500">State:</span>
                                         <span>{invoiceData.clientState}</span>
                                     </div>
@@ -851,13 +1202,111 @@ export default function InvoicePage() {
                                 <div className="p-3">
                                     <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Ship To (Consignee)</div>
                                     <div className="font-bold text-sm mb-1">{invoiceData.sameAsBillTo ? (invoiceData.clientName || "Buyer Name") : (invoiceData.shipToName || "Consignee Name")}</div>
-                                    <div className="whitespace-pre-line text-slate-600 mb-2">{invoiceData.sameAsBillTo ? invoiceData.clientAddress : invoiceData.shipToAddress}</div>
+                                    <div className="whitespace-pre-line text-slate-600 mb-2">
+                                        {invoiceData.sameAsBillTo ? (
+                                            <>
+                                                {invoiceData.clientAddress && <div>{invoiceData.clientAddress}</div>}
+                                                {(invoiceData.clientCity || invoiceData.clientState || invoiceData.clientPincode) && (
+                                                    <div>
+                                                        {invoiceData.clientCity && `${invoiceData.clientCity}`}
+                                                        {invoiceData.clientState && `, ${invoiceData.clientState}`}
+                                                        {invoiceData.clientPincode && ` - ${invoiceData.clientPincode}`}
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <>
+                                                {invoiceData.shipToAddress && <div>{invoiceData.shipToAddress}</div>}
+                                                {(invoiceData.shipToCity || invoiceData.shipToState || invoiceData.shipToPincode) && (
+                                                    <div>
+                                                        {invoiceData.shipToCity && `${invoiceData.shipToCity}`}
+                                                        {invoiceData.shipToState && `, ${invoiceData.shipToState}`}
+                                                        {invoiceData.shipToPincode && ` - ${invoiceData.shipToPincode}`}
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
                                     <div className="grid grid-cols-[50px_1fr] gap-y-0.5">
                                         <span className="font-semibold text-slate-500">State:</span>
                                         <span>{invoiceData.sameAsBillTo ? invoiceData.clientState : invoiceData.shipToState}</span>
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Delivery & Dispatch Details Section */}
+                            {(invoiceData.showDeliveryDetails || invoiceData.showDispatchDetails) && (
+                                <div className="delivery-dispatch-section grid grid-cols-2 border-x border-b border-slate-300">
+                                    {invoiceData.showDeliveryDetails && (
+                                        <div className={`p-3 ${invoiceData.showDispatchDetails ? 'border-r border-slate-300' : ''}`}>
+                                            <div className="text-[10px] text-slate-500 font-semibold uppercase mb-2">Delivery Details</div>
+                                            <div className="grid grid-cols-[100px_1fr] gap-y-0.5 text-xs">
+                                                {invoiceData.deliveryNote && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Delivery Note:</span>
+                                                        <span>{invoiceData.deliveryNote}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.deliveryNoteDate && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Del. Note Date:</span>
+                                                        <span>{new Date(invoiceData.deliveryNoteDate).toLocaleDateString('en-IN')}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.referenceNo && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Reference No.:</span>
+                                                        <span>{invoiceData.referenceNo}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.referenceDate && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Ref. Date:</span>
+                                                        <span>{new Date(invoiceData.referenceDate).toLocaleDateString('en-IN')}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.destination && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Destination:</span>
+                                                        <span>{invoiceData.destination}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.termsOfDelivery && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Terms of Delivery:</span>
+                                                        <span>{invoiceData.termsOfDelivery}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.otherReferences && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Other Ref.:</span>
+                                                        <span>{invoiceData.otherReferences}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {invoiceData.showDispatchDetails && (
+                                        <div className="p-3">
+                                            <div className="text-[10px] text-slate-500 font-semibold uppercase mb-2">Dispatch Details</div>
+                                            <div className="grid grid-cols-[120px_1fr] gap-y-0.5 text-xs">
+                                                {invoiceData.dispatchDocNo && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Dispatch Doc No.:</span>
+                                                        <span>{invoiceData.dispatchDocNo}</span>
+                                                    </>
+                                                )}
+                                                {invoiceData.dispatchedThrough && (
+                                                    <>
+                                                        <span className="font-semibold text-slate-500">Dispatched Through:</span>
+                                                        <span>{invoiceData.dispatchedThrough}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             {/* Item Table */}
                             <table className="invoice-table mt-4 w-full border-collapse border border-slate-300 text-xs">
                                 <thead className="table-header">
@@ -881,25 +1330,25 @@ export default function InvoicePage() {
                                                     <>
                                                         {/* Simple Mode: Only GST */}
                                                         {invoiceData.gstDisplayMode === "simple" && (
-                                                            <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">GST</th>
+                                                            <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">GST<br />(₹)</th>
                                                         )}
 
-                                                        {/* Split Mode: CGST + SGST */}
+                                                        {/* Split Mode: CGST % and SGST % only */}
                                                         {(invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
                                                             <>
-                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">CGST</th>
-                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">SGST</th>
+                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[50px]">CGST<br />%</th>
+                                                                <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[50px]">SGST<br />%</th>
                                                             </>
                                                         )}
 
                                                         {/* Detailed Mode: Also show GST Total */}
                                                         {invoiceData.gstDisplayMode === "detailed" && (
-                                                            <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">GST<br />Total</th>
+                                                            <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">GST<br />Total (₹)</th>
                                                         )}
                                                     </>
                                                 )}
                                                 {invoiceData.taxType === "IGST" && (
-                                                    <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">IGST</th>
+                                                    <th className="p-2 border-r border-b border-slate-300 text-center font-bold w-[60px]">IGST<br />(₹)</th>
                                                 )}
                                             </>
                                         )}
@@ -911,7 +1360,7 @@ export default function InvoicePage() {
                                         <tr key={item.id} className="table-row border-b border-slate-200">
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{index + 1}</td>
                                             <td className="p-2 border-r border-slate-300 text-left font-medium align-top break-words" style={{ wordWrap: 'break-word', whiteSpace: 'normal', maxWidth: '200px' }}>{item.description}</td>
-                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.hsnsac}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center align-top">{invoiceData.hsnsac || "-"}</td>
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{item.quantity}</td>
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{item.rate.toFixed(2)}</td>
                                             {(invoiceData.showDiscount && calculations.hasDiscount) && (
@@ -931,11 +1380,11 @@ export default function InvoicePage() {
                                                                 <td className="p-2 border-r border-slate-300 text-center align-top">{item.totalGst.toFixed(2)}</td>
                                                             )}
 
-                                                            {/* Split Mode: CGST + SGST */}
+                                                            {/* Split Mode: CGST % and SGST % only */}
                                                             {(invoiceData.gstDisplayMode === "split" || invoiceData.gstDisplayMode === "detailed") && (
                                                                 <>
-                                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.cgst.toFixed(2)}</td>
-                                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.sgst.toFixed(2)}</td>
+                                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.cgstPercent}%</td>
+                                                                    <td className="p-2 border-r border-slate-300 text-center align-top">{item.sgstPercent}%</td>
                                                                 </>
                                                             )}
 
@@ -1009,16 +1458,11 @@ export default function InvoicePage() {
                                             <span>{calculations.totalTaxable.toFixed(2)}</span>
                                         </div>
 
-                                        {calculations.totalCGST > 0 && (
+
+                                        {(calculations.totalCGST > 0 || calculations.totalSGST > 0) && (
                                             <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
-                                                <span>CGST</span>
-                                                <span>{calculations.totalCGST.toFixed(2)}</span>
-                                            </div>
-                                        )}
-                                        {calculations.totalSGST > 0 && (
-                                            <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
-                                                <span>SGST</span>
-                                                <span>{calculations.totalSGST.toFixed(2)}</span>
+                                                <span>GST</span>
+                                                <span>{(calculations.totalCGST + calculations.totalSGST).toFixed(2)}</span>
                                             </div>
                                         )}
                                         {calculations.totalIGST > 0 && (
@@ -1028,10 +1472,12 @@ export default function InvoicePage() {
                                             </div>
                                         )}
 
-                                        <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
-                                            <span>Round Off</span>
-                                            <span>{calculations.roundOff.toFixed(2)}</span>
-                                        </div>
+                                        {invoiceData.showRoundOff && calculations.roundOff !== 0 && (
+                                            <div className="flex justify-between p-2 border-b border-slate-200 text-slate-600">
+                                                <span>Round Off</span>
+                                                <span>{calculations.roundOff.toFixed(2)}</span>
+                                            </div>
+                                        )}
 
                                         <div className="flex justify-between p-2 bg-slate-100 font-bold text-base">
                                             <span>Grand Total</span>
@@ -1042,22 +1488,109 @@ export default function InvoicePage() {
 
                                 {/* Amount in Words */}
                                 <div className="border-t border-slate-300 p-2 text-sm italic border-b">
-                                    <span className="font-semibold not-italic">Amount in Words:</span> {convertNumberToWords(calculations.grandTotal)}
+                                    <span className="font-semibold not-italic">Amount in Words:</span> {convertNumberToWords(calculations.grandTotal, invoiceData.currency)}
                                 </div>
 
-                                {/* Tax Summary Table (Simplified) */}
+                                {/* Tax Summary Table */}
                                 {invoiceData.taxType !== "None" && (
-                                    <div className="grid grid-cols-[100px_1fr_1fr_1fr] border-b border-slate-300 text-center text-[10px]">
-                                        <div className="p-1 font-bold border-r border-slate-300">HSN/SAC</div>
-                                        <div className="p-1 font-bold border-r border-slate-300">Taxable Value</div>
-                                        <div className="p-1 font-bold border-r border-slate-300">{invoiceData.taxType === "IGST" ? "IGST" : "CGST + SGST"}</div>
-                                        <div className="p-1 font-bold">Total Tax</div>
+                                    <div className="border-t border-slate-300 mt-2">
+                                        <div className="text-xs font-semibold p-2 italic">
+                                            <span className="not-italic">Amount Chargeable (in words)</span> E. & O.E
+                                        </div>
+                                        <div className="p-2 pt-0 text-xs font-semibold italic">
+                                            {convertNumberToWords(calculations.grandTotal, invoiceData.currency)}
+                                        </div>
 
-                                        {/* Row */}
-                                        <div className="p-1 border-r border-slate-300 border-t">-</div>
-                                        <div className="p-1 border-r border-slate-300 border-t">{calculations.totalTaxable.toFixed(2)}</div>
-                                        <div className="p-1 border-r border-slate-300 border-t">{(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST).toFixed(2)}</div>
-                                        <div className="p-1 border-t">{(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST).toFixed(2)}</div>
+                                        {/* HSN/SAC wise tax table */}
+                                        <table className="w-full border-collapse border border-slate-300 text-xs mt-2">
+                                            <thead>
+                                                <tr className="bg-slate-100">
+                                                    <th className="border border-slate-300 p-1.5 text-left">HSN/SAC</th>
+                                                    <th className="border border-slate-300 p-1.5 text-right">Taxable<br />Value</th>
+                                                    {invoiceData.taxType === "GST" && (
+                                                        <>
+                                                            <th className="border border-slate-300 p-1.5 text-center" colSpan={2}>CGST</th>
+                                                            <th className="border border-slate-300 p-1.5 text-center" colSpan={2}>SGST/UTGST</th>
+                                                        </>
+                                                    )}
+                                                    {invoiceData.taxType === "IGST" && (
+                                                        <th className="border border-slate-300 p-1.5 text-center" colSpan={2}>IGST</th>
+                                                    )}
+                                                    <th className="border border-slate-300 p-1.5 text-right">Total<br />Tax Amount</th>
+                                                </tr>
+                                                {invoiceData.taxType === "GST" && (
+                                                    <tr className="bg-slate-50">
+                                                        <th className="border border-slate-300 p-1"></th>
+                                                        <th className="border border-slate-300 p-1"></th>
+                                                        <th className="border border-slate-300 p-1 text-center">Rate</th>
+                                                        <th className="border border-slate-300 p-1 text-right">Amount</th>
+                                                        <th className="border border-slate-300 p-1 text-center">Rate</th>
+                                                        <th className="border border-slate-300 p-1 text-right">Amount</th>
+                                                        <th className="border border-slate-300 p-1"></th>
+                                                    </tr>
+                                                )}
+                                                {invoiceData.taxType === "IGST" && (
+                                                    <tr className="bg-slate-50">
+                                                        <th className="border border-slate-300 p-1"></th>
+                                                        <th className="border border-slate-300 p-1"></th>
+                                                        <th className="border border-slate-300 p-1 text-center">Rate</th>
+                                                        <th className="border border-slate-300 p-1 text-right">Amount</th>
+                                                        <th className="border border-slate-300 p-1"></th>
+                                                    </tr>
+                                                )}
+                                            </thead>
+                                            <tbody>
+                                                {/* Single row with global HSN/SAC */}
+                                                <tr>
+                                                    <td className="border border-slate-300 p-1.5">{invoiceData.hsnsac || "Not Specified"}</td>
+                                                    <td className="border border-slate-300 p-1.5 text-right">{calculations.totalTaxable.toFixed(2)}</td>
+                                                    {invoiceData.taxType === "GST" && (
+                                                        <>
+                                                            <td className="border border-slate-300 p-1.5 text-center">{invoiceData.items[0]?.cgstPercent || 9}%</td>
+                                                            <td className="border border-slate-300 p-1.5 text-right">{calculations.totalCGST.toFixed(2)}</td>
+                                                            <td className="border border-slate-300 p-1.5 text-center">{invoiceData.items[0]?.sgstPercent || 9}%</td>
+                                                            <td className="border border-slate-300 p-1.5 text-right">{calculations.totalSGST.toFixed(2)}</td>
+                                                        </>
+                                                    )}
+                                                    {invoiceData.taxType === "IGST" && (
+                                                        <>
+                                                            <td className="border border-slate-300 p-1.5 text-center">{invoiceData.items[0]?.taxRate || 18}%</td>
+                                                            <td className="border border-slate-300 p-1.5 text-right">{calculations.totalIGST.toFixed(2)}</td>
+                                                        </>
+                                                    )}
+                                                    <td className="border border-slate-300 p-1.5 text-right">
+                                                        {(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST).toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                                {/* Total Row */}
+                                                <tr className="font-bold bg-slate-100">
+                                                    <td className="border border-slate-300 p-1.5">Total</td>
+                                                    <td className="border border-slate-300 p-1.5 text-right">{calculations.totalTaxable.toFixed(2)}</td>
+                                                    {invoiceData.taxType === "GST" && (
+                                                        <>
+                                                            <td className="border border-slate-300 p-1.5"></td>
+                                                            <td className="border border-slate-300 p-1.5 text-right">{calculations.totalCGST.toFixed(2)}</td>
+                                                            <td className="border border-slate-300 p-1.5"></td>
+                                                            <td className="border border-slate-300 p-1.5 text-right">{calculations.totalSGST.toFixed(2)}</td>
+                                                        </>
+                                                    )}
+                                                    {invoiceData.taxType === "IGST" && (
+                                                        <>
+                                                            <td className="border border-slate-300 p-1.5"></td>
+                                                            <td className="border border-slate-300 p-1.5 text-right">{calculations.totalIGST.toFixed(2)}</td>
+                                                        </>
+                                                    )}
+                                                    <td className="border border-slate-300 p-1.5 text-right">
+                                                        {(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST).toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+
+                                        {/* Tax Amount in Words */}
+                                        <div className="p-2 text-xs italic">
+                                            <span className="font-semibold not-italic">Tax Amount (in words):</span> {convertNumberToWords(calculations.totalCGST + calculations.totalSGST + calculations.totalIGST, invoiceData.currency)}
+                                        </div>
                                     </div>
                                 )}
 
@@ -1085,7 +1618,7 @@ export default function InvoicePage() {
                                 </div>
                                 <div className="flex flex-col justify-between items-end text-center">
                                     <div className="text-xs mb-10">
-                                        For <span className="font-bold">{invoiceData.companyName}</span>
+                                        {/* For <span className="font-bold">{invoiceData.companyName}</span> */}
                                     </div>
                                     <div className="text-[10px] border-t border-slate-400 px-4 pt-1">
                                         {invoiceData.authorizedSignatory || "Authorized Signatory"}
