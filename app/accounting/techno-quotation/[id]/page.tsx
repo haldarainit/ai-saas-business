@@ -5,13 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { Printer, ArrowLeft, Plus, Trash2, PlusCircle, X, Sparkles, FileEdit, Zap, Cloud, CloudOff, Check } from "lucide-react";
+import { Printer, ArrowLeft, Plus, Trash2, PlusCircle, X, Sparkles, FileEdit, Zap, CloudOff, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import AutomatedQuotationQuestionnaire from "@/components/AutomatedQuotationQuestionnaire";
 import { useParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
-import { Loader2 } from "lucide-react";
 
 // Types for dynamic structures
 interface Column {
@@ -1014,29 +1013,24 @@ export default function TechnoQuotationPage() {
                                 </Button>
                             </Link>
 
-                            {/* Auto-save Indicator */}
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background border shadow-sm">
-                                    {isSaving ? (
-                                        <>
-                                            <Cloud className="w-4 h-4 text-blue-500 animate-pulse" />
-                                            <span className="text-sm text-muted-foreground">Saving...</span>
-                                        </>
-                                    ) : lastSaved ? (
-                                        <>
-                                            <div className="relative">
-                                                <Cloud className="w-4 h-4 text-emerald-500" />
-                                                <Check className="w-2.5 h-2.5 text-white absolute top-0.5 left-0.5" />
-                                            </div>
-                                            <span className="text-sm text-emerald-600 font-medium">Saved</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CloudOff className="w-4 h-4 text-gray-400" />
-                                            <span className="text-sm text-muted-foreground">Not saved</span>
-                                        </>
-                                    )}
-                                </div>
+                            {/* Auto-save Indicator - Compact & Modern */}
+                            <div className="flex items-center gap-2">
+                                {isSaving ? (
+                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800">
+                                        <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />
+                                        <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Saving...</span>
+                                    </div>
+                                ) : lastSaved ? (
+                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800">
+                                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Saved</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                                        <CloudOff className="w-3.5 h-3.5 text-gray-400" />
+                                        <span className="text-xs font-medium text-gray-500">Unsaved</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

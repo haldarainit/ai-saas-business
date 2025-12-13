@@ -238,24 +238,60 @@ export default function TechnoQuotationDashboard() {
                                 <p className="text-muted-foreground">No quotations found. Create your first one!</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
                                 {quotations.map((q) => (
                                     <Link key={q._id} href={`/accounting/techno-quotation/${q._id}`}>
-                                        <Card className="h-full p-6 hover:shadow-md transition-shadow cursor-pointer flex flex-col">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className={`p-2 rounded-md ${q.quotationType === 'automated' ? 'bg-teal-100 text-teal-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                                    {q.quotationType === 'automated' ? <Sparkles className="w-4 h-4" /> : <FileEdit className="w-4 h-4" />}
+                                        <Card className="group h-full hover:shadow-lg hover:border-emerald-400/50 transition-all duration-200 cursor-pointer overflow-hidden">
+                                            {/* Preview Thumbnail - Real Document Preview */}
+                                            <div className="relative h-32 bg-white dark:bg-gray-900 border-b overflow-hidden">
+                                                {/* Mini Document */}
+                                                <div className="absolute inset-1 bg-gray-50 dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 p-2 text-[6px] leading-tight overflow-hidden">
+                                                    {/* Header */}
+                                                    <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-gray-200 dark:border-gray-600">
+                                                        {q.companyDetails?.logo ? (
+                                                            <img src={q.companyDetails.logo} alt="" className="w-4 h-4 object-contain rounded" />
+                                                        ) : (
+                                                            <div className="w-4 h-4 rounded bg-emerald-400 dark:bg-emerald-600" />
+                                                        )}
+                                                        <div className="flex-1 truncate font-bold text-gray-700 dark:text-gray-300">
+                                                            {q.companyDetails?.name || 'Company'}
+                                                        </div>
+                                                    </div>
+                                                    {/* Title */}
+                                                    <div className="text-center font-bold text-emerald-600 dark:text-emerald-400 mb-1.5 truncate text-[7px]">
+                                                        {q.title}
+                                                    </div>
+                                                    {/* Content Preview - Show first sections */}
+                                                    <div className="space-y-0.5 text-gray-500 dark:text-gray-400">
+                                                        {q.pages?.[0]?.sections?.slice(0, 3).map((section: any, idx: number) => (
+                                                            <div key={idx} className="truncate">
+                                                                {section.heading && <span className="font-medium">{section.heading}</span>}
+                                                                {section.content && <span className="text-gray-400">: {section.content}</span>}
+                                                            </div>
+                                                        )) || (
+                                                                <>
+                                                                    <div className="h-1.5 w-full rounded bg-gray-200 dark:bg-gray-700" />
+                                                                    <div className="h-1.5 w-4/5 rounded bg-gray-200 dark:bg-gray-700" />
+                                                                    <div className="h-1.5 w-3/5 rounded bg-gray-200 dark:bg-gray-700" />
+                                                                </>
+                                                            )}
+                                                    </div>
                                                 </div>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {new Date(q.updatedAt).toLocaleDateString()}
-                                                </span>
+                                                {/* Type Badge */}
+                                                <div className={`absolute top-2 right-2 p-1.5 rounded-md shadow-sm ${q.quotationType === 'automated' ? 'bg-teal-500' : 'bg-emerald-500'}`}>
+                                                    {q.quotationType === 'automated' ? <Sparkles className="w-3 h-3 text-white" /> : <FileEdit className="w-3 h-3 text-white" />}
+                                                </div>
                                             </div>
-                                            <h3 className="font-bold mb-2 line-clamp-1">{q.title}</h3>
-                                            <p className="text-sm text-muted-foreground mb-4 flex-grow">
-                                                {q.status === 'draft' ? 'Draft' : 'Finalized'}
-                                            </p>
-                                            <div className="text-xs text-muted-foreground mt-auto pt-4 border-t">
-                                                ID: {q._id.slice(-6)}
+
+                                            {/* Card Content */}
+                                            <div className="p-4">
+                                                <h3 className="font-semibold text-sm mb-1.5 line-clamp-1 group-hover:text-emerald-600 transition-colors">{q.title}</h3>
+                                                <p className="text-xs text-muted-foreground mb-3 line-clamp-1">
+                                                    {q.companyDetails?.name || 'No company set'}
+                                                </p>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {new Date(q.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                </div>
                                             </div>
                                         </Card>
                                     </Link>
