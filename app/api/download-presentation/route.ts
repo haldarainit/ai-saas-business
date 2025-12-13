@@ -5,6 +5,7 @@ interface Slide {
     title: string;
     content: string[];
     imageKeyword: string;
+    imageUrl?: string;
 }
 
 interface Theme {
@@ -23,6 +24,32 @@ interface PresentationData {
     theme?: Theme;
 }
 
+// Helper function to download image and convert to base64
+async function fetchImageAsBase64(url: string): Promise<string | null> {
+    try {
+        const response = await fetch(url, {
+            signal: AbortSignal.timeout(15000) // 15 second timeout
+        });
+
+        if (!response.ok) {
+            console.error(`Failed to fetch image: ${response.status}`);
+            return null;
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const base64 = buffer.toString('base64');
+
+        // Determine content type
+        const contentType = response.headers.get('content-type') || 'image/png';
+
+        return `data:${contentType};base64,${base64}`;
+    } catch (error) {
+        console.error('Error fetching image:', error);
+        return null;
+    }
+}
+
 export async function POST(req: Request) {
     try {
         const body: PresentationData = await req.json();
@@ -37,16 +64,34 @@ export async function POST(req: Request) {
 
         const pptx = new pptxgen();
 
-        // Set Metadata
+        // Set presentation properties
         pptx.author = "BusinessAI";
         pptx.company = "BusinessAI SaaS";
         pptx.title = title;
         pptx.subject = "AI Generated Presentation";
 
+        // Set layout to widescreen 16:9
+        pptx.defineLayout({ name: 'LAYOUT_16x9', width: 10, height: 5.625 });
+        pptx.layout = 'LAYOUT_16x9';
+
         // Theme colors
         const primaryColor = theme?.colors?.primary?.replace('#', '') || '1e40af';
         const secondaryColor = theme?.colors?.secondary?.replace('#', '') || '3b82f6';
         const accentColor = theme?.colors?.accent?.replace('#', '') || '60a5fa';
+
+        // Pre-fetch all images in parallel
+        console.log('Fetching images for slides...');
+        const imagePromises = slides.map(async (slide) => {
+            if (slide.imageUrl || slide.imageKeyword) {
+                const imageUrl = slide.imageUrl ||
+                    `https://image.pollinations.ai/prompt/${encodeURIComponent(slide.imageKeyword)}?width=800&height=600&nologo=true`;
+                return await fetchImageAsBase64(imageUrl);
+            }
+            return null;
+        });
+
+        const images = await Promise.all(imagePromises);
+        console.log(`Fetched ${images.filter(Boolean).length} images successfully`);
 
         // Create Slides
         for (let i = 0; i < slides.length; i++) {
@@ -54,45 +99,31 @@ export async function POST(req: Request) {
             const slide = pptx.addSlide();
             const isFirstSlide = i === 0;
             const isLastSlide = i === slides.length - 1;
+            const imageBase64 = images[i];
 
             if (isFirstSlide) {
-                // TITLE SLIDE - Full gradient background with centered content
-                slide.background = {
-                    color: primaryColor,
-                };
+                // ==================== TITLE SLIDE ====================
+                slide.background = { color: primaryColor };
 
-                // Add gradient overlay shape
+                // Decorative accent line at bottom
                 slide.addShape('rect', {
                     x: 0,
-                    y: 0,
-                    w: '100%',
-                    h: '100%',
-                    fill: {
-                        type: 'solid',
-                        color: primaryColor
-                    },
-                });
-
-                // Decorative accent shape
-                slide.addShape('rect', {
-                    x: 0,
-                    y: 4.5,
-                    w: '100%',
-                    h: 0.1,
+                    y: 4.8,
+                    w: 10,
+                    h: 0.05,
                     fill: { color: accentColor },
                 });
 
-                // Title
+                // Main Title
                 slide.addText(slideData.title, {
                     x: 0.5,
-                    y: 1.5,
+                    y: 1.2,
                     w: 5.5,
-                    h: 2,
-                    fontSize: 44,
+                    h: 1.5,
+                    fontSize: 40,
                     bold: true,
                     color: 'FFFFFF',
                     fontFace: 'Arial',
-                    align: 'left',
                     valign: 'middle',
                 });
 
@@ -100,54 +131,49 @@ export async function POST(req: Request) {
                 if (slideData.content && slideData.content.length > 0) {
                     slide.addText(slideData.content.join(' '), {
                         x: 0.5,
-                        y: 3.5,
+                        y: 2.8,
                         w: 5.5,
-                        h: 1,
-                        fontSize: 18,
+                        h: 1.2,
+                        fontSize: 16,
                         color: 'FFFFFF',
                         fontFace: 'Arial',
-                        align: 'left',
                         valign: 'top',
                     });
                 }
 
                 // Image on right side
-                if (slideData.imageKeyword) {
-                    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(slideData.imageKeyword)}?width=800&height=600&nologo=true`;
-                    try {
-                        slide.addImage({
-                            path: imageUrl,
-                            x: 6.2,
-                            y: 0.8,
-                            w: 3.3,
-                            h: 4,
-                            rounding: true,
-                        });
-                    } catch (e) {
-                        console.error("Failed to add title image", e);
-                    }
+                if (imageBase64) {
+                    slide.addImage({
+                        data: imageBase64,
+                        x: 6.2,
+                        y: 0.5,
+                        w: 3.3,
+                        h: 4.2,
+                        rounding: true,
+                    });
                 }
 
-                // Footer
+                // Footer branding
                 slide.addText("Generated by BusinessAI", {
                     x: 0.5,
-                    y: 5.1,
+                    y: 5.2,
                     w: 4,
-                    fontSize: 10,
+                    fontSize: 9,
                     color: 'FFFFFF',
                     fontFace: 'Arial',
                 });
 
             } else if (isLastSlide) {
-                // THANK YOU SLIDE - Centered content
+                // ==================== CLOSING SLIDE ====================
                 slide.background = { color: primaryColor };
 
+                // Thank You Title
                 slide.addText(slideData.title, {
                     x: 0,
-                    y: 2,
-                    w: '100%',
-                    h: 1.5,
-                    fontSize: 48,
+                    y: 1.8,
+                    w: 10,
+                    h: 1.2,
+                    fontSize: 44,
                     bold: true,
                     color: 'FFFFFF',
                     fontFace: 'Arial',
@@ -155,13 +181,14 @@ export async function POST(req: Request) {
                     valign: 'middle',
                 });
 
+                // Content/Contact info
                 if (slideData.content && slideData.content.length > 0) {
                     slide.addText(slideData.content.join('\n'), {
                         x: 1,
-                        y: 3.5,
+                        y: 3.2,
                         w: 8,
                         h: 1.5,
-                        fontSize: 18,
+                        fontSize: 16,
                         color: 'FFFFFF',
                         fontFace: 'Arial',
                         align: 'center',
@@ -169,33 +196,42 @@ export async function POST(req: Request) {
                     });
                 }
 
+                // Decorative line
+                slide.addShape('rect', {
+                    x: 3,
+                    y: 3,
+                    w: 4,
+                    h: 0.02,
+                    fill: { color: accentColor },
+                });
+
             } else {
-                // CONTENT SLIDES - Professional two-column layout
+                // ==================== CONTENT SLIDES ====================
                 slide.background = { color: 'FFFFFF' };
 
                 // Top accent bar
                 slide.addShape('rect', {
                     x: 0,
                     y: 0,
-                    w: '100%',
-                    h: 0.08,
+                    w: 10,
+                    h: 0.06,
                     fill: { color: primaryColor },
                 });
 
-                // Slide number badge
+                // Slide number indicator
                 slide.addShape('rect', {
                     x: 0,
-                    y: 0.3,
-                    w: 0.5,
-                    h: 0.5,
+                    y: 0.25,
+                    w: 0.4,
+                    h: 0.4,
                     fill: { color: secondaryColor },
                 });
                 slide.addText(String(i + 1), {
                     x: 0,
-                    y: 0.3,
-                    w: 0.5,
-                    h: 0.5,
-                    fontSize: 14,
+                    y: 0.25,
+                    w: 0.4,
+                    h: 0.4,
+                    fontSize: 12,
                     bold: true,
                     color: 'FFFFFF',
                     fontFace: 'Arial',
@@ -203,73 +239,85 @@ export async function POST(req: Request) {
                     valign: 'middle',
                 });
 
-                // Title
+                // Slide Title
                 slide.addText(slideData.title, {
-                    x: 0.7,
-                    y: 0.3,
+                    x: 0.6,
+                    y: 0.25,
                     w: 9,
-                    h: 0.7,
-                    fontSize: 28,
+                    h: 0.5,
+                    fontSize: 24,
                     bold: true,
                     color: '1f2937',
                     fontFace: 'Arial',
+                    valign: 'middle',
                 });
 
-                // Content bullets on left
+                // Horizontal divider line
+                slide.addShape('rect', {
+                    x: 0.5,
+                    y: 0.9,
+                    w: 9,
+                    h: 0.01,
+                    fill: { color: 'e5e7eb' },
+                });
+
+                // Content area - adjust width based on whether we have an image
+                const contentWidth = imageBase64 ? 5 : 9;
+
+                // Content bullets
                 if (slideData.content && slideData.content.length > 0) {
-                    const bullets = slideData.content.map((text) => ({
-                        text,
+                    const textItems = slideData.content.map((text) => ({
+                        text: text,
                         options: {
-                            fontSize: 16,
-                            color: '4b5563',
-                            bullet: { type: 'bullet', color: secondaryColor },
+                            fontSize: 14,
+                            color: '374151',
+                            bullet: {
+                                type: 'bullet' as const,
+                                color: secondaryColor
+                            },
                             breakLine: true,
-                            paraSpaceAfter: 12,
+                            paraSpaceBefore: 6,
+                            paraSpaceAfter: 6,
                         },
                     }));
 
-                    slide.addText(bullets as any, {
+                    slide.addText(textItems, {
                         x: 0.5,
-                        y: 1.3,
-                        w: 5,
-                        h: 3.5,
+                        y: 1.1,
+                        w: contentWidth,
+                        h: 3.8,
                         fontFace: 'Arial',
                         valign: 'top',
                     });
                 }
 
-                // Image on right
-                if (slideData.imageKeyword) {
-                    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(slideData.imageKeyword)}?width=800&height=600&nologo=true`;
-                    try {
-                        slide.addImage({
-                            path: imageUrl,
-                            x: 5.8,
-                            y: 1.3,
-                            w: 3.8,
-                            h: 3.2,
-                            rounding: true,
-                        });
-                    } catch (e) {
-                        console.error("Failed to add slide image", e);
-                    }
+                // Image on right (if available)
+                if (imageBase64) {
+                    slide.addImage({
+                        data: imageBase64,
+                        x: 5.8,
+                        y: 1.1,
+                        w: 3.8,
+                        h: 3.5,
+                        rounding: true,
+                    });
                 }
 
-                // Footer
-                slide.addText(`${title}`, {
+                // Footer with presentation title and page number
+                slide.addText(title, {
                     x: 0.5,
-                    y: 5,
-                    w: 5,
-                    fontSize: 9,
+                    y: 5.2,
+                    w: 6,
+                    fontSize: 8,
                     color: '9ca3af',
                     fontFace: 'Arial',
                 });
 
                 slide.addText(`${i + 1} / ${slides.length}`, {
-                    x: 8.5,
-                    y: 5,
-                    w: 1,
-                    fontSize: 9,
+                    x: 8,
+                    y: 5.2,
+                    w: 1.5,
+                    fontSize: 8,
                     color: '9ca3af',
                     fontFace: 'Arial',
                     align: 'right',
@@ -277,11 +325,14 @@ export async function POST(req: Request) {
             }
         }
 
-        // Generate the PPTX as a base64 string
+        // Generate the PPTX as base64
+        console.log('Generating PPTX file...');
         const pptxBase64 = await pptx.write({ outputType: 'base64' }) as string;
 
         // Convert base64 to buffer
         const buffer = Buffer.from(pptxBase64, 'base64');
+
+        console.log(`PPTX generated successfully: ${buffer.length} bytes`);
 
         // Return as downloadable file
         return new NextResponse(buffer, {
@@ -289,6 +340,7 @@ export async function POST(req: Request) {
             headers: {
                 'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
                 'Content-Disposition': `attachment; filename="${title.replace(/[^a-z0-9]/gi, '_')}.pptx"`,
+                'Content-Length': buffer.length.toString(),
             },
         });
 
