@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { Printer, ArrowLeft, Plus, Trash2, PlusCircle, X, Sparkles, FileEdit, Zap } from "lucide-react";
+import { Printer, ArrowLeft, Plus, Trash2, PlusCircle, X, Sparkles, FileEdit, Zap, Cloud, CloudOff, Check } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import AutomatedQuotationQuestionnaire from "@/components/AutomatedQuotationQuestionnaire";
@@ -52,6 +52,7 @@ export default function TechnoQuotationPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
+    const [hasChanges, setHasChanges] = useState(false);
 
     // Selection state: null = show selection screen, 'manual' = manual quotation, 'automated' = AI quotation, 'ai-generated' = showing AI generated quotation
     const [quotationType, setQuotationType] = useState<'manual' | 'automated' | 'ai-generated' | null>('manual'); // Default to manual/view mode, will be updated by fetch
@@ -226,6 +227,8 @@ export default function TechnoQuotationPage() {
                     if (q.answers) setAnswers(q.answers);
                     if (q.pages && q.pages.length > 0) setPages(q.pages);
                 }
+                // Set lastSaved after initial load to enable change tracking
+                setLastSaved(new Date());
             } catch (error) {
                 console.error("Error loading quotation:", error);
             } finally {
@@ -239,18 +242,32 @@ export default function TechnoQuotationPage() {
     }, [params.id, router]);
 
     // Auto-Save Logic
-    const debouncedPages = useDebounce(pages, 1000);
-    const debouncedTitle = useDebounce(mainTitle, 1000);
+    const debouncedPages = useDebounce(pages, 2000);
+    const debouncedTitle = useDebounce(mainTitle, 2000);
     const debouncedCompanyMap = useDebounce({
         name: companyName,
         address1: companyAddress1,
         address2: companyAddress2,
         phone: companyPhone,
         logo: logoUrl
-    }, 1000);
+    }, 2000);
+    const debouncedQuotationType = useDebounce(quotationType, 2000);
+
+    // Track changes - set hasChanges to true when user modifies anything
+    React.useEffect(() => {
+        if (!isLoading && lastSaved) {
+            setHasChanges(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pages, mainTitle, companyName, companyAddress1, companyAddress2, companyPhone, logoUrl, quotationType, isLoading]);
 
     React.useEffect(() => {
-        if (isLoading) return;
+        // Don't save if:
+        // 1. Still loading initial data
+        // 2. No changes have been made
+        if (isLoading || !hasChanges) {
+            return;
+        }
 
         const saveQuotation = async () => {
             setIsSaving(true);
@@ -262,10 +279,11 @@ export default function TechnoQuotationPage() {
                         title: debouncedTitle,
                         pages: debouncedPages,
                         companyDetails: debouncedCompanyMap,
-                        quotationType
+                        quotationType: debouncedQuotationType
                     })
                 });
                 setLastSaved(new Date());
+                setHasChanges(false); // Reset after successful save
             } catch (error) {
                 console.error("Error auto-saving:", error);
             } finally {
@@ -274,7 +292,8 @@ export default function TechnoQuotationPage() {
         };
 
         saveQuotation();
-    }, [debouncedPages, debouncedTitle, debouncedCompanyMap, params.id, isLoading, quotationType]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedPages, debouncedTitle, debouncedCompanyMap, debouncedQuotationType, params.id, isLoading]);
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -951,37 +970,78 @@ export default function TechnoQuotationPage() {
         <>
             <div className="no-print">
                 <Navbar />
-                <div className="bg-gradient-to-br from-emerald-500/10 via-background to-teal-500/10 py-8">
+                <div className="bg-gradient-to-br from-emerald-500/10 via-background to-teal-500/10 py-6 border-b">
                     <div className="container px-4">
-                        <div className="flex items-center justify-between mb-4">
+                        {/* Top Bar */}
+                        <div className="flex items-center justify-between mb-6">
                             <Link href="/accounting/techno-quotation">
-                                <Button variant="ghost">
+                                <Button variant="ghost" size="sm" className="hover:bg-emerald-50">
                                     <ArrowLeft className="w-4 h-4 mr-2" />
                                     Back to List
                                 </Button>
                             </Link>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                {isSaving ? (
-                                    <>
-                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                        Saving...
-                                    </>
-                                ) : lastSaved ? (
-                                    <span>Saved {lastSaved.toLocaleTimeString()}</span>
-                                ) : null}
+
+                            {/* Auto-save Indicator */}
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background border shadow-sm">
+                                    {isSaving ? (
+                                        <>
+                                            <Cloud className="w-4 h-4 text-blue-500 animate-pulse" />
+                                            <span className="text-sm text-muted-foreground">Saving...</span>
+                                        </>
+                                    ) : lastSaved ? (
+                                        <>
+                                            <div className="relative">
+                                                <Cloud className="w-4 h-4 text-emerald-500" />
+                                                <Check className="w-2.5 h-2.5 text-white absolute top-0.5 left-0.5" />
+                                            </div>
+                                            <span className="text-sm text-emerald-600 font-medium">Saved</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CloudOff className="w-4 h-4 text-gray-400" />
+                                            <span className="text-sm text-muted-foreground">Not saved</span>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
-                            Dynamic Techno Commercial Quotation
-                        </h1>
-                        <p className="text-muted-foreground mb-4">
-                            Fully customizable quotation - Add/delete pages, sections, tables, columns, and rows as needed.
-                            {isProcessingOverflow && (
-                                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">
-                                    📄 Auto-creating page...
-                                </span>
-                            )}
-                        </p>
+
+                        {/* Quotation Title & Type */}
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <input
+                                        type="text"
+                                        value={mainTitle}
+                                        onChange={(e) => setMainTitle(e.target.value)}
+                                        className="text-3xl font-bold bg-transparent border-none outline-none focus:ring-2 focus:ring-emerald-500 rounded px-2 -ml-2 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent"
+                                        placeholder="Quotation Title"
+                                    />
+                                    {quotationType === 'automated' || quotationType === 'ai-generated' ? (
+                                        <div className="px-3 py-1 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-xs font-bold flex items-center gap-1">
+                                            <Sparkles className="w-3 h-3" />
+                                            AI Generated
+                                        </div>
+                                    ) : (
+                                        <div className="px-3 py-1 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs font-bold flex items-center gap-1">
+                                            <FileEdit className="w-3 h-3" />
+                                            Manual
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    Fully customizable quotation - Add/delete pages, sections, tables, columns, and rows as needed.
+                                    {isProcessingOverflow && (
+                                        <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">
+                                            📄 Auto-creating page...
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
                         <div className="flex gap-3 flex-wrap">
                             <Button
                                 onClick={handlePrint}

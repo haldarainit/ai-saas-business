@@ -4,7 +4,7 @@ import TechnoQuotation from '@/models/TechnoQuotation';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
 
@@ -15,10 +15,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
         // @ts-ignore
         const userId = session.userId;
+        const { id } = await params;
 
         await dbConnect();
         const quotation = await TechnoQuotation.findOne({
-            _id: params.id,
+            _id: id,
             userId: userId
         });
 
@@ -33,7 +34,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
 
@@ -44,12 +45,13 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
         // @ts-ignore
         const userId = session.userId;
+        const { id } = await params;
 
         await dbConnect();
         const body = await req.json();
 
         const quotation = await TechnoQuotation.findOneAndUpdate(
-            { _id: params.id, userId: userId },
+            { _id: id, userId: userId },
             { $set: body },
             { new: true }
         );
