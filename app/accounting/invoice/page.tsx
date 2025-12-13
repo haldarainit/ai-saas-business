@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { ArrowLeft, Sparkles, FileEdit, Zap, Plus, Loader2, Banknote, IndianRupee } from "lucide-react";
+import { ArrowLeft, Sparkles, FileEdit, Zap, Plus, Loader2, Banknote, IndianRupee, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useRouter } from 'next/navigation';
@@ -29,6 +29,8 @@ export default function InvoiceDashboard() {
     const [isCreating, setIsCreating] = useState(false);
     const [showNameDialog, setShowNameDialog] = useState(false);
     const [newInvoiceNumber, setNewInvoiceNumber] = useState('');
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         const fetchInvoices = async () => {
@@ -80,6 +82,34 @@ export default function InvoiceDashboard() {
         } catch (error) {
             console.error("Error creating invoice:", error);
             setIsCreating(false);
+        }
+    };
+
+    const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDeleteId(id);
+    };
+
+    const deleteInvoice = async () => {
+        if (!deleteId) return;
+
+        setIsDeleting(true);
+        try {
+            const response = await fetch(`/api/invoice/${deleteId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                setInvoices(prev => prev.filter(inv => inv._id !== deleteId));
+            } else {
+                console.error("Failed to delete", response.status);
+            }
+        } catch (error) {
+            console.error("Error deleting invoice:", error);
+        } finally {
+            setIsDeleting(false);
+            setDeleteId(null);
         }
     };
 
@@ -169,14 +199,24 @@ export default function InvoiceDashboard() {
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {invoices.map((inv) => (
                                     <Link key={inv._id} href={`/accounting/invoice/${inv._id}`}>
-                                        <Card className="h-full p-6 hover:shadow-md transition-shadow cursor-pointer flex flex-col border-l-4 border-l-cyan-500">
+                                        <Card className="group h-full p-6 hover:shadow-md transition-shadow cursor-pointer flex flex-col border-l-4 border-l-cyan-500">
                                             <div className="flex justify-between items-start mb-4">
                                                 <div className="p-2 rounded-md bg-cyan-100 text-cyan-700">
                                                     <Banknote className="w-4 h-4" />
                                                 </div>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {new Date(inv.updatedAt).toLocaleDateString()}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {new Date(inv.updatedAt).toLocaleDateString()}
+                                                    </span>
+                                                    {/* Delete Button */}
+                                                    <button
+                                                        onClick={(e) => handleDeleteClick(e, inv._id)}
+                                                        className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-all"
+                                                        title="Delete invoice"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </div>
                                             <h3 className="font-bold mb-1 text-lg">{inv.invoiceNumber}</h3>
                                             <p className="text-sm font-medium text-slate-600 mb-3 truncate">
@@ -228,6 +268,35 @@ export default function InvoiceDashboard() {
                             disabled={!newInvoiceNumber.trim()}
                         >
                             Create Invoice
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-red-600">Delete Invoice?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the invoice and all its data from the database.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeleteId(null)} disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={deleteInvoice}
+                            disabled={isDeleting}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                'Delete'
+                            )}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

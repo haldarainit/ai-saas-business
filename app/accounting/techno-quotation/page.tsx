@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { ArrowLeft, Sparkles, FileEdit, Zap, Plus, Loader2 } from "lucide-react";
+import { ArrowLeft, Sparkles, FileEdit, Zap, Plus, Loader2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useRouter } from 'next/navigation';
@@ -30,6 +30,8 @@ export default function TechnoQuotationDashboard() {
     const [showNameDialog, setShowNameDialog] = useState(false);
     const [newQuotationName, setNewQuotationName] = useState('');
     const [pendingType, setPendingType] = useState<'manual' | 'automated' | null>(null);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         const fetchQuotations = async () => {
@@ -82,6 +84,34 @@ export default function TechnoQuotationDashboard() {
         } catch (error) {
             console.error("Error creating quotation:", error);
             setIsCreating(false);
+        }
+    };
+
+    const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDeleteId(id);
+    };
+
+    const deleteQuotation = async () => {
+        if (!deleteId) return;
+
+        setIsDeleting(true);
+        try {
+            const response = await fetch(`/api/techno-quotation/${deleteId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                setQuotations(prev => prev.filter(q => q._id !== deleteId));
+            } else {
+                console.error("Failed to delete", response.status);
+            }
+        } catch (error) {
+            console.error("Error deleting quotation:", error);
+        } finally {
+            setIsDeleting(false);
+            setDeleteId(null);
         }
     };
 
@@ -285,12 +315,24 @@ export default function TechnoQuotationDashboard() {
 
                                             {/* Card Content */}
                                             <div className="p-4">
-                                                <h3 className="font-semibold text-sm mb-1.5 line-clamp-1 group-hover:text-emerald-600 transition-colors">{q.title}</h3>
-                                                <p className="text-xs text-muted-foreground mb-3 line-clamp-1">
-                                                    {q.companyDetails?.name || 'No company set'}
-                                                </p>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {new Date(q.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="font-semibold text-sm mb-1.5 line-clamp-1 group-hover:text-emerald-600 transition-colors">{q.title}</h3>
+                                                        <p className="text-xs text-muted-foreground mb-3 line-clamp-1">
+                                                            {q.companyDetails?.name || 'No company set'}
+                                                        </p>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {new Date(q.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        </div>
+                                                    </div>
+                                                    {/* Delete Button */}
+                                                    <button
+                                                        onClick={(e) => handleDeleteClick(e, q._id)}
+                                                        className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-all"
+                                                        title="Delete quotation"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
                                                 </div>
                                             </div>
                                         </Card>
@@ -329,6 +371,35 @@ export default function TechnoQuotationDashboard() {
                             disabled={!newQuotationName.trim()}
                         >
                             Create Quotation
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-red-600">Delete Quotation?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the quotation and all its data from the database.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeleteId(null)} disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={deleteQuotation}
+                            disabled={isDeleting}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                'Delete'
+                            )}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

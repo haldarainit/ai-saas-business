@@ -66,3 +66,34 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
+
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+    try {
+        const session = await getServerSession(authOptions);
+
+        // @ts-ignore
+        if (!session || !session.userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // @ts-ignore
+        const userId = session.userId;
+        const { id } = await params;
+
+        await dbConnect();
+
+        const quotation = await TechnoQuotation.findOneAndDelete({
+            _id: id,
+            userId: userId
+        });
+
+        if (!quotation) {
+            return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true, message: 'Quotation deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting quotation:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
