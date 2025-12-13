@@ -5,6 +5,7 @@ import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -24,6 +25,13 @@ import {
     Share2,
     ChevronDown,
     RefreshCw,
+    Plus,
+    Trash2,
+    Image as ImageIcon,
+    Type,
+    GripVertical,
+    Eye,
+    Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,6 +39,7 @@ interface Slide {
     title: string;
     content: string[];
     imageKeyword: string;
+    imageUrl?: string;
 }
 
 interface PresentationData {
@@ -39,22 +48,24 @@ interface PresentationData {
 }
 
 type Step = "input" | "outline" | "generating" | "preview";
-type Theme = "modern" | "classic" | "minimal" | "bold";
+type Theme = "modern" | "classic" | "minimal" | "bold" | "gradient" | "dark";
 
-const THEMES: { id: Theme; name: string; colors: { primary: string; secondary: string; accent: string } }[] = [
-    { id: "modern", name: "Modern", colors: { primary: "#1e40af", secondary: "#3b82f6", accent: "#60a5fa" } },
-    { id: "classic", name: "Classic", colors: { primary: "#1f2937", secondary: "#4b5563", accent: "#9ca3af" } },
-    { id: "minimal", name: "Minimal", colors: { primary: "#f8fafc", secondary: "#e2e8f0", accent: "#64748b" } },
-    { id: "bold", name: "Bold", colors: { primary: "#7c3aed", secondary: "#a855f7", accent: "#c084fc" } },
+const THEMES: { id: Theme; name: string; colors: { primary: string; secondary: string; accent: string; bg: string } }[] = [
+    { id: "modern", name: "Modern Blue", colors: { primary: "#1e40af", secondary: "#3b82f6", accent: "#60a5fa", bg: "#f8fafc" } },
+    { id: "classic", name: "Classic Gray", colors: { primary: "#1f2937", secondary: "#4b5563", accent: "#9ca3af", bg: "#ffffff" } },
+    { id: "minimal", name: "Minimal", colors: { primary: "#0f172a", secondary: "#334155", accent: "#64748b", bg: "#ffffff" } },
+    { id: "bold", name: "Bold Purple", colors: { primary: "#7c3aed", secondary: "#a855f7", accent: "#c084fc", bg: "#faf5ff" } },
+    { id: "gradient", name: "Gradient", colors: { primary: "#ec4899", secondary: "#8b5cf6", accent: "#06b6d4", bg: "#fdf2f8" } },
+    { id: "dark", name: "Dark Mode", colors: { primary: "#1e293b", secondary: "#334155", accent: "#60a5fa", bg: "#0f172a" } },
 ];
 
 const EXAMPLE_PROMPTS = [
-    { icon: FileText, title: "Science fair project", subtitle: "guidance" },
-    { icon: Globe, title: "Content strategy for", subtitle: "blog or YouTube" },
-    { icon: Presentation, title: "Portfolio presentation", subtitle: "for [name]" },
-    { icon: LayoutGrid, title: "Prototyping and testing", subtitle: "user interactions" },
-    { icon: Share2, title: "Market analysis and", subtitle: "recommendations" },
-    { icon: Sparkles, title: "Sales and marketing", subtitle: "strategies" },
+    { icon: FileText, title: "Quarterly Business Review", subtitle: "for stakeholders" },
+    { icon: Globe, title: "Digital Marketing Strategy", subtitle: "2024 campaign" },
+    { icon: Presentation, title: "Startup Pitch Deck", subtitle: "for investors" },
+    { icon: LayoutGrid, title: "Product Launch Plan", subtitle: "go-to-market strategy" },
+    { icon: Share2, title: "Team Training Session", subtitle: "onboarding program" },
+    { icon: Sparkles, title: "Annual Company Report", subtitle: "achievements & goals" },
 ];
 
 export default function PresentationsPage() {
@@ -69,6 +80,9 @@ export default function PresentationsPage() {
     const [data, setData] = useState<PresentationData | null>(null);
     const [activeSlide, setActiveSlide] = useState(0);
     const [editingSlide, setEditingSlide] = useState<number | null>(null);
+    const [editingField, setEditingField] = useState<{ slide: number; field: 'title' | 'content' | 'image'; contentIndex?: number } | null>(null);
+    const [isRegeneratingImage, setIsRegeneratingImage] = useState<number | null>(null);
+    const [customImagePrompt, setCustomImagePrompt] = useState("");
 
     const handleGenerateOutline = async () => {
         if (!prompt.trim()) {
@@ -109,7 +123,6 @@ export default function PresentationsPage() {
         setStep("generating");
 
         try {
-            // Add image keywords to outline
             const response = await fetch("/api/generate-presentation", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -127,8 +140,17 @@ export default function PresentationsPage() {
                 throw new Error(result.error || "Failed to generate presentation");
             }
 
-            setData(result);
+            // Add image URLs based on keywords
+            const slidesWithImages = result.slides.map((slide: Slide) => ({
+                ...slide,
+                imageUrl: slide.imageKeyword
+                    ? `https://image.pollinations.ai/prompt/${encodeURIComponent(slide.imageKeyword)}?width=800&height=600&nologo=true&seed=${Date.now()}`
+                    : undefined
+            }));
+
+            setData({ ...result, slides: slidesWithImages });
             setStep("preview");
+            setActiveSlide(0);
             toast.success("Presentation generated successfully!");
         } catch (error: any) {
             toast.error(error.message);
@@ -176,11 +198,79 @@ export default function PresentationsPage() {
         }
     };
 
-    const updateSlide = (index: number, field: keyof Slide, value: string | string[]) => {
+    // Outline editing functions
+    const updateOutlineSlide = (index: number, field: keyof Slide, value: string | string[]) => {
         if (!outline) return;
         const newSlides = [...outline.slides];
         newSlides[index] = { ...newSlides[index], [field]: value };
         setOutline({ ...outline, slides: newSlides });
+    };
+
+    const addBulletPoint = (slideIndex: number) => {
+        if (!outline) return;
+        const newSlides = [...outline.slides];
+        newSlides[slideIndex].content.push("New point");
+        setOutline({ ...outline, slides: newSlides });
+    };
+
+    const removeBulletPoint = (slideIndex: number, bulletIndex: number) => {
+        if (!outline) return;
+        const newSlides = [...outline.slides];
+        newSlides[slideIndex].content = newSlides[slideIndex].content.filter((_, i) => i !== bulletIndex);
+        setOutline({ ...outline, slides: newSlides });
+    };
+
+    const addSlide = (afterIndex: number) => {
+        if (!outline) return;
+        const newSlide: Slide = {
+            title: "New Slide",
+            content: ["Add your content here"],
+            imageKeyword: "",
+        };
+        const newSlides = [...outline.slides];
+        newSlides.splice(afterIndex + 1, 0, newSlide);
+        setOutline({ ...outline, slides: newSlides });
+    };
+
+    const removeSlide = (index: number) => {
+        if (!outline || outline.slides.length <= 2) {
+            toast.error("Presentation must have at least 2 slides");
+            return;
+        }
+        const newSlides = outline.slides.filter((_, i) => i !== index);
+        setOutline({ ...outline, slides: newSlides });
+    };
+
+    // Preview editing functions
+    const updatePreviewSlide = (index: number, field: keyof Slide, value: string | string[]) => {
+        if (!data) return;
+        const newSlides = [...data.slides];
+        newSlides[index] = { ...newSlides[index], [field]: value };
+        setData({ ...data, slides: newSlides });
+    };
+
+    const regenerateImage = async (slideIndex: number, customPrompt?: string) => {
+        if (!data) return;
+
+        setIsRegeneratingImage(slideIndex);
+
+        const slide = data.slides[slideIndex];
+        const imagePrompt = customPrompt || slide.imageKeyword || slide.title;
+
+        // Generate new image URL with different seed
+        const newImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=800&height=600&nologo=true&seed=${Date.now()}`;
+
+        const newSlides = [...data.slides];
+        newSlides[slideIndex] = {
+            ...newSlides[slideIndex],
+            imageKeyword: imagePrompt,
+            imageUrl: newImageUrl
+        };
+        setData({ ...data, slides: newSlides });
+
+        setIsRegeneratingImage(null);
+        setCustomImagePrompt("");
+        toast.success("Image regenerated!");
     };
 
     const handleBack = () => {
@@ -192,6 +282,8 @@ export default function PresentationsPage() {
             setData(null);
         }
     };
+
+    const selectedTheme = THEMES.find(t => t.id === theme)!;
 
     return (
         <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
@@ -210,16 +302,15 @@ export default function PresentationsPage() {
                                     </Button>
                                 )}
                                 <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-                                    Generate
+                                    {step === "input" && "Generate"}
+                                    {step === "outline" && "Edit Outline"}
+                                    {step === "generating" && "Creating..."}
+                                    {step === "preview" && "Edit Presentation"}
                                 </h1>
                             </div>
 
                             {step === "preview" && (
                                 <div className="flex items-center gap-3">
-                                    <Button variant="outline" size="sm">
-                                        <Share2 className="w-4 h-4 mr-2" />
-                                        Share
-                                    </Button>
                                     <Button
                                         onClick={handleDownload}
                                         disabled={isDownloading}
@@ -283,8 +374,8 @@ export default function PresentationsPage() {
                                         onChange={(e) => setSlideCount(Number(e.target.value))}
                                         className="appearance-none bg-white dark:bg-slate-800 border rounded-lg px-4 py-2 pr-8 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     >
-                                        {[5, 6, 7, 8, 10, 12].map((n) => (
-                                            <option key={n} value={n}>{n} cards</option>
+                                        {[5, 6, 7, 8, 10, 12, 15].map((n) => (
+                                            <option key={n} value={n}>{n} slides</option>
                                         ))}
                                     </select>
                                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
@@ -308,7 +399,7 @@ export default function PresentationsPage() {
                             <Card className="p-6 mb-8 shadow-lg border-0 bg-white dark:bg-slate-800">
                                 <div className="flex gap-3">
                                     <Input
-                                        placeholder="Describe what you'd like to make"
+                                        placeholder="Describe what you'd like to make (e.g., 'A pitch deck for my AI startup')"
                                         className="text-lg h-14 border-0 bg-slate-50 dark:bg-slate-700 focus-visible:ring-2 focus-visible:ring-blue-500"
                                         value={prompt}
                                         onChange={(e) => setPrompt(e.target.value)}
@@ -360,58 +451,61 @@ export default function PresentationsPage() {
                             className="container mx-auto px-4 py-8 max-w-4xl"
                         >
                             {/* Settings Bar */}
-                            <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
-                                <span className="text-sm font-medium text-muted-foreground">Prompt</span>
-                                <div className="relative">
-                                    <select
-                                        value={slideCount}
-                                        onChange={(e) => setSlideCount(Number(e.target.value))}
-                                        className="appearance-none bg-white dark:bg-slate-800 border rounded-lg px-4 py-2 pr-8 text-sm font-medium"
-                                        disabled={isGeneratingFull}
-                                    >
-                                        {[5, 6, 7, 8, 10, 12].map((n) => (
-                                            <option key={n} value={n}>{n} cards</option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
+                            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm font-medium text-muted-foreground">Settings:</span>
+                                    <div className="relative">
+                                        <select
+                                            value={slideCount}
+                                            onChange={(e) => setSlideCount(Number(e.target.value))}
+                                            className="appearance-none bg-white dark:bg-slate-800 border rounded-lg px-3 py-1.5 pr-7 text-sm font-medium"
+                                            disabled={isGeneratingFull}
+                                        >
+                                            {[5, 6, 7, 8, 10, 12, 15].map((n) => (
+                                                <option key={n} value={n}>{n} slides</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" />
+                                    </div>
+                                    <div className="relative">
+                                        <select
+                                            value={theme}
+                                            onChange={(e) => setTheme(e.target.value as Theme)}
+                                            className="appearance-none bg-white dark:bg-slate-800 border rounded-lg px-3 py-1.5 pr-7 text-sm font-medium"
+                                            disabled={isGeneratingFull}
+                                        >
+                                            {THEMES.map((t) => (
+                                                <option key={t.id} value={t.id}>{t.name}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" />
+                                    </div>
                                 </div>
-                                <div className="relative">
-                                    <select
-                                        value={theme}
-                                        onChange={(e) => setTheme(e.target.value as Theme)}
-                                        className="appearance-none bg-white dark:bg-slate-800 border rounded-lg px-4 py-2 pr-8 text-sm font-medium"
-                                        disabled={isGeneratingFull}
-                                    >
-                                        {THEMES.map((t) => (
-                                            <option key={t.id} value={t.id}>{t.name}</option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
-                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleGenerateOutline}
+                                    disabled={isGeneratingOutline || isGeneratingFull}
+                                >
+                                    <RefreshCw className={`w-4 h-4 mr-2 ${isGeneratingOutline ? 'animate-spin' : ''}`} />
+                                    Regenerate
+                                </Button>
                             </div>
 
                             {/* Prompt Display */}
                             <Card className="p-4 mb-6 bg-white dark:bg-slate-800 border-0 shadow-sm">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-foreground">{prompt}</p>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={handleGenerateOutline}
-                                        disabled={isGeneratingOutline || isGeneratingFull}
-                                    >
-                                        <RefreshCw className={`w-4 h-4 ${isGeneratingOutline ? 'animate-spin' : ''}`} />
-                                    </Button>
-                                </div>
+                                <p className="text-foreground font-medium">{prompt}</p>
                             </Card>
 
                             {/* Outline Label */}
-                            <h3 className="text-sm font-medium text-muted-foreground mb-4">Outline</h3>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-medium text-muted-foreground">Outline</h3>
+                                <p className="text-xs text-muted-foreground">Click any slide to edit • Drag to reorder</p>
+                            </div>
 
                             {/* Outline Cards */}
                             <div className="space-y-3 mb-24">
                                 {isGeneratingOutline ? (
-                                    // Skeleton loading
                                     Array.from({ length: slideCount }).map((_, i) => (
                                         <div
                                             key={i}
@@ -436,39 +530,70 @@ export default function PresentationsPage() {
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             transition={{ delay: i * 0.05 }}
-                                            className={`bg-blue-50 dark:bg-blue-950/30 rounded-xl p-4 border-l-4 ${i === 0 ? 'border-blue-500' : 'border-transparent'
-                                                } hover:border-blue-400 transition-colors`}
+                                            className={`bg-white dark:bg-slate-800 rounded-xl p-4 border-l-4 shadow-sm ${editingSlide === i ? 'border-blue-500 ring-2 ring-blue-200' : 'border-transparent hover:border-blue-300'
+                                                } transition-all`}
                                         >
                                             <div className="flex items-start gap-4">
-                                                <div className="w-8 h-8 rounded-lg bg-blue-200 dark:bg-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-sm shrink-0">
-                                                    {i + 1}
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-sm shrink-0">
+                                                        {i + 1}
+                                                    </div>
+                                                    <button className="text-slate-300 hover:text-slate-500 cursor-grab">
+                                                        <GripVertical className="w-4 h-4" />
+                                                    </button>
                                                 </div>
+
                                                 <div className="flex-1 min-w-0">
                                                     {editingSlide === i ? (
                                                         <div className="space-y-3">
                                                             <Input
                                                                 value={slide.title}
-                                                                onChange={(e) => updateSlide(i, 'title', e.target.value)}
-                                                                className="font-semibold text-lg"
+                                                                onChange={(e) => updateOutlineSlide(i, 'title', e.target.value)}
+                                                                className="font-semibold text-lg border-blue-200"
+                                                                placeholder="Slide title"
                                                             />
+
                                                             {slide.content.map((point, j) => (
-                                                                <Input
-                                                                    key={j}
-                                                                    value={point}
-                                                                    onChange={(e) => {
-                                                                        const newContent = [...slide.content];
-                                                                        newContent[j] = e.target.value;
-                                                                        updateSlide(i, 'content', newContent);
-                                                                    }}
-                                                                    className="text-sm"
-                                                                />
+                                                                <div key={j} className="flex gap-2 items-start">
+                                                                    <span className="text-blue-500 mt-2.5">•</span>
+                                                                    <Input
+                                                                        value={point}
+                                                                        onChange={(e) => {
+                                                                            const newContent = [...slide.content];
+                                                                            newContent[j] = e.target.value;
+                                                                            updateOutlineSlide(i, 'content', newContent);
+                                                                        }}
+                                                                        className="text-sm flex-1"
+                                                                        placeholder="Bullet point"
+                                                                    />
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                                                        onClick={() => removeBulletPoint(i, j)}
+                                                                    >
+                                                                        <Trash2 className="w-3 h-3" />
+                                                                    </Button>
+                                                                </div>
                                                             ))}
-                                                            <Button
-                                                                size="sm"
-                                                                onClick={() => setEditingSlide(null)}
-                                                            >
-                                                                <Check className="w-4 h-4 mr-1" /> Done
-                                                            </Button>
+
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => addBulletPoint(i)}
+                                                                    className="text-xs"
+                                                                >
+                                                                    <Plus className="w-3 h-3 mr-1" /> Add Point
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    onClick={() => setEditingSlide(null)}
+                                                                    className="text-xs bg-blue-600 hover:bg-blue-700"
+                                                                >
+                                                                    <Check className="w-3 h-3 mr-1" /> Done
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                     ) : (
                                                         <div
@@ -482,13 +607,35 @@ export default function PresentationsPage() {
                                                             <ul className="mt-2 space-y-1">
                                                                 {slide.content.map((point, j) => (
                                                                     <li key={j} className="text-sm text-muted-foreground flex items-start gap-2">
-                                                                        <span className="text-blue-500 mt-1">•</span>
+                                                                        <span className="text-blue-500 mt-0.5">•</span>
                                                                         {point}
                                                                     </li>
                                                                 ))}
                                                             </ul>
                                                         </div>
                                                     )}
+                                                </div>
+
+                                                {/* Slide Actions */}
+                                                <div className="flex flex-col gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 text-slate-400 hover:text-blue-600"
+                                                        onClick={() => addSlide(i)}
+                                                        title="Add slide after"
+                                                    >
+                                                        <Plus className="w-3 h-3" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 text-slate-400 hover:text-red-600"
+                                                        onClick={() => removeSlide(i)}
+                                                        title="Remove slide"
+                                                    >
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </Button>
                                                 </div>
                                             </div>
                                         </motion.div>
@@ -501,7 +648,7 @@ export default function PresentationsPage() {
                                 <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t py-4 px-4 z-50">
                                     <div className="container mx-auto max-w-4xl flex items-center justify-between">
                                         <span className="text-sm text-muted-foreground">
-                                            {outline.slides.length} cards total
+                                            {outline.slides.length} slides total
                                         </span>
                                         <Button
                                             size="lg"
@@ -517,7 +664,7 @@ export default function PresentationsPage() {
                                             ) : (
                                                 <>
                                                     <Sparkles className="mr-2 h-5 w-5" />
-                                                    Generate
+                                                    Generate Presentation
                                                 </>
                                             )}
                                         </Button>
@@ -527,7 +674,7 @@ export default function PresentationsPage() {
                         </motion.div>
                     )}
 
-                    {/* STEP 3: PREVIEW */}
+                    {/* STEP 3: PREVIEW WITH EDITING */}
                     {step === "preview" && data && (
                         <motion.div
                             key="preview"
@@ -537,22 +684,23 @@ export default function PresentationsPage() {
                             className="flex h-[calc(100vh-8rem)]"
                         >
                             {/* Left Sidebar - Thumbnails */}
-                            <div className="w-48 border-r bg-slate-50 dark:bg-slate-900 overflow-y-auto p-4 space-y-3 hidden md:block">
+                            <div className="w-52 border-r bg-slate-50 dark:bg-slate-900 overflow-y-auto p-4 space-y-3 hidden md:block">
+                                <div className="text-xs font-medium text-muted-foreground mb-3">SLIDES</div>
                                 {data.slides.map((slide, i) => (
                                     <button
                                         key={i}
                                         onClick={() => setActiveSlide(i)}
-                                        className={`w-full aspect-[16/10] rounded-lg overflow-hidden border-2 transition-all ${activeSlide === i
+                                        className={`w-full aspect-[16/10] rounded-lg overflow-hidden border-2 transition-all relative group ${activeSlide === i
                                                 ? "border-blue-500 shadow-lg"
                                                 : "border-transparent hover:border-slate-300"
                                             }`}
                                     >
+                                        <div className="absolute top-1 left-1 bg-black/50 text-white text-[8px] px-1 rounded">
+                                            {i + 1}
+                                        </div>
                                         <div className="w-full h-full bg-white dark:bg-slate-800 p-2 text-left">
-                                            <div className="text-[8px] font-bold text-slate-600 dark:text-slate-300 line-clamp-2 mb-1">
+                                            <div className="text-[8px] font-bold text-slate-600 dark:text-slate-300 line-clamp-2">
                                                 {slide.title}
-                                            </div>
-                                            <div className="text-[6px] text-slate-400 line-clamp-3">
-                                                {slide.content[0]}
                                             </div>
                                         </div>
                                     </button>
@@ -561,54 +709,189 @@ export default function PresentationsPage() {
 
                             {/* Main Preview Area */}
                             <div className="flex-1 overflow-y-auto p-8 bg-slate-100 dark:bg-slate-950">
-                                <div className="max-w-5xl mx-auto space-y-8">
-                                    {data.slides.map((slide, i) => (
-                                        <motion.div
-                                            key={i}
-                                            initial={{ opacity: 0, y: 50 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: i * 0.1 }}
-                                            id={`slide-${i}`}
-                                            className={`aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl ${i === 0 ? 'bg-gradient-to-br from-blue-600 to-indigo-700' : 'bg-white dark:bg-slate-800'
-                                                }`}
-                                        >
-                                            <div className="w-full h-full p-10 flex gap-8">
-                                                {/* Text Content */}
-                                                <div className={`flex-1 flex flex-col justify-center ${i === 0 ? 'text-white' : ''}`}>
-                                                    <h2 className={`text-3xl md:text-4xl font-bold mb-6 ${i === 0 ? '' : 'text-slate-800 dark:text-white'}`}>
-                                                        {slide.title}
-                                                    </h2>
-                                                    {i === 0 ? (
-                                                        <p className="text-lg text-white/80 leading-relaxed">
-                                                            {slide.content.join(" ")}
-                                                        </p>
-                                                    ) : (
-                                                        <ul className="space-y-3">
-                                                            {slide.content.map((point, j) => (
-                                                                <li key={j} className="flex items-start gap-3 text-slate-600 dark:text-slate-300">
-                                                                    <span className="w-2 h-2 rounded-full bg-blue-500 mt-2 shrink-0"></span>
-                                                                    <span className="text-lg">{point}</span>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
+                                <div className="max-w-5xl mx-auto">
+                                    {/* Current Slide Editor */}
+                                    {data.slides[activeSlide] && (
+                                        <div className="space-y-6">
+                                            {/* Slide Header */}
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => setActiveSlide(Math.max(0, activeSlide - 1))}
+                                                        disabled={activeSlide === 0}
+                                                    >
+                                                        <ArrowLeft className="w-4 h-4" />
+                                                    </Button>
+                                                    <span className="text-sm font-medium">
+                                                        Slide {activeSlide + 1} of {data.slides.length}
+                                                    </span>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => setActiveSlide(Math.min(data.slides.length - 1, activeSlide + 1))}
+                                                        disabled={activeSlide === data.slides.length - 1}
+                                                    >
+                                                        <ArrowRight className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Slide Preview/Editor */}
+                                            <motion.div
+                                                key={activeSlide}
+                                                initial={{ opacity: 0, scale: 0.98 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                className={`aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl ${activeSlide === 0
+                                                        ? 'bg-gradient-to-br'
+                                                        : 'bg-white dark:bg-slate-800'
+                                                    }`}
+                                                style={activeSlide === 0 ? {
+                                                    backgroundImage: `linear-gradient(135deg, ${selectedTheme.colors.primary}, ${selectedTheme.colors.secondary})`
+                                                } : {}}
+                                            >
+                                                <div className="w-full h-full p-10 flex gap-8">
+                                                    {/* Text Content */}
+                                                    <div className={`flex-1 flex flex-col justify-center ${activeSlide === 0 ? 'text-white' : ''}`}>
+                                                        {/* Editable Title */}
+                                                        {editingField?.slide === activeSlide && editingField.field === 'title' ? (
+                                                            <div className="mb-4">
+                                                                <Input
+                                                                    value={data.slides[activeSlide].title}
+                                                                    onChange={(e) => updatePreviewSlide(activeSlide, 'title', e.target.value)}
+                                                                    className="text-3xl font-bold bg-white/20 border-white/30"
+                                                                    autoFocus
+                                                                    onBlur={() => setEditingField(null)}
+                                                                    onKeyDown={(e) => e.key === 'Enter' && setEditingField(null)}
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <h2
+                                                                className={`text-3xl md:text-4xl font-bold mb-6 cursor-pointer hover:opacity-80 transition-opacity group ${activeSlide === 0 ? '' : 'text-slate-800 dark:text-white'}`}
+                                                                onClick={() => setEditingField({ slide: activeSlide, field: 'title' })}
+                                                            >
+                                                                {data.slides[activeSlide].title}
+                                                                <Edit3 className="inline-block w-5 h-5 ml-2 opacity-0 group-hover:opacity-50" />
+                                                            </h2>
+                                                        )}
+
+                                                        {/* Editable Content */}
+                                                        {activeSlide === 0 ? (
+                                                            <p
+                                                                className="text-lg text-white/80 leading-relaxed cursor-pointer hover:opacity-80"
+                                                                onClick={() => setEditingField({ slide: activeSlide, field: 'content', contentIndex: 0 })}
+                                                            >
+                                                                {data.slides[activeSlide].content.join(" ")}
+                                                            </p>
+                                                        ) : (
+                                                            <ul className="space-y-3">
+                                                                {data.slides[activeSlide].content.map((point, j) => (
+                                                                    <li key={j} className="flex items-start gap-3 text-slate-600 dark:text-slate-300 group">
+                                                                        <span className="w-2 h-2 rounded-full bg-blue-500 mt-2 shrink-0"></span>
+                                                                        {editingField?.slide === activeSlide && editingField.field === 'content' && editingField.contentIndex === j ? (
+                                                                            <Input
+                                                                                value={point}
+                                                                                onChange={(e) => {
+                                                                                    const newContent = [...data.slides[activeSlide].content];
+                                                                                    newContent[j] = e.target.value;
+                                                                                    updatePreviewSlide(activeSlide, 'content', newContent);
+                                                                                }}
+                                                                                className="text-lg flex-1"
+                                                                                autoFocus
+                                                                                onBlur={() => setEditingField(null)}
+                                                                                onKeyDown={(e) => e.key === 'Enter' && setEditingField(null)}
+                                                                            />
+                                                                        ) : (
+                                                                            <span
+                                                                                className="text-lg cursor-pointer hover:text-blue-600 transition-colors"
+                                                                                onClick={() => setEditingField({ slide: activeSlide, field: 'content', contentIndex: j })}
+                                                                            >
+                                                                                {point}
+                                                                                <Edit3 className="inline-block w-4 h-4 ml-1 opacity-0 group-hover:opacity-50" />
+                                                                            </span>
+                                                                        )}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Image with Regenerate option */}
+                                                    {data.slides[activeSlide].imageUrl && (
+                                                        <div className="w-2/5 relative group">
+                                                            <div className={`w-full h-full rounded-xl overflow-hidden ${activeSlide === 0 ? 'shadow-2xl' : 'shadow-lg'}`}>
+                                                                {isRegeneratingImage === activeSlide ? (
+                                                                    <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                                                                        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                                                                    </div>
+                                                                ) : (
+                                                                    /* eslint-disable-next-line @next/next/no-img-element */
+                                                                    <img
+                                                                        src={data.slides[activeSlide].imageUrl}
+                                                                        alt={data.slides[activeSlide].title}
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                )}
+                                                            </div>
+
+                                                            {/* Image Edit Overlay */}
+                                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex flex-col items-center justify-center gap-3">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="secondary"
+                                                                    onClick={() => regenerateImage(activeSlide)}
+                                                                    disabled={isRegeneratingImage === activeSlide}
+                                                                >
+                                                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                                                    Regenerate
+                                                                </Button>
+                                                                <div className="px-4 w-full">
+                                                                    <Input
+                                                                        placeholder="Custom image prompt..."
+                                                                        value={customImagePrompt}
+                                                                        onChange={(e) => setCustomImagePrompt(e.target.value)}
+                                                                        className="text-sm bg-white/90"
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter' && customImagePrompt) {
+                                                                                regenerateImage(activeSlide, customImagePrompt);
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     )}
                                                 </div>
+                                            </motion.div>
 
-                                                {/* Image */}
-                                                {slide.imageKeyword && (
-                                                    <div className={`w-2/5 rounded-xl overflow-hidden ${i === 0 ? 'shadow-2xl' : 'shadow-lg'}`}>
-                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                        <img
-                                                            src={`https://image.pollinations.ai/prompt/${encodeURIComponent(slide.imageKeyword)}?width=800&height=600&nologo=true`}
-                                                            alt={slide.title}
-                                                            className="w-full h-full object-cover"
-                                                            loading="lazy"
-                                                        />
-                                                    </div>
-                                                )}
+                                            {/* All Slides Overview */}
+                                            <div className="mt-8">
+                                                <h3 className="text-sm font-medium text-muted-foreground mb-4">All Slides</h3>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                    {data.slides.map((slide, i) => (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => setActiveSlide(i)}
+                                                            className={`aspect-video rounded-lg overflow-hidden border-2 transition-all ${activeSlide === i ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200 hover:border-slate-400'
+                                                                }`}
+                                                        >
+                                                            <div
+                                                                className="w-full h-full p-3 text-left"
+                                                                style={i === 0 ? {
+                                                                    backgroundImage: `linear-gradient(135deg, ${selectedTheme.colors.primary}, ${selectedTheme.colors.secondary})`
+                                                                } : { backgroundColor: 'white' }}
+                                                            >
+                                                                <div className={`text-xs font-bold line-clamp-2 ${i === 0 ? 'text-white' : 'text-slate-700'}`}>
+                                                                    {slide.title}
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </motion.div>
-                                    ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </motion.div>
