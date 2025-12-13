@@ -193,21 +193,80 @@ export default function InvoiceDashboard() {
                             </div>
                         ) : invoices.length === 0 ? (
                             <div className="text-center py-12 border-2 border-dashed rounded-lg bg-background/50">
+                                <Banknote className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
                                 <p className="text-muted-foreground">No invoices found. Create your first one!</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
                                 {invoices.map((inv) => (
                                     <Link key={inv._id} href={`/accounting/invoice/${inv._id}`}>
-                                        <Card className="group h-full p-6 hover:shadow-md transition-shadow cursor-pointer flex flex-col border-l-4 border-l-cyan-500">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className="p-2 rounded-md bg-cyan-100 text-cyan-700">
-                                                    <Banknote className="w-4 h-4" />
+                                        <Card className="group overflow-hidden hover:shadow-lg transition-all duration-300 hover:border-cyan-500/50 cursor-pointer h-full">
+                                            {/* Preview Thumbnail - Mini Invoice Preview */}
+                                            <div className="relative h-32 bg-white dark:bg-gray-900 border-b overflow-hidden">
+                                                {/* Mini Document */}
+                                                <div className="absolute inset-1 bg-gray-50 dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 p-2 text-[6px] leading-tight overflow-hidden">
+                                                    {/* Header */}
+                                                    <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-gray-200 dark:border-gray-600">
+                                                        <div className="flex items-center gap-1.5">
+                                                            {inv.companyDetails?.logo ? (
+                                                                <img src={inv.companyDetails.logo} alt="" className="w-4 h-4 object-contain rounded" />
+                                                            ) : (
+                                                                <div className="w-4 h-4 rounded bg-cyan-400 dark:bg-cyan-600" />
+                                                            )}
+                                                            <div className="truncate font-bold text-gray-700 dark:text-gray-300">
+                                                                {inv.companyDetails?.name || 'Company'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {/* Invoice Number */}
+                                                    <div className="text-center font-bold text-cyan-600 dark:text-cyan-400 mb-1 truncate text-[7px]">
+                                                        {inv.invoiceNumber}
+                                                    </div>
+                                                    {/* Items Preview */}
+                                                    <div className="space-y-0.5 text-gray-500 dark:text-gray-400">
+                                                        {inv.items?.slice(0, 2).map((item: any, idx: number) => (
+                                                            <div key={idx} className="truncate flex justify-between">
+                                                                <span>{item.description || 'Item'}</span>
+                                                                <span className="text-gray-400">₹{item.rate || 0}</span>
+                                                            </div>
+                                                        )) || (
+                                                                <>
+                                                                    <div className="h-1.5 w-full rounded bg-gray-200 dark:bg-gray-700" />
+                                                                    <div className="h-1.5 w-4/5 rounded bg-gray-200 dark:bg-gray-700" />
+                                                                </>
+                                                            )}
+                                                    </div>
+                                                    {/* Total at bottom */}
+                                                    <div className="absolute bottom-2 right-2 text-[8px] font-bold text-cyan-600 dark:text-cyan-400">
+                                                        ₹{inv.financials?.grandTotal?.toLocaleString('en-IN') || '0'}
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {new Date(inv.updatedAt).toLocaleDateString()}
-                                                    </span>
+                                                {/* Status Badge */}
+                                                <div className="absolute top-2 right-2 p-1.5 rounded-md shadow-sm bg-cyan-500">
+                                                    <Banknote className="w-3 h-3 text-white" />
+                                                </div>
+                                            </div>
+
+                                            {/* Card Content */}
+                                            <div className="p-4">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="font-semibold text-sm mb-1.5 line-clamp-1 group-hover:text-cyan-600 transition-colors">
+                                                            {inv.invoiceNumber}
+                                                        </h3>
+                                                        <p className="text-xs text-muted-foreground mb-2 line-clamp-1">
+                                                            {inv.clientDetails?.name || 'No client set'}
+                                                        </p>
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-1 text-sm font-bold text-emerald-600">
+                                                                <IndianRupee className="w-3 h-3" />
+                                                                {inv.financials?.grandTotal?.toLocaleString('en-IN') || '0'}
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {new Date(inv.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                     {/* Delete Button */}
                                                     <button
                                                         onClick={(e) => handleDeleteClick(e, inv._id)}
@@ -217,20 +276,6 @@ export default function InvoiceDashboard() {
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </div>
-                                            </div>
-                                            <h3 className="font-bold mb-1 text-lg">{inv.invoiceNumber}</h3>
-                                            <p className="text-sm font-medium text-slate-600 mb-3 truncate">
-                                                {inv.clientDetails?.name || "Unknown Client"}
-                                            </p>
-
-                                            <div className="flex items-center gap-1 text-sm font-bold text-emerald-600 mt-auto">
-                                                <IndianRupee className="w-3 h-3" />
-                                                {inv.financials?.grandTotal?.toLocaleString('en-IN') || "0.00"}
-                                            </div>
-
-                                            <div className="text-xs text-muted-foreground mt-4 pt-4 border-t flex justify-between">
-                                                <span>{inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString() : 'No Date'}</span>
-                                                <span className="font-mono">#{inv._id.slice(-6)}</span>
                                             </div>
                                         </Card>
                                     </Link>
@@ -244,29 +289,46 @@ export default function InvoiceDashboard() {
             <Footer />
 
             <AlertDialog open={showNameDialog} onOpenChange={setShowNameDialog}>
-                <AlertDialogContent>
+                <AlertDialogContent className="border-cyan-200 dark:border-cyan-800">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>New Invoice Details</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500">
+                                <Banknote className="w-5 h-5 text-white" />
+                            </div>
+                            <AlertDialogTitle className="text-cyan-700 dark:text-cyan-400 text-xl">
+                                Create New Invoice
+                            </AlertDialogTitle>
+                        </div>
+                        <AlertDialogDescription className="text-muted-foreground">
                             Confirm the invoice number to get started. You can change this later.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className="py-4">
-                        <Label htmlFor="invoice-no" className="mb-2 block">Invoice Number</Label>
+                        <Label htmlFor="invoice-no" className="mb-2 block text-sm font-medium">
+                            Invoice Number
+                        </Label>
                         <Input
                             id="invoice-no"
                             value={newInvoiceNumber}
                             onChange={(e) => setNewInvoiceNumber(e.target.value)}
                             placeholder="INV-XXXX"
                             autoFocus
+                            className="border-cyan-200 focus:border-cyan-500 focus:ring-cyan-500"
                         />
                     </div>
                     <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setShowNameDialog(false)}>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel
+                            onClick={() => setShowNameDialog(false)}
+                            className="border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800"
+                        >
+                            Cancel
+                        </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={createInvoice}
                             disabled={!newInvoiceNumber.trim()}
+                            className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
+                            <Plus className="w-4 h-4 mr-2" />
                             Create Invoice
                         </AlertDialogAction>
                     </AlertDialogFooter>

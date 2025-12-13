@@ -676,7 +676,7 @@ export default function InvoicePage() {
     }
 
     return (
-        <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300">
+        <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300" suppressHydrationWarning>
             <Navbar />
 
             {/* Header / Toolbar */}
