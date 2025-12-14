@@ -14,6 +14,12 @@ const InvoiceSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    // Link to source quotation if created from one
+    sourceQuotationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'TechnoQuotation',
+        default: null
+    },
     invoiceDate: Date,
     dueDate: Date,
     poDate: Date,

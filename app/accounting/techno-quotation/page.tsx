@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { ArrowLeft, Sparkles, FileEdit, Zap, Plus, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Sparkles, FileEdit, Zap, Plus, Loader2, Trash2, Check } from "lucide-react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from 'next/navigation';
 import {
     AlertDialog,
@@ -33,6 +33,11 @@ export default function TechnoQuotationDashboard() {
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // AI Processing Progress State
+    const [showProgress, setShowProgress] = useState(false);
+    const [progressPercent, setProgressPercent] = useState(0);
+    const [progressStatus, setProgressStatus] = useState('');
+
     useEffect(() => {
         const fetchQuotations = async () => {
             try {
@@ -57,6 +62,38 @@ export default function TechnoQuotationDashboard() {
         setShowNameDialog(true);
     };
 
+    // Simulate progress animation for automated quotation
+    const animateProgress = (onComplete: () => void) => {
+        setShowProgress(true);
+        setProgressPercent(0);
+
+        const steps = [
+            { percent: 15, status: 'Initializing AI engine...' },
+            { percent: 30, status: 'Analyzing requirements...' },
+            { percent: 50, status: 'Generating quotation content...' },
+            { percent: 70, status: 'Creating sections and tables...' },
+            { percent: 85, status: 'Formatting document...' },
+            { percent: 95, status: 'Finalizing quotation...' },
+            { percent: 100, status: 'Complete!' }
+        ];
+
+        let stepIndex = 0;
+        const interval = setInterval(() => {
+            if (stepIndex < steps.length) {
+                setProgressPercent(steps[stepIndex].percent);
+                setProgressStatus(steps[stepIndex].status);
+                stepIndex++;
+            } else {
+                clearInterval(interval);
+                setTimeout(() => {
+                    onComplete();
+                }, 500);
+            }
+        }, 400);
+
+        return interval;
+    };
+
     const createQuotation = async () => {
         if (!pendingType || !newQuotationName.trim()) return;
 
@@ -64,25 +101,59 @@ export default function TechnoQuotationDashboard() {
         setShowNameDialog(false);
 
         try {
-            const response = await fetch('/api/techno-quotation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: pendingType,
-                    title: newQuotationName
-                })
-            });
+            // Show progress animation for automated AI quotation
+            if (pendingType === 'automated') {
+                setShowProgress(true);
+                setProgressPercent(0);
+                setProgressStatus('Initializing AI...');
 
-            if (response.ok) {
-                const data = await response.json();
-                router.push(`/accounting/techno-quotation/${data.quotation._id}`);
+                const progressPromise = new Promise<void>((resolve) => {
+                    animateProgress(resolve);
+                });
+
+                const apiPromise = fetch('/api/techno-quotation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: pendingType,
+                        title: newQuotationName
+                    })
+                });
+
+                // Wait for both animation and API to complete
+                const [_, response] = await Promise.all([progressPromise, apiPromise]);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setShowProgress(false);
+                    router.push(`/accounting/techno-quotation/${data.quotation._id}`);
+                } else {
+                    console.error("Failed to create", response.status);
+                    setShowProgress(false);
+                    setIsCreating(false);
+                }
             } else {
-                // Handle error (e.g. auth error)
-                console.error("Failed to create", response.status);
-                setIsCreating(false);
+                // Manual quotation - no progress animation
+                const response = await fetch('/api/techno-quotation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: pendingType,
+                        title: newQuotationName
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    router.push(`/accounting/techno-quotation/${data.quotation._id}`);
+                } else {
+                    console.error("Failed to create", response.status);
+                    setIsCreating(false);
+                }
             }
         } catch (error) {
             console.error("Error creating quotation:", error);
+            setShowProgress(false);
             setIsCreating(false);
         }
     };
@@ -118,6 +189,86 @@ export default function TechnoQuotationDashboard() {
 
     return (
         <div className="flex min-h-screen flex-col">
+            {/* AI Processing Progress Overlay */}
+            <AnimatePresence>
+                {showProgress && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.8, opacity: 0 }}
+                            className="bg-gradient-to-br from-teal-900/90 to-emerald-900/90 border border-teal-500/30 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl"
+                        >
+                            {/* Header */}
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 shadow-lg">
+                                    <Sparkles className="w-6 h-6 text-white animate-pulse" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-white">AI Processing</h3>
+                                    <p className="text-sm text-teal-200">Generating your quotation</p>
+                                </div>
+                            </div>
+
+                            {/* Progress Percentage */}
+                            <div className="text-center mb-4">
+                                <motion.span
+                                    key={progressPercent}
+                                    initial={{ scale: 1.2, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    className="text-6xl font-bold bg-gradient-to-r from-teal-300 to-emerald-300 bg-clip-text text-transparent"
+                                >
+                                    {progressPercent}%
+                                </motion.span>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="relative h-3 bg-teal-900/50 rounded-full overflow-hidden mb-4 border border-teal-500/30">
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${progressPercent}%` }}
+                                    transition={{ duration: 0.3, ease: "easeOut" }}
+                                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-teal-500 via-emerald-500 to-teal-500 rounded-full"
+                                    style={{ backgroundSize: '200% 100%' }}
+                                />
+                                {/* Shimmer effect */}
+                                <motion.div
+                                    animate={{ x: ['0%', '100%'] }}
+                                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                                    className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                                />
+                            </div>
+
+                            {/* Status Text */}
+                            <motion.div
+                                key={progressStatus}
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="flex items-center justify-center gap-2"
+                            >
+                                {progressPercent < 100 ? (
+                                    <Loader2 className="w-4 h-4 animate-spin text-teal-300" />
+                                ) : (
+                                    <Check className="w-4 h-4 text-green-400" />
+                                )}
+                                <span className={`text-sm ${progressPercent === 100 ? 'text-green-400 font-medium' : 'text-teal-200'}`}>
+                                    {progressStatus}
+                                </span>
+                            </motion.div>
+
+                            {/* Decorative elements */}
+                            <div className="absolute top-4 right-4 w-20 h-20 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-full blur-2xl" />
+                            <div className="absolute bottom-4 left-4 w-16 h-16 bg-gradient-to-br from-teal-500/20 to-transparent rounded-full blur-2xl" />
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <Navbar />
 
             <main className="flex-1 bg-gradient-to-br from-emerald-500/10 via-background to-teal-500/10">

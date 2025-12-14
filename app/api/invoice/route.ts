@@ -20,7 +20,7 @@ export async function GET(req: Request) {
         await dbConnect();
 
         const invoices = await Invoice.find({ userId })
-            .select('invoiceNumber clientDetails companyDetails invoiceDate financials items updatedAt status')
+            .select('invoiceNumber clientDetails companyDetails invoiceDate financials items updatedAt status sourceQuotationId')
             .sort({ updatedAt: -1 });
 
         return NextResponse.json({ invoices });
