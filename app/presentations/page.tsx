@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -32,8 +33,12 @@ import {
     GripVertical,
     Eye,
     Settings,
+    FolderOpen,
+    Save,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/auth-context";
+import PresentationDashboard from "./components/PresentationDashboard";
 
 interface Slide {
     title: string;
@@ -75,13 +80,26 @@ const cleanMarkdown = (text: string): string => {
         .replace(/\*([^*]+)\*/g, '$1')     // Remove *italic*
         .replace(/__([^_]+)__/g, '$1')     // Remove __bold__
         .replace(/_([^_]+)_/g, '$1')       // Remove _italic_
+        .replace(/_([^_]+)_/g, '$1')       // Remove _italic*
         .replace(/`([^`]+)`/g, '$1')       // Remove `code`
         .replace(/#+\s*/g, '')             // Remove # headings
         .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove [link](url) -> link
         .trim();
 };
 
-export default function PresentationsPage() {
+// Default user ID for unauthenticated users
+const DEFAULT_USER_ID = "user_default";
+
+function PresentationsContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const { user } = useAuth();
+
+    // Workspace state
+    const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Presentation state
     const [step, setStep] = useState<Step>("input");
     const [prompt, setPrompt] = useState("");
     const [slideCount, setSlideCount] = useState(8);
@@ -97,6 +115,149 @@ export default function PresentationsPage() {
     const [isRegeneratingImage, setIsRegeneratingImage] = useState<number | null>(null);
     const [customImagePrompt, setCustomImagePrompt] = useState("");
 
+    const userId = user?.id || DEFAULT_USER_ID;
+
+    // Load workspace from URL params
+    useEffect(() => {
+        const workspaceIdFromUrl = searchParams.get("workspace");
+        if (workspaceIdFromUrl) {
+            setWorkspaceId(workspaceIdFromUrl);
+            loadWorkspace(workspaceIdFromUrl);
+        } else {
+            setWorkspaceId(null);
+        }
+    }, [searchParams]);
+
+    const loadWorkspace = async (id: string) => {
+        try {
+            const response = await fetch(`/api/presentation-workspace/${id}`);
+            const data = await response.json();
+
+            if (data.workspace) {
+                setPrompt(data.workspace.prompt || "");
+                setSlideCount(data.workspace.slideCount || 8);
+                setTheme(data.workspace.theme || "modern");
+
+                if (data.workspace.presentation) {
+                    setData(data.workspace.presentation);
+                    setOutline(data.workspace.outline || null);
+                    setStep("preview");
+                    setActiveSlide(0);
+                } else if (data.workspace.outline) {
+                    setOutline(data.workspace.outline);
+                    setData(null);
+                    setStep("outline");
+                } else {
+                    setOutline(null);
+                    setData(null);
+                    setStep("input");
+                }
+            }
+        } catch (error) {
+            console.error("Error loading workspace:", error);
+            toast.error("Failed to load workspace");
+            setWorkspaceId(null);
+        }
+    };
+
+    const createWorkspace = async (name: string) => {
+        try {
+            const response = await fetch("/api/presentation-workspace", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, userId }),
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.workspace) {
+                setWorkspaceId(data.workspace._id);
+                return data.workspace._id;
+            }
+        } catch (error) {
+            console.error("Error creating workspace:", error);
+            toast.error("Failed to create workspace");
+        }
+        return null;
+    };
+
+    const saveWorkspace = async () => {
+        if (!workspaceId) return;
+
+        setIsSaving(true);
+        try {
+            const response = await fetch(`/api/presentation-workspace/${workspaceId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    prompt,
+                    slideCount,
+                    theme,
+                    status: data ? "generated" : outline ? "outline" : "draft",
+                    outline: outline || undefined,
+                    presentation: data || undefined,
+                }),
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                toast.success("Saved!");
+            }
+        } catch (error) {
+            console.error("Error saving workspace:", error);
+            toast.error("Failed to save");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteWorkspace = async (id: string) => {
+        try {
+            const response = await fetch(`/api/presentation-workspace/${id}`, {
+                method: "DELETE",
+            });
+            if (response.ok) {
+                toast.success("Workspace deleted successfully");
+                if (workspaceId === id) {
+                    setWorkspaceId(null);
+                    router.push("/presentations");
+                }
+            } else {
+                toast.error("Failed to delete workspace");
+            }
+        } catch (error) {
+            console.error("Error deleting workspace:", error);
+            toast.error("Failed to delete workspace");
+        }
+    };
+
+    const handleNewWorkspace = () => {
+        resetPresentationState();
+        setWorkspaceId(null);
+        router.push("/presentations?new=true");
+    };
+
+    const handleSelectWorkspace = (id: string) => {
+        setWorkspaceId(id);
+        router.push(`/presentations?workspace=${id}`);
+    };
+
+    const handleBackToDashboard = () => {
+        setWorkspaceId(null);
+        resetPresentationState();
+        router.push("/presentations");
+    };
+
+    const resetPresentationState = () => {
+        setStep("input");
+        setPrompt("");
+        setOutline(null);
+        setData(null);
+        setActiveSlide(0);
+        setEditingSlide(null);
+        setEditingField(null);
+    };
+
     const handleGenerateOutline = async () => {
         if (!prompt.trim()) {
             toast.error("Please enter a topic");
@@ -107,6 +268,17 @@ export default function PresentationsPage() {
         setStep("outline");
 
         try {
+            // Create workspace if it doesn't exist
+            let wsId = workspaceId;
+            if (!wsId) {
+                const workspaceName = prompt.slice(0, 50) || "Untitled Presentation";
+                wsId = await createWorkspace(workspaceName);
+                if (wsId) {
+                    const newUrl = `/presentations?workspace=${wsId}`;
+                    window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
+                }
+            }
+
             const response = await fetch("/api/generate-presentation", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -120,6 +292,22 @@ export default function PresentationsPage() {
             }
 
             setOutline(result);
+
+            // Auto-save the outline to workspace
+            if (wsId) {
+                await fetch(`/api/presentation-workspace/${wsId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        prompt,
+                        slideCount,
+                        theme,
+                        status: "outline",
+                        outline: result,
+                    }),
+                });
+            }
+
             toast.success("Outline generated! Review and edit before generating.");
         } catch (error: any) {
             toast.error(error.message);
@@ -308,6 +496,25 @@ export default function PresentationsPage() {
 
     const selectedTheme = THEMES.find(t => t.id === theme)!;
 
+    // Show Dashboard if no workspace selected and not creating new
+    const isCreatingNew = searchParams.get("new") === "true";
+    if (!workspaceId && !isCreatingNew) {
+        return (
+            <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+                <Navbar />
+                <main className="flex-1">
+                    <PresentationDashboard
+                        userId={userId}
+                        onSelectWorkspace={handleSelectWorkspace}
+                        onCreateNew={handleNewWorkspace}
+                        onDeleteWorkspace={handleDeleteWorkspace}
+                    />
+                </main>
+                <Footer />
+            </div>
+        );
+    }
+
     return (
         <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
             <Navbar />
@@ -318,6 +525,10 @@ export default function PresentationsPage() {
                     <div className="container mx-auto px-4 py-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
+                                <Button variant="ghost" size="sm" onClick={handleBackToDashboard}>
+                                    <FolderOpen className="w-4 h-4 mr-2" />
+                                    Dashboard
+                                </Button>
                                 {step !== "input" && (
                                     <Button variant="ghost" size="sm" onClick={handleBack}>
                                         <ArrowLeft className="w-4 h-4 mr-2" />
@@ -325,34 +536,54 @@ export default function PresentationsPage() {
                                     </Button>
                                 )}
                                 <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-                                    {step === "input" && "Generate"}
+                                    {step === "input" && "New Presentation"}
                                     {step === "outline" && "Edit Outline"}
                                     {step === "generating" && "Creating..."}
                                     {step === "preview" && "Edit Presentation"}
                                 </h1>
                             </div>
 
-                            {step === "preview" && (
-                                <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3">
+                                {workspaceId && (
                                     <Button
-                                        onClick={handleDownload}
-                                        disabled={isDownloading}
-                                        className="bg-blue-600 hover:bg-blue-700"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={saveWorkspace}
+                                        disabled={isSaving}
                                     >
-                                        {isDownloading ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Downloading...
-                                            </>
+                                        {isSaving ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
                                         ) : (
                                             <>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Download .pptx
+                                                <Save className="mr-2 h-4 w-4" />
+                                                Save
                                             </>
                                         )}
                                     </Button>
-                                </div>
-                            )}
+                                )}
+
+                                {step === "preview" && (
+                                    <div className="flex items-center gap-3">
+                                        <Button
+                                            onClick={handleDownload}
+                                            disabled={isDownloading}
+                                            className="bg-blue-600 hover:bg-blue-700"
+                                        >
+                                            {isDownloading ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Downloading...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Download className="mr-2 h-4 w-4" />
+                                                    Download .pptx
+                                                </>
+                                            )}
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1022,9 +1253,22 @@ export default function PresentationsPage() {
                         </motion.div>
                     )}
                 </AnimatePresence>
-            </main>
+            </main >
 
-            {step === "input" && <Footer />}
-        </div>
+            {step === "input" && <Footer />
+            }
+        </div >
+    );
+}
+
+export default function PresentationsPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex min-h-screen items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            </div>
+        }>
+            <PresentationsContent />
+        </Suspense>
     );
 }
