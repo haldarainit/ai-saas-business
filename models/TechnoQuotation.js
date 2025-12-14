@@ -1,0 +1,96 @@
+import mongoose from 'mongoose';
+
+const SectionSchema = new mongoose.Schema({
+    id: String,
+    type: { type: String, enum: ['text', 'list', 'table', 'heading'] },
+    heading: String,
+    content: String,
+    items: [String],
+    table: {
+        id: String,
+        name: String,
+        columns: [{
+            id: String,
+            name: String,
+            width: String
+        }],
+        rows: [{
+            id: String,
+            cells: { type: mongoose.Schema.Types.Mixed }
+        }]
+    }
+}, { _id: false });
+
+const PageSchema = new mongoose.Schema({
+    id: String,
+    sections: [SectionSchema]
+}, { _id: false });
+
+const TechnoQuotationSchema = new mongoose.Schema({
+    userId: {
+        type: String,
+        required: true,
+        index: true
+    },
+    quotationType: {
+        type: String,
+        enum: ['manual', 'automated', 'ai-generated'],
+        default: 'manual'
+    },
+    companyDetails: {
+        name: String,
+        address1: String,
+        address2: String,
+        phone: String,
+        logo: String,
+        email: String
+    },
+    clientDetails: {
+        name: String,
+        address: String,
+        contact: String
+    },
+    watermarkSettings: {
+        type: { type: String, enum: ['text', 'logo'], default: 'text' },
+        text: { type: String, default: 'CONFIDENTIAL' },
+        logoUrl: String,
+        size: { type: Number, default: 80 },
+        opacity: { type: Number, default: 0.15 },
+        colorMode: { type: String, enum: ['original', 'grayscale'], default: 'original' }
+    },
+    title: {
+        type: String,
+        default: 'New Quotation'
+    },
+    mainTitle: {
+        type: String,
+        default: 'TECHNO COMMERCIAL QUOTATION'
+    },
+    companyId: String,
+    companyDate: String,
+    logoLetter: {
+        type: String,
+        default: 'G'
+    },
+    footer: {
+        line1: String,
+        line2: String,
+        line3: String
+    },
+    pages: [PageSchema],
+    answers: { type: mongoose.Schema.Types.Mixed }, // Store questionnaire answers
+    status: {
+        type: String,
+        enum: ['draft', 'finalized'],
+        default: 'draft'
+    }
+}, {
+    timestamps: true
+});
+
+// Prevent model overwrite error in development
+if (mongoose.models.TechnoQuotation) {
+    delete mongoose.models.TechnoQuotation;
+}
+
+export default mongoose.models.TechnoQuotation || mongoose.model('TechnoQuotation', TechnoQuotationSchema);
