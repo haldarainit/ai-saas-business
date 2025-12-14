@@ -127,41 +127,38 @@ export async function POST(req: Request) {
                     fill: { color: accentColor },
                 });
 
-                // Main Title
+                // Main Title - adjusted for long titles
                 slide.addText(slideData.title, {
                     x: 0.5,
-                    y: 1.2,
+                    y: 0.6,
                     w: 5.5,
-                    h: 1.5,
-                    fontSize: 40,
+                    h: 1.8,
+                    fontSize: 32,
                     bold: true,
                     color: 'FFFFFF',
                     fontFace: 'Arial',
-                    valign: 'middle',
+                    valign: 'top',
                 });
 
-                // Subtitle from content - display as bullet points
+                // Subtitle from content - display as clean text lines
                 if (slideData.content && slideData.content.length > 0) {
                     const textItems = slideData.content.map((text) => ({
                         text: cleanMarkdown(text),
                         options: {
-                            fontSize: 14,
+                            fontSize: 13,
                             color: 'FFFFFF',
-                            bullet: {
-                                type: 'bullet' as const,
-                                color: accentColor
-                            },
+                            bullet: false,
                             breakLine: true,
-                            paraSpaceBefore: 4,
-                            paraSpaceAfter: 4,
+                            paraSpaceBefore: 3,
+                            paraSpaceAfter: 3,
                         },
                     }));
 
                     slide.addText(textItems, {
                         x: 0.5,
-                        y: 2.8,
+                        y: 2.6,
                         w: 5.5,
-                        h: 2,
+                        h: 2.0,
                         fontFace: 'Arial',
                         valign: 'top',
                     });
@@ -193,31 +190,28 @@ export async function POST(req: Request) {
                 // ==================== CLOSING SLIDE ====================
                 slide.background = { color: primaryColor };
 
-                // Thank You Title
+                // Thank You Title - adjusted for long titles
                 slide.addText(slideData.title, {
-                    x: 0,
-                    y: 1.8,
-                    w: 10,
-                    h: 1.2,
-                    fontSize: 44,
+                    x: 0.5,
+                    y: 0.8,
+                    w: 9,
+                    h: 1.5,
+                    fontSize: 36,
                     bold: true,
                     color: 'FFFFFF',
                     fontFace: 'Arial',
                     align: 'center',
-                    valign: 'middle',
+                    valign: 'top',
                 });
 
-                // Content/Contact info - display as bullet points
+                // Content/Contact info - display as clean text lines
                 if (slideData.content && slideData.content.length > 0) {
                     const textItems = slideData.content.map((text) => ({
                         text: cleanMarkdown(text),
                         options: {
-                            fontSize: 14,
+                            fontSize: 13,
                             color: 'FFFFFF',
-                            bullet: {
-                                type: 'bullet' as const,
-                                color: accentColor
-                            },
+                            bullet: false,
                             breakLine: true,
                             paraSpaceBefore: 4,
                             paraSpaceAfter: 4,
@@ -226,19 +220,19 @@ export async function POST(req: Request) {
 
                     slide.addText(textItems, {
                         x: 1,
-                        y: 3.2,
+                        y: 2.7,
                         w: 8,
-                        h: 2,
+                        h: 2.5,
                         fontFace: 'Arial',
                         valign: 'top',
-                        align: 'left',
+                        align: 'center',
                     });
                 }
 
-                // Decorative line
+                // Decorative line - below title
                 slide.addShape('rect', {
                     x: 3,
-                    y: 3,
+                    y: 2.4,
                     w: 4,
                     h: 0.02,
                     fill: { color: accentColor },
