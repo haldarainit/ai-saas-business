@@ -209,29 +209,38 @@ export async function POST(req: Request) {
                 // ==================== CONTENT SLIDES ====================
                 slide.background = { color: 'FFFFFF' };
 
-                // Top accent bar
+                // Left sidebar accent strip (prominent theme element)
                 slide.addShape('rect', {
                     x: 0,
                     y: 0,
-                    w: 10,
-                    h: 0.06,
+                    w: 0.15,
+                    h: 5.625,
                     fill: { color: primaryColor },
                 });
 
-                // Slide number indicator
+                // Top accent bar (thicker for visibility)
                 slide.addShape('rect', {
-                    x: 0,
-                    y: 0.25,
-                    w: 0.4,
-                    h: 0.4,
+                    x: 0.15,
+                    y: 0,
+                    w: 9.85,
+                    h: 0.12,
                     fill: { color: secondaryColor },
                 });
+
+                // Slide number indicator with theme color
+                slide.addShape('rect', {
+                    x: 0.35,
+                    y: 0.35,
+                    w: 0.5,
+                    h: 0.5,
+                    fill: { color: primaryColor },
+                });
                 slide.addText(String(i + 1), {
-                    x: 0,
-                    y: 0.25,
-                    w: 0.4,
-                    h: 0.4,
-                    fontSize: 12,
+                    x: 0.35,
+                    y: 0.35,
+                    w: 0.5,
+                    h: 0.5,
+                    fontSize: 14,
                     bold: true,
                     color: 'FFFFFF',
                     fontFace: 'Arial',
@@ -239,53 +248,53 @@ export async function POST(req: Request) {
                     valign: 'middle',
                 });
 
-                // Slide Title
+                // Slide Title with theme primary color
                 slide.addText(slideData.title, {
-                    x: 0.6,
-                    y: 0.25,
-                    w: 9,
-                    h: 0.5,
-                    fontSize: 24,
+                    x: 1,
+                    y: 0.3,
+                    w: 8.5,
+                    h: 0.6,
+                    fontSize: 26,
                     bold: true,
-                    color: '1f2937',
+                    color: primaryColor,
                     fontFace: 'Arial',
                     valign: 'middle',
                 });
 
-                // Horizontal divider line
+                // Horizontal divider line with theme accent color
                 slide.addShape('rect', {
-                    x: 0.5,
-                    y: 0.9,
-                    w: 9,
-                    h: 0.01,
-                    fill: { color: 'e5e7eb' },
+                    x: 0.35,
+                    y: 1.05,
+                    w: 9.3,
+                    h: 0.02,
+                    fill: { color: accentColor },
                 });
 
                 // Content area - adjust width based on whether we have an image
                 const contentWidth = imageBase64 ? 5 : 9;
 
-                // Content bullets
+                // Content bullets with themed styling
                 if (slideData.content && slideData.content.length > 0) {
                     const textItems = slideData.content.map((text) => ({
                         text: text,
                         options: {
-                            fontSize: 14,
+                            fontSize: 15,
                             color: '374151',
                             bullet: {
                                 type: 'bullet' as const,
                                 color: secondaryColor
                             },
                             breakLine: true,
-                            paraSpaceBefore: 6,
-                            paraSpaceAfter: 6,
+                            paraSpaceBefore: 8,
+                            paraSpaceAfter: 8,
                         },
                     }));
 
                     slide.addText(textItems, {
                         x: 0.5,
-                        y: 1.1,
+                        y: 1.2,
                         w: contentWidth,
-                        h: 3.8,
+                        h: 3.6,
                         fontFace: 'Arial',
                         valign: 'top',
                     });
@@ -293,23 +302,40 @@ export async function POST(req: Request) {
 
                 // Image on right (if available)
                 if (imageBase64) {
+                    // Add a subtle border/frame around image using theme color
+                    slide.addShape('rect', {
+                        x: 5.65,
+                        y: 1.05,
+                        w: 4,
+                        h: 3.7,
+                        fill: { color: accentColor },
+                    });
                     slide.addImage({
                         data: imageBase64,
-                        x: 5.8,
+                        x: 5.7,
                         y: 1.1,
-                        w: 3.8,
-                        h: 3.5,
+                        w: 3.9,
+                        h: 3.6,
                         rounding: true,
                     });
                 }
+
+                // Bottom accent line
+                slide.addShape('rect', {
+                    x: 0.35,
+                    y: 5.1,
+                    w: 9.3,
+                    h: 0.02,
+                    fill: { color: accentColor },
+                });
 
                 // Footer with presentation title and page number
                 slide.addText(title, {
                     x: 0.5,
                     y: 5.2,
                     w: 6,
-                    fontSize: 8,
-                    color: '9ca3af',
+                    fontSize: 9,
+                    color: secondaryColor,
                     fontFace: 'Arial',
                 });
 
@@ -317,10 +343,11 @@ export async function POST(req: Request) {
                     x: 8,
                     y: 5.2,
                     w: 1.5,
-                    fontSize: 8,
-                    color: '9ca3af',
+                    fontSize: 9,
+                    color: primaryColor,
                     fontFace: 'Arial',
                     align: 'right',
+                    bold: true,
                 });
             }
         }

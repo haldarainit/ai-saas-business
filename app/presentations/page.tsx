@@ -686,25 +686,50 @@ export default function PresentationsPage() {
                             {/* Left Sidebar - Thumbnails */}
                             <div className="w-52 border-r bg-slate-50 dark:bg-slate-900 overflow-y-auto p-4 space-y-3 hidden md:block">
                                 <div className="text-xs font-medium text-muted-foreground mb-3">SLIDES</div>
-                                {data.slides.map((slide, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => setActiveSlide(i)}
-                                        className={`w-full aspect-[16/10] rounded-lg overflow-hidden border-2 transition-all relative group ${activeSlide === i
+                                {data.slides.map((slide, i) => {
+                                    const isFirstOrLast = i === 0 || i === data.slides.length - 1;
+                                    return (
+                                        <button
+                                            key={i}
+                                            onClick={() => setActiveSlide(i)}
+                                            className={`w-full aspect-[16/10] rounded-lg overflow-hidden border-2 transition-all relative group ${activeSlide === i
                                                 ? "border-blue-500 shadow-lg"
                                                 : "border-transparent hover:border-slate-300"
-                                            }`}
-                                    >
-                                        <div className="absolute top-1 left-1 bg-black/50 text-white text-[8px] px-1 rounded">
-                                            {i + 1}
-                                        </div>
-                                        <div className="w-full h-full bg-white dark:bg-slate-800 p-2 text-left">
-                                            <div className="text-[8px] font-bold text-slate-600 dark:text-slate-300 line-clamp-2">
-                                                {slide.title}
+                                                }`}
+                                        >
+                                            <div className="absolute top-1 left-1 bg-black/50 text-white text-[8px] px-1 rounded z-10">
+                                                {i + 1}
                                             </div>
-                                        </div>
-                                    </button>
-                                ))}
+                                            <div
+                                                className={`w-full h-full p-2 text-left relative ${isFirstOrLast ? '' : 'bg-white dark:bg-slate-800'}`}
+                                                style={isFirstOrLast ? {
+                                                    backgroundImage: `linear-gradient(135deg, ${selectedTheme.colors.primary}, ${selectedTheme.colors.secondary})`
+                                                } : {}}
+                                            >
+                                                {/* Left sidebar accent for content slides */}
+                                                {!isFirstOrLast && (
+                                                    <div
+                                                        className="absolute top-0 left-0 bottom-0 w-0.5"
+                                                        style={{ backgroundColor: selectedTheme.colors.primary }}
+                                                    />
+                                                )}
+                                                {/* Top accent bar for content slides */}
+                                                {!isFirstOrLast && (
+                                                    <div
+                                                        className="absolute top-0 left-0.5 right-0 h-0.5"
+                                                        style={{ backgroundColor: selectedTheme.colors.secondary }}
+                                                    />
+                                                )}
+                                                <div
+                                                    className={`text-[8px] font-bold line-clamp-2 ${isFirstOrLast ? 'text-white' : ''}`}
+                                                    style={!isFirstOrLast ? { color: selectedTheme.colors.primary } : {}}
+                                                >
+                                                    {slide.title}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
 
                             {/* Main Preview Area */}
@@ -743,17 +768,51 @@ export default function PresentationsPage() {
                                                 key={activeSlide}
                                                 initial={{ opacity: 0, scale: 0.98 }}
                                                 animate={{ opacity: 1, scale: 1 }}
-                                                className={`aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl ${activeSlide === 0
-                                                        ? 'bg-gradient-to-br'
-                                                        : 'bg-white dark:bg-slate-800'
+                                                className={`aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl relative ${activeSlide === 0 || activeSlide === data.slides.length - 1
+                                                    ? 'bg-gradient-to-br'
+                                                    : 'bg-white dark:bg-slate-800'
                                                     }`}
-                                                style={activeSlide === 0 ? {
+                                                style={(activeSlide === 0 || activeSlide === data.slides.length - 1) ? {
                                                     backgroundImage: `linear-gradient(135deg, ${selectedTheme.colors.primary}, ${selectedTheme.colors.secondary})`
                                                 } : {}}
                                             >
-                                                <div className="w-full h-full p-10 flex gap-8">
+                                                {/* Left sidebar accent strip for content slides */}
+                                                {activeSlide !== 0 && activeSlide !== data.slides.length - 1 && (
+                                                    <div
+                                                        className="absolute top-0 left-0 bottom-0 w-2"
+                                                        style={{ backgroundColor: selectedTheme.colors.primary }}
+                                                    />
+                                                )}
+
+                                                {/* Top accent bar for content slides */}
+                                                {activeSlide !== 0 && activeSlide !== data.slides.length - 1 && (
+                                                    <div
+                                                        className="absolute top-0 left-2 right-0 h-2"
+                                                        style={{ backgroundColor: selectedTheme.colors.secondary }}
+                                                    />
+                                                )}
+
+                                                {/* Bottom accent line for content slides */}
+                                                {activeSlide !== 0 && activeSlide !== data.slides.length - 1 && (
+                                                    <div
+                                                        className="absolute bottom-8 left-6 right-6 h-0.5"
+                                                        style={{ backgroundColor: selectedTheme.colors.accent }}
+                                                    />
+                                                )}
+
+                                                {/* Slide number badge for content slides */}
+                                                {activeSlide !== 0 && activeSlide !== data.slides.length - 1 && (
+                                                    <div
+                                                        className="absolute top-6 left-6 w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg"
+                                                        style={{ backgroundColor: selectedTheme.colors.primary }}
+                                                    >
+                                                        {activeSlide + 1}
+                                                    </div>
+                                                )}
+
+                                                <div className={`w-full h-full p-10 flex gap-8 ${activeSlide !== 0 && activeSlide !== data.slides.length - 1 ? 'pt-14' : ''}`}>
                                                     {/* Text Content */}
-                                                    <div className={`flex-1 flex flex-col justify-center ${activeSlide === 0 ? 'text-white' : ''}`}>
+                                                    <div className={`flex-1 flex flex-col justify-center ${(activeSlide === 0 || activeSlide === data.slides.length - 1) ? 'text-white' : ''}`}>
                                                         {/* Editable Title */}
                                                         {editingField?.slide === activeSlide && editingField.field === 'title' ? (
                                                             <div className="mb-4">
@@ -768,7 +827,8 @@ export default function PresentationsPage() {
                                                             </div>
                                                         ) : (
                                                             <h2
-                                                                className={`text-3xl md:text-4xl font-bold mb-6 cursor-pointer hover:opacity-80 transition-opacity group ${activeSlide === 0 ? '' : 'text-slate-800 dark:text-white'}`}
+                                                                className={`text-3xl md:text-4xl font-bold mb-6 cursor-pointer hover:opacity-80 transition-opacity group`}
+                                                                style={(activeSlide !== 0 && activeSlide !== data.slides.length - 1) ? { color: selectedTheme.colors.primary } : {}}
                                                                 onClick={() => setEditingField({ slide: activeSlide, field: 'title' })}
                                                             >
                                                                 {data.slides[activeSlide].title}
@@ -777,7 +837,7 @@ export default function PresentationsPage() {
                                                         )}
 
                                                         {/* Editable Content */}
-                                                        {activeSlide === 0 ? (
+                                                        {(activeSlide === 0 || activeSlide === data.slides.length - 1) ? (
                                                             <p
                                                                 className="text-lg text-white/80 leading-relaxed cursor-pointer hover:opacity-80"
                                                                 onClick={() => setEditingField({ slide: activeSlide, field: 'content', contentIndex: 0 })}
@@ -788,7 +848,10 @@ export default function PresentationsPage() {
                                                             <ul className="space-y-3">
                                                                 {data.slides[activeSlide].content.map((point, j) => (
                                                                     <li key={j} className="flex items-start gap-3 text-slate-600 dark:text-slate-300 group">
-                                                                        <span className="w-2 h-2 rounded-full bg-blue-500 mt-2 shrink-0"></span>
+                                                                        <span
+                                                                            className="w-2 h-2 rounded-full mt-2 shrink-0"
+                                                                            style={{ backgroundColor: selectedTheme.colors.secondary }}
+                                                                        ></span>
                                                                         {editingField?.slide === activeSlide && editingField.field === 'content' && editingField.contentIndex === j ? (
                                                                             <Input
                                                                                 value={point}
