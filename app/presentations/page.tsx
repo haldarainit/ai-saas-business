@@ -68,6 +68,19 @@ const EXAMPLE_PROMPTS = [
     { icon: Sparkles, title: "Annual Company Report", subtitle: "achievements & goals" },
 ];
 
+// Helper function to clean up markdown formatting from AI-generated content
+const cleanMarkdown = (text: string): string => {
+    return text
+        .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove **bold**
+        .replace(/\*([^*]+)\*/g, '$1')     // Remove *italic*
+        .replace(/__([^_]+)__/g, '$1')     // Remove __bold__
+        .replace(/_([^_]+)_/g, '$1')       // Remove _italic_
+        .replace(/`([^`]+)`/g, '$1')       // Remove `code`
+        .replace(/#+\s*/g, '')             // Remove # headings
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove [link](url) -> link
+        .trim();
+};
+
 export default function PresentationsPage() {
     const [step, setStep] = useState<Step>("input");
     const [prompt, setPrompt] = useState("");
@@ -255,10 +268,20 @@ export default function PresentationsPage() {
         setIsRegeneratingImage(slideIndex);
 
         const slide = data.slides[slideIndex];
-        const imagePrompt = customPrompt || slide.imageKeyword || slide.title;
 
-        // Generate new image URL with different seed
-        const newImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=800&height=600&nologo=true&seed=${Date.now()}`;
+        // Use custom prompt if provided and not empty, otherwise fall back to existing
+        const imagePrompt = (customPrompt && customPrompt.trim())
+            ? customPrompt.trim()
+            : (slide.imageKeyword || slide.title);
+
+        console.log('Regenerating image with prompt:', imagePrompt);
+        console.log('Custom prompt received:', customPrompt);
+
+        // Generate new image URL with different seed and the prompt
+        const timestamp = Date.now();
+        const newImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=800&height=600&nologo=true&seed=${timestamp}&t=${timestamp}`;
+
+        console.log('New image URL:', newImageUrl);
 
         const newSlides = [...data.slides];
         newSlides[slideIndex] = {
@@ -270,7 +293,7 @@ export default function PresentationsPage() {
 
         setIsRegeneratingImage(null);
         setCustomImagePrompt("");
-        toast.success("Image regenerated!");
+        toast.success(`Image regenerated with: "${imagePrompt.substring(0, 50)}..."`);
     };
 
     const handleBack = () => {
@@ -838,12 +861,22 @@ export default function PresentationsPage() {
 
                                                         {/* Editable Content */}
                                                         {(activeSlide === 0 || activeSlide === data.slides.length - 1) ? (
-                                                            <p
-                                                                className="text-lg text-white/80 leading-relaxed cursor-pointer hover:opacity-80"
-                                                                onClick={() => setEditingField({ slide: activeSlide, field: 'content', contentIndex: 0 })}
-                                                            >
-                                                                {data.slides[activeSlide].content.join(" ")}
-                                                            </p>
+                                                            <div className="space-y-3">
+                                                                {data.slides[activeSlide].content.map((point, j) => (
+                                                                    <div
+                                                                        key={j}
+                                                                        className="flex items-start gap-3 text-white/90 group cursor-pointer hover:opacity-80"
+                                                                        onClick={() => setEditingField({ slide: activeSlide, field: 'content', contentIndex: j })}
+                                                                    >
+                                                                        <span
+                                                                            className="w-2 h-2 rounded-full mt-2 shrink-0 bg-white/60"
+                                                                        ></span>
+                                                                        <span className="text-lg leading-relaxed">
+                                                                            {cleanMarkdown(point)}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         ) : (
                                                             <ul className="space-y-3">
                                                                 {data.slides[activeSlide].content.map((point, j) => (
@@ -870,7 +903,7 @@ export default function PresentationsPage() {
                                                                                 className="text-lg cursor-pointer hover:text-blue-600 transition-colors"
                                                                                 onClick={() => setEditingField({ slide: activeSlide, field: 'content', contentIndex: j })}
                                                                             >
-                                                                                {point}
+                                                                                {cleanMarkdown(point)}
                                                                                 <Edit3 className="inline-block w-4 h-4 ml-1 opacity-0 group-hover:opacity-50" />
                                                                             </span>
                                                                         )}
@@ -899,28 +932,57 @@ export default function PresentationsPage() {
                                                             </div>
 
                                                             {/* Image Edit Overlay */}
-                                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex flex-col items-center justify-center gap-3">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="secondary"
-                                                                    onClick={() => regenerateImage(activeSlide)}
-                                                                    disabled={isRegeneratingImage === activeSlide}
-                                                                >
-                                                                    <RefreshCw className="w-4 h-4 mr-2" />
-                                                                    Regenerate
-                                                                </Button>
-                                                                <div className="px-4 w-full">
+                                                            <div
+                                                                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex flex-col items-center justify-center gap-3 p-4"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                {/* Custom prompt input */}
+                                                                <div className="w-full">
                                                                     <Input
-                                                                        placeholder="Custom image prompt..."
+                                                                        placeholder="Type custom image prompt..."
                                                                         value={customImagePrompt}
                                                                         onChange={(e) => setCustomImagePrompt(e.target.value)}
-                                                                        className="text-sm bg-white/90"
+                                                                        className="text-sm bg-white"
+                                                                        onClick={(e) => e.stopPropagation()}
                                                                         onKeyDown={(e) => {
-                                                                            if (e.key === 'Enter' && customImagePrompt) {
+                                                                            e.stopPropagation();
+                                                                            if (e.key === 'Enter' && customImagePrompt.trim()) {
                                                                                 regenerateImage(activeSlide, customImagePrompt);
                                                                             }
                                                                         }}
                                                                     />
+                                                                </div>
+
+                                                                {/* Buttons */}
+                                                                <div className="flex gap-2 w-full">
+                                                                    {customImagePrompt.trim() ? (
+                                                                        <Button
+                                                                            size="sm"
+                                                                            className="flex-1 bg-green-600 hover:bg-green-700"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                regenerateImage(activeSlide, customImagePrompt);
+                                                                            }}
+                                                                            disabled={isRegeneratingImage === activeSlide}
+                                                                        >
+                                                                            <RefreshCw className="w-4 h-4 mr-2" />
+                                                                            Apply Custom
+                                                                        </Button>
+                                                                    ) : (
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="secondary"
+                                                                            className="flex-1"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                regenerateImage(activeSlide);
+                                                                            }}
+                                                                            disabled={isRegeneratingImage === activeSlide}
+                                                                        >
+                                                                            <RefreshCw className="w-4 h-4 mr-2" />
+                                                                            Regenerate
+                                                                        </Button>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </div>

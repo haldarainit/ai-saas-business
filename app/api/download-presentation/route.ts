@@ -50,6 +50,19 @@ async function fetchImageAsBase64(url: string): Promise<string | null> {
     }
 }
 
+// Helper function to clean markdown formatting from AI-generated content
+function cleanMarkdown(text: string): string {
+    return text
+        .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove **bold**
+        .replace(/\*([^*]+)\*/g, '$1')     // Remove *italic*
+        .replace(/__([^_]+)__/g, '$1')     // Remove __bold__
+        .replace(/_([^_]+)_/g, '$1')       // Remove _italic_
+        .replace(/`([^`]+)`/g, '$1')       // Remove `code`
+        .replace(/#+\s*/g, '')             // Remove # headings
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove [link](url) -> link
+        .trim();
+}
+
 export async function POST(req: Request) {
     try {
         const body: PresentationData = await req.json();
@@ -127,15 +140,28 @@ export async function POST(req: Request) {
                     valign: 'middle',
                 });
 
-                // Subtitle from content
+                // Subtitle from content - display as bullet points
                 if (slideData.content && slideData.content.length > 0) {
-                    slide.addText(slideData.content.join(' '), {
+                    const textItems = slideData.content.map((text) => ({
+                        text: cleanMarkdown(text),
+                        options: {
+                            fontSize: 14,
+                            color: 'FFFFFF',
+                            bullet: {
+                                type: 'bullet' as const,
+                                color: accentColor
+                            },
+                            breakLine: true,
+                            paraSpaceBefore: 4,
+                            paraSpaceAfter: 4,
+                        },
+                    }));
+
+                    slide.addText(textItems, {
                         x: 0.5,
                         y: 2.8,
                         w: 5.5,
-                        h: 1.2,
-                        fontSize: 16,
-                        color: 'FFFFFF',
+                        h: 2,
                         fontFace: 'Arial',
                         valign: 'top',
                     });
@@ -181,18 +207,31 @@ export async function POST(req: Request) {
                     valign: 'middle',
                 });
 
-                // Content/Contact info
+                // Content/Contact info - display as bullet points
                 if (slideData.content && slideData.content.length > 0) {
-                    slide.addText(slideData.content.join('\n'), {
+                    const textItems = slideData.content.map((text) => ({
+                        text: cleanMarkdown(text),
+                        options: {
+                            fontSize: 14,
+                            color: 'FFFFFF',
+                            bullet: {
+                                type: 'bullet' as const,
+                                color: accentColor
+                            },
+                            breakLine: true,
+                            paraSpaceBefore: 4,
+                            paraSpaceAfter: 4,
+                        },
+                    }));
+
+                    slide.addText(textItems, {
                         x: 1,
                         y: 3.2,
                         w: 8,
-                        h: 1.5,
-                        fontSize: 16,
-                        color: 'FFFFFF',
+                        h: 2,
                         fontFace: 'Arial',
-                        align: 'center',
                         valign: 'top',
+                        align: 'left',
                     });
                 }
 
@@ -276,7 +315,7 @@ export async function POST(req: Request) {
                 // Content bullets with themed styling
                 if (slideData.content && slideData.content.length > 0) {
                     const textItems = slideData.content.map((text) => ({
-                        text: text,
+                        text: cleanMarkdown(text),
                         options: {
                             fontSize: 15,
                             color: '374151',
