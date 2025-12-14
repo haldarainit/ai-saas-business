@@ -7,7 +7,7 @@
 ```
 [Error: You cannot use different slug names for the same dynamic path ('id' !== 'trackingId').]
 ```
-
+ajfhjdshfjsahjdsf
 **Root Cause:**
 Two folders existed with different parameter names for the same route:
 
