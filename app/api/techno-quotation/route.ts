@@ -99,13 +99,15 @@ export async function POST(req: Request) {
             ]
         }];
 
+        const userTitle = body.title || 'New Quotation';
+
         const quotation = await TechnoQuotation.create({
             userId: userId,
             quotationType: body.type || 'manual',
-            title: body.title || 'New Quotation',
-            mainTitle: 'TECHNO COMMERCIAL QUOTATION',
+            title: userTitle,
+            mainTitle: userTitle.toUpperCase(), // Use user's title as the document main title
             companyDate: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: '2-digit' }),
-            logoLetter: 'G',
+            logoLetter: userTitle.charAt(0).toUpperCase() || 'Q', // Use first letter of title as logo letter
             pages: body.pages || defaultPages,
             answers: body.answers || {},
             companyDetails: {
