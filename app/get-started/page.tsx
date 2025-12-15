@@ -115,6 +115,17 @@ export default function Features() {
       iconColor: "text-cyan-500",
       link: "/accounting",
     },
+    {
+      image:
+        "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?ixlib=rb-4.0.3&auto=format&fit=crop&w=2068&q=80",
+      title: "Appointment Scheduling",
+      description:
+        "Auto-schedule meetings, send reminders, handle cancellations, and sync with calendars. Customers book appointments through chat or forms without manual coordination.",
+      benefits: ["Google Calendar Sync", "Auto Reminders", "Smart Scheduling"],
+      accentColor: "rgba(99, 102, 241, 0.5)",
+      iconColor: "text-indigo-500",
+      link: "/appointment-scheduling",
+    },
   ];
 
   const containerVariants = {
