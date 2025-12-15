@@ -1,8 +1,49 @@
 import mongoose from 'mongoose';
 
+// Feature card schema for feature-type slides
+const FeatureCardSchema = new mongoose.Schema({
+    icon: { type: String },
+    title: { type: String },
+    description: { type: String },
+}, { _id: false });
+
+// Comparison column schema
+const ComparisonColumnSchema = new mongoose.Schema({
+    heading: { type: String },
+    points: [{ type: String }],
+}, { _id: false });
+
+// Metric schema for metrics-type slides
+const MetricSchema = new mongoose.Schema({
+    value: { type: String },
+    label: { type: String },
+    description: { type: String },
+}, { _id: false });
+
+// Icon list item schema (for iconList layout where content has icon+text)
+const IconListItemSchema = new mongoose.Schema({
+    icon: { type: String },
+    text: { type: String },
+}, { _id: false });
+
 const SlideSchema = new mongoose.Schema({
     title: { type: String, required: true },
-    content: [{ type: String }],
+    layoutType: {
+        type: String,
+        enum: ['title', 'comparison', 'features', 'imageRight', 'imageLeft', 'metrics', 'iconList', 'textOnly', 'closing'],
+        default: 'imageRight'
+    },
+    // Content can be either an array of strings or an array of icon list items
+    // Using Mixed type to support both formats
+    content: { type: mongoose.Schema.Types.Mixed },
+    subtitle: { type: String },
+    comparison: {
+        left: ComparisonColumnSchema,
+        right: ComparisonColumnSchema,
+    },
+    features: [FeatureCardSchema],
+    metrics: [MetricSchema],
+    hasImage: { type: Boolean, default: true },
     imageKeyword: { type: String },
     imageUrl: { type: String },
 }, { _id: false });

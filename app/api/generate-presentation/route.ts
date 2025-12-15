@@ -14,13 +14,22 @@ export async function POST(req: Request) {
             );
         }
 
-        // If we have an existing outline and not outline-only, just add image keywords
+        // If we have an existing outline and not outline-only, enhance with image keywords
         if (existingOutline && !outlineOnly) {
-            // Add image keywords to the existing outline
-            const enhancedSlides = existingOutline.slides.map((slide: any, index: number) => ({
-                ...slide,
-                imageKeyword: slide.imageKeyword || generateImageKeyword(slide.title, prompt, index)
-            }));
+            // Preserve all slide properties and add image keywords only for slides that need images
+            const enhancedSlides = existingOutline.slides.map((slide: any, index: number) => {
+                const noImageLayouts = ['comparison', 'features', 'metrics', 'textOnly'];
+                const shouldHaveImage = slide.hasImage !== false && !noImageLayouts.includes(slide.layoutType);
+
+                return {
+                    ...slide,
+                    // Preserve layoutType from outline
+                    layoutType: slide.layoutType || (index === 0 ? 'title' : index === existingOutline.slides.length - 1 ? 'closing' : 'imageRight'),
+                    // Only add image keyword if slide should have an image
+                    imageKeyword: shouldHaveImage ? (slide.imageKeyword || generateImageKeyword(slide.title, prompt, index)) : undefined,
+                    hasImage: shouldHaveImage,
+                };
+            });
 
             return NextResponse.json({
                 ...existingOutline,
