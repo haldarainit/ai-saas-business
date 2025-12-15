@@ -82,15 +82,17 @@ interface PresentationData {
 }
 
 type Step = "input" | "outline" | "generating" | "preview";
-type Theme = "modern" | "classic" | "minimal" | "bold" | "gradient" | "dark";
+type Theme = "coral" | "ocean" | "forest" | "sunset" | "violet" | "modern" | "classic" | "minimal";
 
 const THEMES: { id: Theme; name: string; colors: { primary: string; secondary: string; accent: string; bg: string } }[] = [
+    { id: "coral", name: "Coral Elegance", colors: { primary: "#c2410c", secondary: "#ea580c", accent: "#fb923c", bg: "#fef7f0" } },
+    { id: "violet", name: "Violet Dream", colors: { primary: "#7c3aed", secondary: "#a855f7", accent: "#c084fc", bg: "#faf5ff" } },
+    { id: "ocean", name: "Ocean Blue", colors: { primary: "#0369a1", secondary: "#0ea5e9", accent: "#38bdf8", bg: "#f0f9ff" } },
+    { id: "forest", name: "Forest Green", colors: { primary: "#166534", secondary: "#22c55e", accent: "#4ade80", bg: "#f0fdf4" } },
+    { id: "sunset", name: "Sunset Glow", colors: { primary: "#be185d", secondary: "#ec4899", accent: "#f472b6", bg: "#fdf2f8" } },
     { id: "modern", name: "Modern Blue", colors: { primary: "#1e40af", secondary: "#3b82f6", accent: "#60a5fa", bg: "#f8fafc" } },
-    { id: "classic", name: "Classic Gray", colors: { primary: "#1f2937", secondary: "#4b5563", accent: "#9ca3af", bg: "#ffffff" } },
+    { id: "classic", name: "Classic Dark", colors: { primary: "#1f2937", secondary: "#4b5563", accent: "#9ca3af", bg: "#ffffff" } },
     { id: "minimal", name: "Minimal", colors: { primary: "#0f172a", secondary: "#334155", accent: "#64748b", bg: "#ffffff" } },
-    { id: "bold", name: "Bold Purple", colors: { primary: "#7c3aed", secondary: "#a855f7", accent: "#c084fc", bg: "#faf5ff" } },
-    { id: "gradient", name: "Gradient", colors: { primary: "#ec4899", secondary: "#8b5cf6", accent: "#06b6d4", bg: "#fdf2f8" } },
-    { id: "dark", name: "Dark Mode", colors: { primary: "#1e293b", secondary: "#334155", accent: "#60a5fa", bg: "#0f172a" } },
 ];
 
 const EXAMPLE_PROMPTS = [
@@ -132,7 +134,7 @@ function PresentationsContent() {
     const [step, setStep] = useState<Step>("input");
     const [prompt, setPrompt] = useState("");
     const [slideCount, setSlideCount] = useState(8);
-    const [theme, setTheme] = useState<Theme>("modern");
+    const [theme, setTheme] = useState<Theme>("coral");
     const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
     const [isGeneratingFull, setIsGeneratingFull] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
