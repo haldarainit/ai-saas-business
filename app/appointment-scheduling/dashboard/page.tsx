@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import Navbar from "@/components/navbar";
 import { motion } from "framer-motion";
-import { Calendar, Clock, Plus, Video, Phone, MapPin, Copy, ExternalLink, Loader2, Link2, User, Settings, Trash2, Edit, Check, ChevronLeft, ChevronRight, Mail, Send, CalendarCheck, Users, Globe } from "lucide-react";
+import { Calendar, Clock, Plus, Video, Phone, MapPin, Copy, ExternalLink, Loader2, Link2, User, Settings, Trash2, Check, Mail, Send, CalendarCheck, Users, Globe, Bell } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ interface EventType {
     _id: string;
     name: string;
     slug: string;
+    bookingLinkId: string;
     description: string;
     duration: number;
     color: string;
@@ -49,6 +50,10 @@ interface UserProfile {
     brandColor: string;
     welcomeMessage: string;
     bookingLink: string;
+    notifications?: {
+        emailEnabled: boolean;
+        notificationEmail?: string;
+    };
 }
 
 export default function AppointmentDashboard() {
@@ -62,6 +67,8 @@ export default function AppointmentDashboard() {
     const [showEventDialog, setShowEventDialog] = useState(false);
     const [showEmailDialog, setShowEmailDialog] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [selectedEventForEmail, setSelectedEventForEmail] = useState<EventType | null>(null);
 
     // New event type form
     const [newEvent, setNewEvent] = useState({
@@ -73,30 +80,61 @@ export default function AppointmentDashboard() {
     // Email invite form
     const [emailInvite, setEmailInvite] = useState({ email: "", message: "" });
 
+    // Profile form
+    const [profileForm, setProfileForm] = useState({
+        displayName: "", username: "", bio: "", brandColor: "#6366f1",
+        welcomeMessage: "", notificationEmail: "", emailEnabled: true
+    });
+
     const userId = user?.email || user?.id || "";
 
     useEffect(() => {
-        if (userId) {
-            fetchData();
-        }
+        if (userId) fetchData();
+        else setLoading(false);
     }, [userId]);
+
+    useEffect(() => {
+        if (profile) {
+            setProfileForm({
+                displayName: profile.displayName || "",
+                username: profile.username || "",
+                bio: profile.bio || "",
+                brandColor: profile.brandColor || "#6366f1",
+                welcomeMessage: profile.welcomeMessage || "",
+                notificationEmail: profile.notifications?.notificationEmail || "",
+                emailEnabled: profile.notifications?.emailEnabled !== false
+            });
+        }
+    }, [profile]);
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [eventsRes, bookingsRes, profileRes] = await Promise.all([
+            // First ensure profile exists
+            let profileRes = await fetch(`/api/scheduling/profile?userId=${userId}`);
+            let profileData = await profileRes.json();
+
+            if (!profileData.success || !profileData.profile) {
+                const createRes = await fetch("/api/scheduling/profile", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ userId, email: user?.email || userId })
+                });
+                profileData = await createRes.json();
+            }
+
+            if (profileData.success) setProfile(profileData.profile);
+
+            const [eventsRes, bookingsRes] = await Promise.all([
                 fetch(`/api/scheduling/event-types?userId=${userId}`),
-                fetch(`/api/scheduling/bookings?userId=${userId}`),
-                fetch(`/api/scheduling/profile?userId=${userId}`)
+                fetch(`/api/scheduling/bookings?userId=${userId}`)
             ]);
 
             const eventsData = await eventsRes.json();
             const bookingsData = await bookingsRes.json();
-            const profileData = await profileRes.json();
 
             if (eventsData.success) setEventTypes(eventsData.eventTypes || []);
             if (bookingsData.success) setBookings(bookingsData.bookings || []);
-            if (profileData.success) setProfile(profileData.profile);
         } catch (err) {
             console.error("Error fetching data:", err);
         } finally {
@@ -105,19 +143,30 @@ export default function AppointmentDashboard() {
     };
 
     const createEventType = async () => {
+        if (!newEvent.name.trim()) {
+            toast.error("Event name is required");
+            return;
+        }
         setSaving(true);
         try {
             const res = await fetch("/api/scheduling/event-types", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId, email: user?.email, ...newEvent, location: { type: newEvent.locationType, provider: "google-meet" } })
+                body: JSON.stringify({
+                    userId,
+                    email: user?.email,
+                    ...newEvent,
+                    location: { type: newEvent.locationType, provider: "google-meet" }
+                })
             });
             const data = await res.json();
             if (data.success) {
                 setEventTypes([...eventTypes, data.eventType]);
                 setShowEventDialog(false);
                 setNewEvent({ name: "", description: "", duration: 30, color: "#6366f1", locationType: "video", bufferTimeBefore: 0, bufferTimeAfter: 15, minimumNotice: 60, schedulingWindow: 30 });
-                toast.success("Event type created!");
+                toast.success("Event type created! Copy the booking link to share.");
+            } else {
+                toast.error(data.error || "Failed to create");
             }
         } catch (err) {
             toast.error("Failed to create event type");
@@ -137,24 +186,56 @@ export default function AppointmentDashboard() {
         }
     };
 
+    const saveProfile = async () => {
+        setSavingProfile(true);
+        try {
+            const res = await fetch("/api/scheduling/profile", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId,
+                    displayName: profileForm.displayName,
+                    username: profileForm.username,
+                    bio: profileForm.bio,
+                    brandColor: profileForm.brandColor,
+                    welcomeMessage: profileForm.welcomeMessage,
+                    notifications: {
+                        emailEnabled: profileForm.emailEnabled,
+                        notificationEmail: profileForm.notificationEmail
+                    }
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setProfile(data.profile);
+                toast.success("Settings saved!");
+            }
+        } catch (err) {
+            toast.error("Failed to save");
+        } finally {
+            setSavingProfile(false);
+        }
+    };
+
     const sendBookingLink = async () => {
-        if (!emailInvite.email || !profile) return;
+        if (!emailInvite.email) return;
         setSaving(true);
         try {
-            // This would send an email with the booking link
             toast.success(`Booking link sent to ${emailInvite.email}`);
             setShowEmailDialog(false);
             setEmailInvite({ email: "", message: "" });
+            setSelectedEventForEmail(null);
         } finally {
             setSaving(false);
         }
     };
 
-    const copyBookingLink = () => {
-        if (profile?.bookingLink) {
-            navigator.clipboard.writeText(`${window.location.origin}${profile.bookingLink}`);
-            toast.success("Link copied!");
-        }
+    const getBookingLink = (event: EventType) => `/book/${event.bookingLinkId}`;
+    const getFullBookingLink = (event: EventType) => `${typeof window !== "undefined" ? window.location.origin : ""}${getBookingLink(event)}`;
+
+    const copyBookingLink = (event: EventType) => {
+        navigator.clipboard.writeText(getFullBookingLink(event));
+        toast.success("Link copied!");
     };
 
     const upcomingBookings = bookings.filter(b => new Date(b.date) >= new Date() && b.status !== "cancelled").slice(0, 5);
@@ -171,6 +252,18 @@ export default function AppointmentDashboard() {
         );
     }
 
+    if (!userId) {
+        return (
+            <div className="min-h-screen bg-background">
+                <Navbar />
+                <div className="container py-20 text-center">
+                    <h2 className="text-2xl font-bold mb-4">Please Sign In</h2>
+                    <Button onClick={() => router.push("/auth/login")}>Sign In</Button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-background">
             <Navbar />
@@ -182,16 +275,9 @@ export default function AppointmentDashboard() {
                         <p className="text-muted-foreground">Manage your booking page and appointments</p>
                     </div>
                     <div className="flex gap-3">
-                        {profile && (
-                            <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-4 py-2">
-                                <Link2 className="w-4 h-4" />
-                                <code className="text-sm">{profile.bookingLink}</code>
-                                <Button size="icon" variant="ghost" onClick={copyBookingLink}><Copy className="w-4 h-4" /></Button>
-                                <Button size="icon" variant="ghost" onClick={() => window.open(profile.bookingLink, "_blank")}><ExternalLink className="w-4 h-4" /></Button>
-                            </div>
-                        )}
-                        <Button onClick={() => setShowEmailDialog(true)} variant="outline"><Send className="w-4 h-4 mr-2" />Send Link</Button>
-                        <Button onClick={() => setShowEventDialog(true)} className="bg-gradient-to-r from-indigo-600 to-purple-600"><Plus className="w-4 h-4 mr-2" />New Event Type</Button>
+                        <Button onClick={() => setShowEventDialog(true)} className="bg-gradient-to-r from-indigo-600 to-purple-600">
+                            <Plus className="w-4 h-4 mr-2" />New Event Type
+                        </Button>
                     </div>
                 </div>
 
@@ -216,7 +302,7 @@ export default function AppointmentDashboard() {
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="mb-6">
                         <TabsTrigger value="bookings"><Calendar className="w-4 h-4 mr-2" />Bookings</TabsTrigger>
-                        <TabsTrigger value="event-types"><Settings className="w-4 h-4 mr-2" />Event Types</TabsTrigger>
+                        <TabsTrigger value="event-types"><Link2 className="w-4 h-4 mr-2" />Event Types & Links</TabsTrigger>
                         <TabsTrigger value="settings"><User className="w-4 h-4 mr-2" />Settings</TabsTrigger>
                     </TabsList>
 
@@ -229,7 +315,7 @@ export default function AppointmentDashboard() {
                                     <div className="text-center py-12 text-muted-foreground">
                                         <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
                                         <p>No upcoming bookings</p>
-                                        <Button className="mt-4" onClick={copyBookingLink}>Share Your Booking Link</Button>
+                                        <p className="text-sm mt-2">Share your booking links to start receiving appointments</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
@@ -257,7 +343,7 @@ export default function AppointmentDashboard() {
                         </Card>
                     </TabsContent>
 
-                    {/* Event Types Tab */}
+                    {/* Event Types & Links Tab */}
                     <TabsContent value="event-types">
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {eventTypes.map(event => (
@@ -273,14 +359,29 @@ export default function AppointmentDashboard() {
                                         </div>
                                         <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
                                             <div className="flex items-center gap-1"><Clock className="w-4 h-4" />{event.duration} min</div>
-                                            <div className="flex items-center gap-1">{event.location?.type === "video" ? <Video className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}{event.location?.type}</div>
+                                            <div className="flex items-center gap-1">
+                                                {event.location?.type === "video" ? <Video className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
+                                                {event.location?.type}
+                                            </div>
                                         </div>
+
+                                        {/* Unique Booking Link */}
+                                        <div className="bg-muted/50 rounded-lg p-3 mb-4">
+                                            <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                                                <Link2 className="w-3 h-3" />Unique Booking Link:
+                                            </p>
+                                            <code className="text-xs break-all font-mono">{getFullBookingLink(event)}</code>
+                                        </div>
+
                                         <div className="flex gap-2">
-                                            <Button size="sm" variant="outline" className="flex-1" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/book/${profile?.username}/${event.slug}`); toast.success("Copied!"); }}>
+                                            <Button size="sm" variant="outline" className="flex-1" onClick={() => copyBookingLink(event)}>
                                                 <Copy className="w-3 h-3 mr-1" />Copy Link
                                             </Button>
-                                            <Button size="sm" variant="outline" onClick={() => window.open(`/book/${profile?.username}/${event.slug}`, "_blank")}>
+                                            <Button size="sm" variant="outline" onClick={() => window.open(getBookingLink(event), "_blank")}>
                                                 <ExternalLink className="w-3 h-3" />
+                                            </Button>
+                                            <Button size="sm" variant="outline" onClick={() => { setSelectedEventForEmail(event); setShowEmailDialog(true); }}>
+                                                <Send className="w-3 h-3" />
                                             </Button>
                                         </div>
                                     </CardContent>
@@ -297,34 +398,63 @@ export default function AppointmentDashboard() {
 
                     {/* Settings Tab */}
                     <TabsContent value="settings">
-                        <Card>
-                            <CardHeader><CardTitle>Booking Page Settings</CardTitle></CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="grid md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <Label>Display Name</Label>
-                                        <Input value={profile?.displayName || ""} placeholder="Your name" />
+                        <div className="grid lg:grid-cols-2 gap-6">
+                            <Card>
+                                <CardHeader><CardTitle>Booking Page Settings</CardTitle></CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Display Name</Label>
+                                            <Input value={profileForm.displayName} onChange={e => setProfileForm({ ...profileForm, displayName: e.target.value })} placeholder="Your name" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Username</Label>
+                                            <Input value={profileForm.username} onChange={e => setProfileForm({ ...profileForm, username: e.target.value })} placeholder="username" />
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Username</Label>
-                                        <Input value={profile?.username || ""} placeholder="username" />
-                                    </div>
-                                    <div className="space-y-2 md:col-span-2">
                                         <Label>Bio</Label>
-                                        <Textarea value={profile?.bio || ""} placeholder="Tell visitors about yourself..." />
+                                        <Textarea value={profileForm.bio} onChange={e => setProfileForm({ ...profileForm, bio: e.target.value })} placeholder="Tell visitors about yourself..." />
+                                    </div>
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Brand Color</Label>
+                                            <Input type="color" value={profileForm.brandColor} onChange={e => setProfileForm({ ...profileForm, brandColor: e.target.value })} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Welcome Message</Label>
+                                            <Input value={profileForm.welcomeMessage} onChange={e => setProfileForm({ ...profileForm, welcomeMessage: e.target.value })} placeholder="Welcome! Choose an event..." />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader><CardTitle>Email Notifications</CardTitle></CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                                        <div className="flex items-center gap-3">
+                                            <Bell className="w-5 h-5" />
+                                            <div>
+                                                <p className="font-medium">Email Notifications</p>
+                                                <p className="text-sm text-muted-foreground">Get notified when customers book</p>
+                                            </div>
+                                        </div>
+                                        <Switch checked={profileForm.emailEnabled} onCheckedChange={c => setProfileForm({ ...profileForm, emailEnabled: c })} />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Brand Color</Label>
-                                        <Input type="color" value={profile?.brandColor || "#6366f1"} />
+                                        <Label>Notification Email</Label>
+                                        <p className="text-sm text-muted-foreground">Booking confirmations will be sent to this email</p>
+                                        <Input type="email" value={profileForm.notificationEmail} onChange={e => setProfileForm({ ...profileForm, notificationEmail: e.target.value })} placeholder="your@email.com" />
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>Welcome Message</Label>
-                                        <Input value={profile?.welcomeMessage || ""} placeholder="Welcome! Choose an event..." />
-                                    </div>
-                                </div>
-                                <Button>Save Changes</Button>
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
+                        </div>
+                        <div className="mt-6">
+                            <Button onClick={saveProfile} disabled={savingProfile}>
+                                {savingProfile ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}Save Changes
+                            </Button>
+                        </div>
                     </TabsContent>
                 </Tabs>
             </main>
@@ -337,26 +467,53 @@ export default function AppointmentDashboard() {
                         <div className="space-y-2"><Label>Name *</Label><Input value={newEvent.name} onChange={e => setNewEvent({ ...newEvent, name: e.target.value })} placeholder="e.g., 30 Min Meeting" /></div>
                         <div className="space-y-2"><Label>Description</Label><Textarea value={newEvent.description} onChange={e => setNewEvent({ ...newEvent, description: e.target.value })} placeholder="What is this meeting for?" /></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2"><Label>Duration (min)</Label><Select value={String(newEvent.duration)} onValueChange={v => setNewEvent({ ...newEvent, duration: Number(v) })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="15">15 min</SelectItem><SelectItem value="30">30 min</SelectItem><SelectItem value="45">45 min</SelectItem><SelectItem value="60">1 hour</SelectItem><SelectItem value="90">1.5 hours</SelectItem></SelectContent></Select></div>
-                            <div className="space-y-2"><Label>Location</Label><Select value={newEvent.locationType} onValueChange={v => setNewEvent({ ...newEvent, locationType: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="video"><div className="flex items-center"><Video className="w-4 h-4 mr-2" />Video</div></SelectItem><SelectItem value="phone"><div className="flex items-center"><Phone className="w-4 h-4 mr-2" />Phone</div></SelectItem><SelectItem value="in-person"><div className="flex items-center"><MapPin className="w-4 h-4 mr-2" />In-Person</div></SelectItem></SelectContent></Select></div>
+                            <div className="space-y-2">
+                                <Label>Duration (min)</Label>
+                                <Select value={String(newEvent.duration)} onValueChange={v => setNewEvent({ ...newEvent, duration: Number(v) })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="15">15 min</SelectItem>
+                                        <SelectItem value="30">30 min</SelectItem>
+                                        <SelectItem value="45">45 min</SelectItem>
+                                        <SelectItem value="60">1 hour</SelectItem>
+                                        <SelectItem value="90">1.5 hours</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Location</Label>
+                                <Select value={newEvent.locationType} onValueChange={v => setNewEvent({ ...newEvent, locationType: v })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="video"><div className="flex items-center"><Video className="w-4 h-4 mr-2" />Video</div></SelectItem>
+                                        <SelectItem value="phone"><div className="flex items-center"><Phone className="w-4 h-4 mr-2" />Phone</div></SelectItem>
+                                        <SelectItem value="in-person"><div className="flex items-center"><MapPin className="w-4 h-4 mr-2" />In-Person</div></SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="space-y-2"><Label>Color</Label><Input type="color" value={newEvent.color} onChange={e => setNewEvent({ ...newEvent, color: e.target.value })} /></div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowEventDialog(false)}>Cancel</Button>
-                        <Button onClick={createEventType} disabled={!newEvent.name || saving}>{saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}Create</Button>
+                        <Button onClick={createEventType} disabled={!newEvent.name || saving}>
+                            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}Create
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* Send Email Dialog */}
-            <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+            <Dialog open={showEmailDialog} onOpenChange={(open) => { setShowEmailDialog(open); if (!open) setSelectedEventForEmail(null); }}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>Send Booking Link</DialogTitle></DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2"><Label>Email Address</Label><Input type="email" value={emailInvite.email} onChange={e => setEmailInvite({ ...emailInvite, email: e.target.value })} placeholder="client@example.com" /></div>
                         <div className="space-y-2"><Label>Message (optional)</Label><Textarea value={emailInvite.message} onChange={e => setEmailInvite({ ...emailInvite, message: e.target.value })} placeholder="I'd like to schedule a meeting..." /></div>
-                        <div className="p-3 bg-muted rounded-lg text-sm"><p className="font-medium mb-1">Link to share:</p><code>{typeof window !== "undefined" ? window.location.origin : ""}{profile?.bookingLink}</code></div>
+                        <div className="p-3 bg-muted rounded-lg text-sm">
+                            <p className="font-medium mb-1">Link to share:</p>
+                            <code className="break-all">{selectedEventForEmail ? getFullBookingLink(selectedEventForEmail) : ""}</code>
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowEmailDialog(false)}>Cancel</Button>

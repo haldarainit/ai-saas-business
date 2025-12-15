@@ -8,7 +8,7 @@ export async function GET(request, { params }) {
     try {
         await connectDB();
 
-        const { username } = params;
+        const { username } = await params;
 
         if (!username) {
             return NextResponse.json(

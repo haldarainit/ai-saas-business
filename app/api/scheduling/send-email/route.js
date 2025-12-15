@@ -39,12 +39,14 @@ export async function POST(request) {
 
         const userProfile = await UserProfile.findOne({ userId: booking.userId });
         const hostName = userProfile?.displayName || userProfile?.email || "Host";
-        const hostEmail = userProfile?.email;
+        // Use notification email if set, otherwise fall back to profile email
+        const notificationEmail = userProfile?.notifications?.notificationEmail || userProfile?.email;
+        const hostEmail = notificationEmail;
 
         const emailData = getEmailData(type, booking, hostName, hostEmail, customMessage);
 
         // Send to attendee
-        if (emailData.sendToAttendee) {
+        if (emailData.sendToAttendee && booking.attendee?.email) {
             await transporter.sendMail({
                 from: `"${hostName}" <${process.env.EMAIL_USER}>`,
                 to: booking.attendee.email,
@@ -53,8 +55,8 @@ export async function POST(request) {
             });
         }
 
-        // Send to host
-        if (emailData.sendToHost && hostEmail) {
+        // Send to host (admin's notification email)
+        if (emailData.sendToHost && hostEmail && userProfile?.notifications?.emailEnabled !== false) {
             await transporter.sendMail({
                 from: `"Appointment Scheduler" <${process.env.EMAIL_USER}>`,
                 to: hostEmail,

@@ -3,6 +3,16 @@ import connectDB from "@/lib/mongodb";
 import EventType from "@/lib/models/EventType";
 import UserProfile from "@/lib/models/UserProfile";
 
+// Helper to generate unique booking link ID
+function generateBookingLinkId() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 10; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
 // GET - Fetch all event types for a user
 export async function GET(request) {
     try {
@@ -25,6 +35,14 @@ export async function GET(request) {
         }
 
         const eventTypes = await EventType.find(query).sort({ createdAt: -1 });
+
+        // Auto-generate bookingLinkId for old event types that don't have one
+        for (const eventType of eventTypes) {
+            if (!eventType.bookingLinkId) {
+                eventType.bookingLinkId = generateBookingLinkId();
+                await eventType.save();
+            }
+        }
 
         return NextResponse.json({
             success: true,
@@ -124,7 +142,7 @@ export async function POST(request) {
         return NextResponse.json({
             success: true,
             eventType,
-            bookingLink: `/book/${userProfile.username}/${slug}`,
+            bookingLink: `/book/${eventType.bookingLinkId}`,
             message: "Event type created successfully",
         });
     } catch (error) {
