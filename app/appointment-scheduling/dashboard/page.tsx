@@ -55,7 +55,7 @@ import {
     Link2,
     User,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 
 interface Appointment {
@@ -681,12 +681,12 @@ export default function AppointmentDashboard() {
                                                         key={index}
                                                         whileHover={day ? { scale: 1.05 } : {}}
                                                         className={`min-h-[80px] p-2 rounded-lg border transition-all cursor-pointer ${!day
-                                                                ? "bg-transparent border-transparent"
-                                                                : isToday
-                                                                    ? "bg-indigo-500/10 border-indigo-500/30"
-                                                                    : isSelected
-                                                                        ? "bg-primary/10 border-primary/30"
-                                                                        : "bg-muted/30 border-border/50 hover:border-primary/30"
+                                                            ? "bg-transparent border-transparent"
+                                                            : isToday
+                                                                ? "bg-indigo-500/10 border-indigo-500/30"
+                                                                : isSelected
+                                                                    ? "bg-primary/10 border-primary/30"
+                                                                    : "bg-muted/30 border-border/50 hover:border-primary/30"
                                                             }`}
                                                         onClick={() =>
                                                             day &&
@@ -708,10 +708,10 @@ export default function AppointmentDashboard() {
                                                                         <div
                                                                             key={apt.id}
                                                                             className={`text-xs truncate px-1.5 py-0.5 rounded ${apt.status === "cancelled"
-                                                                                    ? "bg-red-500/10 text-red-600 line-through"
-                                                                                    : apt.status === "pending"
-                                                                                        ? "bg-yellow-500/10 text-yellow-600"
-                                                                                        : "bg-indigo-500/10 text-indigo-600"
+                                                                                ? "bg-red-500/10 text-red-600 line-through"
+                                                                                : apt.status === "pending"
+                                                                                    ? "bg-yellow-500/10 text-yellow-600"
+                                                                                    : "bg-indigo-500/10 text-indigo-600"
                                                                                 }`}
                                                                         >
                                                                             {apt.startTime} {apt.title}
@@ -840,10 +840,10 @@ export default function AppointmentDashboard() {
                                                 <div className="flex items-center gap-4">
                                                     <div
                                                         className={`p-3 rounded-xl ${apt.type === "video"
-                                                                ? "bg-indigo-500/10 text-indigo-500"
-                                                                : apt.type === "phone"
-                                                                    ? "bg-green-500/10 text-green-500"
-                                                                    : "bg-purple-500/10 text-purple-500"
+                                                            ? "bg-indigo-500/10 text-indigo-500"
+                                                            : apt.type === "phone"
+                                                                ? "bg-green-500/10 text-green-500"
+                                                                : "bg-purple-500/10 text-purple-500"
                                                             }`}
                                                     >
                                                         {apt.type === "video" ? (
@@ -933,8 +933,8 @@ export default function AppointmentDashboard() {
                                                     <div
                                                         key={idx}
                                                         className={`p-3 rounded-lg text-center text-sm transition-colors cursor-pointer ${slot.available
-                                                                ? "bg-green-500/10 text-green-600 hover:bg-green-500/20"
-                                                                : "bg-red-500/10 text-red-600 opacity-50"
+                                                            ? "bg-green-500/10 text-green-600 hover:bg-green-500/20"
+                                                            : "bg-red-500/10 text-red-600 opacity-50"
                                                             }`}
                                                     >
                                                         {slot.time}
