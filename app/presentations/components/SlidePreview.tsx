@@ -415,19 +415,19 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                     background: `linear-gradient(180deg, #ffffff 0%, #fef7f0 50%, #fdf2f8 100%)`
                 }}
             >
-                <div className="p-8 h-full">
+                <div className="p-6 h-full flex flex-col justify-center">
                     <h2
-                        className="text-3xl font-bold mb-8"
+                        className="text-2xl font-bold mb-6 text-center"
                         style={{ color: theme.primary }}
                     >
                         {slide.title}
                     </h2>
 
                     {slide.comparison ? (
-                        <div className="grid grid-cols-2 gap-6 h-[calc(100%-5rem)]">
+                        <div className="grid grid-cols-2 gap-5">
                             {/* Left column - pink tint */}
                             <div
-                                className="rounded-2xl p-6 relative overflow-hidden"
+                                className="rounded-xl p-5"
                                 style={{
                                     background: 'linear-gradient(135deg, #fce7f380 0%, #fbcfe850 100%)',
                                     border: '1px solid #fce7f3'
@@ -435,7 +435,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                             >
                                 <h3 className="font-bold text-lg mb-4" style={{ color: '#db2777' }}>{slide.comparison.left.heading}</h3>
                                 <ul className="space-y-3">
-                                    {slide.comparison.left.points.map((point, i) => (
+                                    {slide.comparison.left.points.slice(0, 4).map((point, i) => (
                                         <li key={i} className="flex items-start gap-3">
                                             <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#ec4899' }} />
                                             <span className="text-sm text-slate-700 leading-relaxed">{point}</span>
@@ -446,7 +446,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
 
                             {/* Right column - purple tint */}
                             <div
-                                className="rounded-2xl p-6 relative overflow-hidden"
+                                className="rounded-xl p-5"
                                 style={{
                                     background: 'linear-gradient(135deg, #ede9fe80 0%, #ddd6fe50 100%)',
                                     border: '1px solid #ede9fe'
@@ -454,7 +454,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                             >
                                 <h3 className="font-bold text-lg mb-4" style={{ color: '#7c3aed' }}>{slide.comparison.right.heading}</h3>
                                 <ul className="space-y-3">
-                                    {slide.comparison.right.points.map((point, i) => (
+                                    {slide.comparison.right.points.slice(0, 4).map((point, i) => (
                                         <li key={i} className="flex items-start gap-3">
                                             <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#8b5cf6' }} />
                                             <span className="text-sm text-slate-700 leading-relaxed">{point}</span>
@@ -464,9 +464,9 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                             </div>
                         </div>
                     ) : slide.content && slide.content.length > 1 ? (
-                        <div className="grid grid-cols-2 gap-6 h-[calc(100%-5rem)]">
+                        <div className="grid grid-cols-2 gap-5">
                             <div
-                                className="rounded-2xl p-6"
+                                className="rounded-xl p-5"
                                 style={{
                                     background: 'linear-gradient(135deg, #fce7f380 0%, #fbcfe850 100%)',
                                     border: '1px solid #fce7f3'
@@ -482,7 +482,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                                 </ul>
                             </div>
                             <div
-                                className="rounded-2xl p-6"
+                                className="rounded-xl p-5"
                                 style={{
                                     background: 'linear-gradient(135deg, #ede9fe80 0%, #ddd6fe50 100%)',
                                     border: '1px solid #ede9fe'
@@ -516,6 +516,10 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
             { bg: '#fee2e2', border: '#fecaca', icon: '#ef4444', iconBg: 'linear-gradient(135deg, #fca5a5 0%, #ef4444 100%)' },
         ];
 
+        const featureCount = slide.features?.length || slide.content?.length || 0;
+        // Use 2 columns for 4 items, 3 columns otherwise
+        const gridCols = featureCount === 4 ? 'grid-cols-2' : 'grid-cols-3';
+
         return (
             <div
                 className="w-full h-full rounded-xl overflow-hidden relative"
@@ -523,67 +527,67 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                     background: `linear-gradient(180deg, #ffffff 0%, #fef7f0 100%)`
                 }}
             >
-                <div className="p-8 h-full">
+                <div className="p-6 h-full flex flex-col justify-center">
                     <h2
-                        className="text-3xl font-bold mb-10"
+                        className="text-2xl font-bold mb-6 text-center"
                         style={{ color: theme.primary }}
                     >
                         {slide.title}
                     </h2>
 
                     {slide.features && slide.features.length > 0 ? (
-                        <div className={`grid ${slide.features.length <= 3 ? 'grid-cols-3' : slide.features.length === 4 ? 'grid-cols-2' : 'grid-cols-3'} gap-5`}>
+                        <div className={`grid ${gridCols} gap-x-4 gap-y-6 max-w-4xl mx-auto auto-rows-fr`}>
                             {slide.features.slice(0, 6).map((feature, i) => {
                                 const Icon = getIcon(feature.icon);
                                 const cardStyle = CARD_COLORS[i % CARD_COLORS.length];
                                 return (
                                     <div
                                         key={i}
-                                        className="relative pt-8"
+                                        className="relative pt-7 flex flex-col"
                                     >
                                         {/* Icon circle positioned above card */}
                                         <div
-                                            className="absolute left-1/2 -translate-x-1/2 -top-0 w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-10"
+                                            className="absolute left-1/2 -translate-x-1/2 top-0 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-10"
                                             style={{ background: cardStyle.iconBg }}
                                         >
-                                            <Icon className="w-6 h-6 text-white" strokeWidth={1.5} />
+                                            <Icon className="w-5 h-5 text-white" strokeWidth={1.5} />
                                         </div>
 
-                                        {/* Card body */}
+                                        {/* Card body - stretches to fill */}
                                         <div
-                                            className="rounded-2xl p-5 pt-10 flex flex-col items-center text-center"
+                                            className="rounded-xl p-4 pt-8 flex flex-col items-center text-center flex-1"
                                             style={{
                                                 background: cardStyle.bg,
                                                 border: `1px solid ${cardStyle.border}`
                                             }}
                                         >
-                                            <h4 className="font-bold text-sm text-slate-800 mb-2">{feature.title}</h4>
-                                            <p className="text-xs text-slate-600 leading-relaxed">{feature.description}</p>
+                                            <h4 className="font-bold text-sm text-slate-800 mb-1">{feature.title}</h4>
+                                            <p className="text-xs text-slate-600 leading-snug">{feature.description}</p>
                                         </div>
                                     </div>
                                 );
                             })}
                         </div>
                     ) : slide.content && slide.content.length > 1 ? (
-                        <div className="grid grid-cols-3 gap-5">
+                        <div className={`grid ${gridCols} gap-x-4 gap-y-6 max-w-4xl mx-auto auto-rows-fr`}>
                             {slide.content.slice(0, 6).map((item, i) => {
                                 const cardStyle = CARD_COLORS[i % CARD_COLORS.length];
                                 return (
-                                    <div key={i} className="relative pt-8">
+                                    <div key={i} className="relative pt-7 flex flex-col">
                                         <div
-                                            className="absolute left-1/2 -translate-x-1/2 -top-0 w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-10"
+                                            className="absolute left-1/2 -translate-x-1/2 top-0 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-10"
                                             style={{ background: cardStyle.iconBg }}
                                         >
-                                            <CheckCircle className="w-6 h-6 text-white" strokeWidth={1.5} />
+                                            <CheckCircle className="w-5 h-5 text-white" strokeWidth={1.5} />
                                         </div>
                                         <div
-                                            className="rounded-2xl p-5 pt-10 flex flex-col items-center text-center"
+                                            className="rounded-xl p-4 pt-8 flex flex-col items-center text-center flex-1"
                                             style={{
                                                 background: cardStyle.bg,
                                                 border: `1px solid ${cardStyle.border}`
                                             }}
                                         >
-                                            <p className="text-xs text-slate-700 leading-relaxed">{cleanMarkdown(item)}</p>
+                                            <p className="text-xs text-slate-700 leading-snug">{cleanMarkdown(item)}</p>
                                         </div>
                                     </div>
                                 );
@@ -611,22 +615,22 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                     background: `linear-gradient(180deg, #ffffff 0%, #f0f9ff 50%, #fdf2f8 100%)`
                 }}
             >
-                <div className="p-8 h-full">
+                <div className="p-6 h-full flex flex-col justify-center">
                     <h2
-                        className="text-3xl font-bold mb-10"
+                        className="text-2xl font-bold mb-6 text-center"
                         style={{ color: theme.primary }}
                     >
                         {slide.title}
                     </h2>
 
                     {slide.metrics && slide.metrics.length > 0 ? (
-                        <div className="flex gap-6">
+                        <div className="flex gap-4">
                             {slide.metrics.slice(0, 3).map((metric, i) => {
                                 const style = METRIC_COLORS[i % METRIC_COLORS.length];
                                 return (
                                     <div
                                         key={i}
-                                        className="flex-1 rounded-2xl p-6"
+                                        className="flex-1 rounded-xl p-6 text-center"
                                         style={{
                                             background: style.bg,
                                             border: `1px solid ${style.border}`
@@ -638,7 +642,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                                         >
                                             {metric.value}
                                         </div>
-                                        <div className="text-base font-semibold text-slate-800 mb-1">{metric.label}</div>
+                                        <div className="text-base font-semibold text-slate-800 mb-2">{metric.label}</div>
                                         {metric.description && (
                                             <p className="text-sm text-slate-600 leading-relaxed">{metric.description}</p>
                                         )}
@@ -756,18 +760,10 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                     background: `linear-gradient(180deg, #ffffff 0%, #fef7f0 100%)`
                 }}
             >
-                {/* Slide number badge */}
-                <div
-                    className="absolute top-4 left-6 w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-md"
-                    style={{ backgroundColor: theme.primary }}
-                >
-                    {slideIndex + 1}
-                </div>
-
-                <div className="p-8 pt-14 h-full flex gap-6">
+                <div className="p-6 h-full flex items-center gap-6">
                     <div className="flex-1">
                         <h2
-                            className="text-3xl font-bold mb-8"
+                            className="text-2xl font-bold mb-5"
                             style={{ color: theme.primary }}
                         >
                             {slide.title}
@@ -775,32 +771,32 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
 
                         {iconListItems.length > 0 && (
                             <div className="space-y-4">
-                                {iconListItems.map((item, i) => {
+                                {iconListItems.slice(0, 4).map((item, i) => {
                                     const IconComponent = getIcon(item.icon);
                                     const gradient = ICON_GRADIENTS[i % ICON_GRADIENTS.length];
                                     const iconColor = ICON_COLORS[i % ICON_COLORS.length];
 
                                     return (
-                                        <div key={i} className="flex items-start gap-4">
-                                            {/* Large gradient icon box */}
+                                        <div key={i} className="flex items-center gap-4">
+                                            {/* Icon box */}
                                             <div
-                                                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+                                                className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm"
                                                 style={{ background: gradient }}
                                             >
                                                 <IconComponent
-                                                    className="w-6 h-6"
+                                                    className="w-5 h-5"
                                                     style={{ color: iconColor }}
                                                     strokeWidth={1.5}
                                                 />
                                             </div>
 
                                             {/* Text content */}
-                                            <div className="flex-1 pt-1">
-                                                <h4 className="font-bold text-base text-slate-800 mb-0.5">
+                                            <div className="flex-1">
+                                                <h4 className="font-bold text-base text-slate-800">
                                                     {item.title}
                                                 </h4>
                                                 {item.description && (
-                                                    <p className="text-sm text-slate-600 leading-relaxed">
+                                                    <p className="text-sm text-slate-600 leading-snug">
                                                         {item.description}
                                                     </p>
                                                 )}
@@ -818,7 +814,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                             <img
                                 src={slide.imageUrl}
                                 alt={slide.title}
-                                className="max-w-full max-h-full rounded-2xl shadow-xl object-cover"
+                                className="max-w-full max-h-[320px] rounded-2xl shadow-xl object-cover"
                             />
                         </div>
                     )}
@@ -835,43 +831,35 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                     background: `linear-gradient(180deg, #ffffff 0%, #f0f9ff 50%, #fdf2f8 100%)`
                 }}
             >
-                {/* Slide number badge */}
-                <div
-                    className="absolute top-4 left-6 w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-md"
-                    style={{ backgroundColor: theme.primary }}
-                >
-                    {slideIndex + 1}
-                </div>
-
-                <div className="p-8 pt-14 h-full flex gap-8">
+                <div className="p-8 h-full flex items-center gap-8">
                     {slide.hasImage !== false && slide.imageUrl && (
                         <div className="w-2/5 flex items-center justify-center">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={slide.imageUrl}
                                 alt={slide.title}
-                                className="max-w-full max-h-full rounded-2xl shadow-xl object-cover"
+                                className="max-w-full max-h-[280px] rounded-2xl shadow-xl object-cover"
                             />
                         </div>
                     )}
 
-                    <div className="flex-1">
+                    <div className="flex-1 flex flex-col justify-center">
                         <h2
-                            className="text-3xl font-bold mb-6"
+                            className="text-2xl font-bold mb-4"
                             style={{ color: theme.primary }}
                         >
                             {slide.title}
                         </h2>
 
                         {slide.content && slide.content.length > 0 && (
-                            <ul className="space-y-4">
-                                {slide.content.map((point, i) => (
+                            <ul className="space-y-3">
+                                {slide.content.slice(0, 4).map((point, i) => (
                                     <li key={i} className="flex items-start gap-3">
                                         <span
-                                            className="w-2.5 h-2.5 rounded-full mt-2 flex-shrink-0"
+                                            className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
                                             style={{ backgroundColor: theme.accent }}
                                         />
-                                        <span className="text-base text-slate-700 leading-relaxed">{cleanMarkdown(point)}</span>
+                                        <span className="text-sm text-slate-700 leading-relaxed">{cleanMarkdown(point)}</span>
                                     </li>
                                 ))}
                             </ul>
@@ -890,32 +878,24 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                 background: `linear-gradient(180deg, #ffffff 0%, #fef7f0 50%, #fdf2f8 100%)`
             }}
         >
-            {/* Slide number badge */}
-            <div
-                className="absolute top-4 left-6 w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-md"
-                style={{ backgroundColor: theme.primary }}
-            >
-                {slideIndex + 1}
-            </div>
-
-            <div className="p-8 pt-14 h-full flex gap-8">
-                <div className="flex-1">
+            <div className="p-8 h-full flex items-center gap-8">
+                <div className="flex-1 flex flex-col justify-center">
                     <h2
-                        className="text-3xl font-bold mb-6"
+                        className="text-2xl font-bold mb-4"
                         style={{ color: theme.primary }}
                     >
                         {slide.title}
                     </h2>
 
                     {slide.content && slide.content.length > 0 && (
-                        <ul className="space-y-4">
-                            {slide.content.map((point, i) => (
+                        <ul className="space-y-3">
+                            {slide.content.slice(0, 4).map((point, i) => (
                                 <li key={i} className="flex items-start gap-3">
                                     <span
-                                        className="w-2.5 h-2.5 rounded-full mt-2 flex-shrink-0"
+                                        className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
                                         style={{ backgroundColor: theme.accent }}
                                     />
-                                    <span className="text-base text-slate-700 leading-relaxed">{cleanMarkdown(point)}</span>
+                                    <span className="text-sm text-slate-700 leading-relaxed">{cleanMarkdown(point)}</span>
                                 </li>
                             ))}
                         </ul>
@@ -928,7 +908,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                         <img
                             src={slide.imageUrl}
                             alt={slide.title}
-                            className="max-w-full max-h-full rounded-2xl shadow-xl object-cover"
+                            className="max-w-full max-h-[280px] rounded-2xl shadow-xl object-cover"
                         />
                     </div>
                 )}
