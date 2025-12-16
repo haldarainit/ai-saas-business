@@ -146,6 +146,8 @@ function PresentationsContent() {
     const [isRegeneratingImage, setIsRegeneratingImage] = useState<number | null>(null);
     const [customImagePrompt, setCustomImagePrompt] = useState("");
     const [previewMode, setPreviewMode] = useState<'edit' | 'layout'>('layout'); // New: toggle between edit and layout preview
+    const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false); // New: theme dropdown state
+    const [isUploadingImage, setIsUploadingImage] = useState<number | null>(null); // New: image upload state
 
     const userId = user?.id || DEFAULT_USER_ID;
 
@@ -159,6 +161,22 @@ function PresentationsContent() {
             setWorkspaceId(null);
         }
     }, [searchParams]);
+
+    // Close theme dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+            const themeDropdown = document.querySelector('[data-theme-dropdown]');
+            if (themeDropdown && !themeDropdown.contains(target)) {
+                setIsThemeDropdownOpen(false);
+            }
+        };
+
+        if (isThemeDropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [isThemeDropdownOpen]);
 
     const loadWorkspace = async (id: string) => {
         try {
@@ -401,10 +419,18 @@ function PresentationsContent() {
         try {
             const selectedTheme = THEMES.find(t => t.id === theme);
 
+            // Ensure we send the complete data with proper theme information
+            const downloadData = {
+                ...data,
+                theme: selectedTheme,
+                slideCount,
+                presentationMode: 'layout' // Indicate we want layout mode formatting
+            };
+
             const response = await fetch("/api/download-presentation", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...data, theme: selectedTheme }),
+                body: JSON.stringify(downloadData),
             });
 
             if (!response.ok) {
@@ -517,6 +543,66 @@ function PresentationsContent() {
         setIsRegeneratingImage(null);
         setCustomImagePrompt("");
         toast.success(`Image regenerated with: "${imagePrompt.substring(0, 50)}..."`);
+    };
+
+    const uploadCustomImage = async (slideIndex: number, file: File) => {
+        if (!data) return;
+
+        setIsUploadingImage(slideIndex);
+
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('slideIndex', slideIndex.toString());
+
+            const response = await fetch('/api/upload-slide-image', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to upload image');
+            }
+
+            const result = await response.json();
+            
+            const newSlides = [...data.slides];
+            newSlides[slideIndex] = {
+                ...newSlides[slideIndex],
+                imageUrl: result.imageUrl,
+                imageKeyword: `Custom uploaded image: ${file.name}`
+            };
+
+            setData({ ...data, slides: newSlides });
+            toast.success("Custom image uploaded successfully!");
+
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            toast.error("Failed to upload image. Please try again.");
+        } finally {
+            setIsUploadingImage(null);
+        }
+    };
+
+    const handleImageUpload = (slideIndex: number, event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                toast.error("Please select a valid image file");
+                return;
+            }
+
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error("Image size should be less than 5MB");
+                return;
+            }
+
+            uploadCustomImage(slideIndex, file);
+        }
+        // Reset input value to allow uploading the same file again
+        event.target.value = '';
     };
 
     const handleBack = () => {
@@ -1012,7 +1098,93 @@ function PresentationsContent() {
                             </div>
 
                             {/* Main Preview Area */}
-                            <div className="flex-1 overflow-y-auto p-8 bg-slate-100 dark:bg-slate-950">
+                            <div className="flex-1 overflow-y-auto p-8 bg-slate-100 dark:bg-slate-950 relative">
+                                {/* Theme Selector - Collapsible Dropdown */}
+                                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10" data-theme-dropdown>
+                                    <div className="relative">
+                                        {/* Dropdown Button */}
+                                        <button
+                                            onClick={() => setIsThemeDropdownOpen(!isThemeDropdownOpen)}
+                                            className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border p-3 flex items-center gap-2 hover:shadow-xl transition-all"
+                                        >
+                                            <Palette className="w-4 h-4 text-muted-foreground" />
+                                            <span className="text-sm font-medium">Theme</span>
+                                            <div className="flex items-center gap-1 ml-2">
+                                                <div 
+                                                    className="w-3 h-3 rounded-full border border-white/50" 
+                                                    style={{ backgroundColor: selectedTheme.colors.primary }}
+                                                />
+                                                <div 
+                                                    className="w-3 h-3 rounded-full border border-white/50" 
+                                                    style={{ backgroundColor: selectedTheme.colors.secondary }}
+                                                />
+                                                <div 
+                                                    className="w-3 h-3 rounded-full border border-white/50" 
+                                                    style={{ backgroundColor: selectedTheme.colors.accent }}
+                                                />
+                                            </div>
+                                            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${
+                                                isThemeDropdownOpen ? 'rotate-180' : ''
+                                            }`} />
+                                        </button>
+
+                                        {/* Dropdown Panel */}
+                                        {isThemeDropdownOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                                className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border p-4 min-w-[280px]"
+                                            >
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <Palette className="w-4 h-4 text-muted-foreground" />
+                                                    <h4 className="text-sm font-medium">Change Theme</h4>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {THEMES.map((t) => (
+                                                        <button
+                                                            key={t.id}
+                                                            onClick={() => {
+                                                                setTheme(t.id);
+                                                                setIsThemeDropdownOpen(false); // Close dropdown after selection
+                                                            }}
+                                                            className={`p-3 rounded-lg border transition-all group ${
+                                                                theme === t.id 
+                                                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                                                                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <div 
+                                                                    className="w-3 h-3 rounded-full" 
+                                                                    style={{ backgroundColor: t.colors.primary }}
+                                                                />
+                                                                <div 
+                                                                    className="w-3 h-3 rounded-full" 
+                                                                    style={{ backgroundColor: t.colors.secondary }}
+                                                                />
+                                                                <div 
+                                                                    className="w-3 h-3 rounded-full" 
+                                                                    style={{ backgroundColor: t.colors.accent }}
+                                                                />
+                                                            </div>
+                                                            <div className="text-xs font-medium text-left">{t.name}</div>
+                                                            {theme === t.id && (
+                                                                <div className="mt-1">
+                                                                    <Check className="w-3 h-3 text-blue-600 ml-auto" />
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
+                                                    Click any theme to instantly apply it to all slides
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </div>
+                                </div>
+
                                 <div className="max-w-5xl mx-auto">
                                     {/* Current Slide Editor */}
                                     {data.slides[activeSlide] && (
@@ -1261,6 +1433,32 @@ function PresentationsContent() {
 
                                                                     {/* Buttons */}
                                                                     <div className="flex gap-2 w-full">
+                                                                        {/* Upload Custom Image */}
+                                                                        <label className="flex-1">
+                                                                            <input
+                                                                                type="file"
+                                                                                accept="image/*"
+                                                                                onChange={(e) => handleImageUpload(activeSlide, e)}
+                                                                                className="hidden"
+                                                                                disabled={isUploadingImage === activeSlide}
+                                                                            />
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="outline"
+                                                                                className="w-full bg-white hover:bg-gray-50"
+                                                                                asChild
+                                                                            >
+                                                                                <span className="cursor-pointer">
+                                                                                    {isUploadingImage === activeSlide ? (
+                                                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                                    ) : (
+                                                                                        <ImageIcon className="w-4 h-4 mr-2" />
+                                                                                    )}
+                                                                                    Upload
+                                                                                </span>
+                                                                            </Button>
+                                                                        </label>
+
                                                                         {customImagePrompt.trim() ? (
                                                                             <Button
                                                                                 size="sm"
@@ -1271,8 +1469,17 @@ function PresentationsContent() {
                                                                                 }}
                                                                                 disabled={isRegeneratingImage === activeSlide}
                                                                             >
-                                                                                <RefreshCw className="w-4 h-4 mr-2" />
-                                                                                Apply Custom
+                                                                                {isRegeneratingImage === activeSlide ? (
+                                                                                    <>
+                                                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                                        Generating...
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <RefreshCw className="w-4 h-4 mr-2" />
+                                                                                        Apply Custom
+                                                                                    </>
+                                                                                )}
                                                                             </Button>
                                                                         ) : (
                                                                             <Button
@@ -1289,6 +1496,59 @@ function PresentationsContent() {
                                                                                 Regenerate
                                                                             </Button>
                                                                         )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Add Image option when no image exists */}
+                                                        {!data.slides[activeSlide].imageUrl && data.slides[activeSlide].hasImage !== false && (
+                                                            <div className="w-2/5 relative">
+                                                                <div className="w-full h-48 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center gap-3">
+                                                                    <ImageIcon className="w-12 h-12 text-slate-400" />
+                                                                    <p className="text-sm text-slate-600 dark:text-slate-400 text-center">
+                                                                        No image for this slide
+                                                                    </p>
+                                                                    <div className="flex gap-2">
+                                                                        {/* Upload Custom Image */}
+                                                                        <label>
+                                                                            <input
+                                                                                type="file"
+                                                                                accept="image/*"
+                                                                                onChange={(e) => handleImageUpload(activeSlide, e)}
+                                                                                className="hidden"
+                                                                                disabled={isUploadingImage === activeSlide}
+                                                                            />
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="outline"
+                                                                                asChild
+                                                                                disabled={isUploadingImage === activeSlide}
+                                                                            >
+                                                                                <span className="cursor-pointer">
+                                                                                    {isUploadingImage === activeSlide ? (
+                                                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                                    ) : (
+                                                                                        <ImageIcon className="w-4 h-4 mr-2" />
+                                                                                    )}
+                                                                                    Upload Image
+                                                                                </span>
+                                                                            </Button>
+                                                                        </label>
+
+                                                                        {/* Generate AI Image */}
+                                                                        <Button
+                                                                            size="sm"
+                                                                            onClick={() => regenerateImage(activeSlide)}
+                                                                            disabled={isRegeneratingImage === activeSlide}
+                                                                        >
+                                                                            {isRegeneratingImage === activeSlide ? (
+                                                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                            ) : (
+                                                                                <Sparkles className="w-4 h-4 mr-2" />
+                                                                            )}
+                                                                            Generate AI
+                                                                        </Button>
                                                                     </div>
                                                                 </div>
                                                             </div>

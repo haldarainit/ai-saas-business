@@ -28,8 +28,8 @@ import {
 
 export default function Attendance() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [employees, setEmployees] = useState([]);
+  const [attendanceData, setAttendanceData] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [action, setAction] = useState<"clockIn" | "clockOut">("clockIn");

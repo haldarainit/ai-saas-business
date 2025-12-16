@@ -87,32 +87,74 @@ function cleanMarkdown(text: string): string {
         .trim();
 }
 
-// Icon to Unicode mapping for PPTX (using simple shapes as fallback)
+// Icon to Unicode mapping for PPTX (using comprehensive symbol mapping)
 const ICON_SYMBOLS: Record<string, string> = {
-    storefront: '🏪',
-    dashboard: '📊',
-    analytics: '📈',
-    cart: '🛒',
-    payment: '💳',
-    shipping: '🚚',
-    design: '🎨',
-    search: '🔍',
-    security: '🔒',
-    speed: '⚡',
-    mobile: '📱',
-    automation: '🤖',
-    chart: '📉',
-    growth: '📈',
-    target: '🎯',
-    check: '✓',
-    star: '⭐',
-    idea: '💡',
-    rocket: '🚀',
-    globe: '🌐',
-    award: '🏆',
-    clock: '⏰',
-    heart: '❤️',
-    key: '🔑',
+    // Business & Commerce
+    storefront: '🏪', store: '🏪', shop: '🏪',
+    dashboard: '📊', analytics: '📈', barchart: '📊',
+    cart: '🛒', shoppingcart: '🛒',
+    payment: '💳', creditcard: '💳',
+    shipping: '🚚', truck: '🚚',
+    inventory: '📦', package: '📦',
+    customer: '👥', customers: '👥', users: '👥',
+    support: '🎧', headphones: '🎧',
+    briefcase: '💼',
+    
+    // Design & UI
+    design: '🎨', palette: '🎨',
+    search: '🔍', filter: '🔍',
+    settings: '⚙️', edit: '✏️', trash: '🗑️',
+    
+    // Security
+    security: '🔒', shield: '🛡️', lock: '🔒',
+    unlock: '🔓', key: '🔑',
+    
+    // Performance & Technology
+    speed: '⚡', zap: '⚡', lightning: '⚡',
+    mobile: '📱', smartphone: '📱', phone: '📞',
+    integration: '🔌', plug: '🔌',
+    automation: '🤖', bot: '🤖', robot: '🤖',
+    cpu: '💻', code: '💻', terminal: '💻',
+    wifi: '📶', bluetooth: '📶',
+    monitor: '🖥️', printer: '🖨️',
+    cloud: '☁️', database: '🗄️',
+    
+    // Communication
+    document: '📄', filetext: '📄', file: '📄',
+    email: '📧', mail: '📧',
+    notification: '🔔', bell: '🔔',
+    chat: '💬', message: '💬',
+    share: '🔗', link: '🔗', send: '📤',
+    
+    // Growth & Success
+    growth: '📈', trending: '📈', chart: '📉',
+    target: '🎯', goal: '🎯',
+    check: '✅', checkmark: '✅',
+    star: '⭐', rating: '⭐',
+    award: '🏆', trophy: '🏆',
+    
+    // Ideas & Innovation
+    idea: '💡', lightbulb: '💡', bulb: '💡',
+    rocket: '🚀', launch: '🚀',
+    globe: '🌐', world: '🌐', global: '🌐',
+    
+    // Time & Calendar
+    clock: '⏰', time: '⏰',
+    calendar: '📅', schedule: '📅',
+    
+    // Health & Life
+    heart: '❤️', health: '❤️',
+    home: '🏠', building: '🏢',
+    
+    // Actions
+    plus: '➕', add: '➕',
+    minus: '➖', remove: '➖',
+    close: '❌', x: '❌',
+    arrow: '➡️', right: '➡️',
+    up: '⬆️', down: '⬇️', left: '⬅️',
+    
+    // Fallbacks
+    circle: '●', dot: '●',
     default: '●',
 };
 
@@ -140,10 +182,10 @@ export async function POST(req: Request) {
         pptx.defineLayout({ name: 'LAYOUT_16x9', width: 10, height: 5.625 });
         pptx.layout = 'LAYOUT_16x9';
 
-        // Theme colors (Gamma-style pink/purple gradient)
-        const primaryColor = theme?.colors?.primary?.replace('#', '') || 'c026d3'; // Fuchsia
-        const secondaryColor = theme?.colors?.secondary?.replace('#', '') || 'a855f7'; // Purple
-        const accentColor = theme?.colors?.accent?.replace('#', '') || 'ec4899'; // Pink
+        // Theme colors - use coral theme as default to match frontend
+        const primaryColor = theme?.colors?.primary?.replace('#', '') || 'c2410c'; // Coral primary
+        const secondaryColor = theme?.colors?.secondary?.replace('#', '') || 'ea580c'; // Coral secondary
+        const accentColor = theme?.colors?.accent?.replace('#', '') || 'fb923c'; // Coral accent
 
         // Pre-fetch images for slides that need them
         console.log('Fetching images for slides...');
@@ -223,6 +265,30 @@ export async function POST(req: Request) {
 
 // ========================== SLIDE LAYOUT FUNCTIONS ==========================
 
+// Helper function to add properly positioned and sized images
+function addSlideImage(
+    slide: pptxgen.Slide,
+    imageBase64: string | null,
+    position: { x: number, y: number, w: number, h: number },
+    borderColor: string
+) {
+    if (!imageBase64) return;
+    
+    // Add background border
+    slide.addShape('rect', {
+        x: position.x - 0.05, y: position.y - 0.05, 
+        w: position.w + 0.1, h: position.h + 0.1,
+        fill: { color: borderColor },
+    });
+    
+    // Add the image
+    slide.addImage({
+        data: imageBase64,
+        x: position.x, y: position.y, w: position.w, h: position.h,
+        rounding: true,
+    });
+}
+
 function createTitleSlide(
     slide: pptxgen.Slide,
     slideData: Slide,
@@ -266,37 +332,31 @@ function createTitleSlide(
         });
     }
 
-    // Content as clean text
+    // Content as clean text with better formatting
     if (slideData.content && slideData.content.length > 0) {
-        const textItems = slideData.content.map((text) => ({
-            text: cleanMarkdown(text),
-            options: {
-                fontSize: 14,
-                color: 'FFFFFF',
-                bullet: false,
-                breakLine: true,
-                paraSpaceBefore: 4,
-                paraSpaceAfter: 4,
-            },
-        }));
-
-        slide.addText(textItems, {
-            x: 0.5, y: slideData.subtitle ? 2.9 : 2.5, w: imageBase64 ? 5.5 : 9, h: 2.2,
+        const contentText = slideData.content.map(text => cleanMarkdown(text)).join(' ');
+        
+        slide.addText(contentText, {
+            x: 0.5, y: 2.8, w: imageBase64 ? 5.5 : 9, h: 1.5,
+            fontSize: 16,
+            color: 'FFFFFF',
             fontFace: 'Arial',
             valign: 'top',
+            wrap: true,
+            lineSpacing: 20,
         });
     }
 
-    // Hero image on right
+    // Hero image on right with better positioning
     if (imageBase64) {
         // Image frame
         slide.addShape('rect', {
-            x: 6.1, y: 0.4, w: 3.5, h: 4.4,
+            x: 6.05, y: 0.8, w: 3.6, h: 3.6,
             fill: { color: secondaryColor },
         });
         slide.addImage({
             data: imageBase64,
-            x: 6.15, y: 0.45, w: 3.4, h: 4.3,
+            x: 6.1, y: 0.85, w: 3.5, h: 3.5,
             rounding: true,
         });
     }
@@ -379,120 +439,91 @@ function createComparisonSlide(
         bold: true,
         color: primaryColor,
         fontFace: 'Arial',
+        align: 'center',
     });
 
-    // Subtitle/intro text if content exists
-    if (slideData.content && slideData.content.length > 0 && !slideData.comparison) {
-        slide.addText(cleanMarkdown(slideData.content[0]), {
-            x: 0.5, y: 1.1, w: 9, h: 0.5,
-            fontSize: 13,
-            color: '6b7280',
-            fontFace: 'Arial',
-        });
-    }
-
-    // Comparison columns
+    // Comparison columns with better formatting
     if (slideData.comparison) {
-        const startY = 1.7;
+        const { left, right } = slideData.comparison;
         const colWidth = 4.3;
-
-        // Left column - Traditional/Problem (pink tinted)
+        const colHeight = 4;
+        
+        // Left column
         slide.addShape('rect', {
-            x: 0.4, y: startY, w: colWidth, h: 3.2,
-            fill: { color: 'fdf2f8' }, // Light pink
+            x: 0.4, y: 1.4, w: colWidth, h: colHeight,
+            fill: { color: 'f8fafc' },
+            line: { color: primaryColor, width: 2 },
         });
-
-        slide.addText(slideData.comparison.left.heading, {
-            x: 0.6, y: startY + 0.2, w: colWidth - 0.4, h: 0.5,
-            fontSize: 16,
-            bold: true,
-            color: accentColor,
-            fontFace: 'Arial',
-        });
-
-        const leftPoints = slideData.comparison.left.points.map((text) => ({
-            text: '• ' + cleanMarkdown(text),
-            options: {
-                fontSize: 12,
-                color: '374151',
-                breakLine: true,
-                paraSpaceBefore: 6,
-                paraSpaceAfter: 6,
-            },
-        }));
-
-        slide.addText(leftPoints, {
-            x: 0.6, y: startY + 0.8, w: colWidth - 0.4, h: 2.2,
-            fontFace: 'Arial',
-            valign: 'top',
-        });
-
-        // Right column - Solution (purple tinted)
-        slide.addShape('rect', {
-            x: 5.3, y: startY, w: colWidth, h: 3.2,
-            fill: { color: 'faf5ff' }, // Light purple
-        });
-
-        slide.addText(slideData.comparison.right.heading, {
-            x: 5.5, y: startY + 0.2, w: colWidth - 0.4, h: 0.5,
-            fontSize: 16,
+        
+        // Left heading
+        slide.addText(left.heading, {
+            x: 0.6, y: 1.6, w: colWidth - 0.4, h: 0.5,
+            fontSize: 18,
             bold: true,
             color: primaryColor,
             fontFace: 'Arial',
+            align: 'center',
         });
+        
+        // Left points with better bullet formatting
+        if (left.points && left.points.length > 0) {
+            const leftTextItems = left.points.map((point) => ({
+                text: cleanMarkdown(point),
+                options: {
+                    fontSize: 13,
+                    color: '374151',
+                    bullet: { type: 'bullet' as const, color: secondaryColor },
+                    breakLine: true,
+                    paraSpaceBefore: 6,
+                    paraSpaceAfter: 6,
+                },
+            }));
 
-        const rightPoints = slideData.comparison.right.points.map((text) => ({
-            text: '• ' + cleanMarkdown(text),
-            options: {
-                fontSize: 12,
-                color: '374151',
-                breakLine: true,
-                paraSpaceBefore: 6,
-                paraSpaceAfter: 6,
-            },
-        }));
-
-        slide.addText(rightPoints, {
-            x: 5.5, y: startY + 0.8, w: colWidth - 0.4, h: 2.2,
-            fontFace: 'Arial',
-            valign: 'top',
-        });
-    } else if (slideData.content && slideData.content.length > 1) {
-        // Fallback: split content into two columns
-        const half = Math.ceil(slideData.content.length / 2);
-        const leftContent = slideData.content.slice(0, half);
-        const rightContent = slideData.content.slice(half);
-
-        // Left column
-        const leftPoints = leftContent.map((text) => ({
-            text: '• ' + cleanMarkdown(text),
-            options: { fontSize: 12, color: '374151', breakLine: true, paraSpaceBefore: 6, paraSpaceAfter: 6 },
-        }));
-
-        slide.addText(leftPoints, {
-            x: 0.5, y: 1.8, w: 4.3, h: 3,
-            fontFace: 'Arial',
-            valign: 'top',
-        });
+            slide.addText(leftTextItems, {
+                x: 0.7, y: 2.2, w: colWidth - 0.6, h: colHeight - 1,
+                fontFace: 'Arial',
+                valign: 'top',
+            });
+        }
 
         // Right column
-        const rightPoints = rightContent.map((text) => ({
-            text: '• ' + cleanMarkdown(text),
-            options: { fontSize: 12, color: '374151', breakLine: true, paraSpaceBefore: 6, paraSpaceAfter: 6 },
-        }));
-
-        slide.addText(rightPoints, {
-            x: 5.2, y: 1.8, w: 4.3, h: 3,
-            fontFace: 'Arial',
-            valign: 'top',
+        slide.addShape('rect', {
+            x: 5.3, y: 1.4, w: colWidth, h: colHeight,
+            fill: { color: 'f8fafc' },
+            line: { color: secondaryColor, width: 2 },
         });
-    }
+        
+        // Right heading
+        slide.addText(right.heading, {
+            x: 5.5, y: 1.6, w: colWidth - 0.4, h: 0.5,
+            fontSize: 18,
+            bold: true,
+            color: secondaryColor,
+            fontFace: 'Arial',
+            align: 'center',
+        });
+        
+        // Right points with better bullet formatting
+        if (right.points && right.points.length > 0) {
+            const rightTextItems = right.points.map((point) => ({
+                text: cleanMarkdown(point),
+                options: {
+                    fontSize: 13,
+                    color: '374151',
+                    bullet: { type: 'bullet' as const, color: accentColor },
+                    breakLine: true,
+                    paraSpaceBefore: 6,
+                    paraSpaceAfter: 6,
+                },
+            }));
 
-    // Bottom accent line
-    slide.addShape('rect', {
-        x: 0.5, y: 5.1, w: 9, h: 0.015,
-        fill: { color: accentColor },
-    });
+            slide.addText(rightTextItems, {
+                x: 5.6, y: 2.2, w: colWidth - 0.6, h: colHeight - 1,
+                fontFace: 'Arial',
+                valign: 'top',
+            });
+        }
+    }
 }
 
 function createFeaturesSlide(
@@ -561,15 +592,17 @@ function createFeaturesSlide(
                 fill: { color: color.bg },
             });
 
-            // Icon circle
-            const iconSymbol = ICON_SYMBOLS[feature.icon] || ICON_SYMBOLS.default;
+            // Icon circle with better icon mapping
+            const iconKey = feature.icon?.toLowerCase() || 'default';
+            const iconSymbol = ICON_SYMBOLS[iconKey] || ICON_SYMBOLS[feature.icon] || ICON_SYMBOLS.default;
+            
             slide.addShape('ellipse', {
-                x: x + cardWidth / 2 - 0.25, y: y + 0.2, w: 0.5, h: 0.5,
+                x: x + cardWidth / 2 - 0.3, y: y + 0.15, w: 0.6, h: 0.6,
                 fill: { color: color.icon },
             });
             slide.addText(iconSymbol, {
-                x: x + cardWidth / 2 - 0.25, y: y + 0.18, w: 0.5, h: 0.5,
-                fontSize: 14,
+                x: x + cardWidth / 2 - 0.3, y: y + 0.12, w: 0.6, h: 0.6,
+                fontSize: 16,
                 color: 'FFFFFF',
                 align: 'center',
                 valign: 'middle',
@@ -781,33 +814,50 @@ function createIconListSlide(
         fill: { color: accentColor },
     });
 
-    // Content with icons
+    // Content with icons - improved formatting
     if (slideData.content && slideData.content.length > 0) {
         const contentWidth = imageBase64 ? 5 : 8.5;
 
         slideData.content.forEach((point, idx) => {
-            const y = 1.1 + idx * 0.7;
+            const y = 1.2 + idx * 0.8;
             const iconColors = [accentColor, primaryColor, secondaryColor, '10b981', 'f59e0b'];
             const color = iconColors[idx % iconColors.length];
+            
+            // Extract icon and text if point contains JSON structure
+            let iconText = '✓';
+            let displayText = cleanMarkdown(point);
+            
+            // Try to parse JSON structure from content
+            try {
+                const parsed = JSON.parse(point);
+                if (parsed.icon && parsed.point) {
+                    const iconKey = parsed.icon.toLowerCase();
+                    iconText = ICON_SYMBOLS[iconKey] || ICON_SYMBOLS[parsed.icon] || '●';
+                    displayText = cleanMarkdown(parsed.point);
+                }
+            } catch (e) {
+                // Not JSON, use as plain text with checkmark
+            }
 
-            // Icon circle
+            // Icon circle with better sizing
             slide.addShape('ellipse', {
-                x: 0.5, y: y + 0.05, w: 0.35, h: 0.35,
+                x: 0.5, y: y + 0.05, w: 0.4, h: 0.4,
                 fill: { color },
             });
-            slide.addText('✓', {
-                x: 0.5, y: y + 0.02, w: 0.35, h: 0.35,
-                fontSize: 10, color: 'FFFFFF',
+            slide.addText(iconText, {
+                x: 0.5, y: y + 0.02, w: 0.4, h: 0.4,
+                fontSize: 12, color: 'FFFFFF',
                 align: 'center', valign: 'middle',
             });
 
-            // Text
-            slide.addText(cleanMarkdown(point), {
-                x: 1.0, y: y, w: contentWidth - 0.5, h: 0.5,
-                fontSize: 13,
+            // Text with better formatting
+            slide.addText(displayText, {
+                x: 1.0, y: y, w: contentWidth - 0.5, h: 0.6,
+                fontSize: 14,
                 color: '374151',
                 fontFace: 'Arial',
                 valign: 'middle',
+                wrap: true,
             });
         });
     }
