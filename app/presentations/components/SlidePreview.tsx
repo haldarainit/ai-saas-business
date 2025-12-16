@@ -258,6 +258,7 @@ interface Metric {
     description?: string;
 }
 
+
 interface SlideData {
     title: string;
     layoutType?: string;
@@ -271,6 +272,16 @@ interface SlideData {
     metrics?: Metric[];
     hasImage?: boolean;
     imageUrl?: string;
+    customStyles?: {
+        backgroundColor?: string;
+        headingColor?: string;
+        textColor?: string;
+        accentColor?: string;
+        borderRadius?: number;
+        hasBackdrop?: boolean;
+        backdropColor?: string;
+        backdropOpacity?: number;
+    };
 }
 
 interface SlidePreviewProps {
@@ -308,44 +319,67 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
     const isFirstSlide = slideIndex === 0;
     const isLastSlide = slideIndex === totalSlides - 1;
 
+    // Extract custom styles with defaults (universal properties only)
+    const customStyles = slide.customStyles || {};
+    const bgColor = customStyles.backgroundColor && customStyles.backgroundColor !== 'transparent'
+        ? customStyles.backgroundColor
+        : undefined;
+    const headingColor = customStyles.headingColor || theme.primary;
+    const textColor = customStyles.textColor || '#475569';
+    const accentColor = customStyles.accentColor || theme.accent;
+    const borderRadius = customStyles.borderRadius ?? 12;
+
+    // Backdrop styles
+    const backdropStyles = customStyles.hasBackdrop ? {
+        position: 'absolute' as const,
+        inset: 0,
+        backgroundColor: customStyles.backdropColor || '#000000',
+        opacity: (customStyles.backdropOpacity || 50) / 100,
+        zIndex: 1,
+    } : null;
+
     // Title slide layout - Gamma AI elegant style
     if (layoutType === 'title' || isFirstSlide) {
         return (
             <div
-                className="w-full h-full rounded-xl overflow-hidden relative"
+                className="w-full h-full overflow-hidden relative"
                 style={{
-                    background: `linear-gradient(135deg, #fef7f0 0%, #fdf2f8 50%, #f0f9ff 100%)`
+                    background: bgColor || `linear-gradient(135deg, #fef7f0 0%, #fdf2f8 50%, #f0f9ff 100%)`,
+                    borderRadius: `${borderRadius}px`,
                 }}
             >
+                {/* Backdrop overlay */}
+                {backdropStyles && <div style={backdropStyles} />}
+
                 {/* Decorative corner shapes */}
                 <div
                     className="absolute top-0 right-0 w-48 h-48 opacity-60"
                     style={{
-                        background: `radial-gradient(circle at 100% 0%, ${theme.primary}30 0%, transparent 70%)`
+                        background: `radial-gradient(circle at 100% 0%, ${accentColor}30 0%, transparent 70%)`
                     }}
                 />
                 <div
                     className="absolute bottom-0 left-0 w-32 h-32 opacity-40"
                     style={{
-                        background: `radial-gradient(circle at 0% 100%, ${theme.secondary}40 0%, transparent 70%)`
+                        background: `radial-gradient(circle at 0% 100%, ${accentColor}40 0%, transparent 70%)`
                     }}
                 />
 
-                <div className="p-10 h-full flex">
+                <div className="p-10 h-full flex relative z-10">
                     <div className="flex-1 flex flex-col justify-center">
                         <h1
                             className="text-4xl md:text-5xl font-bold mb-6 leading-tight"
-                            style={{ color: theme.primary }}
+                            style={{ color: headingColor }}
                         >
                             {slide.title}
                         </h1>
                         {slide.subtitle && (
-                            <p className="text-lg text-slate-600 mb-6">{slide.subtitle}</p>
+                            <p className="text-lg mb-6" style={{ color: textColor }}>{slide.subtitle}</p>
                         )}
                         {slide.content && slide.content.length > 0 && (
                             <div className="space-y-2 max-w-xl">
                                 {slide.content.map((point, i) => (
-                                    <p key={i} className="text-base text-slate-700 leading-relaxed">{cleanMarkdown(point)}</p>
+                                    <p key={i} className="text-base leading-relaxed" style={{ color: textColor }}>{cleanMarkdown(point)}</p>
                                 ))}
                             </div>
                         )}
@@ -369,39 +403,45 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
     if (layoutType === 'closing' || isLastSlide) {
         return (
             <div
-                className="w-full h-full rounded-xl overflow-hidden relative flex flex-col items-center justify-center text-center"
+                className="w-full h-full overflow-hidden relative flex flex-col items-center justify-center text-center"
                 style={{
-                    background: `linear-gradient(135deg, #fef7f0 0%, #fdf2f8 50%, #f0f9ff 100%)`
+                    background: bgColor || `linear-gradient(135deg, #fef7f0 0%, #fdf2f8 50%, #f0f9ff 100%)`,
+                    borderRadius: `${borderRadius}px`,
                 }}
             >
+                {/* Backdrop overlay */}
+                {backdropStyles && <div style={backdropStyles} />}
+
                 {/* Decorative shapes */}
                 <div
                     className="absolute top-0 left-0 w-40 h-40 opacity-40"
                     style={{
-                        background: `radial-gradient(circle at 0% 0%, ${theme.primary}30 0%, transparent 70%)`
+                        background: `radial-gradient(circle at 0% 0%, ${accentColor}30 0%, transparent 70%)`
                     }}
                 />
                 <div
                     className="absolute bottom-0 right-0 w-40 h-40 opacity-40"
                     style={{
-                        background: `radial-gradient(circle at 100% 100%, ${theme.secondary}30 0%, transparent 70%)`
+                        background: `radial-gradient(circle at 100% 100%, ${accentColor}30 0%, transparent 70%)`
                     }}
                 />
 
-                <h1
-                    className="text-4xl md:text-5xl font-bold mb-4"
-                    style={{ color: theme.primary }}
-                >
-                    {slide.title}
-                </h1>
-                <div className="w-32 h-1 rounded-full mb-6" style={{ backgroundColor: theme.accent }} />
-                {slide.content && slide.content.length > 0 && (
-                    <div className="space-y-3 max-w-2xl">
-                        {slide.content.map((point, i) => (
-                            <p key={i} className="text-lg text-slate-600">{cleanMarkdown(point)}</p>
-                        ))}
-                    </div>
-                )}
+                <div className="relative z-10">
+                    <h1
+                        className="text-4xl md:text-5xl font-bold mb-4"
+                        style={{ color: headingColor }}
+                    >
+                        {slide.title}
+                    </h1>
+                    <div className="w-32 h-1 rounded-full mb-6 mx-auto" style={{ backgroundColor: accentColor }} />
+                    {slide.content && slide.content.length > 0 && (
+                        <div className="space-y-3 max-w-2xl">
+                            {slide.content.map((point, i) => (
+                                <p key={i} className="text-lg" style={{ color: textColor }}>{cleanMarkdown(point)}</p>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
         );
     }
@@ -410,15 +450,19 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
     if (layoutType === 'comparison') {
         return (
             <div
-                className="w-full h-full rounded-xl overflow-hidden relative"
+                className="w-full h-full overflow-hidden relative"
                 style={{
-                    background: `linear-gradient(180deg, #ffffff 0%, #fef7f0 50%, #fdf2f8 100%)`
+                    background: bgColor || `linear-gradient(180deg, #ffffff 0%, #fef7f0 50%, #fdf2f8 100%)`,
+                    borderRadius: `${borderRadius}px`,
                 }}
             >
-                <div className="p-6 h-full flex flex-col justify-center">
+                {/* Backdrop overlay */}
+                {backdropStyles && <div style={backdropStyles} />}
+
+                <div className="p-6 h-full flex flex-col justify-center relative z-10">
                     <h2
                         className="text-2xl font-bold mb-6 text-center"
-                        style={{ color: theme.primary }}
+                        style={{ color: headingColor }}
                     >
                         {slide.title}
                     </h2>
@@ -522,15 +566,19 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
 
         return (
             <div
-                className="w-full h-full rounded-xl overflow-hidden relative"
+                className="w-full h-full overflow-hidden relative"
                 style={{
-                    background: `linear-gradient(180deg, #ffffff 0%, #fef7f0 100%)`
+                    background: bgColor || `linear-gradient(180deg, #ffffff 0%, #fef7f0 100%)`,
+                    borderRadius: `${borderRadius}px`,
                 }}
             >
-                <div className="p-6 h-full flex flex-col justify-center">
+                {/* Backdrop overlay */}
+                {backdropStyles && <div style={backdropStyles} />}
+
+                <div className="p-6 h-full flex flex-col justify-center relative z-10">
                     <h2
                         className="text-2xl font-bold mb-6 text-center"
-                        style={{ color: theme.primary }}
+                        style={{ color: headingColor }}
                     >
                         {slide.title}
                     </h2>
@@ -610,15 +658,19 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
 
         return (
             <div
-                className="w-full h-full rounded-xl overflow-hidden relative"
+                className="w-full h-full overflow-hidden relative"
                 style={{
-                    background: `linear-gradient(180deg, #ffffff 0%, #f0f9ff 50%, #fdf2f8 100%)`
+                    background: bgColor || `linear-gradient(180deg, #ffffff 0%, #f0f9ff 50%, #fdf2f8 100%)`,
+                    borderRadius: `${borderRadius}px`,
                 }}
             >
-                <div className="p-6 h-full flex flex-col justify-center">
+                {/* Backdrop overlay */}
+                {backdropStyles && <div style={backdropStyles} />}
+
+                <div className="p-6 h-full flex flex-col justify-center relative z-10">
                     <h2
                         className="text-2xl font-bold mb-6 text-center"
-                        style={{ color: theme.primary }}
+                        style={{ color: headingColor }}
                     >
                         {slide.title}
                     </h2>
@@ -755,16 +807,20 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
 
         return (
             <div
-                className="w-full h-full rounded-xl overflow-hidden relative"
+                className="w-full h-full overflow-hidden relative"
                 style={{
-                    background: `linear-gradient(180deg, #ffffff 0%, #fef7f0 100%)`
+                    background: bgColor || `linear-gradient(180deg, #ffffff 0%, #fef7f0 100%)`,
+                    borderRadius: `${borderRadius}px`,
                 }}
             >
-                <div className="p-6 h-full flex items-center gap-6">
+                {/* Backdrop overlay */}
+                {backdropStyles && <div style={backdropStyles} />}
+
+                <div className="p-6 h-full flex items-center gap-6 relative z-10">
                     <div className="flex-1">
                         <h2
                             className="text-2xl font-bold mb-5"
-                            style={{ color: theme.primary }}
+                            style={{ color: headingColor }}
                         >
                             {slide.title}
                         </h2>
@@ -826,12 +882,16 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
     if (layoutType === 'imageLeft') {
         return (
             <div
-                className="w-full h-full rounded-xl overflow-hidden relative"
+                className="w-full h-full overflow-hidden relative"
                 style={{
-                    background: `linear-gradient(180deg, #ffffff 0%, #f0f9ff 50%, #fdf2f8 100%)`
+                    background: bgColor || `linear-gradient(180deg, #ffffff 0%, #f0f9ff 50%, #fdf2f8 100%)`,
+                    borderRadius: `${borderRadius}px`,
                 }}
             >
-                <div className="p-8 h-full flex items-center gap-8">
+                {/* Backdrop overlay */}
+                {backdropStyles && <div style={backdropStyles} />}
+
+                <div className="p-8 h-full flex items-center gap-8 relative z-10">
                     {slide.hasImage !== false && slide.imageUrl && (
                         <div className="w-2/5 flex items-center justify-center">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -846,7 +906,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                     <div className="flex-1 flex flex-col justify-center">
                         <h2
                             className="text-2xl font-bold mb-4"
-                            style={{ color: theme.primary }}
+                            style={{ color: headingColor }}
                         >
                             {slide.title}
                         </h2>
@@ -857,9 +917,9 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                                     <li key={i} className="flex items-start gap-3">
                                         <span
                                             className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
-                                            style={{ backgroundColor: theme.accent }}
+                                            style={{ backgroundColor: accentColor }}
                                         />
-                                        <span className="text-sm text-slate-700 leading-relaxed">{cleanMarkdown(point)}</span>
+                                        <span className="text-sm leading-relaxed" style={{ color: textColor }}>{cleanMarkdown(point)}</span>
                                     </li>
                                 ))}
                             </ul>
@@ -873,16 +933,20 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
     // Default: ImageRight / TextOnly slide layout - Gamma AI elegant style
     return (
         <div
-            className="w-full h-full rounded-xl overflow-hidden relative"
+            className="w-full h-full overflow-hidden relative"
             style={{
-                background: `linear-gradient(180deg, #ffffff 0%, #fef7f0 50%, #fdf2f8 100%)`
+                background: bgColor || `linear-gradient(180deg, #ffffff 0%, #fef7f0 50%, #fdf2f8 100%)`,
+                borderRadius: `${borderRadius}px`,
             }}
         >
-            <div className="p-8 h-full flex items-center gap-8">
+            {/* Backdrop overlay */}
+            {backdropStyles && <div style={backdropStyles} />}
+
+            <div className="p-8 h-full flex items-center gap-8 relative z-10">
                 <div className="flex-1 flex flex-col justify-center">
                     <h2
                         className="text-2xl font-bold mb-4"
-                        style={{ color: theme.primary }}
+                        style={{ color: headingColor }}
                     >
                         {slide.title}
                     </h2>
@@ -893,9 +957,9 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                                 <li key={i} className="flex items-start gap-3">
                                     <span
                                         className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
-                                        style={{ backgroundColor: theme.accent }}
+                                        style={{ backgroundColor: accentColor }}
                                     />
-                                    <span className="text-sm text-slate-700 leading-relaxed">{cleanMarkdown(point)}</span>
+                                    <span className="text-sm leading-relaxed" style={{ color: textColor }}>{cleanMarkdown(point)}</span>
                                 </li>
                             ))}
                         </ul>

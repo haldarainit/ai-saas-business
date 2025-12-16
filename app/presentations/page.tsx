@@ -35,11 +35,14 @@ import {
     Settings,
     FolderOpen,
     Save,
+    Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
 import PresentationDashboard from "./components/PresentationDashboard";
 import SlidePreview from "./components/SlidePreview";
+import SlideEditorPanel from "./components/SlideEditorPanel";
+import AIRegeneratePanel from "./components/AIRegeneratePanel";
 
 interface FeatureCard {
     icon: string;
@@ -74,6 +77,16 @@ interface Slide {
     hasImage?: boolean;
     imageKeyword?: string;
     imageUrl?: string;
+    customStyles?: {
+        backgroundColor?: string;
+        headingColor?: string;
+        textColor?: string;
+        accentColor?: string;
+        borderRadius?: number;
+        hasBackdrop?: boolean;
+        backdropColor?: string;
+        backdropOpacity?: number;
+    };
 }
 
 interface PresentationData {
@@ -146,6 +159,12 @@ function PresentationsContent() {
     const [isRegeneratingImage, setIsRegeneratingImage] = useState<number | null>(null);
     const [customImagePrompt, setCustomImagePrompt] = useState("");
     const [previewMode, setPreviewMode] = useState<'edit' | 'layout'>('layout'); // New: toggle between edit and layout preview
+
+    // New: Slide Editor and AI Regeneration state
+    const [isSlideEditorOpen, setIsSlideEditorOpen] = useState(false);
+    const [isAIRegenerateOpen, setIsAIRegenerateOpen] = useState(false);
+    const [isRegeneratingSlide, setIsRegeneratingSlide] = useState(false);
+    const [slideStyles, setSlideStyles] = useState<Record<number, any>>({});
 
     const userId = user?.id || DEFAULT_USER_ID;
 
@@ -517,6 +536,102 @@ function PresentationsContent() {
         setIsRegeneratingImage(null);
         setCustomImagePrompt("");
         toast.success(`Image regenerated with: "${imagePrompt.substring(0, 50)}..."`);
+    };
+
+    // New: AI Slide Regeneration handler
+    const regenerateSlideWithAI = async (prompt: string, options: {
+        regenerateType: 'full' | 'content' | 'layout' | 'image' | 'style';
+        targetLayout?: string;
+        keepImage: boolean;
+        tone?: 'professional' | 'casual' | 'creative' | 'formal';
+    }) => {
+        if (!data) return;
+
+        setIsRegeneratingSlide(true);
+
+        try {
+            const currentSlide = data.slides[activeSlide];
+
+            const response = await fetch('/api/regenerate-slide', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    slideTitle: currentSlide.title,
+                    slideContent: currentSlide.content,
+                    slideLayoutType: currentSlide.layoutType,
+                    prompt,
+                    regenerateType: options.regenerateType,
+                    targetLayout: options.targetLayout,
+                    keepImage: options.keepImage,
+                    tone: options.tone,
+                    theme: {
+                        primary: selectedTheme.colors.primary,
+                        secondary: selectedTheme.colors.secondary,
+                        accent: selectedTheme.colors.accent,
+                    },
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to regenerate slide');
+            }
+
+            // Update the slide with regenerated content
+            const newSlides = [...data.slides];
+            const regeneratedSlide = result.regeneratedSlide;
+
+            // Merge with existing slide, preserving certain fields if needed
+            newSlides[activeSlide] = {
+                ...currentSlide,
+                ...regeneratedSlide,
+                // Keep existing image if requested
+                imageUrl: options.keepImage || regeneratedSlide.keepExistingImage
+                    ? currentSlide.imageUrl
+                    : regeneratedSlide.imageUrl || currentSlide.imageUrl,
+                imageKeyword: options.keepImage || regeneratedSlide.keepExistingImage
+                    ? currentSlide.imageKeyword
+                    : regeneratedSlide.imageKeyword || currentSlide.imageKeyword,
+            };
+
+            setData({ ...data, slides: newSlides });
+            toast.success('Slide regenerated successfully!');
+        } catch (error: any) {
+            console.error('Regeneration error:', error);
+            toast.error(error.message || 'Failed to regenerate slide');
+        } finally {
+            setIsRegeneratingSlide(false);
+        }
+    };
+
+    // New: Handle slide style changes
+    const handleSlideStyleChange = (styles: any) => {
+        if (!data) return;
+
+        // Save styles to state
+        const newStyles = { ...slideStyles, [activeSlide]: styles };
+        setSlideStyles(newStyles);
+
+        // Update the slide data with universal style properties
+        const newSlides = [...data.slides];
+        newSlides[activeSlide] = {
+            ...newSlides[activeSlide],
+            // Store custom styles in the slide object (universal styles only)
+            customStyles: {
+                backgroundColor: styles.backgroundColor,
+                headingColor: styles.headingColor,
+                textColor: styles.textColor,
+                accentColor: styles.accentColor,
+                borderRadius: styles.borderRadius,
+                hasBackdrop: styles.hasBackdrop,
+                backdropColor: styles.backdropColor,
+                backdropOpacity: styles.backdropOpacity,
+            },
+        };
+        setData({ ...data, slides: newSlides });
+
+        toast.success('Style applied!', { duration: 1500 });
     };
 
     const handleBack = () => {
@@ -977,36 +1092,65 @@ function PresentationsContent() {
                                 <div className="text-xs font-medium text-muted-foreground mb-3">SLIDES</div>
                                 {data.slides.map((slide, i) => {
                                     return (
-                                        <button
-                                            key={i}
-                                            onClick={() => setActiveSlide(i)}
-                                            className={`w-full aspect-[16/10] rounded-lg overflow-hidden border-2 transition-all relative group ${activeSlide === i
-                                                ? "border-blue-500 shadow-lg"
-                                                : "border-transparent hover:border-slate-300"
-                                                }`}
-                                        >
-                                            <div className="absolute top-1 left-1 bg-black/50 text-white text-[8px] px-1 rounded z-10">
-                                                {i + 1}
-                                            </div>
-                                            {/* Layout type badge */}
-                                            {slide.layoutType && (
-                                                <div className="absolute top-1 right-1 bg-purple-500/80 text-white text-[6px] px-1 rounded z-10 uppercase">
-                                                    {slide.layoutType}
+                                        <div key={i} className="relative group">
+                                            <button
+                                                onClick={() => setActiveSlide(i)}
+                                                className={`w-full aspect-[16/10] rounded-lg overflow-hidden border-2 transition-all relative ${activeSlide === i
+                                                    ? "border-blue-500 shadow-lg"
+                                                    : "border-transparent hover:border-slate-300"
+                                                    }`}
+                                            >
+                                                <div className="absolute top-1 left-1 bg-black/50 text-white text-[8px] px-1 rounded z-10">
+                                                    {i + 1}
                                                 </div>
-                                            )}
-                                            <div className="w-full h-full scale-[0.15] origin-top-left" style={{ width: '666%', height: '666%' }}>
-                                                <SlidePreview
-                                                    slide={slide}
-                                                    slideIndex={i}
-                                                    totalSlides={data.slides.length}
-                                                    theme={{
-                                                        primary: selectedTheme.colors.primary,
-                                                        secondary: selectedTheme.colors.secondary,
-                                                        accent: selectedTheme.colors.accent,
+                                                {/* Layout type badge */}
+                                                {slide.layoutType && (
+                                                    <div className="absolute top-1 right-1 bg-purple-500/80 text-white text-[6px] px-1 rounded z-10 uppercase">
+                                                        {slide.layoutType}
+                                                    </div>
+                                                )}
+                                                <div className="w-full h-full scale-[0.15] origin-top-left" style={{ width: '666%', height: '666%' }}>
+                                                    <SlidePreview
+                                                        slide={slide}
+                                                        slideIndex={i}
+                                                        totalSlides={data.slides.length}
+                                                        theme={{
+                                                            primary: selectedTheme.colors.primary,
+                                                            secondary: selectedTheme.colors.secondary,
+                                                            accent: selectedTheme.colors.accent,
+                                                        }}
+                                                    />
+                                                </div>
+                                            </button>
+
+                                            {/* Hover-revealed action buttons */}
+                                            <div className="absolute bottom-1 left-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setActiveSlide(i);
+                                                        setIsAIRegenerateOpen(true);
                                                     }}
-                                                />
+                                                    className="flex-1 flex items-center justify-center gap-0.5 py-1 rounded bg-violet-500/80 hover:bg-violet-600/90 text-white text-[7px] font-medium transition-colors backdrop-blur-sm"
+                                                    title="AI Agent"
+                                                >
+                                                    <Wand2 className="w-2.5 h-2.5" />
+                                                    <span>AI</span>
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setActiveSlide(i);
+                                                        setIsSlideEditorOpen(true);
+                                                    }}
+                                                    className="flex-1 flex items-center justify-center gap-0.5 py-1 rounded bg-slate-500/80 hover:bg-slate-600/90 text-white text-[7px] font-medium transition-colors backdrop-blur-sm"
+                                                    title="Card Editor"
+                                                >
+                                                    <Settings className="w-2.5 h-2.5" />
+                                                    <span>Edit</span>
+                                                </button>
                                             </div>
-                                        </button>
+                                        </div>
                                     );
                                 })}
                             </div>
@@ -1068,6 +1212,28 @@ function PresentationsContent() {
                                                             <Edit3 className="w-3 h-3 inline mr-1" /> Edit
                                                         </button>
                                                     </div>
+
+                                                    {/* Compact AI Agent Button */}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => setIsAIRegenerateOpen(true)}
+                                                        className="h-8 w-8 text-violet-600 hover:text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
+                                                        title="AI Agent - Regenerate slide"
+                                                    >
+                                                        <Wand2 className="w-4 h-4" />
+                                                    </Button>
+
+                                                    {/* Compact Card Editor Button */}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => setIsSlideEditorOpen(true)}
+                                                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
+                                                        title="Card Editor - Edit styling"
+                                                    >
+                                                        <Settings className="w-4 h-4" />
+                                                    </Button>
                                                 </div>
                                             </div>
 
@@ -1078,7 +1244,7 @@ function PresentationsContent() {
                                                     key={`${activeSlide}-layout`}
                                                     initial={{ opacity: 0, scale: 0.98 }}
                                                     animate={{ opacity: 1, scale: 1 }}
-                                                    className="aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl"
+                                                    className="aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl relative group"
                                                 >
                                                     <SlidePreview
                                                         slide={data.slides[activeSlide]}
@@ -1090,6 +1256,29 @@ function PresentationsContent() {
                                                             accent: selectedTheme.colors.accent,
                                                         }}
                                                     />
+
+                                                    {/* Floating action buttons - appear on hover */}
+                                                    <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-2 group-hover:translate-y-0">
+                                                        <button
+                                                            onClick={() => setIsAIRegenerateOpen(true)}
+                                                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600/90 hover:bg-violet-700 text-white text-xs font-medium transition-colors backdrop-blur-sm shadow-lg"
+                                                            title="AI Agent - Regenerate slide with AI"
+                                                        >
+                                                            <Wand2 className="w-3.5 h-3.5" />
+                                                            <span>AI Agent</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setIsSlideEditorOpen(true)}
+                                                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700/90 hover:bg-slate-800 text-white text-xs font-medium transition-colors backdrop-blur-sm shadow-lg"
+                                                            title="Card Editor - Edit styling and layout"
+                                                        >
+                                                            <Settings className="w-3.5 h-3.5" />
+                                                            <span>Edit Card</span>
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Subtle hint at bottom */}
+                                                    <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                                                 </motion.div>
                                             ) : (
                                                 /* Edit Mode - Editable slide content */
@@ -1299,28 +1488,69 @@ function PresentationsContent() {
 
                                             {/* All Slides Overview */}
                                             <div className="mt-8">
-                                                <h3 className="text-sm font-medium text-muted-foreground mb-4">All Slides ({data.slides.length} total) - Layout types rendered</h3>
+                                                <h3 className="text-sm font-medium text-muted-foreground mb-4">All Slides ({data.slides.length} total) - Hover over cards for quick actions</h3>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                     {data.slides.map((slide, i) => (
-                                                        <button
-                                                            key={i}
-                                                            onClick={() => setActiveSlide(i)}
-                                                            className={`aspect-video rounded-lg overflow-hidden border-2 transition-all ${activeSlide === i ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200 hover:border-slate-400'
-                                                                }`}
-                                                        >
-                                                            <div className="w-full h-full scale-[0.25] origin-top-left" style={{ width: '400%', height: '400%' }}>
-                                                                <SlidePreview
-                                                                    slide={slide}
-                                                                    slideIndex={i}
-                                                                    totalSlides={data.slides.length}
-                                                                    theme={{
-                                                                        primary: selectedTheme.colors.primary,
-                                                                        secondary: selectedTheme.colors.secondary,
-                                                                        accent: selectedTheme.colors.accent,
-                                                                    }}
-                                                                />
+                                                        <div key={i} className="relative group">
+                                                            <button
+                                                                onClick={() => setActiveSlide(i)}
+                                                                className={`w-full aspect-video rounded-lg overflow-hidden border-2 transition-all ${activeSlide === i ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200 hover:border-slate-400'
+                                                                    }`}
+                                                            >
+                                                                <div className="w-full h-full scale-[0.25] origin-top-left" style={{ width: '400%', height: '400%' }}>
+                                                                    <SlidePreview
+                                                                        slide={slide}
+                                                                        slideIndex={i}
+                                                                        totalSlides={data.slides.length}
+                                                                        theme={{
+                                                                            primary: selectedTheme.colors.primary,
+                                                                            secondary: selectedTheme.colors.secondary,
+                                                                            accent: selectedTheme.colors.accent,
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            </button>
+
+                                                            {/* Slide number badge */}
+                                                            <div className="absolute top-2 left-2 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded font-medium z-10">
+                                                                {i + 1}
                                                             </div>
-                                                        </button>
+
+                                                            {/* Layout type badge */}
+                                                            {slide.layoutType && (
+                                                                <div className="absolute top-2 right-2 bg-purple-500/80 text-white text-[8px] px-1.5 py-0.5 rounded z-10 uppercase font-medium">
+                                                                    {slide.layoutType}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Hover-revealed action buttons */}
+                                                            <div className="absolute bottom-2 left-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setActiveSlide(i);
+                                                                        setIsAIRegenerateOpen(true);
+                                                                    }}
+                                                                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md bg-violet-500/90 hover:bg-violet-600 text-white text-[9px] font-medium transition-colors backdrop-blur-sm shadow-lg"
+                                                                    title="AI Agent - Regenerate with AI"
+                                                                >
+                                                                    <Wand2 className="w-3 h-3" />
+                                                                    <span>AI Agent</span>
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setActiveSlide(i);
+                                                                        setIsSlideEditorOpen(true);
+                                                                    }}
+                                                                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md bg-slate-600/90 hover:bg-slate-700 text-white text-[9px] font-medium transition-colors backdrop-blur-sm shadow-lg"
+                                                                    title="Card Editor - Edit styling"
+                                                                >
+                                                                    <Settings className="w-3 h-3" />
+                                                                    <span>Edit Card</span>
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     ))}
                                                 </div>
                                             </div>
@@ -1335,6 +1565,38 @@ function PresentationsContent() {
 
             {step === "input" && <Footer />
             }
+
+            {/* Slide Editor Panel */}
+            {step === "preview" && data && (
+                <SlideEditorPanel
+                    isOpen={isSlideEditorOpen}
+                    onClose={() => setIsSlideEditorOpen(false)}
+                    slideIndex={activeSlide}
+                    currentStyles={{
+                        ...data.slides[activeSlide]?.customStyles,
+                        ...slideStyles[activeSlide],
+                    }}
+                    onStyleChange={handleSlideStyleChange}
+                    theme={{
+                        primary: selectedTheme.colors.primary,
+                        secondary: selectedTheme.colors.secondary,
+                        accent: selectedTheme.colors.accent,
+                    }}
+                />
+            )}
+
+            {/* AI Regenerate Panel */}
+            {step === "preview" && data && (
+                <AIRegeneratePanel
+                    isOpen={isAIRegenerateOpen}
+                    onClose={() => setIsAIRegenerateOpen(false)}
+                    slideIndex={activeSlide}
+                    slideTitle={data.slides[activeSlide]?.title || ''}
+                    slideContent={data.slides[activeSlide]?.content}
+                    onRegenerate={regenerateSlideWithAI}
+                    isRegenerating={isRegeneratingSlide}
+                />
+            )}
         </div >
     );
 }
