@@ -139,10 +139,10 @@ export default function SlideEditorPanel({
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     {icon}
-                    <span className="text-sm font-medium">{label}</span>
+                    <span className="text-sm font-medium text-slate-700">{label}</span>
                 </div>
                 <div
-                    className="w-8 h-8 rounded-lg border-2 border-slate-300 cursor-pointer shadow-sm hover:scale-105 transition-transform"
+                    className="w-8 h-8 rounded-lg border-2 border-rose-200 cursor-pointer shadow-sm hover:scale-105 transition-transform"
                     style={{ backgroundColor: currentValue }}
                     onClick={() => setActiveColorTarget(activeColorTarget === colorKey ? null : colorKey)}
                 />
@@ -158,30 +158,30 @@ export default function SlideEditorPanel({
                     >
                         {/* Theme Colors */}
                         <div>
-                            <p className="text-xs text-muted-foreground mb-1.5">Theme Colors</p>
+                            <p className="text-xs text-rose-500 mb-1.5">Theme Colors</p>
                             <div className="flex gap-1.5">
                                 <button
                                     onClick={() => updateStyle(colorKey, theme.primary)}
-                                    className={`w-8 h-8 rounded-lg border-2 transition-all ${currentValue === theme.primary ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200'}`}
+                                    className={`w-8 h-8 rounded-lg border-2 transition-all ${currentValue === theme.primary ? 'border-rose-500 ring-2 ring-rose-200' : 'border-rose-100'}`}
                                     style={{ backgroundColor: theme.primary }}
                                     title="Primary"
                                 />
                                 <button
                                     onClick={() => updateStyle(colorKey, theme.secondary)}
-                                    className={`w-8 h-8 rounded-lg border-2 transition-all ${currentValue === theme.secondary ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200'}`}
+                                    className={`w-8 h-8 rounded-lg border-2 transition-all ${currentValue === theme.secondary ? 'border-rose-500 ring-2 ring-rose-200' : 'border-rose-100'}`}
                                     style={{ backgroundColor: theme.secondary }}
                                     title="Secondary"
                                 />
                                 <button
                                     onClick={() => updateStyle(colorKey, theme.accent)}
-                                    className={`w-8 h-8 rounded-lg border-2 transition-all ${currentValue === theme.accent ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200'}`}
+                                    className={`w-8 h-8 rounded-lg border-2 transition-all ${currentValue === theme.accent ? 'border-rose-500 ring-2 ring-rose-200' : 'border-rose-100'}`}
                                     style={{ backgroundColor: theme.accent }}
                                     title="Accent"
                                 />
                                 <button
                                     onClick={() => updateStyle(colorKey, 'transparent')}
-                                    className={`w-8 h-8 rounded-lg border-2 transition-all ${currentValue === 'transparent' ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200'}`}
-                                    style={{ background: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)', backgroundSize: '8px 8px', backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px' }}
+                                    className={`w-8 h-8 rounded-lg border-2 transition-all ${currentValue === 'transparent' ? 'border-rose-500 ring-2 ring-rose-200' : 'border-rose-100'}`}
+                                    style={{ background: 'linear-gradient(45deg, #fecdd3 25%, transparent 25%), linear-gradient(-45deg, #fecdd3 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #fecdd3 75%), linear-gradient(-45deg, transparent 75%, #fecdd3 75%)', backgroundSize: '8px 8px', backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px' }}
                                     title="Transparent"
                                 />
                             </div>
@@ -190,13 +190,13 @@ export default function SlideEditorPanel({
                         {/* Color Palettes */}
                         {Object.entries(COLOR_PALETTE).map(([category, colors]) => (
                             <div key={category}>
-                                <p className="text-xs text-muted-foreground mb-1.5 capitalize">{category}</p>
+                                <p className="text-xs text-rose-500 mb-1.5 capitalize">{category}</p>
                                 <div className="flex gap-1 flex-wrap">
                                     {colors.map((color) => (
                                         <button
                                             key={color.value}
                                             onClick={() => updateStyle(colorKey, color.value)}
-                                            className={`w-7 h-7 rounded-md border-2 transition-all hover:scale-110 ${currentValue === color.value ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200'}`}
+                                            className={`w-7 h-7 rounded-md border-2 transition-all hover:scale-110 ${currentValue === color.value ? 'border-rose-500 ring-2 ring-rose-200' : 'border-rose-100'}`}
                                             style={{ backgroundColor: color.value }}
                                             title={color.name}
                                         />
@@ -207,7 +207,7 @@ export default function SlideEditorPanel({
 
                         {/* Custom Color Input */}
                         <div>
-                            <p className="text-xs text-muted-foreground mb-1.5">Custom Color</p>
+                            <p className="text-xs text-rose-500 mb-1.5">Custom Color</p>
                             <div className="flex gap-2">
                                 <Input
                                     type="text"
@@ -243,14 +243,14 @@ export default function SlideEditorPanel({
     );
 
     const Section = ({ id, title, icon, children }: { id: string; title: string; icon: React.ReactNode; children: React.ReactNode }) => (
-        <div className="border-b border-slate-200 dark:border-slate-700">
+        <div className="border-b border-rose-100">
             <button
                 onClick={() => setExpandedSection(expandedSection === id ? null : id)}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                className="w-full flex items-center justify-between p-4 hover:bg-rose-50/50 transition-colors"
             >
                 <div className="flex items-center gap-3">
-                    <span className="text-slate-500 dark:text-slate-400">{icon}</span>
-                    <span className="font-medium text-sm">{title}</span>
+                    <span className="text-rose-500">{icon}</span>
+                    <span className="font-medium text-sm text-slate-700">{title}</span>
                 </div>
                 {expandedSection === id ? (
                     <ChevronUp className="w-4 h-4 text-slate-400" />
@@ -294,18 +294,18 @@ export default function SlideEditorPanel({
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: 380, opacity: 0 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="fixed right-0 top-0 bottom-0 w-[380px] bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-700 flex flex-col"
+                        className="fixed right-0 top-0 bottom-0 w-[380px] bg-white shadow-2xl border-l-2 border-rose-100 flex flex-col"
                         style={{ zIndex: 9999 }}
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/50 dark:to-cyan-950/50">
+                        <div className="flex items-center justify-between p-4 border-b border-rose-100 bg-gradient-to-r from-rose-50 to-pink-50">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
                                     <Paintbrush className="w-5 h-5 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold">Card Editor</h3>
-                                    <p className="text-xs text-muted-foreground">Slide {slideIndex + 1} Styling</p>
+                                    <h3 className="font-semibold text-slate-700">Card Editor</h3>
+                                    <p className="text-xs text-slate-500">Slide {slideIndex + 1} Styling</p>
                                 </div>
                             </div>
                             <Button variant="ghost" size="icon" onClick={onClose}>
@@ -319,28 +319,28 @@ export default function SlideEditorPanel({
                             <Section id="colors" title="Colors" icon={<Palette className="w-4 h-4" />}>
                                 <ColorPicker
                                     label="Background Color"
-                                    icon={<Square className="w-4 h-4 text-slate-400" />}
+                                    icon={<Square className="w-4 h-4 text-rose-400" />}
                                     colorKey="backgroundColor"
                                     currentValue={styles.backgroundColor === 'transparent' ? '#ffffff' : styles.backgroundColor}
                                 />
 
                                 <ColorPicker
                                     label="Heading Color"
-                                    icon={<Heading className="w-4 h-4 text-slate-400" />}
+                                    icon={<Heading className="w-4 h-4 text-rose-400" />}
                                     colorKey="headingColor"
                                     currentValue={styles.headingColor}
                                 />
 
                                 <ColorPicker
                                     label="Text Color"
-                                    icon={<Type className="w-4 h-4 text-slate-400" />}
+                                    icon={<Type className="w-4 h-4 text-rose-400" />}
                                     colorKey="textColor"
                                     currentValue={styles.textColor}
                                 />
 
                                 <ColorPicker
                                     label="Accent Color"
-                                    icon={<CircleDot className="w-4 h-4 text-slate-400" />}
+                                    icon={<CircleDot className="w-4 h-4 text-rose-400" />}
                                     colorKey="accentColor"
                                     currentValue={styles.accentColor}
                                 />
@@ -351,8 +351,8 @@ export default function SlideEditorPanel({
                                 {/* Border Radius */}
                                 <div>
                                     <div className="flex items-center justify-between mb-3">
-                                        <label className="text-sm font-medium">Corner Radius</label>
-                                        <span className="text-xs text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">{styles.borderRadius}px</span>
+                                        <label className="text-sm font-medium text-slate-700">Corner Radius</label>
+                                        <span className="text-xs text-rose-600 bg-rose-50 px-2 py-1 rounded border border-rose-100">{styles.borderRadius}px</span>
                                     </div>
                                     <Slider
                                         value={[styles.borderRadius]}
@@ -368,8 +368,8 @@ export default function SlideEditorPanel({
                                                 key={r}
                                                 onClick={() => updateStyle('borderRadius', r)}
                                                 className={`flex-1 py-2 text-xs rounded-md transition-colors ${styles.borderRadius === r
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                                    ? 'bg-rose-600 text-white'
+                                                    : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
                                                     }`}
                                             >
                                                 {r}
@@ -383,12 +383,12 @@ export default function SlideEditorPanel({
                             <Section id="backdrop" title="Backdrop Overlay" icon={<Layers className="w-4 h-4" />}>
                                 <div className="flex items-center justify-between py-2">
                                     <div>
-                                        <span className="text-sm font-medium block">Enable Backdrop</span>
-                                        <span className="text-xs text-muted-foreground">Add a color overlay on the slide</span>
+                                        <span className="text-sm font-medium block text-slate-700">Enable Backdrop</span>
+                                        <span className="text-xs text-slate-500">Add a color overlay on the slide</span>
                                     </div>
                                     <button
                                         onClick={() => updateStyle('hasBackdrop', !styles.hasBackdrop)}
-                                        className={`w-11 h-6 rounded-full relative transition-colors flex-shrink-0 ${styles.hasBackdrop ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'
+                                        className={`w-11 h-6 rounded-full relative transition-colors flex-shrink-0 ${styles.hasBackdrop ? 'bg-rose-600' : 'bg-rose-200'
                                             }`}
                                     >
                                         <span
@@ -407,15 +407,15 @@ export default function SlideEditorPanel({
                                     >
                                         <ColorPicker
                                             label="Backdrop Color"
-                                            icon={<Square className="w-4 h-4 text-slate-400" />}
+                                            icon={<Square className="w-4 h-4 text-rose-400" />}
                                             colorKey="backdropColor"
                                             currentValue={styles.backdropColor}
                                         />
 
                                         <div>
                                             <div className="flex items-center justify-between mb-3">
-                                                <label className="text-sm font-medium">Opacity</label>
-                                                <span className="text-xs text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">{styles.backdropOpacity}%</span>
+                                                <label className="text-sm font-medium text-slate-700">Opacity</label>
+                                                <span className="text-xs text-rose-600 bg-rose-50 px-2 py-1 rounded border border-rose-100">{styles.backdropOpacity}%</span>
                                             </div>
                                             <Slider
                                                 value={[styles.backdropOpacity]}
@@ -432,17 +432,17 @@ export default function SlideEditorPanel({
                         </div>
 
                         {/* Footer Actions */}
-                        <div className="border-t border-slate-200 dark:border-slate-700 p-4 space-y-2 bg-slate-50 dark:bg-slate-800/50">
+                        <div className="border-t border-rose-100 p-4 space-y-2 bg-rose-50/50">
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-full"
+                                className="w-full border-rose-200 text-rose-700 hover:bg-rose-100"
                                 onClick={resetStyles}
                             >
                                 <RotateCcw className="w-4 h-4 mr-2" /> Reset to Default
                             </Button>
                             <Button
-                                className="w-full bg-blue-600 hover:bg-blue-700"
+                                className="w-full bg-rose-600 hover:bg-rose-700"
                                 onClick={onClose}
                             >
                                 <Check className="w-4 h-4 mr-2" /> Done

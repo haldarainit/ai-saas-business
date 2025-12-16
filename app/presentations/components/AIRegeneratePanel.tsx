@@ -128,19 +128,19 @@ export default function AIRegeneratePanel({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 50, scale: 0.95 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[600px] max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+                        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[600px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border-2 border-rose-100 overflow-hidden"
                         style={{ zIndex: 9999 }}
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-violet-50 via-purple-50 to-blue-50 dark:from-violet-950/50 dark:via-purple-950/50 dark:to-blue-950/50">
+                        <div className="flex items-center justify-between p-4 border-b-2 border-rose-100 bg-gradient-to-r from-orange-50 via-rose-50 to-pink-50">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
                                     <Wand2 className="w-5 h-5 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold flex items-center gap-2">
+                                    <h3 className="font-semibold flex items-center gap-2 text-slate-700">
                                         AI Agent
-                                        <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-400">
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400">
                                             Beta
                                         </span>
                                     </h3>
@@ -155,7 +155,7 @@ export default function AIRegeneratePanel({
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex border-b border-slate-200 dark:border-slate-700">
+                        <div className="flex border-b-2 border-rose-100">
                             {[
                                 { id: 'quick', label: 'Quick Actions', icon: Zap },
                                 { id: 'custom', label: 'Custom Prompt', icon: MessageSquare },
@@ -165,8 +165,8 @@ export default function AIRegeneratePanel({
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as typeof activeTab)}
                                     className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${activeTab === tab.id
-                                        ? 'text-violet-600 dark:text-violet-400 border-b-2 border-violet-600 dark:border-violet-400'
-                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                        ? 'text-rose-600 border-b-2 border-rose-600'
+                                        : 'text-slate-400 hover:text-rose-500'
                                         }`}
                                 >
                                     <tab.icon className="w-4 h-4" />
@@ -180,7 +180,7 @@ export default function AIRegeneratePanel({
                             {/* Quick Actions Tab */}
                             {activeTab === 'quick' && (
                                 <div className="space-y-4">
-                                    <p className="text-sm text-muted-foreground mb-3">
+                                    <p className="text-sm text-slate-500 mb-3">
                                         Select a quick action to regenerate this slide instantly
                                     </p>
                                     <div className="grid grid-cols-2 gap-3">
@@ -189,14 +189,14 @@ export default function AIRegeneratePanel({
                                                 key={action.id}
                                                 onClick={() => handleQuickAction(action.id, action.prompt)}
                                                 disabled={isRegenerating}
-                                                className={`flex items-center gap-3 p-4 rounded-xl border transition-all text-left group ${selectedAction === action.id
-                                                    ? 'border-violet-500 bg-violet-50 dark:bg-violet-950'
-                                                    : 'border-slate-200 dark:border-slate-700 hover:border-violet-300 hover:bg-violet-50/50 dark:hover:bg-violet-950/50'
+                                                className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left group ${selectedAction === action.id
+                                                    ? 'border-rose-400 bg-rose-50'
+                                                    : 'border-rose-100 bg-white hover:border-rose-300 hover:bg-rose-50/50'
                                                     }`}
                                             >
                                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${selectedAction === action.id
-                                                    ? 'bg-violet-600 text-white'
-                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:bg-violet-100 group-hover:text-violet-600'
+                                                    ? 'bg-rose-600 text-white'
+                                                    : 'bg-rose-50 text-rose-500 group-hover:bg-rose-100 group-hover:text-rose-600'
                                                     }`}>
                                                     {selectedAction === action.id && isRegenerating ? (
                                                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -204,7 +204,7 @@ export default function AIRegeneratePanel({
                                                         <action.icon className="w-5 h-5" />
                                                     )}
                                                 </div>
-                                                <span className="font-medium text-sm">{action.label}</span>
+                                                <span className="font-medium text-sm text-slate-700">{action.label}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -215,18 +215,18 @@ export default function AIRegeneratePanel({
                             {activeTab === 'custom' && (
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="text-sm font-medium mb-2 block">Describe what you want</label>
+                                        <label className="text-sm font-medium mb-2 block text-slate-700">Describe what you want</label>
                                         <Textarea
                                             placeholder="E.g., 'Rewrite this slide to focus on cost savings and include specific statistics...'"
                                             value={customPrompt}
                                             onChange={(e) => setCustomPrompt(e.target.value)}
-                                            className="min-h-[100px] resize-none"
+                                            className="min-h-[100px] resize-none border-2 border-rose-100 focus:border-rose-300"
                                         />
                                     </div>
 
                                     {/* Regenerate Type Selection */}
                                     <div>
-                                        <label className="text-sm font-medium mb-2 block">What to regenerate</label>
+                                        <label className="text-sm font-medium mb-2 block text-slate-700">What to regenerate</label>
                                         <div className="flex flex-wrap gap-2">
                                             {[
                                                 { id: 'full', label: 'Full Slide', icon: LayoutGrid },
@@ -238,8 +238,8 @@ export default function AIRegeneratePanel({
                                                     key={type.id}
                                                     onClick={() => setRegenerateType(type.id as typeof regenerateType)}
                                                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${regenerateType === type.id
-                                                        ? 'bg-violet-600 text-white'
-                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                                                        ? 'bg-rose-600 text-white'
+                                                        : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
                                                         }`}
                                                 >
                                                     <type.icon className="w-4 h-4" />
@@ -250,14 +250,14 @@ export default function AIRegeneratePanel({
                                     </div>
 
                                     {/* Keep Image Toggle */}
-                                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                    <div className="flex items-center justify-between p-3 bg-rose-50 rounded-lg border border-rose-100">
                                         <div className="flex items-center gap-2">
-                                            <ImageIcon className="w-4 h-4 text-slate-500" />
-                                            <span className="text-sm">Keep current image</span>
+                                            <ImageIcon className="w-4 h-4 text-rose-500" />
+                                            <span className="text-sm text-slate-700">Keep current image</span>
                                         </div>
                                         <button
                                             onClick={() => setKeepImage(!keepImage)}
-                                            className={`w-11 h-6 rounded-full relative transition-colors ${keepImage ? 'bg-violet-600' : 'bg-slate-200 dark:bg-slate-700'
+                                            className={`w-11 h-6 rounded-full relative transition-colors ${keepImage ? 'bg-rose-600' : 'bg-rose-200'
                                                 }`}
                                         >
                                             <span
@@ -269,7 +269,7 @@ export default function AIRegeneratePanel({
 
                                     {/* Generate Button */}
                                     <Button
-                                        className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white"
+                                        className="w-full bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700 text-white"
                                         onClick={handleCustomRegenerate}
                                         disabled={!customPrompt.trim() || isRegenerating}
                                     >
@@ -291,7 +291,7 @@ export default function AIRegeneratePanel({
                             {/* Layout Tab */}
                             {activeTab === 'layout' && (
                                 <div className="space-y-4">
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-sm text-slate-500">
                                         Change the layout while keeping your content
                                     </p>
                                     <div className="grid grid-cols-2 gap-3">
@@ -300,20 +300,20 @@ export default function AIRegeneratePanel({
                                                 key={layout.id}
                                                 onClick={() => handleLayoutChange(layout.id)}
                                                 disabled={isRegenerating}
-                                                className={`p-4 rounded-xl border text-left transition-all ${selectedLayout === layout.id
-                                                    ? 'border-violet-500 bg-violet-50 dark:bg-violet-950'
-                                                    : 'border-slate-200 dark:border-slate-700 hover:border-violet-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                                className={`p-4 rounded-xl border-2 text-left transition-all ${selectedLayout === layout.id
+                                                    ? 'border-rose-400 bg-rose-50'
+                                                    : 'border-rose-100 bg-white hover:border-rose-300 hover:bg-rose-50/50'
                                                     }`}
                                             >
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <span className="font-medium text-sm">{layout.name}</span>
+                                                    <span className="font-medium text-sm text-slate-700">{layout.name}</span>
                                                     {selectedLayout === layout.id && isRegenerating ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin text-violet-600" />
+                                                        <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
                                                     ) : (
-                                                        <ArrowRight className="w-4 h-4 text-slate-400" />
+                                                        <ArrowRight className="w-4 h-4 text-rose-400" />
                                                     )}
                                                 </div>
-                                                <p className="text-xs text-muted-foreground">{layout.description}</p>
+                                                <p className="text-xs text-slate-500">{layout.description}</p>
                                             </button>
                                         ))}
                                     </div>
@@ -322,9 +322,9 @@ export default function AIRegeneratePanel({
                         </div>
 
                         {/* Current content preview */}
-                        <div className="border-t border-slate-200 dark:border-slate-700 p-3 bg-slate-50 dark:bg-slate-800/50">
-                            <p className="text-xs text-muted-foreground mb-1">Current slide content:</p>
-                            <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
+                        <div className="border-t border-rose-100 p-3 bg-rose-50/50">
+                            <p className="text-xs text-rose-500 mb-1">Current slide content:</p>
+                            <p className="text-xs text-slate-600 line-clamp-2">
                                 {slideContent?.slice(0, 3).join(' • ') || 'No content'}
                             </p>
                         </div>

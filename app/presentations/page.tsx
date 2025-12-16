@@ -95,17 +95,98 @@ interface PresentationData {
 }
 
 type Step = "input" | "outline" | "generating" | "preview";
-type Theme = "coral" | "ocean" | "forest" | "sunset" | "violet" | "modern" | "classic" | "minimal";
+type Theme = "warmCoral" | "softPeach" | "blushRose" | "goldenSand" | "mintBreeze" | "lavenderMist" | "skySerenity" | "neutralElegance";
 
-const THEMES: { id: Theme; name: string; colors: { primary: string; secondary: string; accent: string; bg: string } }[] = [
-    { id: "coral", name: "Coral Elegance", colors: { primary: "#c2410c", secondary: "#ea580c", accent: "#fb923c", bg: "#fef7f0" } },
-    { id: "violet", name: "Violet Dream", colors: { primary: "#7c3aed", secondary: "#a855f7", accent: "#c084fc", bg: "#faf5ff" } },
-    { id: "ocean", name: "Ocean Blue", colors: { primary: "#0369a1", secondary: "#0ea5e9", accent: "#38bdf8", bg: "#f0f9ff" } },
-    { id: "forest", name: "Forest Green", colors: { primary: "#166534", secondary: "#22c55e", accent: "#4ade80", bg: "#f0fdf4" } },
-    { id: "sunset", name: "Sunset Glow", colors: { primary: "#be185d", secondary: "#ec4899", accent: "#f472b6", bg: "#fdf2f8" } },
-    { id: "modern", name: "Modern Blue", colors: { primary: "#1e40af", secondary: "#3b82f6", accent: "#60a5fa", bg: "#f8fafc" } },
-    { id: "classic", name: "Classic Dark", colors: { primary: "#1f2937", secondary: "#4b5563", accent: "#9ca3af", bg: "#ffffff" } },
-    { id: "minimal", name: "Minimal", colors: { primary: "#0f172a", secondary: "#334155", accent: "#64748b", bg: "#ffffff" } },
+// Beautiful, soothing color palettes inspired by Gamma AI - warm, soft tones that are easy on the eyes
+const THEMES: { id: Theme; name: string; colors: { primary: string; secondary: string; accent: string; bg: string; bgSecondary: string } }[] = [
+    {
+        id: "warmCoral",
+        name: "Warm Coral",
+        colors: {
+            primary: "#b64b6e",      // Deep magenta-coral for headings
+            secondary: "#d4847c",    // Soft coral
+            accent: "#e8a87c",       // Peachy accent
+            bg: "#faf5f0",           // Warm cream background
+            bgSecondary: "#f5ebe0"   // Slightly warmer cream
+        }
+    },
+    {
+        id: "softPeach",
+        name: "Soft Peach",
+        colors: {
+            primary: "#c56b54",      // Warm terracotta
+            secondary: "#e8a87c",    // Peachy
+            accent: "#f4c9a8",       // Light peach
+            bg: "#fdf8f3",           // Cream
+            bgSecondary: "#f9ede3"   // Warm beige
+        }
+    },
+    {
+        id: "blushRose",
+        name: "Blush Rose",
+        colors: {
+            primary: "#a85672",      // Dusty rose
+            secondary: "#d4848f",    // Soft pink
+            accent: "#e8b4bc",       // Light rose
+            bg: "#fdf6f7",           // Soft pink-tinted cream
+            bgSecondary: "#f9ebee"   // Rose cream
+        }
+    },
+    {
+        id: "goldenSand",
+        name: "Golden Sand",
+        colors: {
+            primary: "#9a6b4a",      // Warm brown
+            secondary: "#c9a66b",    // Golden
+            accent: "#e8d4a8",       // Sandy
+            bg: "#faf8f2",           // Warm ivory
+            bgSecondary: "#f5f0e3"   // Light sand
+        }
+    },
+    {
+        id: "mintBreeze",
+        name: "Mint Breeze",
+        colors: {
+            primary: "#3d7a6a",      // Deep sage
+            secondary: "#6ba894",    // Soft mint
+            accent: "#a8d4c2",       // Light mint
+            bg: "#f5faf8",           // Mint-tinted cream
+            bgSecondary: "#e8f5ef"   // Soft green
+        }
+    },
+    {
+        id: "lavenderMist",
+        name: "Lavender Mist",
+        colors: {
+            primary: "#6b5b8c",      // Deep lavender
+            secondary: "#9b8cb8",    // Soft purple
+            accent: "#c8bdd8",       // Light lavender
+            bg: "#f9f7fc",           // Lavender-tinted cream
+            bgSecondary: "#f0ebf5"   // Soft purple
+        }
+    },
+    {
+        id: "skySerenity",
+        name: "Sky Serenity",
+        colors: {
+            primary: "#456b8a",      // Dusty blue
+            secondary: "#7899b4",    // Soft blue
+            accent: "#a8c4d8",       // Light sky
+            bg: "#f5f9fc",           // Blue-tinted cream
+            bgSecondary: "#e8f1f8"   // Soft blue
+        }
+    },
+    {
+        id: "neutralElegance",
+        name: "Neutral Elegance",
+        colors: {
+            primary: "#5a5a5a",      // Warm gray
+            secondary: "#8a8a8a",    // Medium gray
+            accent: "#b8b8b8",       // Light gray
+            bg: "#fafafa",           // Off-white
+            bgSecondary: "#f0f0f0"   // Light gray
+        }
+    },
 ];
 
 const EXAMPLE_PROMPTS = [
@@ -147,7 +228,7 @@ function PresentationsContent() {
     const [step, setStep] = useState<Step>("input");
     const [prompt, setPrompt] = useState("");
     const [slideCount, setSlideCount] = useState(8);
-    const [theme, setTheme] = useState<Theme>("coral");
+    const [theme, setTheme] = useState<Theme>("warmCoral");
     const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
     const [isGeneratingFull, setIsGeneratingFull] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
@@ -650,7 +731,10 @@ function PresentationsContent() {
     const isCreatingNew = searchParams.get("new") === "true";
     if (!workspaceId && !isCreatingNew) {
         return (
-            <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+            <div
+                className="flex min-h-screen flex-col transition-colors duration-300"
+                style={{ background: `linear-gradient(180deg, #fefefe 0%, ${selectedTheme?.colors.bg || '#faf8f5'} 50%, ${selectedTheme?.colors.bgSecondary || '#f5f0eb'} 100%)` }}
+            >
                 <Navbar />
                 <main className="flex-1">
                     <PresentationDashboard
@@ -666,26 +750,37 @@ function PresentationsContent() {
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+        <div
+            className="flex min-h-screen flex-col transition-colors duration-300"
+            style={{ background: `linear-gradient(180deg, #fefefe 0%, ${selectedTheme.colors.bg} 50%, ${selectedTheme.colors.bgSecondary} 100%)` }}
+        >
             <Navbar />
 
             <main className="flex-1">
-                {/* Header */}
-                <div className="border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-16 z-40">
+                {/* Header - Clean white with subtle accent */}
+                <div
+                    className="border-b-2 backdrop-blur-md sticky top-16 z-40 transition-colors duration-300 bg-white/95 shadow-sm"
+                    style={{
+                        borderColor: `${selectedTheme.colors.accent}35`
+                    }}
+                >
                     <div className="container mx-auto px-4 py-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <Button variant="ghost" size="sm" onClick={handleBackToDashboard}>
+                                <Button variant="ghost" size="sm" onClick={handleBackToDashboard} className="text-slate-600 hover:text-slate-800">
                                     <FolderOpen className="w-4 h-4 mr-2" />
                                     Dashboard
                                 </Button>
                                 {step !== "input" && (
-                                    <Button variant="ghost" size="sm" onClick={handleBack}>
+                                    <Button variant="ghost" size="sm" onClick={handleBack} className="text-slate-600 hover:text-slate-800">
                                         <ArrowLeft className="w-4 h-4 mr-2" />
                                         Back
                                     </Button>
                                 )}
-                                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                                <h1
+                                    className="text-2xl font-bold"
+                                    style={{ color: selectedTheme.colors.primary }}
+                                >
                                     {step === "input" && "New Presentation"}
                                     {step === "outline" && "Edit Outline"}
                                     {step === "generating" && "Creating..."}
@@ -717,7 +812,10 @@ function PresentationsContent() {
                                         <Button
                                             onClick={handleDownload}
                                             disabled={isDownloading}
-                                            className="bg-blue-600 hover:bg-blue-700"
+                                            className="text-white transition-colors"
+                                            style={{
+                                                backgroundColor: selectedTheme.colors.primary,
+                                            }}
                                         >
                                             {isDownloading ? (
                                                 <>
@@ -749,69 +847,101 @@ function PresentationsContent() {
                             className="container mx-auto px-4 py-12 max-w-4xl"
                         >
                             <div className="text-center mb-10">
-                                <p className="text-muted-foreground text-lg">
+                                <p className="text-lg text-slate-600">
                                     What would you like to create today?
                                 </p>
                             </div>
 
-                            {/* Type Selection */}
+                            {/* Type Selection - Refined subtle styling */}
                             <div className="flex justify-center gap-4 mb-8">
-                                <Button variant="default" className="flex flex-col h-auto py-4 px-6 bg-blue-50 dark:bg-blue-950 border-2 border-blue-500 text-blue-700 dark:text-blue-300 hover:bg-blue-100">
+                                <Button
+                                    variant="default"
+                                    className="flex flex-col h-auto py-4 px-6 border-2 transition-all shadow-sm hover:shadow-md"
+                                    style={{
+                                        backgroundColor: 'white',
+                                        borderColor: selectedTheme.colors.secondary,
+                                        color: selectedTheme.colors.primary
+                                    }}
+                                >
                                     <Presentation className="w-6 h-6 mb-1" />
                                     <span className="text-sm font-medium">Presentation</span>
                                 </Button>
-                                <Button variant="outline" className="flex flex-col h-auto py-4 px-6 opacity-50" disabled>
+                                <Button
+                                    variant="outline"
+                                    className="flex flex-col h-auto py-4 px-6 opacity-50 bg-white/50"
+                                    disabled
+                                >
                                     <Globe className="w-6 h-6 mb-1" />
                                     <span className="text-sm">Webpage</span>
                                 </Button>
-                                <Button variant="outline" className="flex flex-col h-auto py-4 px-6 opacity-50" disabled>
+                                <Button
+                                    variant="outline"
+                                    className="flex flex-col h-auto py-4 px-6 opacity-50 bg-white/50"
+                                    disabled
+                                >
                                     <FileText className="w-6 h-6 mb-1" />
                                     <span className="text-sm">Document</span>
                                 </Button>
                             </div>
 
-                            {/* Settings Bar */}
+                            {/* Settings Bar - Clear visible dropdowns */}
                             <div className="flex flex-wrap justify-center gap-3 mb-8">
                                 <div className="relative">
                                     <select
                                         value={slideCount}
                                         onChange={(e) => setSlideCount(Number(e.target.value))}
-                                        className="appearance-none bg-white dark:bg-slate-800 border rounded-lg px-4 py-2 pr-8 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="appearance-none border-2 rounded-lg px-4 py-2 pr-8 text-sm font-medium focus:outline-none focus:ring-2 transition-all bg-white text-slate-700 shadow-sm"
+                                        style={{
+                                            borderColor: selectedTheme.colors.secondary
+                                        }}
                                     >
                                         {[5, 6, 7, 8, 10, 12, 15].map((n) => (
                                             <option key={n} value={n}>{n} slides</option>
                                         ))}
                                     </select>
-                                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
+                                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-slate-500" />
                                 </div>
 
                                 <div className="relative">
                                     <select
                                         value={theme}
                                         onChange={(e) => setTheme(e.target.value as Theme)}
-                                        className="appearance-none bg-white dark:bg-slate-800 border rounded-lg px-4 py-2 pr-8 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="appearance-none border-2 rounded-lg px-4 py-2 pr-8 text-sm font-medium focus:outline-none focus:ring-2 transition-all bg-white text-slate-700 shadow-sm"
+                                        style={{
+                                            borderColor: selectedTheme.colors.secondary
+                                        }}
                                     >
                                         {THEMES.map((t) => (
                                             <option key={t.id} value={t.id}>{t.name}</option>
                                         ))}
                                     </select>
-                                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
+                                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-slate-500" />
                                 </div>
                             </div>
 
-                            {/* Main Input */}
-                            <Card className="p-6 mb-8 shadow-lg border-0 bg-white dark:bg-slate-800">
+                            {/* Main Input - Clean with visible text */}
+                            <Card
+                                className="p-6 mb-8 shadow-xl border-0 transition-colors"
+                                style={{ backgroundColor: 'white' }}
+                            >
                                 <div className="flex gap-3">
                                     <Input
                                         placeholder="Describe what you'd like to make (e.g., 'A pitch deck for my AI startup')"
-                                        className="text-lg h-14 border-0 bg-slate-50 dark:bg-slate-700 focus-visible:ring-2 focus-visible:ring-blue-500"
+                                        className="text-lg h-14 border-2 focus-visible:ring-2 text-slate-800 placeholder:text-slate-400"
+                                        style={{
+                                            backgroundColor: '#fafaf9',
+                                            borderColor: `${selectedTheme.colors.accent}80`,
+                                        }}
                                         value={prompt}
                                         onChange={(e) => setPrompt(e.target.value)}
                                         onKeyDown={(e) => e.key === "Enter" && handleGenerateOutline()}
                                     />
                                     <Button
                                         size="lg"
-                                        className="h-14 px-8 bg-blue-600 hover:bg-blue-700"
+                                        className="h-14 px-8 text-white transition-all shadow-md hover:shadow-lg"
+                                        style={{
+                                            backgroundColor: selectedTheme.colors.primary,
+                                        }}
                                         onClick={handleGenerateOutline}
                                         disabled={!prompt.trim()}
                                     >
@@ -822,7 +952,7 @@ function PresentationsContent() {
 
                             {/* Example Prompts */}
                             <div className="text-center mb-6">
-                                <p className="text-sm text-muted-foreground">Example prompts</p>
+                                <p className="text-sm text-slate-500">Example prompts</p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -830,14 +960,31 @@ function PresentationsContent() {
                                     <button
                                         key={i}
                                         onClick={() => setPrompt(`${example.title} ${example.subtitle}`)}
-                                        className="flex items-start gap-3 p-4 rounded-xl bg-white dark:bg-slate-800 border hover:border-blue-300 hover:shadow-md transition-all text-left group"
+                                        className="flex items-start gap-3 p-4 rounded-xl border-2 hover:shadow-lg transition-all text-left group bg-white"
+                                        style={{
+                                            borderColor: `${selectedTheme.colors.accent}50`
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.borderColor = selectedTheme.colors.secondary;
+                                            e.currentTarget.style.transform = 'translateY(-2px)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.borderColor = `${selectedTheme.colors.accent}50`;
+                                            e.currentTarget.style.transform = 'translateY(0)';
+                                        }}
                                     >
-                                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                                        <div
+                                            className="w-8 h-8 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform"
+                                            style={{
+                                                backgroundColor: `${selectedTheme.colors.accent}40`,
+                                                color: selectedTheme.colors.primary
+                                            }}
+                                        >
                                             <example.icon className="w-4 h-4" />
                                         </div>
                                         <div>
-                                            <p className="font-medium text-sm">{example.title}</p>
-                                            <p className="text-xs text-muted-foreground">{example.subtitle}</p>
+                                            <p className="font-medium text-sm text-slate-700">{example.title}</p>
+                                            <p className="text-xs text-slate-500">{example.subtitle}</p>
                                         </div>
                                     </button>
                                 ))}
@@ -857,32 +1004,34 @@ function PresentationsContent() {
                             {/* Settings Bar */}
                             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                                 <div className="flex items-center gap-3">
-                                    <span className="text-sm font-medium text-muted-foreground">Settings:</span>
+                                    <span className="text-sm font-medium text-slate-500">Settings:</span>
                                     <div className="relative">
                                         <select
                                             value={slideCount}
                                             onChange={(e) => setSlideCount(Number(e.target.value))}
-                                            className="appearance-none bg-white dark:bg-slate-800 border rounded-lg px-3 py-1.5 pr-7 text-sm font-medium"
+                                            className="appearance-none bg-white border-2 rounded-lg px-3 py-1.5 pr-7 text-sm font-medium text-slate-700 shadow-sm"
+                                            style={{ borderColor: selectedTheme.colors.secondary }}
                                             disabled={isGeneratingFull}
                                         >
                                             {[5, 6, 7, 8, 10, 12, 15].map((n) => (
                                                 <option key={n} value={n}>{n} slides</option>
                                             ))}
                                         </select>
-                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" />
+                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none text-slate-500" />
                                     </div>
                                     <div className="relative">
                                         <select
                                             value={theme}
                                             onChange={(e) => setTheme(e.target.value as Theme)}
-                                            className="appearance-none bg-white dark:bg-slate-800 border rounded-lg px-3 py-1.5 pr-7 text-sm font-medium"
+                                            className="appearance-none bg-white border-2 rounded-lg px-3 py-1.5 pr-7 text-sm font-medium text-slate-700 shadow-sm"
+                                            style={{ borderColor: selectedTheme.colors.secondary }}
                                             disabled={isGeneratingFull}
                                         >
                                             {THEMES.map((t) => (
                                                 <option key={t.id} value={t.id}>{t.name}</option>
                                             ))}
                                         </select>
-                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" />
+                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none text-slate-500" />
                                     </div>
                                 </div>
                                 <Button
@@ -890,6 +1039,8 @@ function PresentationsContent() {
                                     size="sm"
                                     onClick={handleGenerateOutline}
                                     disabled={isGeneratingOutline || isGeneratingFull}
+                                    className="border-2 shadow-sm"
+                                    style={{ borderColor: selectedTheme.colors.secondary }}
                                 >
                                     <RefreshCw className={`w-4 h-4 mr-2 ${isGeneratingOutline ? 'animate-spin' : ''}`} />
                                     Regenerate
@@ -897,14 +1048,20 @@ function PresentationsContent() {
                             </div>
 
                             {/* Prompt Display */}
-                            <Card className="p-4 mb-6 bg-white dark:bg-slate-800 border-0 shadow-sm">
-                                <p className="text-foreground font-medium">{prompt}</p>
+                            <Card
+                                className="p-4 mb-6 border-2 shadow-sm"
+                                style={{
+                                    backgroundColor: 'white',
+                                    borderColor: selectedTheme.colors.secondary
+                                }}
+                            >
+                                <p className="text-slate-700 font-medium">{prompt}</p>
                             </Card>
 
                             {/* Outline Label */}
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-sm font-medium text-muted-foreground">Outline</h3>
-                                <p className="text-xs text-muted-foreground">Click any slide to edit • Drag to reorder</p>
+                                <h3 className="text-sm font-semibold text-slate-600">Outline</h3>
+                                <p className="text-xs text-slate-400">Click any slide to edit • Drag to reorder</p>
                             </div>
 
                             {/* Outline Cards */}
@@ -913,16 +1070,23 @@ function PresentationsContent() {
                                     Array.from({ length: slideCount }).map((_, i) => (
                                         <div
                                             key={i}
-                                            className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-4 animate-pulse"
+                                            className="rounded-xl p-4 animate-pulse shadow-sm"
+                                            style={{ backgroundColor: `${selectedTheme.colors.accent}15` }}
                                         >
                                             <div className="flex items-start gap-4">
-                                                <div className="w-8 h-8 rounded-lg bg-blue-200 dark:bg-blue-800 flex items-center justify-center text-blue-600 font-bold text-sm">
+                                                <div
+                                                    className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm"
+                                                    style={{
+                                                        backgroundColor: `${selectedTheme.colors.accent}30`,
+                                                        color: selectedTheme.colors.primary
+                                                    }}
+                                                >
                                                     {i + 1}
                                                 </div>
                                                 <div className="flex-1 space-y-2">
-                                                    <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded w-2/3"></div>
-                                                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-full"></div>
-                                                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-4/5"></div>
+                                                    <div className="h-5 rounded w-2/3" style={{ backgroundColor: `${selectedTheme.colors.accent}25` }}></div>
+                                                    <div className="h-3 rounded w-full" style={{ backgroundColor: `${selectedTheme.colors.accent}18` }}></div>
+                                                    <div className="h-3 rounded w-4/5" style={{ backgroundColor: `${selectedTheme.colors.accent}18` }}></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -934,15 +1098,24 @@ function PresentationsContent() {
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             transition={{ delay: i * 0.05 }}
-                                            className={`bg-white dark:bg-slate-800 rounded-xl p-4 border-l-4 shadow-sm ${editingSlide === i ? 'border-blue-500 ring-2 ring-blue-200' : 'border-transparent hover:border-blue-300'
-                                                } transition-all`}
+                                            className="rounded-xl p-4 border-l-4 shadow-sm transition-all bg-white"
+                                            style={{
+                                                borderLeftColor: editingSlide === i ? selectedTheme.colors.primary : selectedTheme.colors.accent,
+                                                boxShadow: editingSlide === i ? `0 4px 12px ${selectedTheme.colors.accent}30` : '0 1px 3px rgba(0,0,0,0.06)'
+                                            }}
                                         >
                                             <div className="flex items-start gap-4">
                                                 <div className="flex flex-col items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-sm shrink-0">
+                                                    <div
+                                                        className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0"
+                                                        style={{
+                                                            backgroundColor: `${selectedTheme.colors.accent}35`,
+                                                            color: selectedTheme.colors.primary
+                                                        }}
+                                                    >
                                                         {i + 1}
                                                     </div>
-                                                    <button className="text-slate-300 hover:text-slate-500 cursor-grab">
+                                                    <button className="cursor-grab text-slate-300 hover:text-slate-500 transition-colors">
                                                         <GripVertical className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -953,13 +1126,14 @@ function PresentationsContent() {
                                                             <Input
                                                                 value={slide.title}
                                                                 onChange={(e) => updateOutlineSlide(i, 'title', e.target.value)}
-                                                                className="font-semibold text-lg border-blue-200"
+                                                                className="font-semibold text-lg text-slate-800 border-2"
+                                                                style={{ borderColor: `${selectedTheme.colors.secondary}80` }}
                                                                 placeholder="Slide title"
                                                             />
 
                                                             {(slide.content || []).map((point, j) => (
                                                                 <div key={j} className="flex gap-2 items-start">
-                                                                    <span className="text-blue-500 mt-2.5">•</span>
+                                                                    <span className="mt-2.5" style={{ color: selectedTheme.colors.primary }}>•</span>
                                                                     <Input
                                                                         value={point}
                                                                         onChange={(e) => {
@@ -967,7 +1141,7 @@ function PresentationsContent() {
                                                                             newContent[j] = e.target.value;
                                                                             updateOutlineSlide(i, 'content', newContent);
                                                                         }}
-                                                                        className="text-sm flex-1"
+                                                                        className="text-sm flex-1 text-slate-700"
                                                                         placeholder="Bullet point"
                                                                     />
                                                                     <Button
@@ -993,7 +1167,8 @@ function PresentationsContent() {
                                                                 <Button
                                                                     size="sm"
                                                                     onClick={() => setEditingSlide(null)}
-                                                                    className="text-xs bg-blue-600 hover:bg-blue-700"
+                                                                    className="text-xs text-white"
+                                                                    style={{ backgroundColor: selectedTheme.colors.primary }}
                                                                 >
                                                                     <Check className="w-3 h-3 mr-1" /> Done
                                                                 </Button>
@@ -1005,13 +1180,13 @@ function PresentationsContent() {
                                                             onClick={() => setEditingSlide(i)}
                                                         >
                                                             <div className="flex items-center justify-between">
-                                                                <h4 className="font-semibold text-foreground">{slide.title}</h4>
-                                                                <Edit3 className="w-4 h-4 opacity-0 group-hover:opacity-100 text-muted-foreground transition-opacity" />
+                                                                <h4 className="font-semibold text-slate-700">{slide.title}</h4>
+                                                                <Edit3 className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400" />
                                                             </div>
                                                             <ul className="mt-2 space-y-1">
                                                                 {(slide.content || []).map((point, j) => (
-                                                                    <li key={j} className="text-sm text-muted-foreground flex items-start gap-2">
-                                                                        <span className="text-blue-500 mt-0.5">•</span>
+                                                                    <li key={j} className="text-sm flex items-start gap-2 text-slate-500">
+                                                                        <span className="mt-0.5" style={{ color: selectedTheme.colors.primary }}>•</span>
                                                                         {point}
                                                                     </li>
                                                                 ))}
@@ -1047,16 +1222,22 @@ function PresentationsContent() {
                                 ) : null}
                             </div>
 
-                            {/* Bottom Generate Bar */}
+                            {/* Bottom Generate Bar - Clean styling */}
                             {outline && (
-                                <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t py-4 px-4 z-50">
+                                <div
+                                    className="fixed bottom-0 left-0 right-0 border-t-2 py-4 px-4 z-50 backdrop-blur-md bg-white/95 shadow-lg"
+                                    style={{
+                                        borderColor: `${selectedTheme.colors.accent}40`
+                                    }}
+                                >
                                     <div className="container mx-auto max-w-4xl flex items-center justify-between">
-                                        <span className="text-sm text-muted-foreground">
+                                        <span className="text-sm text-slate-500">
                                             {outline.slides.length} slides total
                                         </span>
                                         <Button
                                             size="lg"
-                                            className="px-12 bg-blue-600 hover:bg-blue-700"
+                                            className="px-12 text-white"
+                                            style={{ backgroundColor: selectedTheme.colors.primary }}
                                             onClick={handleGenerateFull}
                                             disabled={isGeneratingFull}
                                         >
@@ -1087,18 +1268,25 @@ function PresentationsContent() {
                             exit={{ opacity: 0 }}
                             className="flex h-[calc(100vh-8rem)]"
                         >
-                            {/* Left Sidebar - Thumbnails */}
-                            <div className="w-52 border-r bg-slate-50 dark:bg-slate-900 overflow-y-auto p-4 space-y-3 hidden md:block">
-                                <div className="text-xs font-medium text-muted-foreground mb-3">SLIDES</div>
+                            {/* Left Sidebar - Thumbnails with soothing theme background */}
+                            <div
+                                className="w-52 border-r overflow-y-auto p-4 space-y-3 hidden md:block transition-colors duration-300"
+                                style={{
+                                    backgroundColor: selectedTheme.colors.bg,
+                                    borderColor: `${selectedTheme.colors.accent}40`
+                                }}
+                            >
+                                <div className="text-xs font-medium mb-3 text-slate-500">SLIDES</div>
                                 {data.slides.map((slide, i) => {
                                     return (
                                         <div key={i} className="relative group">
                                             <button
                                                 onClick={() => setActiveSlide(i)}
                                                 className={`w-full aspect-[16/10] rounded-lg overflow-hidden border-2 transition-all relative ${activeSlide === i
-                                                    ? "border-blue-500 shadow-lg"
+                                                    ? "shadow-lg"
                                                     : "border-transparent hover:border-slate-300"
                                                     }`}
+                                                style={{ borderColor: activeSlide === i ? selectedTheme.colors.primary : undefined }}
                                             >
                                                 <div className="absolute top-1 left-1 bg-black/50 text-white text-[8px] px-1 rounded z-10">
                                                     {i + 1}
@@ -1131,7 +1319,8 @@ function PresentationsContent() {
                                                         setActiveSlide(i);
                                                         setIsAIRegenerateOpen(true);
                                                     }}
-                                                    className="flex-1 flex items-center justify-center gap-0.5 py-1 rounded bg-violet-500/80 hover:bg-violet-600/90 text-white text-[7px] font-medium transition-colors backdrop-blur-sm"
+                                                    className="flex-1 flex items-center justify-center gap-0.5 py-1 rounded text-white text-[7px] font-medium transition-colors backdrop-blur-sm"
+                                                    style={{ backgroundColor: `${selectedTheme.colors.primary}cc` }}
                                                     title="AI Agent"
                                                 >
                                                     <Wand2 className="w-2.5 h-2.5" />
@@ -1143,7 +1332,8 @@ function PresentationsContent() {
                                                         setActiveSlide(i);
                                                         setIsSlideEditorOpen(true);
                                                     }}
-                                                    className="flex-1 flex items-center justify-center gap-0.5 py-1 rounded bg-slate-500/80 hover:bg-slate-600/90 text-white text-[7px] font-medium transition-colors backdrop-blur-sm"
+                                                    className="flex-1 flex items-center justify-center gap-0.5 py-1 rounded text-white text-[7px] font-medium transition-colors backdrop-blur-sm"
+                                                    style={{ backgroundColor: `${selectedTheme.colors.secondary}cc` }}
                                                     title="Card Editor"
                                                 >
                                                     <Settings className="w-2.5 h-2.5" />
@@ -1155,8 +1345,11 @@ function PresentationsContent() {
                                 })}
                             </div>
 
-                            {/* Main Preview Area */}
-                            <div className="flex-1 overflow-y-auto p-8 bg-slate-100 dark:bg-slate-950">
+                            {/* Main Preview Area - Soothing theme-based background */}
+                            <div
+                                className="flex-1 overflow-y-auto p-8 transition-colors duration-300"
+                                style={{ background: `linear-gradient(180deg, ${selectedTheme.colors.bgSecondary} 0%, ${selectedTheme.colors.bg} 100%)` }}
+                            >
                                 <div className="max-w-5xl mx-auto">
                                     {/* Current Slide Editor */}
                                     {data.slides[activeSlide] && (
@@ -1169,10 +1362,12 @@ function PresentationsContent() {
                                                         size="sm"
                                                         onClick={() => setActiveSlide(Math.max(0, activeSlide - 1))}
                                                         disabled={activeSlide === 0}
+                                                        className="border-2"
+                                                        style={{ borderColor: selectedTheme.colors.accent, color: selectedTheme.colors.primary }}
                                                     >
                                                         <ArrowLeft className="w-4 h-4" />
                                                     </Button>
-                                                    <span className="text-sm font-medium">
+                                                    <span className="text-sm font-medium text-slate-600">
                                                         Slide {activeSlide + 1} of {data.slides.length}
                                                     </span>
                                                     <Button
@@ -1180,6 +1375,8 @@ function PresentationsContent() {
                                                         size="sm"
                                                         onClick={() => setActiveSlide(Math.min(data.slides.length - 1, activeSlide + 1))}
                                                         disabled={activeSlide === data.slides.length - 1}
+                                                        className="border-2"
+                                                        style={{ borderColor: selectedTheme.colors.accent, color: selectedTheme.colors.primary }}
                                                     >
                                                         <ArrowRight className="w-4 h-4" />
                                                     </Button>
@@ -1188,7 +1385,13 @@ function PresentationsContent() {
                                                 {/* Layout Type Badge & Action Buttons */}
                                                 <div className="flex items-center gap-3">
                                                     {data.slides[activeSlide].layoutType && (
-                                                        <span className="text-xs px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-medium uppercase">
+                                                        <span
+                                                            className="text-xs px-2 py-1 rounded-full font-medium uppercase"
+                                                            style={{
+                                                                backgroundColor: `${selectedTheme.colors.accent}30`,
+                                                                color: selectedTheme.colors.primary
+                                                            }}
+                                                        >
                                                             {data.slides[activeSlide].layoutType} layout
                                                         </span>
                                                     )}
@@ -1198,7 +1401,11 @@ function PresentationsContent() {
                                                         variant="outline"
                                                         size="sm"
                                                         onClick={() => setIsAIRegenerateOpen(true)}
-                                                        className="text-violet-600 border-violet-200 hover:bg-violet-50 dark:border-violet-800 dark:hover:bg-violet-950"
+                                                        className="border-2"
+                                                        style={{
+                                                            borderColor: selectedTheme.colors.secondary,
+                                                            color: selectedTheme.colors.primary
+                                                        }}
                                                         title="AI Agent - Regenerate slide"
                                                     >
                                                         <Wand2 className="w-4 h-4 mr-1.5" />
@@ -1210,7 +1417,11 @@ function PresentationsContent() {
                                                         variant="outline"
                                                         size="sm"
                                                         onClick={() => setIsSlideEditorOpen(true)}
-                                                        className="text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-950"
+                                                        className="border-2"
+                                                        style={{
+                                                            borderColor: selectedTheme.colors.accent,
+                                                            color: selectedTheme.colors.primary
+                                                        }}
                                                         title="Card Editor - Edit styling"
                                                     >
                                                         <Settings className="w-4 h-4 mr-1.5" />
@@ -1238,8 +1449,7 @@ function PresentationsContent() {
                                                     }}
                                                 />
 
-                                                {/* Edit Overlay - Appears on hover */}
-                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 pointer-events-none" />
+                                                {/* Edit Overlay - REMOVED: no darkening on hover */}
 
                                                 {/* Top Edit Bar - Title editing */}
                                                 <div className="absolute top-0 left-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity z-50">
@@ -1277,13 +1487,20 @@ function PresentationsContent() {
                                                 {/* Right Side - Image Controls (if slide has image) */}
                                                 {data.slides[activeSlide].hasImage !== false && data.slides[activeSlide].imageUrl && (
                                                     <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-auto">
-                                                        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-3 space-y-2 min-w-[200px]">
-                                                            <p className="text-xs font-medium text-slate-500">Regenerate Image</p>
+                                                        <div
+                                                            className="backdrop-blur-sm rounded-xl shadow-xl p-3 space-y-2 min-w-[200px] border-2"
+                                                            style={{
+                                                                backgroundColor: `${selectedTheme.colors.bg}f8`,
+                                                                borderColor: selectedTheme.colors.accent
+                                                            }}
+                                                        >
+                                                            <p className="text-xs font-medium" style={{ color: selectedTheme.colors.primary }}>Regenerate Image</p>
                                                             <Input
                                                                 placeholder="Custom image prompt..."
                                                                 value={customImagePrompt}
                                                                 onChange={(e) => setCustomImagePrompt(e.target.value)}
-                                                                className="text-sm"
+                                                                className="text-sm bg-white border-2 text-slate-700"
+                                                                style={{ borderColor: `${selectedTheme.colors.secondary}60` }}
                                                                 onKeyDown={(e) => {
                                                                     if (e.key === 'Enter' && customImagePrompt.trim()) {
                                                                         regenerateImage(activeSlide, customImagePrompt);
@@ -1293,8 +1510,8 @@ function PresentationsContent() {
                                                             <div className="flex gap-2">
                                                                 <Button
                                                                     size="sm"
-                                                                    variant="outline"
-                                                                    className="flex-1 text-xs"
+                                                                    className="flex-1 text-xs text-white"
+                                                                    style={{ backgroundColor: selectedTheme.colors.secondary }}
                                                                     onClick={() => regenerateImage(activeSlide)}
                                                                     disabled={isRegeneratingImage === activeSlide}
                                                                 >
@@ -1308,7 +1525,8 @@ function PresentationsContent() {
                                                                 {customImagePrompt.trim() && (
                                                                     <Button
                                                                         size="sm"
-                                                                        className="flex-1 text-xs bg-green-600 hover:bg-green-700"
+                                                                        className="flex-1 text-xs text-white"
+                                                                        style={{ backgroundColor: selectedTheme.colors.primary }}
                                                                         onClick={() => regenerateImage(activeSlide, customImagePrompt)}
                                                                         disabled={isRegeneratingImage === activeSlide}
                                                                     >
@@ -1327,7 +1545,8 @@ function PresentationsContent() {
                                                         {/* Edit Content Button */}
                                                         <button
                                                             onClick={() => setEditingField({ slide: activeSlide, field: 'content', contentIndex: 0 })}
-                                                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/90 hover:bg-white text-slate-700 text-sm font-medium shadow-lg transition-colors pointer-events-auto"
+                                                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/95 hover:bg-white text-slate-700 text-sm font-medium shadow-lg transition-colors pointer-events-auto border-2"
+                                                            style={{ borderColor: `${selectedTheme.colors.accent}60` }}
                                                         >
                                                             <Type className="w-4 h-4" />
                                                             Edit Content
@@ -1337,7 +1556,8 @@ function PresentationsContent() {
                                                         <div className="flex items-center gap-2 pointer-events-auto">
                                                             <button
                                                                 onClick={() => setIsAIRegenerateOpen(true)}
-                                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600/90 hover:bg-violet-700 text-white text-xs font-medium transition-colors backdrop-blur-sm shadow-lg"
+                                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-white text-xs font-medium transition-colors backdrop-blur-sm shadow-lg"
+                                                                style={{ backgroundColor: selectedTheme.colors.primary }}
                                                                 title="AI Agent - Regenerate slide with AI"
                                                             >
                                                                 <Wand2 className="w-3.5 h-3.5" />
@@ -1345,7 +1565,8 @@ function PresentationsContent() {
                                                             </button>
                                                             <button
                                                                 onClick={() => setIsSlideEditorOpen(true)}
-                                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700/90 hover:bg-slate-800 text-white text-xs font-medium transition-colors backdrop-blur-sm shadow-lg"
+                                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-white text-xs font-medium transition-colors backdrop-blur-sm shadow-lg"
+                                                                style={{ backgroundColor: selectedTheme.colors.secondary }}
                                                                 title="Card Editor - Edit styling and layout"
                                                             >
                                                                 <Settings className="w-3.5 h-3.5" />
@@ -1359,8 +1580,8 @@ function PresentationsContent() {
                                                 {isRegeneratingImage === activeSlide && (
                                                     <div className="absolute inset-0 bg-black/30 flex items-center justify-center z-40">
                                                         <div className="bg-white rounded-xl p-4 shadow-xl flex items-center gap-3">
-                                                            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                                                            <span className="text-sm font-medium">Regenerating image...</span>
+                                                            <Loader2 className="w-6 h-6 animate-spin" style={{ color: selectedTheme.colors.primary }} />
+                                                            <span className="text-sm font-medium text-slate-700">Regenerating image...</span>
                                                         </div>
                                                     </div>
                                                 )}

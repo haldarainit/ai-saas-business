@@ -231,16 +231,6 @@ const ICON_COMPONENTS: Record<string, LucideIcon> = {
     circle: Circle,
 };
 
-// Feature color palette
-const FEATURE_COLORS = [
-    { bg: 'bg-pink-100 dark:bg-pink-900/30', icon: 'text-pink-500' },
-    { bg: 'bg-purple-100 dark:bg-purple-900/30', icon: 'text-purple-500' },
-    { bg: 'bg-blue-100 dark:bg-blue-900/30', icon: 'text-blue-500' },
-    { bg: 'bg-cyan-100 dark:bg-cyan-900/30', icon: 'text-cyan-500' },
-    { bg: 'bg-green-100 dark:bg-green-900/30', icon: 'text-green-500' },
-    { bg: 'bg-orange-100 dark:bg-orange-900/30', icon: 'text-orange-500' },
-];
-
 interface FeatureCard {
     icon: string;
     title: string;
@@ -318,6 +308,38 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
     const layoutType = slide.layoutType || 'imageRight';
     const isFirstSlide = slideIndex === 0;
     const isLastSlide = slideIndex === totalSlides - 1;
+
+    // Helper function to convert hex to rgba
+    const hexToRgba = (hex: string, alpha: number) => {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+
+    // Dynamic color palettes based on theme
+    const THEME_CARD_COLORS = [
+        { bg: hexToRgba(theme.primary, 0.1), border: hexToRgba(theme.primary, 0.3), icon: theme.primary, iconBg: `linear-gradient(135deg, ${hexToRgba(theme.primary, 0.6)} 0%, ${theme.primary} 100%)` },
+        { bg: hexToRgba(theme.secondary, 0.1), border: hexToRgba(theme.secondary, 0.3), icon: theme.secondary, iconBg: `linear-gradient(135deg, ${hexToRgba(theme.secondary, 0.6)} 0%, ${theme.secondary} 100%)` },
+        { bg: hexToRgba(theme.accent, 0.15), border: hexToRgba(theme.accent, 0.4), icon: theme.accent, iconBg: `linear-gradient(135deg, ${hexToRgba(theme.accent, 0.5)} 0%, ${theme.accent} 100%)` },
+        { bg: hexToRgba(theme.primary, 0.08), border: hexToRgba(theme.primary, 0.25), icon: theme.primary, iconBg: `linear-gradient(135deg, ${hexToRgba(theme.primary, 0.5)} 0%, ${theme.primary} 100%)` },
+        { bg: hexToRgba(theme.secondary, 0.08), border: hexToRgba(theme.secondary, 0.25), icon: theme.secondary, iconBg: `linear-gradient(135deg, ${hexToRgba(theme.secondary, 0.5)} 0%, ${theme.secondary} 100%)` },
+        { bg: hexToRgba(theme.accent, 0.12), border: hexToRgba(theme.accent, 0.35), icon: theme.accent, iconBg: `linear-gradient(135deg, ${hexToRgba(theme.accent, 0.4)} 0%, ${theme.accent} 100%)` },
+    ];
+
+    const THEME_METRIC_COLORS = [
+        { value: theme.primary, bg: hexToRgba(theme.primary, 0.1), border: hexToRgba(theme.primary, 0.3) },
+        { value: theme.secondary, bg: hexToRgba(theme.secondary, 0.1), border: hexToRgba(theme.secondary, 0.3) },
+        { value: theme.accent, bg: hexToRgba(theme.accent, 0.15), border: hexToRgba(theme.accent, 0.4) },
+    ];
+
+    const THEME_ICON_GRADIENTS = [
+        `linear-gradient(135deg, ${hexToRgba(theme.primary, 0.15)} 0%, ${hexToRgba(theme.primary, 0.3)} 50%, ${hexToRgba(theme.primary, 0.5)} 100%)`,
+        `linear-gradient(135deg, ${hexToRgba(theme.secondary, 0.15)} 0%, ${hexToRgba(theme.secondary, 0.3)} 50%, ${hexToRgba(theme.secondary, 0.5)} 100%)`,
+        `linear-gradient(135deg, ${hexToRgba(theme.accent, 0.2)} 0%, ${hexToRgba(theme.accent, 0.4)} 50%, ${hexToRgba(theme.accent, 0.6)} 100%)`,
+    ];
+
+    const THEME_ICON_COLORS = [theme.primary, theme.secondary, theme.accent];
 
     // Extract custom styles with defaults (universal properties only)
     const customStyles = slide.customStyles || {};
@@ -469,38 +491,38 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
 
                     {slide.comparison ? (
                         <div className="grid grid-cols-2 gap-5">
-                            {/* Left column - pink tint */}
+                            {/* Left column - primary theme color */}
                             <div
                                 className="rounded-xl p-5"
                                 style={{
-                                    background: 'linear-gradient(135deg, #fce7f380 0%, #fbcfe850 100%)',
-                                    border: '1px solid #fce7f3'
+                                    background: `linear-gradient(135deg, ${hexToRgba(theme.primary, 0.1)} 0%, ${hexToRgba(theme.primary, 0.2)} 100%)`,
+                                    border: `1px solid ${hexToRgba(theme.primary, 0.3)}`
                                 }}
                             >
-                                <h3 className="font-bold text-lg mb-4" style={{ color: '#db2777' }}>{slide.comparison.left.heading}</h3>
+                                <h3 className="font-bold text-lg mb-4" style={{ color: theme.primary }}>{slide.comparison.left.heading}</h3>
                                 <ul className="space-y-3">
                                     {slide.comparison.left.points.slice(0, 4).map((point, i) => (
                                         <li key={i} className="flex items-start gap-3">
-                                            <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#ec4899' }} />
+                                            <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: theme.primary }} />
                                             <span className="text-sm text-slate-700 leading-relaxed">{point}</span>
                                         </li>
                                     ))}
                                 </ul>
                             </div>
 
-                            {/* Right column - purple tint */}
+                            {/* Right column - secondary theme color */}
                             <div
                                 className="rounded-xl p-5"
                                 style={{
-                                    background: 'linear-gradient(135deg, #ede9fe80 0%, #ddd6fe50 100%)',
-                                    border: '1px solid #ede9fe'
+                                    background: `linear-gradient(135deg, ${hexToRgba(theme.secondary, 0.1)} 0%, ${hexToRgba(theme.secondary, 0.2)} 100%)`,
+                                    border: `1px solid ${hexToRgba(theme.secondary, 0.3)}`
                                 }}
                             >
-                                <h3 className="font-bold text-lg mb-4" style={{ color: '#7c3aed' }}>{slide.comparison.right.heading}</h3>
+                                <h3 className="font-bold text-lg mb-4" style={{ color: theme.secondary }}>{slide.comparison.right.heading}</h3>
                                 <ul className="space-y-3">
                                     {slide.comparison.right.points.slice(0, 4).map((point, i) => (
                                         <li key={i} className="flex items-start gap-3">
-                                            <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#8b5cf6' }} />
+                                            <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: theme.secondary }} />
                                             <span className="text-sm text-slate-700 leading-relaxed">{point}</span>
                                         </li>
                                     ))}
@@ -512,14 +534,14 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                             <div
                                 className="rounded-xl p-5"
                                 style={{
-                                    background: 'linear-gradient(135deg, #fce7f380 0%, #fbcfe850 100%)',
-                                    border: '1px solid #fce7f3'
+                                    background: `linear-gradient(135deg, ${hexToRgba(theme.primary, 0.1)} 0%, ${hexToRgba(theme.primary, 0.15)} 100%)`,
+                                    border: `1px solid ${hexToRgba(theme.primary, 0.3)}`
                                 }}
                             >
                                 <ul className="space-y-3">
                                     {slide.content.slice(0, Math.ceil(slide.content.length / 2)).map((point, i) => (
                                         <li key={i} className="flex items-start gap-3">
-                                            <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#ec4899' }} />
+                                            <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: theme.primary }} />
                                             <span className="text-sm text-slate-700">{cleanMarkdown(point)}</span>
                                         </li>
                                     ))}
@@ -528,14 +550,14 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                             <div
                                 className="rounded-xl p-5"
                                 style={{
-                                    background: 'linear-gradient(135deg, #ede9fe80 0%, #ddd6fe50 100%)',
-                                    border: '1px solid #ede9fe'
+                                    background: `linear-gradient(135deg, ${hexToRgba(theme.secondary, 0.1)} 0%, ${hexToRgba(theme.secondary, 0.15)} 100%)`,
+                                    border: `1px solid ${hexToRgba(theme.secondary, 0.3)}`
                                 }}
                             >
                                 <ul className="space-y-3">
                                     {slide.content.slice(Math.ceil(slide.content.length / 2)).map((point, i) => (
                                         <li key={i} className="flex items-start gap-3">
-                                            <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#8b5cf6' }} />
+                                            <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: theme.secondary }} />
                                             <span className="text-sm text-slate-700">{cleanMarkdown(point)}</span>
                                         </li>
                                     ))}
@@ -550,16 +572,6 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
 
     // Features slide layout - Gamma AI elegant style
     if (layoutType === 'features') {
-        // Gradient backgrounds for feature cards - Gamma AI style with icons above cards
-        const CARD_COLORS = [
-            { bg: '#fce7f3', border: '#fbcfe8', icon: '#ec4899', iconBg: 'linear-gradient(135deg, #f9a8d4 0%, #ec4899 100%)' },
-            { bg: '#ede9fe', border: '#ddd6fe', icon: '#8b5cf6', iconBg: 'linear-gradient(135deg, #c4b5fd 0%, #8b5cf6 100%)' },
-            { bg: '#dbeafe', border: '#bfdbfe', icon: '#3b82f6', iconBg: 'linear-gradient(135deg, #93c5fd 0%, #3b82f6 100%)' },
-            { bg: '#ccfbf1', border: '#99f6e4', icon: '#14b8a6', iconBg: 'linear-gradient(135deg, #5eead4 0%, #14b8a6 100%)' },
-            { bg: '#fef3c7', border: '#fde68a', icon: '#f59e0b', iconBg: 'linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%)' },
-            { bg: '#fee2e2', border: '#fecaca', icon: '#ef4444', iconBg: 'linear-gradient(135deg, #fca5a5 0%, #ef4444 100%)' },
-        ];
-
         const featureCount = slide.features?.length || slide.content?.length || 0;
         // Use 2 columns for 4 items, 3 columns otherwise
         const gridCols = featureCount === 4 ? 'grid-cols-2' : 'grid-cols-3';
@@ -568,7 +580,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
             <div
                 className="w-full h-full overflow-hidden relative"
                 style={{
-                    background: bgColor || `linear-gradient(180deg, #ffffff 0%, #fef7f0 100%)`,
+                    background: bgColor || `linear-gradient(180deg, #ffffff 0%, ${hexToRgba(theme.accent, 0.05)} 100%)`,
                     borderRadius: `${borderRadius}px`,
                 }}
             >
@@ -587,7 +599,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                         <div className={`grid ${gridCols} gap-x-4 gap-y-6 max-w-4xl mx-auto auto-rows-fr`}>
                             {slide.features.slice(0, 6).map((feature, i) => {
                                 const Icon = getIcon(feature.icon);
-                                const cardStyle = CARD_COLORS[i % CARD_COLORS.length];
+                                const cardStyle = THEME_CARD_COLORS[i % THEME_CARD_COLORS.length];
                                 return (
                                     <div
                                         key={i}
@@ -619,7 +631,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                     ) : slide.content && slide.content.length > 1 ? (
                         <div className={`grid ${gridCols} gap-x-4 gap-y-6 max-w-4xl mx-auto auto-rows-fr`}>
                             {slide.content.slice(0, 6).map((item, i) => {
-                                const cardStyle = CARD_COLORS[i % CARD_COLORS.length];
+                                const cardStyle = THEME_CARD_COLORS[i % THEME_CARD_COLORS.length];
                                 return (
                                     <div key={i} className="relative pt-7 flex flex-col">
                                         <div
@@ -649,18 +661,11 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
 
     // Metrics slide layout - Gamma AI elegant style
     if (layoutType === 'metrics') {
-        // Colors for metrics - Gamma AI style
-        const METRIC_COLORS = [
-            { value: '#3b82f6', bg: '#dbeafe', border: '#93c5fd' },
-            { value: '#8b5cf6', bg: '#ede9fe', border: '#c4b5fd' },
-            { value: '#ec4899', bg: '#fce7f3', border: '#f9a8d4' },
-        ];
-
         return (
             <div
                 className="w-full h-full overflow-hidden relative"
                 style={{
-                    background: bgColor || `linear-gradient(180deg, #ffffff 0%, #f0f9ff 50%, #fdf2f8 100%)`,
+                    background: bgColor || `linear-gradient(180deg, #ffffff 0%, ${hexToRgba(theme.accent, 0.05)} 50%, ${hexToRgba(theme.primary, 0.05)} 100%)`,
                     borderRadius: `${borderRadius}px`,
                 }}
             >
@@ -678,7 +683,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                     {slide.metrics && slide.metrics.length > 0 ? (
                         <div className="flex gap-4">
                             {slide.metrics.slice(0, 3).map((metric, i) => {
-                                const style = METRIC_COLORS[i % METRIC_COLORS.length];
+                                const style = THEME_METRIC_COLORS[i % THEME_METRIC_COLORS.length];
                                 return (
                                     <div
                                         key={i}
@@ -784,32 +789,13 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
             });
         };
 
-        // Gradient backgrounds for icon boxes - matching Gamma AI style
-        const ICON_GRADIENTS = [
-            'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 50%, #f9a8d4 100%)', // Pink
-            'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #c4b5fd 100%)', // Purple
-            'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 50%, #93c5fd 100%)', // Blue
-            'linear-gradient(135deg, #ccfbf1 0%, #99f6e4 50%, #5eead4 100%)', // Teal
-            'linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fcd34d 100%)', // Yellow
-            'linear-gradient(135deg, #ffedd5 0%, #fed7aa 50%, #fdba74 100%)', // Orange
-        ];
-
-        const ICON_COLORS = [
-            '#db2777', // Pink
-            '#7c3aed', // Purple  
-            '#2563eb', // Blue
-            '#0d9488', // Teal
-            '#d97706', // Yellow/Amber
-            '#ea580c', // Orange
-        ];
-
         const iconListItems = parseIconListContent(slide.content || []);
 
         return (
             <div
                 className="w-full h-full overflow-hidden relative"
                 style={{
-                    background: bgColor || `linear-gradient(180deg, #ffffff 0%, #fef7f0 100%)`,
+                    background: bgColor || `linear-gradient(180deg, #ffffff 0%, ${hexToRgba(theme.accent, 0.05)} 100%)`,
                     borderRadius: `${borderRadius}px`,
                 }}
             >
@@ -819,7 +805,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                 <div className="p-6 h-full flex items-center gap-6 relative z-10">
                     <div className="flex-1">
                         <h2
-                            className="text-2xl font-bold mb-5"
+                            className="text-2xl font-bold mb-6"
                             style={{ color: headingColor }}
                         >
                             {slide.title}
@@ -829,8 +815,8 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                             <div className="space-y-4">
                                 {iconListItems.slice(0, 4).map((item, i) => {
                                     const IconComponent = getIcon(item.icon);
-                                    const gradient = ICON_GRADIENTS[i % ICON_GRADIENTS.length];
-                                    const iconColor = ICON_COLORS[i % ICON_COLORS.length];
+                                    const gradient = THEME_ICON_GRADIENTS[i % THEME_ICON_GRADIENTS.length];
+                                    const iconColor = THEME_ICON_COLORS[i % THEME_ICON_COLORS.length];
 
                                     return (
                                         <div key={i} className="flex items-center gap-4">
