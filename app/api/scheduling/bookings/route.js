@@ -4,6 +4,7 @@ import Booking from "@/lib/models/Booking";
 import EventType from "@/lib/models/EventType";
 import Availability from "@/lib/models/Availability";
 import UserProfile from "@/lib/models/UserProfile";
+import { createGoogleMeetEvent, refreshAccessToken } from "@/lib/services/meeting-link";
 
 // GET - Fetch bookings
 export async function GET(request) {
@@ -103,10 +104,10 @@ export async function POST(request) {
 
         // Calculate end time
         const [hours, minutes] = startTime.split(":").map(Number);
-        const startDate = new Date();
-        startDate.setHours(hours, minutes, 0, 0);
-        const endDate = new Date(startDate.getTime() + eventType.duration * 60000);
-        const endTime = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
+        const startDateObj = new Date();
+        startDateObj.setHours(hours, minutes, 0, 0);
+        const endDateObj = new Date(startDateObj.getTime() + eventType.duration * 60000);
+        const endTime = `${String(endDateObj.getHours()).padStart(2, "0")}:${String(endDateObj.getMinutes()).padStart(2, "0")}`;
 
         // Check for conflicts
         const conflictingBooking = await Booking.findOne({
@@ -140,14 +141,91 @@ export async function POST(request) {
             );
         }
 
-        // Generate meeting link if video
+        // Generate a unique booking ID
+        const bookingId = `BK${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+        // Get host profile to check Google Calendar connection
+        const userProfile = await UserProfile.findOne({ userId: eventType.userId });
+
+        // Generate meeting link if video conference is needed
         let meetingLink = null;
+        let meetingProvider = "google-meet";
+        let googleCalendarEventId = null;
+        let calendarError = null;
+
         if (eventType.location?.type === "video") {
-            meetingLink = `https://meet.google.com/${Math.random().toString(36).substring(2, 5)}-${Math.random().toString(36).substring(2, 6)}-${Math.random().toString(36).substring(2, 5)}`;
+            // Check if Google Calendar is connected and has credentials
+            const hasCredentials = userProfile?.googleCalendar?.clientId && userProfile?.googleCalendar?.clientSecret;
+            const isConnected = userProfile?.googleCalendar?.connected && userProfile?.googleCalendar?.accessToken;
+
+            if (isConnected && hasCredentials) {
+                try {
+                    let accessToken = userProfile.googleCalendar.accessToken;
+
+                    // Check if token is expired and refresh if needed
+                    if (userProfile.googleCalendar.tokenExpiry &&
+                        new Date(userProfile.googleCalendar.tokenExpiry) < new Date()) {
+                        if (userProfile.googleCalendar.refreshToken) {
+                            try {
+                                const refreshed = await refreshAccessToken(
+                                    userProfile.googleCalendar.refreshToken,
+                                    {
+                                        clientId: userProfile.googleCalendar.clientId,
+                                        clientSecret: userProfile.googleCalendar.clientSecret
+                                    }
+                                );
+                                accessToken = refreshed.accessToken;
+
+                                // Update the stored access token
+                                await UserProfile.updateOne(
+                                    { userId: eventType.userId },
+                                    {
+                                        "googleCalendar.accessToken": accessToken,
+                                        "googleCalendar.tokenExpiry": new Date(refreshed.expiresAt)
+                                    }
+                                );
+                            } catch (refreshError) {
+                                console.error("Failed to refresh token:", refreshError);
+                                throw new Error("Google Calendar token expired. Please reconnect in Settings.");
+                            }
+                        }
+                    }
+
+                    // Create Google Calendar event with Google Meet
+                    const meetingResult = await createGoogleMeetEvent({
+                        accessToken,
+                        refreshToken: userProfile.googleCalendar.refreshToken,
+                        clientId: userProfile.googleCalendar.clientId,
+                        clientSecret: userProfile.googleCalendar.clientSecret,
+                        title: `${eventType.name} with ${attendee.name}`,
+                        description: eventType.description || `Booking ID: ${bookingId}`,
+                        date,
+                        startTime,
+                        endTime,
+                        timezone: timezone || userProfile?.defaultTimezone || "Asia/Kolkata",
+                        attendees: [
+                            { name: attendee.name, email: attendee.email },
+                            { name: userProfile?.displayName || "Host", email: userProfile?.email }
+                        ]
+                    });
+
+                    meetingLink = meetingResult.meetingLink;
+                    googleCalendarEventId = meetingResult.eventId;
+                    meetingProvider = "google-meet";
+
+                } catch (error) {
+                    console.error("Error creating Google Meet:", error);
+                    calendarError = error.message;
+                    // Don't fail the booking - just note that calendar integration failed
+                }
+            } else {
+                calendarError = "Google Calendar not connected. Connect in Settings to auto-generate meeting links.";
+            }
         }
 
         // Create the booking
         const booking = new Booking({
+            bookingId,
             userId: eventType.userId,
             eventTypeId: eventType._id,
             title: `${eventType.name} with ${attendee.name}`,
@@ -166,19 +244,13 @@ export async function POST(request) {
             locationType: eventType.location?.type || "video",
             location: eventType.location?.value,
             meetingLink,
-            meetingProvider: eventType.location?.provider,
+            meetingProvider,
+            googleCalendarEventId,
             status: eventType.requiresConfirmation ? "pending" : "confirmed",
             attendeeNotes,
         });
 
         await booking.save();
-
-        // Get host info for response
-        const userProfile = await UserProfile.findOne({ userId: eventType.userId });
-
-        // TODO: Send confirmation email to attendee
-        // TODO: Send notification to host
-        // TODO: Create Google Calendar event if connected
 
         return NextResponse.json({
             success: true,
@@ -193,6 +265,7 @@ export async function POST(request) {
                 hostName: userProfile?.displayName || eventType.userId,
                 hostEmail: userProfile?.email,
             },
+            calendarError, // Return calendar error for UI to show if needed
             message: eventType.requiresConfirmation
                 ? "Booking request submitted. Awaiting host confirmation."
                 : "Booking confirmed successfully!",

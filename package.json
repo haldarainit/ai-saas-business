@@ -60,6 +60,7 @@
     "framer-motion": "latest",
     "fs-extra": "^11.3.2",
     "google-auth-library": "^10.5.0",
+    "googleapis": "^169.0.0",
     "jsonwebtoken": "^9.0.2",
     "jszip": "^3.10.1",
     "lucide-react": "^0.454.0",

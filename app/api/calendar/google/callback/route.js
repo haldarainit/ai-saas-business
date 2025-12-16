@@ -1,0 +1,93 @@
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/mongodb";
+import UserProfile from "@/lib/models/UserProfile";
+import { exchangeCodeForTokens } from "@/lib/services/meeting-link";
+
+export async function GET(request) {
+    const { searchParams } = new URL(request.url);
+    const code = searchParams.get("code");
+    const state = searchParams.get("state");
+    const error = searchParams.get("error");
+
+    // Handle OAuth error
+    if (error) {
+        console.error("OAuth Error:", error);
+        return NextResponse.redirect(
+            `${process.env.NEXT_PUBLIC_APP_URL}/appointment-scheduling/dashboard?tab=settings&error=oauth_denied`
+        );
+    }
+
+    if (!code) {
+        return NextResponse.redirect(
+            `${process.env.NEXT_PUBLIC_APP_URL}/appointment-scheduling/dashboard?tab=settings&error=no_code`
+        );
+    }
+
+    try {
+        await connectDB();
+
+        // Decode state to get userId
+        let userId;
+        try {
+            const stateData = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
+            userId = stateData.userId;
+        } catch (e) {
+            // Fallback: state might just be the userId
+            userId = Buffer.from(state, "base64").toString("utf-8");
+        }
+
+        if (!userId) {
+            throw new Error("User ID not found in OAuth state");
+        }
+
+        // Get user's Google credentials
+        const userProfile = await UserProfile.findOne({ userId });
+
+        if (!userProfile) {
+            throw new Error("User profile not found");
+        }
+
+        const clientId = userProfile.googleCalendar?.clientId;
+        const clientSecret = userProfile.googleCalendar?.clientSecret;
+
+        if (!clientId || !clientSecret) {
+            throw new Error("Google API credentials not configured");
+        }
+
+        // Exchange code for tokens using user's credentials
+        const tokens = await exchangeCodeForTokens(code, {
+            clientId,
+            clientSecret
+        });
+
+        if (!tokens.accessToken) {
+            throw new Error("Failed to get access token");
+        }
+
+        // Update user profile with tokens
+        await UserProfile.updateOne(
+            { userId },
+            {
+                $set: {
+                    "googleCalendar.connected": true,
+                    "googleCalendar.accessToken": tokens.accessToken,
+                    "googleCalendar.refreshToken": tokens.refreshToken,
+                    "googleCalendar.tokenExpiry": tokens.expiresAt ? new Date(tokens.expiresAt) : null,
+                    "googleCalendar.calendarId": "primary",
+                    "googleCalendar.connectedEmail": tokens.email
+                }
+            }
+        );
+
+        // Redirect back to dashboard with success
+        return NextResponse.redirect(
+            `${process.env.NEXT_PUBLIC_APP_URL}/appointment-scheduling/dashboard?tab=settings&calendar=connected`
+        );
+
+    } catch (error) {
+        console.error("OAuth Callback Error:", error);
+        return NextResponse.redirect(
+            `${process.env.NEXT_PUBLIC_APP_URL}/appointment-scheduling/dashboard?tab=settings&error=${encodeURIComponent(error.message)}`
+        );
+    }
+}

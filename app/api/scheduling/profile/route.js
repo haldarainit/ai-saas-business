@@ -28,7 +28,7 @@ export async function GET(request) {
             );
         }
 
-        return NextResponse.json({
+        const profileResponse = {
             success: true,
             profile: {
                 userId: userProfile.userId,
@@ -43,6 +43,9 @@ export async function GET(request) {
                 welcomeMessage: userProfile.welcomeMessage,
                 googleCalendar: {
                     connected: userProfile.googleCalendar?.connected || false,
+                    clientId: userProfile.googleCalendar?.clientId || "",
+                    clientSecret: userProfile.googleCalendar?.clientSecret || "",
+                    connectedEmail: userProfile.googleCalendar?.connectedEmail || "",
                 },
                 outlookCalendar: {
                     connected: userProfile.outlookCalendar?.connected || false,
@@ -53,7 +56,9 @@ export async function GET(request) {
                 defaultLocation: userProfile.defaultLocation,
                 bookingLink: `/book/${userProfile.username}`,
             },
-        });
+        };
+
+        return NextResponse.json(profileResponse);
     } catch (error) {
         console.error("Error fetching profile:", error);
         return NextResponse.json(
