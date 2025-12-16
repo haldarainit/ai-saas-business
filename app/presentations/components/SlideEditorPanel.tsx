@@ -388,11 +388,11 @@ export default function SlideEditorPanel({
                                     </div>
                                     <button
                                         onClick={() => updateStyle('hasBackdrop', !styles.hasBackdrop)}
-                                        className={`w-12 h-7 rounded-full relative transition-colors ${styles.hasBackdrop ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'
+                                        className={`w-11 h-6 rounded-full relative transition-colors flex-shrink-0 ${styles.hasBackdrop ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'
                                             }`}
                                     >
                                         <span
-                                            className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${styles.hasBackdrop ? 'translate-x-6' : 'translate-x-1'
+                                            className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${styles.hasBackdrop ? 'translate-x-5' : 'translate-x-0'
                                                 }`}
                                         />
                                     </button>

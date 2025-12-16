@@ -1185,306 +1185,266 @@ function PresentationsContent() {
                                                     </Button>
                                                 </div>
 
-                                                {/* Preview Mode Toggle & Layout Type Badge */}
+                                                {/* Layout Type Badge & Action Buttons */}
                                                 <div className="flex items-center gap-3">
                                                     {data.slides[activeSlide].layoutType && (
                                                         <span className="text-xs px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-medium uppercase">
                                                             {data.slides[activeSlide].layoutType} layout
                                                         </span>
                                                     )}
-                                                    <div className="flex rounded-lg border overflow-hidden">
-                                                        <button
-                                                            onClick={() => setPreviewMode('layout')}
-                                                            className={`px-3 py-1.5 text-xs font-medium transition-colors ${previewMode === 'layout'
-                                                                ? 'bg-blue-600 text-white'
-                                                                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
-                                                                }`}
-                                                        >
-                                                            <Eye className="w-3 h-3 inline mr-1" /> Layout
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setPreviewMode('edit')}
-                                                            className={`px-3 py-1.5 text-xs font-medium transition-colors ${previewMode === 'edit'
-                                                                ? 'bg-blue-600 text-white'
-                                                                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
-                                                                }`}
-                                                        >
-                                                            <Edit3 className="w-3 h-3 inline mr-1" /> Edit
-                                                        </button>
-                                                    </div>
 
-                                                    {/* Compact AI Agent Button */}
+                                                    {/* AI Agent Button */}
                                                     <Button
-                                                        variant="ghost"
-                                                        size="icon"
+                                                        variant="outline"
+                                                        size="sm"
                                                         onClick={() => setIsAIRegenerateOpen(true)}
-                                                        className="h-8 w-8 text-violet-600 hover:text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950"
+                                                        className="text-violet-600 border-violet-200 hover:bg-violet-50 dark:border-violet-800 dark:hover:bg-violet-950"
                                                         title="AI Agent - Regenerate slide"
                                                     >
-                                                        <Wand2 className="w-4 h-4" />
+                                                        <Wand2 className="w-4 h-4 mr-1.5" />
+                                                        AI Agent
                                                     </Button>
 
-                                                    {/* Compact Card Editor Button */}
+                                                    {/* Card Editor Button */}
                                                     <Button
-                                                        variant="ghost"
-                                                        size="icon"
+                                                        variant="outline"
+                                                        size="sm"
                                                         onClick={() => setIsSlideEditorOpen(true)}
-                                                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
+                                                        className="text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-950"
                                                         title="Card Editor - Edit styling"
                                                     >
-                                                        <Settings className="w-4 h-4" />
+                                                        <Settings className="w-4 h-4 mr-1.5" />
+                                                        Edit Card
                                                     </Button>
                                                 </div>
                                             </div>
 
-                                            {/* Slide Preview/Editor */}
-                                            {previewMode === 'layout' ? (
-                                                /* Layout Preview Mode - Uses SlidePreview component */
-                                                <motion.div
-                                                    key={`${activeSlide}-layout`}
-                                                    initial={{ opacity: 0, scale: 0.98 }}
-                                                    animate={{ opacity: 1, scale: 1 }}
-                                                    className="aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl relative group"
-                                                >
-                                                    <SlidePreview
-                                                        slide={data.slides[activeSlide]}
-                                                        slideIndex={activeSlide}
-                                                        totalSlides={data.slides.length}
-                                                        theme={{
-                                                            primary: selectedTheme.colors.primary,
-                                                            secondary: selectedTheme.colors.secondary,
-                                                            accent: selectedTheme.colors.accent,
-                                                        }}
-                                                    />
+                                            {/* Unified Slide Preview with Edit Overlay */}
+                                            <motion.div
+                                                key={`${activeSlide}-unified`}
+                                                initial={{ opacity: 0, scale: 0.98 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                className="aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl relative group"
+                                            >
+                                                {/* Slide Preview Component */}
+                                                <SlidePreview
+                                                    slide={data.slides[activeSlide]}
+                                                    slideIndex={activeSlide}
+                                                    totalSlides={data.slides.length}
+                                                    theme={{
+                                                        primary: selectedTheme.colors.primary,
+                                                        secondary: selectedTheme.colors.secondary,
+                                                        accent: selectedTheme.colors.accent,
+                                                    }}
+                                                />
 
-                                                    {/* Floating action buttons - appear on hover */}
-                                                    <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-2 group-hover:translate-y-0">
-                                                        <button
-                                                            onClick={() => setIsAIRegenerateOpen(true)}
-                                                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600/90 hover:bg-violet-700 text-white text-xs font-medium transition-colors backdrop-blur-sm shadow-lg"
-                                                            title="AI Agent - Regenerate slide with AI"
-                                                        >
-                                                            <Wand2 className="w-3.5 h-3.5" />
-                                                            <span>AI Agent</span>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setIsSlideEditorOpen(true)}
-                                                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700/90 hover:bg-slate-800 text-white text-xs font-medium transition-colors backdrop-blur-sm shadow-lg"
-                                                            title="Card Editor - Edit styling and layout"
-                                                        >
-                                                            <Settings className="w-3.5 h-3.5" />
-                                                            <span>Edit Card</span>
-                                                        </button>
-                                                    </div>
+                                                {/* Edit Overlay - Appears on hover */}
+                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 pointer-events-none" />
 
-                                                    {/* Subtle hint at bottom */}
-                                                    <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                                                </motion.div>
-                                            ) : (
-                                                /* Edit Mode - Editable slide content */
-                                                <motion.div
-                                                    key={`${activeSlide}-edit`}
-                                                    initial={{ opacity: 0, scale: 0.98 }}
-                                                    animate={{ opacity: 1, scale: 1 }}
-                                                    className={`aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl relative ${activeSlide === 0 || activeSlide === data.slides.length - 1
-                                                        ? 'bg-gradient-to-br'
-                                                        : 'bg-white dark:bg-slate-800'
-                                                        }`}
-                                                    style={(activeSlide === 0 || activeSlide === data.slides.length - 1) ? {
-                                                        backgroundImage: `linear-gradient(135deg, ${selectedTheme.colors.primary}, ${selectedTheme.colors.secondary})`
-                                                    } : {}}
-                                                >
-                                                    {/* Left sidebar accent strip for content slides */}
-                                                    {activeSlide !== 0 && activeSlide !== data.slides.length - 1 && (
-                                                        <div
-                                                            className="absolute top-0 left-0 bottom-0 w-2"
-                                                            style={{ backgroundColor: selectedTheme.colors.primary }}
-                                                        />
-                                                    )}
-
-                                                    {/* Top accent bar for content slides */}
-                                                    {activeSlide !== 0 && activeSlide !== data.slides.length - 1 && (
-                                                        <div
-                                                            className="absolute top-0 left-2 right-0 h-2"
-                                                            style={{ backgroundColor: selectedTheme.colors.secondary }}
-                                                        />
-                                                    )}
-
-                                                    {/* Bottom accent line for content slides */}
-                                                    {activeSlide !== 0 && activeSlide !== data.slides.length - 1 && (
-                                                        <div
-                                                            className="absolute bottom-8 left-6 right-6 h-0.5"
-                                                            style={{ backgroundColor: selectedTheme.colors.accent }}
-                                                        />
-                                                    )}
-
-                                                    {/* Slide number badge for content slides */}
-                                                    {activeSlide !== 0 && activeSlide !== data.slides.length - 1 && (
-                                                        <div
-                                                            className="absolute top-6 left-6 w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg"
-                                                            style={{ backgroundColor: selectedTheme.colors.primary }}
-                                                        >
-                                                            {activeSlide + 1}
-                                                        </div>
-                                                    )}
-
-                                                    <div className={`w-full h-full p-10 flex gap-8 ${activeSlide !== 0 && activeSlide !== data.slides.length - 1 ? 'pt-14' : ''}`}>
-                                                        {/* Text Content */}
-                                                        <div className={`flex-1 flex flex-col justify-center ${(activeSlide === 0 || activeSlide === data.slides.length - 1) ? 'text-white' : ''}`}>
-                                                            {/* Editable Title */}
-                                                            {editingField?.slide === activeSlide && editingField.field === 'title' ? (
-                                                                <div className="mb-4">
-                                                                    <Input
-                                                                        value={data.slides[activeSlide].title}
-                                                                        onChange={(e) => updatePreviewSlide(activeSlide, 'title', e.target.value)}
-                                                                        className="text-3xl font-bold bg-white/20 border-white/30"
-                                                                        autoFocus
-                                                                        onBlur={() => setEditingField(null)}
-                                                                        onKeyDown={(e) => e.key === 'Enter' && setEditingField(null)}
-                                                                    />
-                                                                </div>
-                                                            ) : (
-                                                                <h2
-                                                                    className={`text-3xl md:text-4xl font-bold mb-6 cursor-pointer hover:opacity-80 transition-opacity group`}
-                                                                    style={(activeSlide !== 0 && activeSlide !== data.slides.length - 1) ? { color: selectedTheme.colors.primary } : {}}
-                                                                    onClick={() => setEditingField({ slide: activeSlide, field: 'title' })}
+                                                {/* Top Edit Bar - Title editing */}
+                                                <div className="absolute top-0 left-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                                                    <div className="flex items-center gap-2">
+                                                        {editingField?.slide === activeSlide && editingField.field === 'title' ? (
+                                                            <div className="flex-1 flex gap-2">
+                                                                <Input
+                                                                    value={data.slides[activeSlide].title}
+                                                                    onChange={(e) => updatePreviewSlide(activeSlide, 'title', e.target.value)}
+                                                                    className="text-lg font-semibold bg-white shadow-lg"
+                                                                    autoFocus
+                                                                    onBlur={() => setEditingField(null)}
+                                                                    onKeyDown={(e) => e.key === 'Enter' && setEditingField(null)}
+                                                                />
+                                                                <Button
+                                                                    size="sm"
+                                                                    onClick={() => setEditingField(null)}
+                                                                    className="bg-green-600 hover:bg-green-700"
                                                                 >
-                                                                    {data.slides[activeSlide].title}
-                                                                    <Edit3 className="inline-block w-5 h-5 ml-2 opacity-0 group-hover:opacity-50" />
-                                                                </h2>
-                                                            )}
-
-                                                            {/* Editable Content */}
-                                                            {(activeSlide === 0 || activeSlide === data.slides.length - 1) ? (
-                                                                <div className="space-y-3">
-                                                                    {(data.slides[activeSlide].content || []).map((point, j) => (
-                                                                        <div
-                                                                            key={j}
-                                                                            className="flex items-start gap-3 text-white/90 group cursor-pointer hover:opacity-80"
-                                                                            onClick={() => setEditingField({ slide: activeSlide, field: 'content', contentIndex: j })}
-                                                                        >
-                                                                            <span
-                                                                                className="w-2 h-2 rounded-full mt-2 shrink-0 bg-white/60"
-                                                                            ></span>
-                                                                            <span className="text-lg leading-relaxed">
-                                                                                {cleanMarkdown(point)}
-                                                                            </span>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            ) : (
-                                                                <ul className="space-y-3">
-                                                                    {(data.slides[activeSlide].content || []).map((point, j) => (
-                                                                        <li key={j} className="flex items-start gap-3 text-slate-600 dark:text-slate-300 group">
-                                                                            <span
-                                                                                className="w-2 h-2 rounded-full mt-2 shrink-0"
-                                                                                style={{ backgroundColor: selectedTheme.colors.secondary }}
-                                                                            ></span>
-                                                                            {editingField?.slide === activeSlide && editingField.field === 'content' && editingField.contentIndex === j ? (
-                                                                                <Input
-                                                                                    value={point}
-                                                                                    onChange={(e) => {
-                                                                                        const newContent = [...(data.slides[activeSlide].content || [])];
-                                                                                        newContent[j] = e.target.value;
-                                                                                        updatePreviewSlide(activeSlide, 'content', newContent);
-                                                                                    }}
-                                                                                    className="text-lg flex-1"
-                                                                                    autoFocus
-                                                                                    onBlur={() => setEditingField(null)}
-                                                                                    onKeyDown={(e) => e.key === 'Enter' && setEditingField(null)}
-                                                                                />
-                                                                            ) : (
-                                                                                <span
-                                                                                    className="text-lg cursor-pointer hover:text-blue-600 transition-colors"
-                                                                                    onClick={() => setEditingField({ slide: activeSlide, field: 'content', contentIndex: j })}
-                                                                                >
-                                                                                    {cleanMarkdown(point)}
-                                                                                    <Edit3 className="inline-block w-4 h-4 ml-1 opacity-0 group-hover:opacity-50" />
-                                                                                </span>
-                                                                            )}
-                                                                        </li>
-                                                                    ))}
-                                                                </ul>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Image with Regenerate option */}
-                                                        {data.slides[activeSlide].imageUrl && (
-                                                            <div className="w-2/5 relative group">
-                                                                <div className={`w-full h-full rounded-xl overflow-hidden ${activeSlide === 0 ? 'shadow-2xl' : 'shadow-lg'}`}>
-                                                                    {isRegeneratingImage === activeSlide ? (
-                                                                        <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-                                                                            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-                                                                        </div>
-                                                                    ) : (
-                                                                        /* eslint-disable-next-line @next/next/no-img-element */
-                                                                        <img
-                                                                            src={data.slides[activeSlide].imageUrl}
-                                                                            alt={data.slides[activeSlide].title}
-                                                                            className="w-full h-full object-cover"
-                                                                        />
-                                                                    )}
-                                                                </div>
-
-                                                                {/* Image Edit Overlay */}
-                                                                <div
-                                                                    className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex flex-col items-center justify-center gap-3 p-4"
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                >
-                                                                    {/* Custom prompt input */}
-                                                                    <div className="w-full">
-                                                                        <Input
-                                                                            placeholder="Type custom image prompt..."
-                                                                            value={customImagePrompt}
-                                                                            onChange={(e) => setCustomImagePrompt(e.target.value)}
-                                                                            className="text-sm bg-white"
-                                                                            onClick={(e) => e.stopPropagation()}
-                                                                            onKeyDown={(e) => {
-                                                                                e.stopPropagation();
-                                                                                if (e.key === 'Enter' && customImagePrompt.trim()) {
-                                                                                    regenerateImage(activeSlide, customImagePrompt);
-                                                                                }
-                                                                            }}
-                                                                        />
-                                                                    </div>
-
-                                                                    {/* Buttons */}
-                                                                    <div className="flex gap-2 w-full">
-                                                                        {customImagePrompt.trim() ? (
-                                                                            <Button
-                                                                                size="sm"
-                                                                                className="flex-1 bg-green-600 hover:bg-green-700"
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    regenerateImage(activeSlide, customImagePrompt);
-                                                                                }}
-                                                                                disabled={isRegeneratingImage === activeSlide}
-                                                                            >
-                                                                                <RefreshCw className="w-4 h-4 mr-2" />
-                                                                                Apply Custom
-                                                                            </Button>
-                                                                        ) : (
-                                                                            <Button
-                                                                                size="sm"
-                                                                                variant="secondary"
-                                                                                className="flex-1"
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    regenerateImage(activeSlide);
-                                                                                }}
-                                                                                disabled={isRegeneratingImage === activeSlide}
-                                                                            >
-                                                                                <RefreshCw className="w-4 h-4 mr-2" />
-                                                                                Regenerate
-                                                                            </Button>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
+                                                                    <Check className="w-4 h-4" />
+                                                                </Button>
                                                             </div>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => setEditingField({ slide: activeSlide, field: 'title' })}
+                                                                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/90 hover:bg-white text-slate-700 text-sm font-medium shadow-lg transition-colors pointer-events-auto"
+                                                            >
+                                                                <Edit3 className="w-4 h-4" />
+                                                                Edit Title
+                                                            </button>
                                                         )}
                                                     </div>
-                                                </motion.div>
-                                            )}
+                                                </div>
+
+                                                {/* Right Side - Image Controls (if slide has image) */}
+                                                {data.slides[activeSlide].hasImage !== false && data.slides[activeSlide].imageUrl && (
+                                                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-auto">
+                                                        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-3 space-y-2 min-w-[200px]">
+                                                            <p className="text-xs font-medium text-slate-500">Regenerate Image</p>
+                                                            <Input
+                                                                placeholder="Custom image prompt..."
+                                                                value={customImagePrompt}
+                                                                onChange={(e) => setCustomImagePrompt(e.target.value)}
+                                                                className="text-sm"
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter' && customImagePrompt.trim()) {
+                                                                        regenerateImage(activeSlide, customImagePrompt);
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="flex-1 text-xs"
+                                                                    onClick={() => regenerateImage(activeSlide)}
+                                                                    disabled={isRegeneratingImage === activeSlide}
+                                                                >
+                                                                    {isRegeneratingImage === activeSlide ? (
+                                                                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                                                    ) : (
+                                                                        <RefreshCw className="w-3 h-3 mr-1" />
+                                                                    )}
+                                                                    Random
+                                                                </Button>
+                                                                {customImagePrompt.trim() && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        className="flex-1 text-xs bg-green-600 hover:bg-green-700"
+                                                                        onClick={() => regenerateImage(activeSlide, customImagePrompt)}
+                                                                        disabled={isRegeneratingImage === activeSlide}
+                                                                    >
+                                                                        <ImageIcon className="w-3 h-3 mr-1" />
+                                                                        Apply
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Bottom Edit Bar - Content editing */}
+                                                <div className="absolute bottom-0 left-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        {/* Edit Content Button */}
+                                                        <button
+                                                            onClick={() => setEditingField({ slide: activeSlide, field: 'content', contentIndex: 0 })}
+                                                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/90 hover:bg-white text-slate-700 text-sm font-medium shadow-lg transition-colors pointer-events-auto"
+                                                        >
+                                                            <Type className="w-4 h-4" />
+                                                            Edit Content
+                                                        </button>
+
+                                                        {/* Quick Actions */}
+                                                        <div className="flex items-center gap-2 pointer-events-auto">
+                                                            <button
+                                                                onClick={() => setIsAIRegenerateOpen(true)}
+                                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600/90 hover:bg-violet-700 text-white text-xs font-medium transition-colors backdrop-blur-sm shadow-lg"
+                                                                title="AI Agent - Regenerate slide with AI"
+                                                            >
+                                                                <Wand2 className="w-3.5 h-3.5" />
+                                                                <span>AI Agent</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setIsSlideEditorOpen(true)}
+                                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700/90 hover:bg-slate-800 text-white text-xs font-medium transition-colors backdrop-blur-sm shadow-lg"
+                                                                title="Card Editor - Edit styling and layout"
+                                                            >
+                                                                <Settings className="w-3.5 h-3.5" />
+                                                                <span>Edit Card</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Loading overlay when regenerating image */}
+                                                {isRegeneratingImage === activeSlide && (
+                                                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center z-40">
+                                                        <div className="bg-white rounded-xl p-4 shadow-xl flex items-center gap-3">
+                                                            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                                                            <span className="text-sm font-medium">Regenerating image...</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </motion.div>
+
+                                            {/* Content Editor Modal - Shows when editing content */}
+                                            <AnimatePresence>
+                                                {editingField?.slide === activeSlide && editingField.field === 'content' && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, y: 20 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, y: 20 }}
+                                                        className="mt-4 bg-white dark:bg-slate-800 rounded-xl shadow-xl border p-4"
+                                                    >
+                                                        <div className="flex items-center justify-between mb-4">
+                                                            <h4 className="font-semibold flex items-center gap-2">
+                                                                <Type className="w-4 h-4" />
+                                                                Edit Slide Content
+                                                            </h4>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => setEditingField(null)}
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+
+                                                        <div className="space-y-3">
+                                                            {(data.slides[activeSlide].content || []).map((point, j) => (
+                                                                <div key={j} className="flex items-start gap-2">
+                                                                    <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-medium flex-shrink-0 mt-1">
+                                                                        {j + 1}
+                                                                    </span>
+                                                                    <Textarea
+                                                                        value={point}
+                                                                        onChange={(e) => {
+                                                                            const newContent = [...(data.slides[activeSlide].content || [])];
+                                                                            newContent[j] = e.target.value;
+                                                                            updatePreviewSlide(activeSlide, 'content', newContent);
+                                                                        }}
+                                                                        className="flex-1 min-h-[60px] text-sm"
+                                                                        placeholder={`Point ${j + 1}`}
+                                                                    />
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                                        onClick={() => {
+                                                                            const newContent = (data.slides[activeSlide].content || []).filter((_, idx) => idx !== j);
+                                                                            updatePreviewSlide(activeSlide, 'content', newContent);
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </Button>
+                                                                </div>
+                                                            ))}
+
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="w-full mt-2"
+                                                                onClick={() => {
+                                                                    const newContent = [...(data.slides[activeSlide].content || []), 'New point'];
+                                                                    updatePreviewSlide(activeSlide, 'content', newContent);
+                                                                }}
+                                                            >
+                                                                <Plus className="w-4 h-4 mr-2" />
+                                                                Add Point
+                                                            </Button>
+                                                        </div>
+
+                                                        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+                                                            <Button variant="outline" onClick={() => setEditingField(null)}>
+                                                                Cancel
+                                                            </Button>
+                                                            <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setEditingField(null)}>
+                                                                <Check className="w-4 h-4 mr-2" />
+                                                                Done
+                                                            </Button>
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
 
                                             {/* All Slides Overview */}
                                             <div className="mt-8">
@@ -1524,7 +1484,7 @@ function PresentationsContent() {
                                                             )}
 
                                                             {/* Hover-revealed action buttons */}
-                                                            <div className="absolute bottom-2 left-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                                            <div className="absolute bottom-2 left-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-auto">
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
