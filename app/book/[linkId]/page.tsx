@@ -70,7 +70,7 @@ export default function BookingPage() {
 
     // Booking flow
     const [step, setStep] = useState(1);
-    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);

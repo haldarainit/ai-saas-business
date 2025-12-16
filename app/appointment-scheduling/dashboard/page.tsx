@@ -784,32 +784,26 @@ export default function AppointmentDashboard() {
 
                     {/* Settings Tab */}
                     <TabsContent value="settings">
-                        <div className="grid lg:grid-cols-2 gap-6">
+                        <div className="grid lg:grid-cols-2 gap-4">
                             <Card>
-                                <CardHeader><CardTitle>Booking Page Settings</CardTitle></CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="grid md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label>Display Name</Label>
-                                            <Input value={profileForm.displayName} onChange={e => setProfileForm({ ...profileForm, displayName: e.target.value })} placeholder="Your name" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Username</Label>
-                                            <Input value={profileForm.username} onChange={e => setProfileForm({ ...profileForm, username: e.target.value })} placeholder="username" />
-                                        </div>
+                                <CardHeader className="pb-3"><CardTitle>Booking Page Settings</CardTitle></CardHeader>
+                                <CardContent className="space-y-3">
+                                    <div className="space-y-2">
+                                        <Label>Display Name</Label>
+                                        <Input value={profileForm.displayName} onChange={e => setProfileForm({ ...profileForm, displayName: e.target.value })} placeholder="Your name" />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Bio</Label>
-                                        <Textarea value={profileForm.bio} onChange={e => setProfileForm({ ...profileForm, bio: e.target.value })} placeholder="Tell visitors about yourself..." />
+                                        <Textarea value={profileForm.bio} onChange={e => setProfileForm({ ...profileForm, bio: e.target.value })} placeholder="Tell visitors about yourself..." rows={3} />
                                     </div>
-                                    <div className="grid md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-2 gap-3">
                                         <div className="space-y-2">
                                             <Label>Brand Color</Label>
-                                            <Input type="color" value={profileForm.brandColor} onChange={e => setProfileForm({ ...profileForm, brandColor: e.target.value })} />
+                                            <Input type="color" value={profileForm.brandColor} onChange={e => setProfileForm({ ...profileForm, brandColor: e.target.value })} className="h-10" />
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Welcome Message</Label>
-                                            <Input value={profileForm.welcomeMessage} onChange={e => setProfileForm({ ...profileForm, welcomeMessage: e.target.value })} placeholder="Welcome! Choose an event..." />
+                                            <Input value={profileForm.welcomeMessage} onChange={e => setProfileForm({ ...profileForm, welcomeMessage: e.target.value })} placeholder="Welcome!" />
                                         </div>
                                     </div>
                                 </CardContent>
