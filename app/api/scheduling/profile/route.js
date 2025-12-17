@@ -11,6 +11,9 @@ export async function GET(request) {
         const userId = searchParams.get("userId");
         const username = searchParams.get("username");
 
+        console.log("🔵 [API] GET /api/scheduling/profile - Request received");
+        console.log("🔵 [API] Query params - userId:", userId, "username:", username);
+
         if (!userId && !username) {
             return NextResponse.json(
                 { error: "User ID or username is required" },
@@ -22,11 +25,15 @@ export async function GET(request) {
         const userProfile = await UserProfile.findOne(query);
 
         if (!userProfile) {
+            console.error("❌ [API] Profile not found for query:", query);
             return NextResponse.json(
                 { error: "Profile not found" },
                 { status: 404 }
             );
         }
+
+        console.log("🔵 [API] Found profile for user:", userProfile.userId);
+        console.log("🔵 [API] Profile emailSettings from DB:", JSON.stringify(userProfile.emailSettings, null, 2));
 
         const profileResponse = {
             success: true,
@@ -167,35 +174,75 @@ export async function PUT(request) {
             );
         }
 
-        // Handle emailSettings separately (nested object)
+        console.log("🟢 [API] Found user profile");
+        console.log("🟢 [API] Current emailSettings:", JSON.stringify(userProfile.emailSettings, null, 2));
+
+        // Build the update object using MongoDB $set operator
+        const updateOps = {};
+
+        // Handle emailSettings separately (nested object) using $set
         if (updates.emailSettings) {
-            if (!userProfile.emailSettings) {
-                userProfile.emailSettings = {};
-            }
-            Object.assign(userProfile.emailSettings, updates.emailSettings);
-            userProfile.markModified('emailSettings');
+            console.log("🟢 [API] Updating emailSettings...");
+            console.log("🟢 [API] New emailSettings:", JSON.stringify(updates.emailSettings, null, 2));
+
+            // Set the entire emailSettings object at once (not dot notation)
+            // This ensures the nested object is created if it doesn't exist
+            updateOps["emailSettings"] = {
+                emailProvider: updates.emailSettings.emailProvider || "gmail",
+                emailUser: updates.emailSettings.emailUser || "",
+                emailPassword: updates.emailSettings.emailPassword || "",
+                fromName: updates.emailSettings.fromName || "",
+                smtpHost: updates.emailSettings.smtpHost || "",
+                smtpPort: updates.emailSettings.smtpPort || 587,
+                smtpSecure: updates.emailSettings.smtpSecure || false,
+                sendConfirmationToAttendee: updates.emailSettings.sendConfirmationToAttendee !== false,
+                sendNotificationToHost: updates.emailSettings.sendNotificationToHost !== false,
+                sendReminders: updates.emailSettings.sendReminders !== false,
+                reminderHoursBefore: updates.emailSettings.reminderHoursBefore || [24, 1]
+            };
+
+            console.log("🟢 [API] Built emailSettings update (full object):", JSON.stringify(updateOps["emailSettings"], null, 2));
             delete updates.emailSettings;
         }
 
         // Handle notifications separately (nested object)
         if (updates.notifications) {
-            if (!userProfile.notifications) {
-                userProfile.notifications = {};
-            }
-            Object.assign(userProfile.notifications, updates.notifications);
-            userProfile.markModified('notifications');
+            console.log("🟢 [API] Updating notifications...");
+            Object.keys(updates.notifications).forEach(key => {
+                updateOps[`notifications.${key}`] = updates.notifications[key];
+            });
             delete updates.notifications;
         }
 
-        // Apply other updates
-        Object.assign(userProfile, updates);
-        userProfile.updatedAt = new Date();
-        await userProfile.save();
+        // Handle googleCalendar updates (if any)
+        if (updates.googleCalendar) {
+            console.log("🟢 [API] Updating googleCalendar...");
+            Object.keys(updates.googleCalendar).forEach(key => {
+                updateOps[`googleCalendar.${key}`] = updates.googleCalendar[key];
+            });
+            delete updates.googleCalendar;
+        }
+
+        // Add any remaining root-level updates
+        Object.assign(updateOps, updates);
+        updateOps.updatedAt = new Date();
+
+        console.log("🟢 [API] Final update operations:", JSON.stringify(updateOps, null, 2));
+        console.log("🟢 [API] Updating profile in database using $set...");
+
+        // Use updateOne with $set for reliable nested object updates
+        await UserProfile.updateOne(
+            { userId },
+            { $set: updateOps }
+        );
+
+        // Fetch the updated profile to return
+        const updatedProfile = await UserProfile.findOne({ userId });
 
         return NextResponse.json({
             success: true,
-            profile: userProfile,
-            bookingLink: `/book/${userProfile.username}`,
+            profile: updatedProfile,
+            bookingLink: `/book/${updatedProfile.username}`,
             message: "Profile updated successfully",
         });
     } catch (error) {

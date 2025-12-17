@@ -123,8 +123,11 @@ export default function AppointmentDashboard() {
 
     useEffect(() => {
         if (profile) {
+            console.log("🔄 [FRONTEND] Profile changed, updating form");
+            console.log("🔄 [FRONTEND] Profile emailSettings:", (profile as any).emailSettings);
+
             const p = profile as any;
-            setProfileForm({
+            const newFormData = {
                 displayName: profile.displayName || "",
                 username: profile.username || "",
                 bio: profile.bio || "",
@@ -144,27 +147,45 @@ export default function AppointmentDashboard() {
                 sendConfirmationToAttendee: p.emailSettings?.sendConfirmationToAttendee !== false,
                 sendNotificationToHost: p.emailSettings?.sendNotificationToHost !== false,
                 sendReminders: p.emailSettings?.sendReminders !== false
+            };
+
+            console.log("🔄 [FRONTEND] New form emailSettings:", {
+                emailProvider: newFormData.emailProvider,
+                emailUser: newFormData.emailUser,
+                fromName: newFormData.fromName
             });
+
+            setProfileForm(newFormData);
         }
     }, [profile]);
 
     const fetchData = async () => {
         setLoading(true);
         try {
+            console.log("🔄 [FRONTEND] Fetching profile data for userId:", userId);
+
             // First ensure profile exists
             let profileRes = await fetch(`/api/scheduling/profile?userId=${userId}`);
             let profileData = await profileRes.json();
 
+            console.log("🔄 [FRONTEND] Profile fetch response:", profileData);
+
             if (!profileData.success || !profileData.profile) {
+                console.log("🔄 [FRONTEND] Profile not found, creating new profile...");
                 const createRes = await fetch("/api/scheduling/profile", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ userId, email: user?.email || userId })
                 });
                 profileData = await createRes.json();
+                console.log("🔄 [FRONTEND] New profile created:", profileData);
             }
 
-            if (profileData.success) setProfile(profileData.profile);
+            if (profileData.success) {
+                console.log("🔄 [FRONTEND] Setting profile state");
+                console.log("🔄 [FRONTEND] Profile emailSettings:", profileData.profile?.emailSettings);
+                setProfile(profileData.profile);
+            }
 
             const [eventsRes, bookingsRes] = await Promise.all([
                 fetch(`/api/scheduling/event-types?userId=${userId}`),
@@ -1357,7 +1378,9 @@ export default function AppointmentDashboard() {
                                                     });
                                                     const data = await res.json();
                                                     if (data.success) {
+                                                        setProfile(data.profile);
                                                         toast.success("Email settings saved!");
+                                                        await fetchData();
                                                     } else {
                                                         toast.error(data.error || "Failed to save email settings");
                                                     }
