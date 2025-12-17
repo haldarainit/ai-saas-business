@@ -268,7 +268,7 @@ function PresentationsContent() {
             if (data.workspace) {
                 setPrompt(data.workspace.prompt || "");
                 setSlideCount(data.workspace.slideCount || 8);
-                setTheme(data.workspace.theme || "modern");
+                setTheme(data.workspace.theme || "warmCoral");
 
                 if (data.workspace.presentation) {
                     setData(data.workspace.presentation);
@@ -725,7 +725,7 @@ function PresentationsContent() {
         }
     };
 
-    const selectedTheme = THEMES.find(t => t.id === theme)!;
+    const selectedTheme = THEMES.find(t => t.id === theme) || THEMES[0];
 
     // Show Dashboard if no workspace selected and not creating new
     const isCreatingNew = searchParams.get("new") === "true";
