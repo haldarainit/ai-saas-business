@@ -6,15 +6,31 @@ const API_KEY = process.env.GOOGLE_API_KEY;
 // See: https://www.npmjs.com/package/@google/genai
 const genAI = new GoogleGenAI({ apiKey: API_KEY });
 
-// Available models in order of preference
+// Available models in order of preference (models that support generateContent)
+// Ordered with lite/newer models first as they typically have better quota availability
 const AVAILABLE_MODELS = [
-  "gemini-2.0-flash", // User confirmed available
-  "gemini-2.0-flash-exp",
-  "gemini-1.5-flash",
-  "gemini-1.5-flash-latest", // Added alias
-  "gemini-1.5-pro-latest", // Added alias
-  "gemini-1.5-pro",
-  "gemini-1.0-pro",
+  // Latest stable releases
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-2.5-flash-lite",
+  // Flash versions (fast)
+  // "gemini-flash-latest",
+  // "gemini-flash-lite-latest",
+  // "gemini-pro-latest",
+  // // 2.0 versions
+  // "gemini-2.0-flash",
+  // "gemini-2.0-flash-001",
+  // "gemini-2.0-flash-exp",
+  // "gemini-2.0-flash-lite",
+  // "gemini-2.0-flash-lite-001",
+  // // Experimental/Preview
+  // "gemini-exp-1206",
+  // "gemini-3-pro-preview",
+  // // Gemma models (open source, may have different quotas)
+  // "gemma-3-27b-it",
+  // "gemma-3-12b-it",
+  // "gemma-3-4b-it",
+  // "gemma-3-1b-it",
 ];
 
 // Helper to normalize text from different SDK response shapes
@@ -51,9 +67,8 @@ function extractText(result) {
 
 async function getWorkingModelName() {
   if (!API_KEY) {
-    throw new Error(
-      "Google API key is not configured. Please set GOOGLE_API_KEY in your environment variables."
-    );
+    console.warn("Google API key is not configured");
+    return null;
   }
 
   for (const modelName of AVAILABLE_MODELS) {
@@ -71,20 +86,16 @@ async function getWorkingModelName() {
     } catch (error) {
       // Check for quota exhausted specifically
       if (error.status === 429 || (error.message && error.message.includes("quota"))) {
-        console.warn(`Model ${modelName} quota exhausted:`, error.message);
-        // If it's a quota error, we might want to try other models, 
-        // or if all fail, propagate this specific error.
-        // For now continue to try finding a working model.
+        // Silently continue to next model
         continue;
       }
-      console.warn(`Model ${modelName} not available:`, error.message);
+      // Silently continue for other errors too
       continue;
     }
   }
-  // If we get here, no model worked. Throw a clearer error.
-  throw new Error(
-    "AI_QUOTA_EXHAUSTED" // Specific code we can check for
-  );
+  // If we get here, no model worked. Return null instead of throwing
+  console.log("AI temporarily unavailable - all models exhausted or unavailable");
+  return null;
 }
 
 // Helper for exponential backoff retries
@@ -122,10 +133,15 @@ async function retryWithBackoff(fn, retries = 3, baseDelay = 2000) {
 export async function generateAIResponse(prompt) {
   try {
     if (!API_KEY) {
-      throw new Error("Google API key is not configured");
+      return null; // Return null instead of throwing - caller will use fallback
     }
 
     const modelName = await getWorkingModelName();
+
+    // If no model is available, return null (caller should use fallback)
+    if (!modelName) {
+      return null;
+    }
 
     const result = await retryWithBackoff(async () => {
       return await genAI.models.generateContent({
@@ -135,27 +151,15 @@ export async function generateAIResponse(prompt) {
     });
 
     const text = extractText(result);
-    console.log(text);
-
-    return text;
+    return text || null;
   } catch (error) {
-    console.error("Error generating AI response:", error);
-
-    // Provide specific error messages
-    if (error.message && error.message.includes("API key")) {
-      return "Error: Invalid or missing API key. Please configure your Google AI API key.";
+    // Don't spam console with quota errors
+    if (error.status !== 429 && !error.message?.includes("quota")) {
+      console.error("Error generating AI response:", error.message);
     }
 
-    // Pass detailed error info
-    if (error.message === "AI_QUOTA_EXHAUSTED" || error.status === 429 || (error.message && error.message.includes("quota"))) {
-      return "AI_QUOTA_EXCEEDED"; // Special string to detect on client
-    }
-
-    if (error.status === 503 || (error.message && error.message.includes("overloaded"))) {
-      return "Error: The AI model is currently overloaded. Please try again in a few moments.";
-    }
-
-    return `Error: ${error.message || "An unexpected error occurred while generating content."}`;
+    // Return null for all errors - caller will use fallback
+    return null;
   }
 }
 
