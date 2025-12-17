@@ -1624,21 +1624,6 @@ export default function TechnoQuotationPage() {
 
             {/* Print Styles */}
             <style jsx global>{`
-                @media print {
-                    .no-print {
-                        display: none !important;
-                    }
-                    
-                    .page {
-                        page-break-after: always;
-                        page-break-inside: avoid;
-                    }
-                    
-                    .page:last-child {
-                        page-break-after: auto;
-                    }
-                }
-
                 .quotation-container {
                     max-width: 210mm;
                     margin: 0 auto;
@@ -1690,7 +1675,7 @@ export default function TechnoQuotationPage() {
 
                 /* Force light theme INSIDE the printable quotation pages so PDFs/print view stay consistent */
                 .page, .page *:not(.watermark-overlay):not(.watermark-text):not(.watermark-logo):not(.watermark-logo img) {
-                    color: #0f172a !important; /* dark text */
+                    color: #1a1a1a !important; /* darker text for professional look */
                 }
 
                 .page {
@@ -1707,19 +1692,19 @@ export default function TechnoQuotationPage() {
                 .page .section-title,
                 .page .main-title {
                     background: white !important;
-                    color: #0f172a !important;
-                    border-color: #d1d5db !important;
+                    color: #1a1a1a !important;
+                    border-color: #e5e7eb !important;
                 }
 
-                /* Tables headers remain green with white text */
+                /* Tables headers - dark professional look */
                 .page .data-table th {
-                    background: #10b981 !important;
+                    background: #374151 !important;
                     color: #ffffff !important;
                 }
 
                 /* Subtle adjustments for footer / meta text */
                 .page .footer {
-                    color: #6b7280 !important;
+                    color: #4b5563 !important;
                 }
 
                 /* Ensure interactive control areas (no-print) still follow theme, but printed pages remain light */
@@ -1733,9 +1718,9 @@ export default function TechnoQuotationPage() {
                     display: flex;
                     justify-content: space-between;
                     align-items: flex-start;
-                    padding-bottom: 10px;
-                    border-bottom: 2px solid #10b981;
-                    margin-bottom: 15px;
+                    padding-bottom: 12px;
+                    border-bottom: 1px solid #1a1a1a;
+                    margin-bottom: 20px;
                     position: relative;
                     z-index: 2;
                 }
@@ -1743,37 +1728,39 @@ export default function TechnoQuotationPage() {
                 .logo-section {
                     display: flex;
                     align-items: center;
-                    gap: 10px;
+                    gap: 12px;
                 }
 
                 .logo-circle {
-                    width: 50px;
-                    height: 50px;
+                    width: 60px;
+                    height: 60px;
                     border-radius: 50%;
-                    background: linear-gradient(135deg, #10b981, #14b8a6);
+                    background: #2563eb;
                     color: white;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 24px;
+                    font-size: 28px;
                     font-weight: bold;
                 }
 
                 .logo-image {
-                    width: 50px;
-                    height: 50px;
+                    width: 70px;
+                    height: 70px;
                     object-fit: contain;
                 }
 
                 .company-name-field {
-                    font-size: 14px;
+                    font-size: 16px;
                     font-weight: bold;
-                    color: #10b981;
+                    color: #1a1a1a;
                 }
 
                 .header-info {
                     text-align: right;
                     font-size: 10px;
+                    line-height: 1.5;
+                    color: #374151;
                 }
 
                 .header-info p {
@@ -1781,24 +1768,26 @@ export default function TechnoQuotationPage() {
                 }
 
                 .main-title {
-                    text-align: center;
-                    font-size: 18px;
+                    text-align: left;
+                    font-size: 14px;
                     font-weight: bold;
-                    color: #10b981;
-                    margin: 15px 0;
-                    padding: 10px;
-                    background: linear-gradient(135deg, #f0fdf4, #ccfbf1);
-                    border-radius: 8px;
+                    color: #1a1a1a;
+                    margin: 15px 0 10px 0;
+                    padding: 0;
+                    background: transparent;
+                    border-radius: 0;
+                    text-decoration: underline;
                     position: relative;
                     z-index: 2;
                 }
 
                 .main-title-field {
-                    text-align: center;
+                    text-align: left;
                     width: 100%;
-                    font-size: 18px;
+                    font-size: 14px;
                     font-weight: bold;
-                    color: #10b981;
+                    color: #1a1a1a;
+                    background: transparent;
                 }
 
                 .page-content {
@@ -1828,7 +1817,7 @@ export default function TechnoQuotationPage() {
 
                 .section-wrapper {
                     position: relative;
-                    margin-bottom: 15px;
+                    margin-bottom: 12px;
                 }
 
                 .section-controls {
@@ -1848,55 +1837,63 @@ export default function TechnoQuotationPage() {
                 }
 
                 .section-title {
-                    font-size: 14px;
+                    font-size: 12px;
                     font-weight: bold;
-                    color: #10b981;
-                    margin: 10px 0;
-                    padding: 8px;
-                    background: #f0fdf4;
-                    border-left: 4px solid #10b981;
+                    color: #1a1a1a;
+                    margin: 12px 0 8px 0;
+                    padding: 0;
+                    background: transparent;
+                    border-left: none;
+                    text-decoration: underline;
                 }
 
                 .section-title-field {
                     width: 100%;
-                    font-size: 14px;
+                    font-size: 12px;
                     font-weight: bold;
-                    color: #10b981;
+                    color: #1a1a1a;
                     background: transparent;
                 }
 
                 .text-section {
-                    margin: 10px 0;
+                    margin: 8px 0;
                     font-size: 11px;
+                    line-height: 1.6;
+                    text-align: justify;
                 }
 
                 .list-section {
-                    margin: 10px 0;
+                    margin: 8px 0;
                 }
 
                 .section-heading {
-                    font-size: 12px;
+                    font-size: 11px;
                     font-weight: bold;
-                    margin-bottom: 8px;
-                    color: #059669;
+                    margin-bottom: 6px;
+                    color: #1a1a1a;
                 }
 
                 .section-heading-field {
                     width: 100%;
-                    font-size: 12px;
+                    font-size: 11px;
                     font-weight: bold;
-                    color: #059669;
+                    color: #1a1a1a;
                     background: transparent;
                 }
 
                 .list-section ul {
-                    margin-left: 20px;
+                    margin-left: 25px;
                     font-size: 11px;
+                    line-height: 1.6;
+                }
+
+                .list-section ul li {
+                    margin-bottom: 4px;
                 }
 
                 .list-item-wrapper {
                     position: relative;
-                    margin: 5px 0;
+                    margin: 4px 0;
                 }
 
                 .delete-item-btn {
@@ -1917,7 +1914,7 @@ export default function TechnoQuotationPage() {
                 }
 
                 .table-section {
-                    margin: 10px 0;
+                    margin: 12px 0;
                 }
 
                 .table-controls {
@@ -1930,19 +1927,25 @@ export default function TechnoQuotationPage() {
                     width: 100%;
                     border-collapse: collapse;
                     font-size: 10px;
-                    margin-bottom: 10px;
+                    margin-bottom: 12px;
                 }
 
                 .data-table th,
                 .data-table td {
-                    border: 1px solid #d1d5db;
-                    padding: 6px;
+                    border: 1px solid #1a1a1a;
+                    padding: 8px 10px;
                 }
 
                 .data-table th {
-                    background: #10b981;
+                    background: #374151;
                     color: white;
                     font-weight: bold;
+                    text-align: center;
+                }
+
+                .data-table td {
+                    background: white;
+                    vertical-align: top;
                 }
 
                 .th-content {
@@ -1994,24 +1997,25 @@ export default function TechnoQuotationPage() {
 
                 .footer {
                     margin-top: auto;
-                    padding-top: 10px;
-                    border-top: 2px solid #10b981;
-                    font-size: 9px;
+                    padding-top: 12px;
+                    border-top: 1px solid #374151;
+                    font-size: 8px;
                     text-align: center;
-                    color: #6b7280;
+                    color: #374151;
                     position: relative;
                     z-index: 2;
+                    line-height: 1.5;
                 }
 
                 .footer p {
-                    margin: 3px 0;
+                    margin: 2px 0;
                 }
 
                 .footer-field {
                     width: 100%;
                     text-align: center;
-                    font-size: 9px;
-                    color: #6b7280;
+                    font-size: 8px;
+                    color: #374151;
                 }
 
                 .editable-field {
@@ -2048,45 +2052,334 @@ export default function TechnoQuotationPage() {
                     font-weight: bold;
                 }
 
+                /* Page size for printing */
+                @page {
+                    size: A4 portrait;
+                    margin: 0;
+                }
+
                 @media print {
-                    body {
-                        margin: 0;
-                        padding: 0;
+                    /* Reset everything */
+                    * {
+                        box-sizing: border-box !important;
                     }
 
+                    html, body {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: white !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        width: 210mm !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                    }
+
+                    /* Hide all non-print elements */
+                    .no-print,
+                    .page-controls,
+                    .control-buttons,
+                    .section-controls,
+                    .delete-section-btn,
+                    .delete-item-btn,
+                    .delete-column-btn,
+                    .delete-row-btn,
+                    .table-controls,
+                    .overflow-warning,
+                    button,
+                    label[for="logo-upload"],
+                    label[for="watermark-logo-upload"],
+                    input[type="file"],
+                    nav,
+                    footer:not(.footer) {
+                        display: none !important;
+                        visibility: hidden !important;
+                        height: 0 !important;
+                        width: 0 !important;
+                        overflow: hidden !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        position: absolute !important;
+                        left: -9999px !important;
+                    }
+
+                    /* Container adjustments */
                     .quotation-container {
-                        padding: 0;
-                        max-width: none;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        max-width: none !important;
+                        width: 100% !important;
+                        background: white !important;
                     }
 
+                    /* Page layout - keep footer at bottom */
                     .page {
-                        width: 210mm;
-                        height: 297mm;
-                        margin: 0;
-                        padding: 15mm;
-                        box-shadow: none;
-                        page-break-after: always;
+                        width: 210mm !important;
+                        min-height: 297mm !important;
+                        height: 297mm !important;
+                        max-height: 297mm !important;
+                        margin: 0 !important;
+                        padding: 12mm 15mm !important;
+                        box-shadow: none !important;
+                        page-break-after: always !important;
+                        page-break-inside: avoid !important;
+                        break-after: page !important;
+                        break-inside: avoid !important;
+                        background: white !important;
+                        position: relative !important;
+                        overflow: hidden !important;
+                        display: flex !important;
+                        flex-direction: column !important;
                     }
 
                     .page:last-child {
-                        page-break-after: auto;
+                        page-break-after: auto !important;
+                        break-after: auto !important;
                     }
 
-                    .editable-field {
+                    /* Page content - keep flex behavior for footer positioning */
+                    .page-content {
+                        flex: 1 !important;
+                        display: block !important;
+                        overflow: visible !important;
+                    }
+
+                    /* Footer - stays at bottom with margin-top: auto */
+                    .footer {
+                        margin-top: auto !important;
+                        flex-shrink: 0 !important;
+                    }
+
+                    /* Make all inputs look like regular text */
+                    .page input,
+                    .page textarea,
+                    .page .editable-field {
                         border: none !important;
                         background: transparent !important;
-                        padding: 0;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        outline: none !important;
+                        box-shadow: none !important;
+                        -webkit-appearance: none !important;
+                        appearance: none !important;
+                        resize: none !important;
+                        font-family: inherit !important;
+                        color: inherit !important;
                     }
 
-                    input, textarea {
-                        border: none !important;
+                    /* Hide placeholder text in print */
+                    .page input::placeholder,
+                    .page textarea::placeholder {
+                        color: transparent !important;
+                        opacity: 0 !important;
+                    }
+
+                    .page input::-webkit-input-placeholder,
+                    .page textarea::-webkit-input-placeholder {
+                        color: transparent !important;
+                        opacity: 0 !important;
+                    }
+
+                    /* Header styling */
+                    .header {
+                        border-bottom: 1px solid #1a1a1a !important;
+                        padding-bottom: 12px !important;
+                        margin-bottom: 20px !important;
+                    }
+
+                    .logo-image {
+                        width: 70px !important;
+                        height: 70px !important;
+                        object-fit: contain !important;
+                    }
+
+                    .company-name-field {
+                        font-size: 16px !important;
+                        font-weight: bold !important;
+                        color: #1a1a1a !important;
+                    }
+
+                    .header-info {
+                        font-size: 9px !important;
+                        line-height: 1.5 !important;
+                        color: #374151 !important;
+                    }
+
+                    /* Main title styling */
+                    .main-title {
+                        text-align: left !important;
+                        margin: 15px 0 10px 0 !important;
+                        padding: 0 !important;
                         background: transparent !important;
+                        border-radius: 0 !important;
+                        text-decoration: underline !important;
                     }
 
-                    /* Ensure watermark is visible in print */
+                    .main-title-field {
+                        font-size: 13px !important;
+                        font-weight: bold !important;
+                        color: #1a1a1a !important;
+                        text-align: left !important;
+                    }
+
+                    /* Section styling */
+                    .section-wrapper {
+                        margin-bottom: 10px !important;
+                    }
+
+                    .section-title {
+                        font-size: 11px !important;
+                        font-weight: bold !important;
+                        color: #1a1a1a !important;
+                        padding: 0 !important;
+                        margin: 10px 0 6px 0 !important;
+                        background: transparent !important;
+                        border-left: none !important;
+                        text-decoration: underline !important;
+                    }
+
+                    .section-title-field {
+                        font-size: 11px !important;
+                        font-weight: bold !important;
+                    }
+
+                    .section-heading {
+                        font-size: 10px !important;
+                        font-weight: bold !important;
+                        color: #1a1a1a !important;
+                        margin-bottom: 4px !important;
+                    }
+
+                    /* Text sections */
+                    .text-section {
+                        font-size: 10px !important;
+                        line-height: 1.6 !important;
+                        margin: 6px 0 !important;
+                        text-align: justify !important;
+                    }
+
+                    /* List sections */
+                    .list-section ul {
+                        margin-left: 20px !important;
+                        padding-left: 0 !important;
+                        font-size: 10px !important;
+                        line-height: 1.6 !important;
+                    }
+
+                    .list-section li {
+                        margin: 3px 0 !important;
+                    }
+
+                    .list-item-wrapper {
+                        margin: 3px 0 !important;
+                    }
+
+                    /* Table styling */
+                    .table-section {
+                        margin: 10px 0 !important;
+                    }
+
+                    .data-table {
+                        width: 100% !important;
+                        border-collapse: collapse !important;
+                        font-size: 9px !important;
+                        margin-bottom: 10px !important;
+                    }
+
+                    .data-table th {
+                        background: #374151 !important;
+                        color: white !important;
+                        font-weight: bold !important;
+                        padding: 6px 8px !important;
+                        border: 1px solid #1a1a1a !important;
+                        text-align: center !important;
+                    }
+
+                    .data-table td {
+                        border: 1px solid #1a1a1a !important;
+                        padding: 5px 8px !important;
+                        background: white !important;
+                        vertical-align: top !important;
+                    }
+
+                    .table-header-field {
+                        color: white !important;
+                        font-weight: bold !important;
+                        text-align: center !important;
+                    }
+
+                    .table-cell-field {
+                        font-size: 9px !important;
+                    }
+
+                    /* Remove row delete column space */
+                    .data-table td:last-child:empty {
+                        display: none !important;
+                    }
+
+                    /* Footer styling */
+                    .footer {
+                        margin-top: auto !important;
+                        padding-top: 10px !important;
+                        border-top: 1px solid #374151 !important;
+                        font-size: 7px !important;
+                        text-align: center !important;
+                        color: #374151 !important;
+                        line-height: 1.5 !important;
+                    }
+
+                    .footer p {
+                        margin: 2px 0 !important;
+                    }
+
+                    .footer-field {
+                        font-size: 8px !important;
+                        text-align: center !important;
+                    }
+
+                    /* Watermark visibility - ensure it appears on ALL pages */
                     .watermark-overlay {
                         display: block !important;
+                        visibility: visible !important;
+                        position: absolute !important;
+                        top: 50% !important;
+                        left: 50% !important;
+                        transform: translate(-50%, -50%) !important;
+                        z-index: 0 !important;
+                        pointer-events: none !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        color-adjust: exact !important;
+                    }
+
+                    .watermark-text {
+                        font-weight: bold !important;
+                        text-transform: uppercase !important;
+                        letter-spacing: 0.1em !important;
+                        white-space: nowrap !important;
                         opacity: 1 !important;
+                        visibility: visible !important;
+                    }
+
+                    .watermark-logo {
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                    }
+
+                    .watermark-logo img {
+                        max-width: 100% !important;
+                        max-height: 100% !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                    }
+
+                    /* Ensure content is above watermark */
+                    .page-content,
+                    .header,
+                    .main-title,
+                    .footer {
+                        position: relative !important;
+                        z-index: 1 !important;
                     }
                 }
             `}</style>
