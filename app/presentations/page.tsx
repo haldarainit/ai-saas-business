@@ -1459,7 +1459,14 @@ function PresentationsContent() {
                                                                 <Input
                                                                     value={data.slides[activeSlide].title}
                                                                     onChange={(e) => updatePreviewSlide(activeSlide, 'title', e.target.value)}
-                                                                    className="text-lg font-semibold bg-white shadow-lg"
+                                                                    className="text-lg font-semibold shadow-lg text-slate-800 focus:ring-0 focus:outline-none focus:ring-offset-0"
+                                                                    style={{
+                                                                        backgroundColor: 'white',
+                                                                        borderColor: selectedTheme.colors.secondary,
+                                                                        borderWidth: '2px',
+                                                                        outline: 'none',
+                                                                        boxShadow: 'none'
+                                                                    }}
                                                                     autoFocus
                                                                     onBlur={() => setEditingField(null)}
                                                                     onKeyDown={(e) => e.key === 'Enter' && setEditingField(null)}
@@ -1467,7 +1474,8 @@ function PresentationsContent() {
                                                                 <Button
                                                                     size="sm"
                                                                     onClick={() => setEditingField(null)}
-                                                                    className="bg-green-600 hover:bg-green-700"
+                                                                    className="text-white"
+                                                                    style={{ backgroundColor: selectedTheme.colors.primary }}
                                                                 >
                                                                     <Check className="w-4 h-4" />
                                                                 </Button>
@@ -1594,7 +1602,11 @@ function PresentationsContent() {
                                                         initial={{ opacity: 0, y: 20 }}
                                                         animate={{ opacity: 1, y: 0 }}
                                                         exit={{ opacity: 0, y: 20 }}
-                                                        className="mt-4 bg-white dark:bg-slate-800 rounded-xl shadow-xl border p-4"
+                                                        className="mt-4 rounded-xl shadow-xl p-4"
+                                                        style={{
+                                                            backgroundColor: selectedTheme.colors.bg,
+                                                            border: `2px solid ${selectedTheme.colors.accent}40`
+                                                        }}
                                                     >
                                                         <div className="flex items-center justify-between mb-4">
                                                             <h4 className="font-semibold flex items-center gap-2">
@@ -1613,7 +1625,12 @@ function PresentationsContent() {
                                                         <div className="space-y-3">
                                                             {(data.slides[activeSlide].content || []).map((point, j) => (
                                                                 <div key={j} className="flex items-start gap-2">
-                                                                    <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-medium flex-shrink-0 mt-1">
+                                                                    <span
+                                                                        className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1 text-white"
+                                                                        style={{
+                                                                            background: `linear-gradient(135deg, ${selectedTheme.colors.primary} 0%, ${selectedTheme.colors.secondary} 100%)`
+                                                                        }}
+                                                                    >
                                                                         {j + 1}
                                                                     </span>
                                                                     <Textarea
@@ -1623,7 +1640,14 @@ function PresentationsContent() {
                                                                             newContent[j] = e.target.value;
                                                                             updatePreviewSlide(activeSlide, 'content', newContent);
                                                                         }}
-                                                                        className="flex-1 min-h-[60px] text-sm"
+                                                                        className="flex-1 min-h-[60px] text-sm text-slate-800 focus:ring-0 focus:outline-none focus:ring-offset-0"
+                                                                        style={{
+                                                                            backgroundColor: 'white',
+                                                                            borderColor: selectedTheme.colors.secondary,
+                                                                            borderWidth: '2px',
+                                                                            outline: 'none',
+                                                                            boxShadow: 'none'
+                                                                        }}
                                                                         placeholder={`Point ${j + 1}`}
                                                                     />
                                                                     <Button
@@ -1644,6 +1668,11 @@ function PresentationsContent() {
                                                                 variant="outline"
                                                                 size="sm"
                                                                 className="w-full mt-2"
+                                                                style={{
+                                                                    backgroundColor: 'white',
+                                                                    borderColor: selectedTheme.colors.secondary,
+                                                                    color: selectedTheme.colors.primary
+                                                                }}
                                                                 onClick={() => {
                                                                     const newContent = [...(data.slides[activeSlide].content || []), 'New point'];
                                                                     updatePreviewSlide(activeSlide, 'content', newContent);
@@ -1654,11 +1683,26 @@ function PresentationsContent() {
                                                             </Button>
                                                         </div>
 
-                                                        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-                                                            <Button variant="outline" onClick={() => setEditingField(null)}>
+                                                        <div
+                                                            className="flex justify-end gap-2 mt-4 pt-4"
+                                                            style={{ borderTop: `1px solid ${selectedTheme.colors.accent}30` }}
+                                                        >
+                                                            <Button
+                                                                variant="outline"
+                                                                onClick={() => setEditingField(null)}
+                                                                style={{
+                                                                    backgroundColor: 'white',
+                                                                    borderColor: selectedTheme.colors.secondary,
+                                                                    color: selectedTheme.colors.primary
+                                                                }}
+                                                            >
                                                                 Cancel
                                                             </Button>
-                                                            <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setEditingField(null)}>
+                                                            <Button
+                                                                className="text-white"
+                                                                style={{ backgroundColor: selectedTheme.colors.primary }}
+                                                                onClick={() => setEditingField(null)}
+                                                            >
                                                                 <Check className="w-4 h-4 mr-2" />
                                                                 Done
                                                             </Button>
@@ -1675,8 +1719,11 @@ function PresentationsContent() {
                                                         <div key={i} className="relative group">
                                                             <button
                                                                 onClick={() => setActiveSlide(i)}
-                                                                className={`w-full aspect-video rounded-lg overflow-hidden border-2 transition-all ${activeSlide === i ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200 hover:border-slate-400'
-                                                                    }`}
+                                                                className={`w-full aspect-video rounded-lg overflow-hidden border-2 transition-all ${activeSlide === i ? 'ring-2' : 'border-slate-200 hover:border-slate-400'}`}
+                                                                style={activeSlide === i ? {
+                                                                    borderColor: selectedTheme.colors.primary,
+                                                                    boxShadow: `0 0 0 2px ${selectedTheme.colors.accent}40`
+                                                                } : undefined}
                                                             >
                                                                 <div className="w-full h-full scale-[0.25] origin-top-left" style={{ width: '400%', height: '400%' }}>
                                                                     <SlidePreview
