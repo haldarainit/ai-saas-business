@@ -8,10 +8,13 @@ const genAI = new GoogleGenAI({ apiKey: API_KEY });
 
 // Available models in order of preference
 const AVAILABLE_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
+  "gemini-2.0-flash", // User confirmed available
+  "gemini-2.0-flash-exp",
   "gemini-1.5-flash",
+  "gemini-1.5-flash-latest", // Added alias
+  "gemini-1.5-pro-latest", // Added alias
   "gemini-1.5-pro",
+  "gemini-1.0-pro",
 ];
 
 // Helper to normalize text from different SDK response shapes
@@ -66,12 +69,21 @@ async function getWorkingModelName() {
         return modelName;
       }
     } catch (error) {
+      // Check for quota exhausted specifically
+      if (error.status === 429 || (error.message && error.message.includes("quota"))) {
+        console.warn(`Model ${modelName} quota exhausted:`, error.message);
+        // If it's a quota error, we might want to try other models, 
+        // or if all fail, propagate this specific error.
+        // For now continue to try finding a working model.
+        continue;
+      }
       console.warn(`Model ${modelName} not available:`, error.message);
       continue;
     }
   }
+  // If we get here, no model worked. Throw a clearer error.
   throw new Error(
-    "No available Gemini models found. Please check your API key and permissions."
+    "AI_QUOTA_EXHAUSTED" // Specific code we can check for
   );
 }
 
@@ -83,8 +95,16 @@ async function retryWithBackoff(fn, retries = 3, baseDelay = 2000) {
     } catch (error) {
       const isOverloaded =
         error.status === 503 ||
-        (error.message && error.message.toLowerCase().includes("overloaded")) ||
+        (error.message && error.message.toLowerCase().includes("overloaded"));
+
+      // Don't retry on quota errors, fail fast or switch models (handled in getWorkingModel)
+      const isQuota =
+        error.status === 429 ||
         (error.message && error.message.toLowerCase().includes("quota"));
+
+      if (isQuota) {
+        throw error;
+      }
 
       if (!isOverloaded || i === retries - 1) {
         throw error;
@@ -124,6 +144,11 @@ export async function generateAIResponse(prompt) {
     // Provide specific error messages
     if (error.message && error.message.includes("API key")) {
       return "Error: Invalid or missing API key. Please configure your Google AI API key.";
+    }
+
+    // Pass detailed error info
+    if (error.message === "AI_QUOTA_EXHAUSTED" || error.status === 429 || (error.message && error.message.includes("quota"))) {
+      return "AI_QUOTA_EXCEEDED"; // Special string to detect on client
     }
 
     if (error.status === 503 || (error.message && error.message.includes("overloaded"))) {

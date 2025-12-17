@@ -110,6 +110,10 @@ export default function AppointmentDashboard() {
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [showBookingDetails, setShowBookingDetails] = useState(false);
 
+    // AI Insights state
+    const [aiInsights, setAiInsights] = useState<Array<{ type: string; title: string; message: string }>>([]);
+    const [loadingInsights, setLoadingInsights] = useState(false);
+
     const userId = user?.email || user?.id || "";
 
     useEffect(() => {
@@ -438,6 +442,7 @@ export default function AppointmentDashboard() {
                         <TabsTrigger value="bookings"><Calendar className="w-4 h-4 mr-2" />Bookings</TabsTrigger>
                         <TabsTrigger value="calendar"><CalendarDays className="w-4 h-4 mr-2" />Calendar</TabsTrigger>
                         <TabsTrigger value="event-types"><Link2 className="w-4 h-4 mr-2" />Event Types & Links</TabsTrigger>
+                        <TabsTrigger value="ai-insights" className="bg-gradient-to-r from-purple-500/10 to-pink-500/10">✨ AI Insights</TabsTrigger>
                         <TabsTrigger value="settings"><User className="w-4 h-4 mr-2" />Settings</TabsTrigger>
                     </TabsList>
 
@@ -794,6 +799,179 @@ export default function AppointmentDashboard() {
                                 <CardContent className="p-6 flex flex-col items-center justify-center h-full min-h-[200px]">
                                     <Plus className="w-12 h-12 text-muted-foreground mb-2" />
                                     <p className="text-muted-foreground">Create Event Type</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </TabsContent>
+
+                    {/* AI Insights Tab */}
+                    <TabsContent value="ai-insights">
+                        <div className="grid lg:grid-cols-2 gap-6">
+                            {/* Booking Pattern Analysis */}
+                            <Card className="border-2 border-purple-200/50 dark:border-purple-800/50">
+                                <CardHeader className="bg-gradient-to-r from-purple-500/10 to-pink-500/10">
+                                    <CardTitle className="flex items-center gap-2">
+                                        ✨ AI Booking Insights
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6">
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        Analyze your booking patterns to get AI-powered insights and optimization suggestions.
+                                    </p>
+                                    <Button
+                                        variant="outline"
+                                        className="w-full mb-4"
+                                        disabled={loadingInsights}
+                                        onClick={async () => {
+                                            setLoadingInsights(true);
+                                            try {
+                                                const res = await fetch("/api/scheduling/ai", {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({
+                                                        action: "analyze-patterns",
+                                                        bookings: bookings,
+                                                        eventTypes: eventTypes
+                                                    })
+                                                });
+                                                const data = await res.json();
+
+                                                if (data.error === "AI_QUOTA_EXCEEDED") {
+                                                    toast.error("AI Quota Exceeded. Please try again later or upgrade your plan.", {
+                                                        duration: 5000,
+                                                        icon: "⏳"
+                                                    });
+                                                } else if (data.success && data.insights) {
+                                                    setAiInsights(data.insights);
+                                                    toast.success("AI analysis complete!");
+                                                } else {
+                                                    toast.error(data.error || "Analysis failed");
+                                                }
+                                            } catch (err) {
+                                                toast.error("Failed to analyze patterns");
+                                            } finally {
+                                                setLoadingInsights(false);
+                                            }
+                                        }}
+                                    >
+                                        {loadingInsights ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                        🔍 Analyze My Bookings
+                                    </Button>
+
+                                    {aiInsights.length > 0 && (
+                                        <div className="space-y-3">
+                                            {aiInsights.map((insight, i) => (
+                                                <div key={i} className={`p-4 rounded-lg border ${insight.type === 'trend' ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' :
+                                                    insight.type === 'suggestion' ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800' :
+                                                        insight.type === 'warning' ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800' :
+                                                            'bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800'
+                                                    }`}>
+                                                    <p className="font-semibold text-sm">{insight.title}</p>
+                                                    <p className="text-sm text-muted-foreground mt-1">{insight.message}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* AI Welcome Message Generator */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        🎯 AI Welcome Message
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6 space-y-4">
+                                    <p className="text-sm text-muted-foreground">
+                                        Generate an AI-powered welcome message for your booking page.
+                                    </p>
+                                    <div className="space-y-3">
+                                        <Input
+                                            placeholder="Your business type (e.g., Consulting, Photography)"
+                                            id="ai-business-type"
+                                        />
+                                        <Select defaultValue="professional">
+                                            <SelectTrigger id="ai-tone">
+                                                <SelectValue placeholder="Tone" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="professional">Professional</SelectItem>
+                                                <SelectItem value="friendly">Friendly & Casual</SelectItem>
+                                                <SelectItem value="formal">Formal</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full"
+                                            onClick={async () => {
+                                                const businessType = (document.getElementById("ai-business-type") as HTMLInputElement)?.value;
+                                                setSaving(true);
+                                                try {
+                                                    const res = await fetch("/api/scheduling/ai", {
+                                                        method: "POST",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({
+                                                            action: "generate-welcome",
+                                                            hostName: profile?.displayName || "Host",
+                                                            businessType: businessType || "Professional Services",
+                                                            tone: "professional"
+                                                        })
+                                                    });
+                                                    const data = await res.json();
+
+                                                    if (data.error === "AI_QUOTA_EXCEEDED") {
+                                                        toast.error("AI Quota Exceeded. Please try again later or upgrade your plan.", {
+                                                            duration: 5000,
+                                                            icon: "⏳"
+                                                        });
+                                                    } else if (data.success && data.message) {
+                                                        setProfileForm(prev => ({ ...prev, welcomeMessage: data.message }));
+                                                        toast.success("Welcome message generated! Go to Settings to save it.");
+                                                    } else {
+                                                        toast.error(data.error || "Generation failed");
+                                                    }
+                                                } catch (err) {
+                                                    toast.error("Failed to generate");
+                                                } finally {
+                                                    setSaving(false);
+                                                }
+                                            }}
+                                            disabled={saving}
+                                        >
+                                            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                            ✨ Generate Welcome Message
+                                        </Button>
+                                    </div>
+                                    {profileForm.welcomeMessage && (
+                                        <div className="p-4 bg-muted rounded-lg">
+                                            <p className="text-sm font-medium mb-1">Current Welcome Message:</p>
+                                            <p className="text-sm text-muted-foreground">{profileForm.welcomeMessage}</p>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* AI Features Overview */}
+                            <Card className="lg:col-span-2">
+                                <CardHeader>
+                                    <CardTitle>🤖 Available AI Features</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        {[
+                                            { icon: "📝", title: "Auto Description", desc: "Generate event descriptions with AI" },
+                                            { icon: "📊", title: "Pattern Analysis", desc: "Analyze booking trends & patterns" },
+                                            { icon: "👋", title: "Welcome Messages", desc: "Create engaging welcome text" },
+                                            { icon: "📧", title: "Follow-up Emails", desc: "Generate professional follow-ups" }
+                                        ].map((feature, i) => (
+                                            <div key={i} className="p-4 rounded-lg bg-muted/50 border">
+                                                <div className="text-2xl mb-2">{feature.icon}</div>
+                                                <h4 className="font-semibold text-sm">{feature.title}</h4>
+                                                <p className="text-xs text-muted-foreground mt-1">{feature.desc}</p>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </CardContent>
                             </Card>
                         </div>
@@ -1233,7 +1411,53 @@ export default function AppointmentDashboard() {
                     <DialogHeader><DialogTitle>Create Event Type</DialogTitle></DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2"><Label>Name *</Label><Input value={newEvent.name} onChange={e => setNewEvent({ ...newEvent, name: e.target.value })} placeholder="e.g., 30 Min Meeting" /></div>
-                        <div className="space-y-2"><Label>Description</Label><Textarea value={newEvent.description} onChange={e => setNewEvent({ ...newEvent, description: e.target.value })} placeholder="What is this meeting for?" /></div>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label>Description</Label>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 text-xs bg-gradient-to-r from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20"
+                                    disabled={!newEvent.name || saving}
+                                    onClick={async () => {
+                                        setSaving(true);
+                                        try {
+                                            const res = await fetch("/api/scheduling/ai", {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({
+                                                    action: "generate-description",
+                                                    eventName: newEvent.name,
+                                                    duration: newEvent.duration,
+                                                    locationType: newEvent.locationType
+                                                })
+                                            });
+                                            const data = await res.json();
+
+                                            if (data.error === "AI_QUOTA_EXCEEDED") {
+                                                toast.error("AI Quota Exceeded. Please try again later.", {
+                                                    duration: 5000,
+                                                    icon: "⏳"
+                                                });
+                                            } else if (data.success && data.description) {
+                                                setNewEvent({ ...newEvent, description: data.description });
+                                                toast.success("AI generated description!");
+                                            } else {
+                                                toast.error(data.error || "Failed to generate");
+                                            }
+                                        } catch (err) {
+                                            toast.error("AI generation failed");
+                                        } finally {
+                                            setSaving(false);
+                                        }
+                                    }}
+                                >
+                                    ✨ AI Generate
+                                </Button>
+                            </div>
+                            <Textarea value={newEvent.description} onChange={e => setNewEvent({ ...newEvent, description: e.target.value })} placeholder="What is this meeting for?" />
+                        </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Duration (min)</Label>
