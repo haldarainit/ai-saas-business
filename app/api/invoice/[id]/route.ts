@@ -1,20 +1,16 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Invoice from '@/models/Invoice';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const session = await getServerSession(authOptions);
+        const { userId } = await getAuthenticatedUser(req);
 
-        // @ts-ignore
-        if (!session || !session.userId) {
+        if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // @ts-ignore
-        const userId = session.userId;
         const { id } = await params;
 
         await dbConnect();
@@ -36,15 +32,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const session = await getServerSession(authOptions);
+        const { userId } = await getAuthenticatedUser(req);
 
-        // @ts-ignore
-        if (!session || !session.userId) {
+        if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // @ts-ignore
-        const userId = session.userId;
         const { id } = await params;
 
         await dbConnect();
@@ -72,15 +65,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const session = await getServerSession(authOptions);
+        const { userId } = await getAuthenticatedUser(req);
 
-        // @ts-ignore
-        if (!session || !session.userId) {
+        if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // @ts-ignore
-        const userId = session.userId;
         const { id } = await params;
 
         await dbConnect();

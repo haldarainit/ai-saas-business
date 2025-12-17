@@ -1,21 +1,16 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import TechnoQuotation from '@/models/TechnoQuotation';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const { userId } = await getAuthenticatedUser(req);
 
-        // @ts-ignore
-        if (!session || !session.userId) {
-            console.log('GET /api/techno-quotation: Unauthorized session:', session);
+        if (!userId) {
+            console.log('GET /api/techno-quotation: Unauthorized - no userId');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
-
-        // @ts-ignore
-        const userId = session.userId;
 
         await dbConnect();
 
@@ -32,16 +27,12 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const { userId } = await getAuthenticatedUser(req);
 
-        // @ts-ignore
-        if (!session || !session.userId) {
-            console.log('POST /api/techno-quotation: Unauthorized session:', session);
+        if (!userId) {
+            console.log('POST /api/techno-quotation: Unauthorized - no userId');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
-
-        // @ts-ignore
-        const userId = session.userId;
 
         await dbConnect();
         const body = await req.json();

@@ -1,21 +1,16 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Invoice from '@/models/Invoice';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
 // GET: List all invoices for the user
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const { userId } = await getAuthenticatedUser(req);
 
-        // @ts-ignore
-        if (!session || !session.userId) {
+        if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
-
-        // @ts-ignore
-        const userId = session.userId;
 
         await dbConnect();
 
@@ -33,15 +28,11 @@ export async function GET(req: Request) {
 // POST: Create a new invoice
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const { userId } = await getAuthenticatedUser(req);
 
-        // @ts-ignore
-        if (!session || !session.userId) {
+        if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
-
-        // @ts-ignore
-        const userId = session.userId;
 
         await dbConnect();
         const body = await req.json();
