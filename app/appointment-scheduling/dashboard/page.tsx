@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import Navbar from "@/components/navbar";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, Clock, Plus, Video, Phone, MapPin, Copy, ExternalLink, Loader2, Link2, User, Settings, Trash2, Check, Mail, Send, CalendarCheck, Users, Globe, Bell, ChevronLeft, ChevronRight, CalendarDays, Eye, EyeOff } from "lucide-react";
+import { Calendar, Clock, Plus, Video, Phone, MapPin, Copy, ExternalLink, Loader2, Link2, User, Settings, Trash2, Check, Mail, Send, CalendarCheck, Users, Globe, Bell, ChevronLeft, ChevronRight, CalendarDays, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -470,7 +470,25 @@ export default function AppointmentDashboard() {
                     {/* Bookings Tab */}
                     <TabsContent value="bookings">
                         <Card>
-                            <CardHeader><CardTitle>Upcoming Bookings</CardTitle></CardHeader>
+                            <CardHeader>
+                                <div className="flex items-center justify-between">
+                                    <CardTitle>Upcoming Bookings</CardTitle>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={async () => {
+                                            setLoading(true);
+                                            await fetchData();
+                                            setLoading(false);
+                                            toast.success("Bookings refreshed!");
+                                        }}
+                                        disabled={loading}
+                                    >
+                                        <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                                        Refresh
+                                    </Button>
+                                </div>
+                            </CardHeader>
                             <CardContent>
                                 {upcomingBookings.length === 0 ? (
                                     <div className="text-center py-12 text-muted-foreground">
@@ -539,6 +557,20 @@ export default function AppointmentDashboard() {
                                                 </Button>
                                                 <Button variant="ghost" size="sm" onClick={goToToday}>
                                                     Today
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={async () => {
+                                                        setLoading(true);
+                                                        await fetchData();
+                                                        setLoading(false);
+                                                        toast.success("Data refreshed!");
+                                                    }}
+                                                    disabled={loading}
+                                                >
+                                                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                                                    Refresh
                                                 </Button>
                                             </div>
                                             <div className="flex items-center gap-3 w-full sm:w-auto">
