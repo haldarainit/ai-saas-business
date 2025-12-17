@@ -1689,7 +1689,7 @@ export default function TechnoQuotationPage() {
                 }
 
                 /* Force light theme INSIDE the printable quotation pages so PDFs/print view stay consistent */
-                .page, .page * {
+                .page, .page *:not(.watermark-overlay):not(.watermark-text):not(.watermark-logo):not(.watermark-logo img) {
                     color: #0f172a !important; /* dark text */
                 }
 
