@@ -91,12 +91,18 @@ export default function AppointmentDashboard() {
     const [profileForm, setProfileForm] = useState({
         displayName: "", username: "", bio: "", brandColor: "#6366f1",
         welcomeMessage: "", notificationEmail: "", emailEnabled: true,
-        googleClientId: "", googleClientSecret: ""
+        googleClientId: "", googleClientSecret: "",
+        // Simplified Email Settings
+        emailProvider: "gmail", emailUser: "", emailPassword: "", fromName: "",
+        smtpHost: "", smtpPort: 587, // Only for custom provider
+        sendConfirmationToAttendee: true, sendNotificationToHost: true, sendReminders: true
     });
 
     // Google Calendar state
     const [savingCredentials, setSavingCredentials] = useState(false);
     const [showClientSecret, setShowClientSecret] = useState(false);
+    const [showSmtpPassword, setShowSmtpPassword] = useState(false);
+    const [savingEmail, setSavingEmail] = useState(false);
 
     // Calendar state
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -113,6 +119,7 @@ export default function AppointmentDashboard() {
 
     useEffect(() => {
         if (profile) {
+            const p = profile as any;
             setProfileForm({
                 displayName: profile.displayName || "",
                 username: profile.username || "",
@@ -122,7 +129,17 @@ export default function AppointmentDashboard() {
                 notificationEmail: profile.notifications?.notificationEmail || "",
                 emailEnabled: profile.notifications?.emailEnabled !== false,
                 googleClientId: profile.googleCalendar?.clientId || "",
-                googleClientSecret: profile.googleCalendar?.clientSecret || ""
+                googleClientSecret: profile.googleCalendar?.clientSecret || "",
+                // Email Settings - Simplified
+                emailProvider: p.emailSettings?.emailProvider || "gmail",
+                emailUser: p.emailSettings?.emailUser || "",
+                emailPassword: p.emailSettings?.emailPassword || "",
+                fromName: p.emailSettings?.fromName || "",
+                smtpHost: p.emailSettings?.smtpHost || "",
+                smtpPort: p.emailSettings?.smtpPort || 587,
+                sendConfirmationToAttendee: p.emailSettings?.sendConfirmationToAttendee !== false,
+                sendNotificationToHost: p.emailSettings?.sendNotificationToHost !== false,
+                sendReminders: p.emailSettings?.sendReminders !== false
             });
         }
     }, [profile]);
@@ -1005,23 +1022,198 @@ export default function AppointmentDashboard() {
                                 </CardContent>
                             </Card>
 
-                            <Card>
-                                <CardHeader><CardTitle>Email Notifications</CardTitle></CardHeader>
+                            {/* Email Settings */}
+                            <Card className="lg:col-span-2 border-2 border-dashed border-blue-200 dark:border-blue-800">
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Mail className="w-5 h-5 text-blue-600" />
+                                        Email Notifications
+                                    </CardTitle>
+                                    <p className="text-sm text-muted-foreground">Configure email notifications for booking confirmations and reminders</p>
+                                </CardHeader>
                                 <CardContent className="space-y-4">
-                                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                                        <div className="flex items-center gap-3">
-                                            <Bell className="w-5 h-5" />
+                                    {/* Email Toggles */}
+                                    <div className="grid sm:grid-cols-3 gap-3">
+                                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                                             <div>
-                                                <p className="font-medium">Email Notifications</p>
-                                                <p className="text-sm text-muted-foreground">Get notified when customers book</p>
+                                                <p className="text-sm font-medium">Confirmation to Attendee</p>
+                                                <p className="text-xs text-muted-foreground">Email when booking is made</p>
+                                            </div>
+                                            <Switch checked={profileForm.sendConfirmationToAttendee} onCheckedChange={c => setProfileForm({ ...profileForm, sendConfirmationToAttendee: c })} />
+                                        </div>
+                                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                                            <div>
+                                                <p className="text-sm font-medium">Notify Host</p>
+                                                <p className="text-xs text-muted-foreground">Email when someone books</p>
+                                            </div>
+                                            <Switch checked={profileForm.sendNotificationToHost} onCheckedChange={c => setProfileForm({ ...profileForm, sendNotificationToHost: c })} />
+                                        </div>
+                                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                                            <div>
+                                                <p className="text-sm font-medium">Reminder Emails</p>
+                                                <p className="text-xs text-muted-foreground">Before appointment</p>
+                                            </div>
+                                            <Switch checked={profileForm.sendReminders} onCheckedChange={c => setProfileForm({ ...profileForm, sendReminders: c })} />
+                                        </div>
+                                    </div>
+
+                                    {/* Email Settings - Simplified */}
+                                    <div className="border rounded-lg p-4 space-y-4">
+                                        <h4 className="text-sm font-semibold flex items-center gap-2">
+                                            <Settings className="w-4 h-4" />
+                                            Email Configuration
+                                        </h4>
+
+                                        {/* Provider Dropdown */}
+                                        <div className="space-y-2">
+                                            <Label className="text-sm">Email Provider</Label>
+                                            <Select
+                                                value={profileForm.emailProvider}
+                                                onValueChange={v => setProfileForm({ ...profileForm, emailProvider: v })}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select provider" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="gmail">Gmail</SelectItem>
+                                                    <SelectItem value="hostinger">Hostinger</SelectItem>
+                                                    <SelectItem value="outlook">Outlook / Hotmail</SelectItem>
+                                                    <SelectItem value="yahoo">Yahoo</SelectItem>
+                                                    <SelectItem value="zoho">Zoho</SelectItem>
+                                                    <SelectItem value="custom">Custom SMTP</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {/* Custom SMTP fields - only show when provider is "custom" */}
+                                        {profileForm.emailProvider === "custom" && (
+                                            <div className="grid sm:grid-cols-2 gap-3 p-3 bg-muted/30 rounded-lg">
+                                                <div className="space-y-2">
+                                                    <Label className="text-sm">SMTP Host</Label>
+                                                    <Input
+                                                        value={profileForm.smtpHost}
+                                                        onChange={e => setProfileForm({ ...profileForm, smtpHost: e.target.value })}
+                                                        placeholder="smtp.example.com"
+                                                        className="text-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-sm">SMTP Port</Label>
+                                                    <Input
+                                                        type="number"
+                                                        value={profileForm.smtpPort}
+                                                        onChange={e => setProfileForm({ ...profileForm, smtpPort: parseInt(e.target.value) || 587 })}
+                                                        placeholder="587"
+                                                        className="text-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Email and Password */}
+                                        <div className="grid sm:grid-cols-2 gap-3">
+                                            <div className="space-y-2">
+                                                <Label className="text-sm">Email Address</Label>
+                                                <Input
+                                                    type="email"
+                                                    value={profileForm.emailUser}
+                                                    onChange={e => setProfileForm({ ...profileForm, emailUser: e.target.value })}
+                                                    placeholder="your@email.com"
+                                                    className="text-sm"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-sm">App Password</Label>
+                                                <div className="relative">
+                                                    <Input
+                                                        type={showSmtpPassword ? "text" : "password"}
+                                                        value={profileForm.emailPassword}
+                                                        onChange={e => setProfileForm({ ...profileForm, emailPassword: e.target.value })}
+                                                        placeholder="Enter app password"
+                                                        className="text-sm pr-10"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                                    >
+                                                        {showSmtpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                        <Switch checked={profileForm.emailEnabled} onCheckedChange={c => setProfileForm({ ...profileForm, emailEnabled: c })} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Notification Email</Label>
-                                        <p className="text-sm text-muted-foreground">Booking confirmations will be sent to this email</p>
-                                        <Input type="email" value={profileForm.notificationEmail} onChange={e => setProfileForm({ ...profileForm, notificationEmail: e.target.value })} placeholder="your@email.com" />
+
+                                        <div className="space-y-2">
+                                            <Label className="text-sm">From Name (optional)</Label>
+                                            <Input
+                                                value={profileForm.fromName}
+                                                onChange={e => setProfileForm({ ...profileForm, fromName: e.target.value })}
+                                                placeholder="Your Business Name"
+                                                className="text-sm"
+                                            />
+                                        </div>
+
+                                        {/* Save Email Settings Button */}
+                                        <Button
+                                            size="sm"
+                                            onClick={async () => {
+                                                setSavingEmail(true);
+                                                try {
+                                                    const res = await fetch("/api/scheduling/profile", {
+                                                        method: "PUT",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({
+                                                            userId,
+                                                            emailSettings: {
+                                                                emailProvider: profileForm.emailProvider,
+                                                                emailUser: profileForm.emailUser,
+                                                                emailPassword: profileForm.emailPassword,
+                                                                fromName: profileForm.fromName,
+                                                                smtpHost: profileForm.smtpHost,
+                                                                smtpPort: profileForm.smtpPort,
+                                                                sendConfirmationToAttendee: profileForm.sendConfirmationToAttendee,
+                                                                sendNotificationToHost: profileForm.sendNotificationToHost,
+                                                                sendReminders: profileForm.sendReminders
+                                                            }
+                                                        })
+                                                    });
+                                                    const data = await res.json();
+                                                    if (data.success) {
+                                                        toast.success("Email settings saved!");
+                                                    } else {
+                                                        toast.error(data.error || "Failed to save email settings");
+                                                    }
+                                                } catch (err) {
+                                                    toast.error("Failed to save email settings");
+                                                } finally {
+                                                    setSavingEmail(false);
+                                                }
+                                            }}
+                                            disabled={savingEmail || !profileForm.emailUser || !profileForm.emailPassword}
+                                        >
+                                            {savingEmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+                                            Save Email Settings
+                                        </Button>
+
+                                        {/* Help Text */}
+                                        <details className="group">
+                                            <summary className="text-xs text-muted-foreground cursor-pointer">
+                                                💡 Need help? Click here for setup instructions
+                                            </summary>
+                                            <div className="text-xs text-muted-foreground mt-2 space-y-2 pl-4">
+                                                <p className="font-medium">For Gmail:</p>
+                                                <ol className="list-decimal list-inside space-y-1 ml-2">
+                                                    <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Google App Passwords</a></li>
+                                                    <li>Create an app password for "Mail"</li>
+                                                    <li>Use your Gmail as email and the app password above</li>
+                                                </ol>
+                                                <p className="font-medium mt-3">For Hostinger:</p>
+                                                <ol className="list-decimal list-inside space-y-1 ml-2">
+                                                    <li>Use your Hostinger email address</li>
+                                                    <li>Use your email password</li>
+                                                </ol>
+                                            </div>
+                                        </details>
                                     </div>
                                 </CardContent>
                             </Card>

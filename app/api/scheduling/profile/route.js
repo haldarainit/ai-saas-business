@@ -51,6 +51,17 @@ export async function GET(request) {
                     connected: userProfile.outlookCalendar?.connected || false,
                 },
                 notifications: userProfile.notifications,
+                emailSettings: {
+                    emailProvider: userProfile.emailSettings?.emailProvider || "gmail",
+                    emailUser: userProfile.emailSettings?.emailUser || "",
+                    emailPassword: userProfile.emailSettings?.emailPassword || "",
+                    fromName: userProfile.emailSettings?.fromName || "",
+                    smtpHost: userProfile.emailSettings?.smtpHost || "",
+                    smtpPort: userProfile.emailSettings?.smtpPort || 587,
+                    sendConfirmationToAttendee: userProfile.emailSettings?.sendConfirmationToAttendee !== false,
+                    sendNotificationToHost: userProfile.emailSettings?.sendNotificationToHost !== false,
+                    sendReminders: userProfile.emailSettings?.sendReminders !== false,
+                },
                 defaultTimezone: userProfile.defaultTimezone,
                 defaultDuration: userProfile.defaultDuration,
                 defaultLocation: userProfile.defaultLocation,
@@ -146,11 +157,40 @@ export async function PUT(request) {
             }
         }
 
-        const userProfile = await UserProfile.findOneAndUpdate(
-            { userId },
-            { ...updates, updatedAt: new Date() },
-            { new: true, upsert: true }
-        );
+        // Find the profile first
+        let userProfile = await UserProfile.findOne({ userId });
+
+        if (!userProfile) {
+            return NextResponse.json(
+                { error: "Profile not found" },
+                { status: 404 }
+            );
+        }
+
+        // Handle emailSettings separately (nested object)
+        if (updates.emailSettings) {
+            if (!userProfile.emailSettings) {
+                userProfile.emailSettings = {};
+            }
+            Object.assign(userProfile.emailSettings, updates.emailSettings);
+            userProfile.markModified('emailSettings');
+            delete updates.emailSettings;
+        }
+
+        // Handle notifications separately (nested object)
+        if (updates.notifications) {
+            if (!userProfile.notifications) {
+                userProfile.notifications = {};
+            }
+            Object.assign(userProfile.notifications, updates.notifications);
+            userProfile.markModified('notifications');
+            delete updates.notifications;
+        }
+
+        // Apply other updates
+        Object.assign(userProfile, updates);
+        userProfile.updatedAt = new Date();
+        await userProfile.save();
 
         return NextResponse.json({
             success: true,

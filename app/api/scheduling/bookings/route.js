@@ -5,6 +5,8 @@ import EventType from "@/lib/models/EventType";
 import Availability from "@/lib/models/Availability";
 import UserProfile from "@/lib/models/UserProfile";
 import { createGoogleMeetEvent, refreshAccessToken } from "@/lib/services/meeting-link";
+import { sendBookingEmails } from "@/lib/services/booking-email";
+
 
 // GET - Fetch bookings
 export async function GET(request) {
@@ -252,6 +254,15 @@ export async function POST(request) {
 
         await booking.save();
 
+        // Send booking emails (confirmation to attendee, notification to host)
+        let emailStatus = { attendeeEmail: { sent: false }, hostEmail: { sent: false } };
+        try {
+            emailStatus = await sendBookingEmails(booking, eventType, userProfile);
+        } catch (emailError) {
+            console.error("Error sending booking emails:", emailError);
+            // Don't fail the booking if emails fail
+        }
+
         return NextResponse.json({
             success: true,
             booking: {
@@ -265,6 +276,7 @@ export async function POST(request) {
                 hostName: userProfile?.displayName || eventType.userId,
                 hostEmail: userProfile?.email,
             },
+            emailStatus, // Return email status for UI feedback
             calendarError, // Return calendar error for UI to show if needed
             message: eventType.requiresConfirmation
                 ? "Booking request submitted. Awaiting host confirmation."
