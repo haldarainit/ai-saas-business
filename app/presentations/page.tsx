@@ -137,7 +137,7 @@ function PresentationsContent() {
     const [theme, setTheme] = useState<Theme>("coral");
     const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
     const [isGeneratingFull, setIsGeneratingFull] = useState(false);
-    const [isDownloading, setIsDownloading] = useState(false);
+    const [isDownloading, setIsDownloading] = useState<'pptx' | 'pdf' | false>(false);
     const [outline, setOutline] = useState<PresentationData | null>(null);
     const [data, setData] = useState<PresentationData | null>(null);
     const [activeSlide, setActiveSlide] = useState(0);
@@ -414,7 +414,7 @@ function PresentationsContent() {
     const handleDownload = async () => {
         if (!data) return;
 
-        setIsDownloading(true);
+        setIsDownloading('pptx');
 
         try {
             const selectedTheme = THEMES.find(t => t.id === theme);
@@ -452,6 +452,52 @@ function PresentationsContent() {
         } catch (error: any) {
             console.error("Download error:", error);
             toast.error(error.message || "Failed to download presentation");
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
+    const handleDownloadPDF = async () => {
+        if (!data) return;
+
+        setIsDownloading('pdf');
+
+        try {
+            const selectedTheme = THEMES.find(t => t.id === theme);
+
+            // Send the complete data with theme information
+            const downloadData = {
+                ...data,
+                theme: selectedTheme,
+                slideCount,
+                presentationMode: 'layout' // Use layout mode for PDF generation
+            };
+
+            const response = await fetch("/api/download-presentation-pdf", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(downloadData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Failed to generate PDF");
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${data.title.replace(/[^a-z0-9]/gi, "_")}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            toast.success("PDF downloaded!");
+        } catch (error: any) {
+            console.error("PDF download error:", error);
+            toast.error(error.message || "Failed to download PDF");
         } finally {
             setIsDownloading(false);
         }
@@ -687,18 +733,36 @@ function PresentationsContent() {
                                     <div className="flex items-center gap-3">
                                         <Button
                                             onClick={handleDownload}
-                                            disabled={isDownloading}
+                                            disabled={!!isDownloading}
                                             className="bg-blue-600 hover:bg-blue-700"
                                         >
-                                            {isDownloading ? (
+                                            {isDownloading === 'pptx' ? (
                                                 <>
                                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    Downloading...
+                                                    Downloading PowerPoint...
                                                 </>
                                             ) : (
                                                 <>
                                                     <Download className="mr-2 h-4 w-4" />
                                                     Download .pptx
+                                                </>
+                                            )}
+                                        </Button>
+                                        <Button
+                                            onClick={handleDownloadPDF}
+                                            disabled={!!isDownloading}
+                                            variant="outline"
+                                            className="border-red-600 text-red-600 hover:bg-red-50"
+                                        >
+                                            {isDownloading === 'pdf' ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Generating PDF...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FileText className="mr-2 h-4 w-4" />
+                                                    Download .pdf
                                                 </>
                                             )}
                                         </Button>
