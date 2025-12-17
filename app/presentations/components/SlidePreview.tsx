@@ -421,11 +421,11 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
         );
     }
 
-    // Closing slide layout - Gamma AI elegant style
+    // Closing slide layout - Clean, minimalist style with plain text
     if (layoutType === 'closing' || isLastSlide) {
         return (
             <div
-                className="w-full h-full overflow-hidden relative flex flex-col items-center justify-center text-center"
+                className="w-full h-full overflow-hidden relative flex flex-col items-center justify-center text-center p-8"
                 style={{
                     background: bgColor || `linear-gradient(135deg, #fef7f0 0%, #fdf2f8 50%, #f0f9ff 100%)`,
                     borderRadius: `${borderRadius}px`,
@@ -434,34 +434,58 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                 {/* Backdrop overlay */}
                 {backdropStyles && <div style={backdropStyles} />}
 
-                {/* Decorative shapes */}
+                {/* Subtle decorative shapes */}
                 <div
-                    className="absolute top-0 left-0 w-40 h-40 opacity-40"
+                    className="absolute top-0 left-0 w-48 h-48 opacity-20"
                     style={{
-                        background: `radial-gradient(circle at 0% 0%, ${accentColor}30 0%, transparent 70%)`
+                        background: `radial-gradient(circle at 0% 0%, ${theme.primary}40 0%, transparent 60%)`
                     }}
                 />
                 <div
-                    className="absolute bottom-0 right-0 w-40 h-40 opacity-40"
+                    className="absolute bottom-0 right-0 w-48 h-48 opacity-20"
                     style={{
-                        background: `radial-gradient(circle at 100% 100%, ${accentColor}30 0%, transparent 70%)`
+                        background: `radial-gradient(circle at 100% 100%, ${theme.secondary}40 0%, transparent 60%)`
                     }}
                 />
 
-                <div className="relative z-10">
+                <div className="relative z-10 w-full max-w-2xl">
+                    {/* Title */}
                     <h1
-                        className="text-4xl md:text-5xl font-bold mb-4"
+                        className="text-2xl md:text-3xl font-bold mb-4 leading-tight"
                         style={{ color: headingColor }}
                     >
                         {slide.title}
                     </h1>
-                    <div className="w-32 h-1 rounded-full mb-6 mx-auto" style={{ backgroundColor: accentColor }} />
+
+                    {/* Simple divider line */}
+                    <div
+                        className="w-20 h-0.5 mx-auto mb-5 rounded-full"
+                        style={{ backgroundColor: accentColor }}
+                    />
+
+                    {/* Plain text content - no bullets, no icons, just paragraphs */}
                     {slide.content && slide.content.length > 0 && (
-                        <div className="space-y-3 max-w-2xl">
+                        <div className="space-y-3">
                             {slide.content.map((point, i) => (
-                                <p key={i} className="text-lg" style={{ color: textColor }}>{cleanMarkdown(point)}</p>
+                                <p
+                                    key={i}
+                                    className="text-sm leading-relaxed"
+                                    style={{ color: textColor }}
+                                >
+                                    {cleanMarkdown(point)}
+                                </p>
                             ))}
                         </div>
+                    )}
+
+                    {/* Optional subtitle as footer */}
+                    {slide.subtitle && (
+                        <p
+                            className="mt-6 text-sm font-medium"
+                            style={{ color: theme.primary }}
+                        >
+                            {slide.subtitle}
+                        </p>
                     )}
                 </div>
             </div>
