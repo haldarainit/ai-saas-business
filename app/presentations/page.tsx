@@ -37,6 +37,13 @@ import {
     FolderOpen,
     Save,
     Wand2,
+    Upload,
+    Move,
+    Maximize2,
+    ChevronLeft,
+    ChevronRight,
+    PanelLeftClose,
+    PanelLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
@@ -45,6 +52,7 @@ import PresentationDashboard from "./components/PresentationDashboard";
 import SlidePreview from "./components/SlidePreview";
 import SlideEditorPanel from "./components/SlideEditorPanel";
 import AIRegeneratePanel from "./components/AIRegeneratePanel";
+import ElementEditorPanel, { SelectedElement, ElementType, ImageElementData } from "./components/ElementEditorPanel";
 
 interface FeatureCard {
     icon: string;
@@ -79,6 +87,14 @@ interface Slide {
     hasImage?: boolean;
     imageKeyword?: string;
     imageUrl?: string;
+    // New fields for image upload and resize
+    imagePublicId?: string;
+    imageSource?: 'ai' | 'upload';
+    imageSize?: {
+        width?: number; // percentage 10-100
+        height?: number; // percentage 10-100
+        objectFit?: 'cover' | 'contain' | 'fill' | 'none';
+    };
     customStyles?: {
         backgroundColor?: string;
         headingColor?: string;
@@ -254,6 +270,16 @@ function PresentationsContent() {
     const [isAIRegenerateOpen, setIsAIRegenerateOpen] = useState(false);
     const [isRegeneratingSlide, setIsRegeneratingSlide] = useState(false);
     const [slideStyles, setSlideStyles] = useState<Record<number, any>>({});
+
+    // Image upload state
+    const imageInputRef = useRef<HTMLInputElement>(null);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [imageUploadSlideIndex, setImageUploadSlideIndex] = useState<number | null>(null);
+
+    // Canva-style editor state
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
+    const [isElementEditorOpen, setIsElementEditorOpen] = useState(false);
 
     // User must be logged in - no default user ID
     const userId = user?.id || '';
@@ -624,13 +650,169 @@ function PresentationsContent() {
         newSlides[slideIndex] = {
             ...newSlides[slideIndex],
             imageKeyword: imagePrompt,
-            imageUrl: newImageUrl
+            imageUrl: newImageUrl,
+            imageSource: 'ai', // Mark as AI-generated
+            imagePublicId: undefined, // Clear any previous upload public ID
         };
         setData({ ...data, slides: newSlides });
 
         setIsRegeneratingImage(null);
         setCustomImagePrompt("");
         toast.success(`Image regenerated with: "${imagePrompt.substring(0, 50)}..."`);
+    };
+
+    // Handle local image upload
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || imageUploadSlideIndex === null || !data) return;
+
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            toast.error('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+            return;
+        }
+
+        // Validate file size (10MB max)
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error('Image size must be less than 10MB');
+            return;
+        }
+
+        setIsUploadingImage(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            if (workspaceId) {
+                formData.append('workspaceId', workspaceId);
+                formData.append('slideIndex', imageUploadSlideIndex.toString());
+            }
+
+            const response = await fetch('/api/upload-presentation-image', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Upload failed');
+            }
+
+            // Update the slide with the uploaded image
+            const newSlides = [...data.slides];
+            newSlides[imageUploadSlideIndex] = {
+                ...newSlides[imageUploadSlideIndex],
+                imageUrl: result.image.url,
+                imagePublicId: result.image.publicId,
+                imageSource: 'upload',
+                hasImage: true,
+            };
+            setData({ ...data, slides: newSlides });
+
+            toast.success('Image uploaded successfully!');
+        } catch (error: any) {
+            console.error('Image upload error:', error);
+            toast.error(error.message || 'Failed to upload image');
+        } finally {
+            setIsUploadingImage(false);
+            setImageUploadSlideIndex(null);
+            // Reset the input
+            if (imageInputRef.current) {
+                imageInputRef.current.value = '';
+            }
+        }
+    };
+
+    // Trigger image upload dialog
+    const triggerImageUpload = (slideIndex: number) => {
+        setImageUploadSlideIndex(slideIndex);
+        imageInputRef.current?.click();
+    };
+
+    // Update image size for resize functionality
+    const updateImageSize = (slideIndex: number, size: { width?: number; height?: number; objectFit?: 'cover' | 'contain' | 'fill' | 'none' }) => {
+        if (!data) return;
+
+        const newSlides = [...data.slides];
+        newSlides[slideIndex] = {
+            ...newSlides[slideIndex],
+            imageSize: {
+                ...newSlides[slideIndex].imageSize,
+                ...size,
+            },
+        };
+        setData({ ...data, slides: newSlides });
+
+        // Also update selected element if it's the same slide
+        if (selectedElement?.slideIndex === slideIndex && selectedElement.type === 'image') {
+            setSelectedElement({
+                ...selectedElement,
+                data: {
+                    ...selectedElement.data as ImageElementData,
+                    size: {
+                        ...(selectedElement.data as ImageElementData)?.size,
+                        ...size,
+                    },
+                },
+            });
+        }
+    };
+
+    // Select an element (Canva-style click to edit)
+    const handleElementSelect = (slideIndex: number, type: ElementType) => {
+        if (!data || type === null) {
+            setSelectedElement(null);
+            setIsElementEditorOpen(false);
+            return;
+        }
+
+        const slide = data.slides[slideIndex];
+
+        if (type === 'image') {
+            const imageData: ImageElementData = {
+                url: slide.imageUrl,
+                publicId: slide.imagePublicId,
+                source: slide.imageSource,
+                keyword: slide.imageKeyword,
+                size: slide.imageSize,
+            };
+
+            setSelectedElement({
+                type: 'image',
+                slideIndex,
+                data: imageData,
+            });
+            setIsElementEditorOpen(true);
+        }
+    };
+
+    // Close element editor
+    const handleElementEditorClose = () => {
+        setSelectedElement(null);
+        setIsElementEditorOpen(false);
+    };
+
+    // Remove image from slide
+    const removeImageFromSlide = (slideIndex: number) => {
+        if (!data) return;
+
+        const newSlides = [...data.slides];
+        newSlides[slideIndex] = {
+            ...newSlides[slideIndex],
+            imageUrl: undefined,
+            imagePublicId: undefined,
+            imageSource: undefined,
+            imageKeyword: undefined,
+            imageSize: undefined,
+            hasImage: false,
+        };
+        setData({ ...data, slides: newSlides });
+
+        // Close the editor panel
+        handleElementEditorClose();
+        toast.success('Image removed');
     };
 
     // New: AI Slide Regeneration handler
@@ -1346,89 +1528,134 @@ function PresentationsContent() {
                             exit={{ opacity: 0 }}
                             className="flex h-[calc(100vh-8rem)]"
                         >
-                            {/* Left Sidebar - Thumbnails with theme background */}
-                            <div
-                                className="w-52 border-r overflow-y-auto p-4 space-y-3 hidden md:block transition-colors duration-300"
+                            {/* Left Sidebar - Collapsible Thumbnails */}
+                            <motion.div
+                                animate={{ width: isSidebarCollapsed ? 60 : 208 }}
+                                transition={{ duration: 0.2 }}
+                                className="border-r overflow-hidden hidden md:flex flex-col transition-colors duration-300"
                                 style={{
                                     backgroundColor: isDark ? '#111827' : selectedTheme.colors.bg,
                                     borderColor: isDark ? 'rgba(255,255,255,0.1)' : `${selectedTheme.colors.accent}40`
                                 }}
                             >
-                                <div className={`text-xs font-medium mb-3 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>SLIDES</div>
-                                {data.slides.map((slide, i) => {
-                                    return (
-                                        <div key={i} className="relative group">
-                                            <button
-                                                onClick={() => setActiveSlide(i)}
-                                                className={`w-full aspect-[16/10] rounded-lg overflow-hidden border-2 transition-all relative ${activeSlide === i
-                                                    ? "shadow-lg"
-                                                    : "border-transparent hover:border-slate-300"
-                                                    }`}
-                                                style={{
-                                                    borderColor: activeSlide === i ? selectedTheme.colors.primary : undefined,
-                                                    backgroundColor: '#ffffff'
-                                                }}
-                                            >
-                                                <div className="absolute top-1 left-1 bg-black/50 text-white text-[8px] px-1 rounded z-10">
-                                                    {i + 1}
-                                                </div>
-                                                {/* Layout type badge */}
-                                                {slide.layoutType && (
-                                                    <div className="absolute top-1 right-1 bg-purple-500/80 text-white text-[6px] px-1 rounded z-10 uppercase">
-                                                        {slide.layoutType}
+                                {/* Sidebar Header with Toggle */}
+                                <div
+                                    className="flex items-center justify-between p-3 border-b"
+                                    style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : `${selectedTheme.colors.accent}30` }}
+                                >
+                                    {!isSidebarCollapsed && (
+                                        <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
+                                            SLIDES
+                                        </span>
+                                    )}
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className={`h-7 w-7 ${isSidebarCollapsed ? 'mx-auto' : ''}`}
+                                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                                        title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                                    >
+                                        {isSidebarCollapsed ? (
+                                            <PanelLeft className="w-4 h-4" style={{ color: selectedTheme.colors.primary }} />
+                                        ) : (
+                                            <PanelLeftClose className="w-4 h-4" style={{ color: selectedTheme.colors.primary }} />
+                                        )}
+                                    </Button>
+                                </div>
+
+                                {/* Slides List */}
+                                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                                    {data.slides.map((slide, i) => {
+                                        return (
+                                            <div key={i} className="relative group">
+                                                <button
+                                                    onClick={() => setActiveSlide(i)}
+                                                    className={`w-full rounded-lg overflow-hidden border-2 transition-all relative ${activeSlide === i
+                                                        ? "shadow-lg"
+                                                        : "border-transparent hover:border-slate-300"
+                                                        }`}
+                                                    style={{
+                                                        borderColor: activeSlide === i ? selectedTheme.colors.primary : undefined,
+                                                        backgroundColor: '#ffffff',
+                                                        aspectRatio: isSidebarCollapsed ? '1/1' : '16/10'
+                                                    }}
+                                                >
+                                                    {isSidebarCollapsed ? (
+                                                        // Collapsed view - just slide number
+                                                        <div
+                                                            className="w-full h-full flex items-center justify-center font-bold text-lg"
+                                                            style={{
+                                                                color: activeSlide === i ? selectedTheme.colors.primary : isDark ? '#9ca3af' : '#64748b'
+                                                            }}
+                                                        >
+                                                            {i + 1}
+                                                        </div>
+                                                    ) : (
+                                                        // Expanded view - thumbnail
+                                                        <>
+                                                            <div className="absolute top-1 left-1 bg-black/50 text-white text-[8px] px-1 rounded z-10">
+                                                                {i + 1}
+                                                            </div>
+                                                            {slide.layoutType && (
+                                                                <div className="absolute top-1 right-1 bg-purple-500/80 text-white text-[6px] px-1 rounded z-10 uppercase">
+                                                                    {slide.layoutType}
+                                                                </div>
+                                                            )}
+                                                            <div
+                                                                className="w-full h-full scale-[0.15] origin-top-left"
+                                                                style={{ width: '666%', height: '666%', backgroundColor: '#ffffff' }}
+                                                            >
+                                                                <SlidePreview
+                                                                    slide={slide}
+                                                                    slideIndex={i}
+                                                                    totalSlides={data.slides.length}
+                                                                    theme={{
+                                                                        primary: selectedTheme.colors.primary,
+                                                                        secondary: selectedTheme.colors.secondary,
+                                                                        accent: selectedTheme.colors.accent,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </button>
+
+                                                {/* Hover-revealed action buttons - only show when expanded */}
+                                                {!isSidebarCollapsed && (
+                                                    <div className="absolute bottom-1 left-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveSlide(i);
+                                                                setIsAIRegenerateOpen(true);
+                                                            }}
+                                                            className="flex-1 flex items-center justify-center gap-0.5 py-1 rounded text-white text-[7px] font-medium transition-colors backdrop-blur-sm"
+                                                            style={{ backgroundColor: `${selectedTheme.colors.primary}cc` }}
+                                                            title="AI Agent"
+                                                        >
+                                                            <Wand2 className="w-2.5 h-2.5" />
+                                                            <span>AI</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveSlide(i);
+                                                                setIsSlideEditorOpen(true);
+                                                            }}
+                                                            className="flex-1 flex items-center justify-center gap-0.5 py-1 rounded text-white text-[7px] font-medium transition-colors backdrop-blur-sm"
+                                                            style={{ backgroundColor: `${selectedTheme.colors.secondary}cc` }}
+                                                            title="Card Editor"
+                                                        >
+                                                            <Settings className="w-2.5 h-2.5" />
+                                                            <span>Edit</span>
+                                                        </button>
                                                     </div>
                                                 )}
-                                                {/* Slide container with white background to isolate from dark mode */}
-                                                <div
-                                                    className="w-full h-full scale-[0.15] origin-top-left"
-                                                    style={{ width: '666%', height: '666%', backgroundColor: '#ffffff' }}
-                                                >
-                                                    <SlidePreview
-                                                        slide={slide}
-                                                        slideIndex={i}
-                                                        totalSlides={data.slides.length}
-                                                        theme={{
-                                                            primary: selectedTheme.colors.primary,
-                                                            secondary: selectedTheme.colors.secondary,
-                                                            accent: selectedTheme.colors.accent,
-                                                        }}
-                                                    />
-                                                </div>
-                                            </button>
-
-                                            {/* Hover-revealed action buttons */}
-                                            <div className="absolute bottom-1 left-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setActiveSlide(i);
-                                                        setIsAIRegenerateOpen(true);
-                                                    }}
-                                                    className="flex-1 flex items-center justify-center gap-0.5 py-1 rounded text-white text-[7px] font-medium transition-colors backdrop-blur-sm"
-                                                    style={{ backgroundColor: `${selectedTheme.colors.primary}cc` }}
-                                                    title="AI Agent"
-                                                >
-                                                    <Wand2 className="w-2.5 h-2.5" />
-                                                    <span>AI</span>
-                                                </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setActiveSlide(i);
-                                                        setIsSlideEditorOpen(true);
-                                                    }}
-                                                    className="flex-1 flex items-center justify-center gap-0.5 py-1 rounded text-white text-[7px] font-medium transition-colors backdrop-blur-sm"
-                                                    style={{ backgroundColor: `${selectedTheme.colors.secondary}cc` }}
-                                                    title="Card Editor"
-                                                >
-                                                    <Settings className="w-2.5 h-2.5" />
-                                                    <span>Edit</span>
-                                                </button>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </motion.div>
 
                             {/* Main Preview Area - Theme-based background */}
                             <div
@@ -1588,58 +1815,46 @@ function PresentationsContent() {
                                                     </div>
                                                 </div>
 
-                                                {/* Right Side - Image Controls (if slide has image) */}
+                                                {/* Click on Image to Edit - Canva Style */}
                                                 {data.slides[activeSlide].hasImage !== false && data.slides[activeSlide].imageUrl && (
-                                                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-auto">
+                                                    <div
+                                                        className="absolute top-4 right-4 bottom-16 w-2/5 z-40 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        onClick={() => handleElementSelect(activeSlide, 'image')}
+                                                    >
+                                                        {/* Visual indicator that image is clickable */}
                                                         <div
-                                                            className="backdrop-blur-sm rounded-xl shadow-xl p-3 space-y-2 min-w-[200px] border-2"
-                                                            style={{
-                                                                backgroundColor: `${selectedTheme.colors.bg}f8`,
-                                                                borderColor: selectedTheme.colors.accent
-                                                            }}
+                                                            className="absolute inset-0 rounded-xl border-2 border-dashed flex items-center justify-center transition-all hover:bg-white/10"
+                                                            style={{ borderColor: selectedTheme.colors.primary }}
                                                         >
-                                                            <p className="text-xs font-medium" style={{ color: selectedTheme.colors.primary }}>Regenerate Image</p>
-                                                            <Input
-                                                                placeholder="Custom image prompt..."
-                                                                value={customImagePrompt}
-                                                                onChange={(e) => setCustomImagePrompt(e.target.value)}
-                                                                className="text-sm bg-white border-2 text-slate-700"
-                                                                style={{ borderColor: `${selectedTheme.colors.secondary}60` }}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter' && customImagePrompt.trim()) {
-                                                                        regenerateImage(activeSlide, customImagePrompt);
-                                                                    }
-                                                                }}
-                                                            />
-                                                            <div className="flex gap-2">
-                                                                <Button
-                                                                    size="sm"
-                                                                    className="flex-1 text-xs text-white"
-                                                                    style={{ backgroundColor: selectedTheme.colors.secondary }}
-                                                                    onClick={() => regenerateImage(activeSlide)}
-                                                                    disabled={isRegeneratingImage === activeSlide}
-                                                                >
-                                                                    {isRegeneratingImage === activeSlide ? (
-                                                                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                                                    ) : (
-                                                                        <RefreshCw className="w-3 h-3 mr-1" />
-                                                                    )}
-                                                                    Random
-                                                                </Button>
-                                                                {customImagePrompt.trim() && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        className="flex-1 text-xs text-white"
-                                                                        style={{ backgroundColor: selectedTheme.colors.primary }}
-                                                                        onClick={() => regenerateImage(activeSlide, customImagePrompt)}
-                                                                        disabled={isRegeneratingImage === activeSlide}
-                                                                    >
-                                                                        <ImageIcon className="w-3 h-3 mr-1" />
-                                                                        Apply
-                                                                    </Button>
-                                                                )}
+                                                            <div
+                                                                className="bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg flex items-center gap-2"
+                                                                style={{ color: selectedTheme.colors.primary }}
+                                                            >
+                                                                <ImageIcon className="w-4 h-4" />
+                                                                <span className="text-xs font-medium">Click to Edit Image</span>
                                                             </div>
                                                         </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Add Image Button - when no image exists */}
+                                                {data.slides[activeSlide].hasImage !== false && !data.slides[activeSlide].imageUrl && (
+                                                    <div
+                                                        className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-50"
+                                                        onClick={() => handleElementSelect(activeSlide, 'image')}
+                                                    >
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="bg-white/95 backdrop-blur-sm border-2"
+                                                            style={{
+                                                                borderColor: selectedTheme.colors.accent,
+                                                                color: selectedTheme.colors.primary
+                                                            }}
+                                                        >
+                                                            <ImageIcon className="w-4 h-4 mr-2" />
+                                                            Add Image
+                                                        </Button>
                                                     </div>
                                                 )}
 
@@ -1880,6 +2095,39 @@ function PresentationsContent() {
                                     )}
                                 </div>
                             </div>
+
+                            {/* Right Sidebar - Element Editor Panel (Canva-style) */}
+                            <AnimatePresence>
+                                {isElementEditorOpen && selectedElement && (
+                                    <ElementEditorPanel
+                                        isOpen={isElementEditorOpen}
+                                        selectedElement={{
+                                            ...selectedElement,
+                                            data: selectedElement.type === 'image' ? {
+                                                url: data.slides[selectedElement.slideIndex]?.imageUrl,
+                                                publicId: data.slides[selectedElement.slideIndex]?.imagePublicId,
+                                                source: data.slides[selectedElement.slideIndex]?.imageSource,
+                                                keyword: data.slides[selectedElement.slideIndex]?.imageKeyword,
+                                                size: data.slides[selectedElement.slideIndex]?.imageSize,
+                                            } : undefined,
+                                        }}
+                                        onClose={handleElementEditorClose}
+                                        theme={{
+                                            primary: selectedTheme.colors.primary,
+                                            secondary: selectedTheme.colors.secondary,
+                                            accent: selectedTheme.colors.accent,
+                                        }}
+                                        onImageUpload={triggerImageUpload}
+                                        onImageRegenerate={regenerateImage}
+                                        onImageSizeChange={updateImageSize}
+                                        onImageRemove={removeImageFromSlide}
+                                        isUploadingImage={isUploadingImage}
+                                        isRegeneratingImage={isRegeneratingImage === selectedElement.slideIndex}
+                                        customImagePrompt={customImagePrompt}
+                                        setCustomImagePrompt={setCustomImagePrompt}
+                                    />
+                                )}
+                            </AnimatePresence>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -1919,6 +2167,15 @@ function PresentationsContent() {
                     isRegenerating={isRegeneratingSlide}
                 />
             )}
+
+            {/* Hidden file input for image upload */}
+            <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleImageUpload}
+                className="hidden"
+            />
         </div >
     );
 }

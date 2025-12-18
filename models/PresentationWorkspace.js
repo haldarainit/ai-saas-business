@@ -46,6 +46,22 @@ const SlideSchema = new mongoose.Schema({
     hasImage: { type: Boolean, default: true },
     imageKeyword: { type: String },
     imageUrl: { type: String },
+    // New fields for image upload and resize functionality
+    imagePublicId: { type: String }, // Cloudinary public ID for deletion
+    imageSource: {
+        type: String,
+        enum: ['ai', 'upload'],
+        default: 'ai'
+    }, // Track whether image is AI-generated or user-uploaded
+    imageSize: {
+        width: { type: Number }, // Custom width percentage (10-100)
+        height: { type: Number }, // Custom height percentage (10-100)
+        objectFit: {
+            type: String,
+            enum: ['cover', 'contain', 'fill', 'none'],
+            default: 'cover'
+        }
+    },
 }, { _id: false });
 
 const PresentationDataSchema = new mongoose.Schema({
