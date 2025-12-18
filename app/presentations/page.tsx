@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTheme } from "next-themes";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -219,6 +220,8 @@ function PresentationsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user } = useAuth();
+    const { resolvedTheme } = useTheme();
+    const isDark = resolvedTheme === 'dark';
 
     // Workspace state
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
@@ -733,7 +736,11 @@ function PresentationsContent() {
         return (
             <div
                 className="flex min-h-screen flex-col transition-colors duration-300"
-                style={{ background: `linear-gradient(180deg, #fefefe 0%, ${selectedTheme?.colors.bg || '#faf8f5'} 50%, ${selectedTheme?.colors.bgSecondary || '#f5f0eb'} 100%)` }}
+                style={{
+                    background: isDark
+                        ? `linear-gradient(180deg, #0a0a0a 0%, #111111 50%, #1a1a1a 100%)`
+                        : `linear-gradient(180deg, #fefefe 0%, ${selectedTheme?.colors.bg || '#faf8f5'} 50%, ${selectedTheme?.colors.bgSecondary || '#f5f0eb'} 100%)`
+                }}
             >
                 <Navbar />
                 <main className="flex-1">
@@ -742,6 +749,7 @@ function PresentationsContent() {
                         onSelectWorkspace={handleSelectWorkspace}
                         onCreateNew={handleNewWorkspace}
                         onDeleteWorkspace={handleDeleteWorkspace}
+                        isDark={isDark}
                     />
                 </main>
                 <Footer />
@@ -752,34 +760,38 @@ function PresentationsContent() {
     return (
         <div
             className="flex min-h-screen flex-col transition-colors duration-300"
-            style={{ background: `linear-gradient(180deg, #fefefe 0%, ${selectedTheme.colors.bg} 50%, ${selectedTheme.colors.bgSecondary} 100%)` }}
+            style={{
+                background: isDark
+                    ? `linear-gradient(180deg, #0a0a0a 0%, #111111 50%, #1a1a1a 100%)`
+                    : `linear-gradient(180deg, #fefefe 0%, ${selectedTheme.colors.bg} 50%, ${selectedTheme.colors.bgSecondary} 100%)`
+            }}
         >
             <Navbar />
 
             <main className="flex-1">
-                {/* Header - Clean white with subtle accent */}
+                {/* Header - Clean with subtle accent */}
                 <div
-                    className="border-b-2 backdrop-blur-md sticky top-16 z-40 transition-colors duration-300 bg-white/95 shadow-sm"
+                    className={`border-b-2 backdrop-blur-md sticky top-16 z-40 transition-colors duration-300 shadow-sm ${isDark ? 'bg-gray-900/95' : 'bg-white/95'}`}
                     style={{
-                        borderColor: `${selectedTheme.colors.accent}35`
+                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : `${selectedTheme.colors.accent}35`
                     }}
                 >
                     <div className="container mx-auto px-4 py-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <Button variant="ghost" size="sm" onClick={handleBackToDashboard} className="text-slate-600 hover:text-slate-800">
+                                <Button variant="ghost" size="sm" onClick={handleBackToDashboard} className={isDark ? 'text-gray-300 hover:text-white' : 'text-slate-600 hover:text-slate-800'}>
                                     <FolderOpen className="w-4 h-4 mr-2" />
                                     Dashboard
                                 </Button>
                                 {step !== "input" && (
-                                    <Button variant="ghost" size="sm" onClick={handleBack} className="text-slate-600 hover:text-slate-800">
+                                    <Button variant="ghost" size="sm" onClick={handleBack} className={isDark ? 'text-gray-300 hover:text-white' : 'text-slate-600 hover:text-slate-800'}>
                                         <ArrowLeft className="w-4 h-4 mr-2" />
                                         Back
                                     </Button>
                                 )}
                                 <h1
                                     className="text-2xl font-bold"
-                                    style={{ color: selectedTheme.colors.primary }}
+                                    style={{ color: isDark ? '#ffffff' : selectedTheme.colors.primary }}
                                 >
                                     {step === "input" && "New Presentation"}
                                     {step === "outline" && "Edit Outline"}
@@ -847,7 +859,7 @@ function PresentationsContent() {
                             className="container mx-auto px-4 py-12 max-w-4xl"
                         >
                             <div className="text-center mb-10">
-                                <p className="text-lg text-slate-600">
+                                <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-slate-600'}`}>
                                     What would you like to create today?
                                 </p>
                             </div>
@@ -858,9 +870,9 @@ function PresentationsContent() {
                                     variant="default"
                                     className="flex flex-col h-auto py-4 px-6 border-2 transition-all shadow-sm hover:shadow-md"
                                     style={{
-                                        backgroundColor: 'white',
+                                        backgroundColor: isDark ? '#1f2937' : 'white',
                                         borderColor: selectedTheme.colors.secondary,
-                                        color: selectedTheme.colors.primary
+                                        color: isDark ? '#ffffff' : selectedTheme.colors.primary
                                     }}
                                 >
                                     <Presentation className="w-6 h-6 mb-1" />
@@ -868,7 +880,7 @@ function PresentationsContent() {
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="flex flex-col h-auto py-4 px-6 opacity-50 bg-white/50"
+                                    className={`flex flex-col h-auto py-4 px-6 opacity-50 ${isDark ? 'bg-gray-800/50' : 'bg-white/50'}`}
                                     disabled
                                 >
                                     <Globe className="w-6 h-6 mb-1" />
@@ -876,7 +888,7 @@ function PresentationsContent() {
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="flex flex-col h-auto py-4 px-6 opacity-50 bg-white/50"
+                                    className={`flex flex-col h-auto py-4 px-6 opacity-50 ${isDark ? 'bg-gray-800/50' : 'bg-white/50'}`}
                                     disabled
                                 >
                                     <FileText className="w-6 h-6 mb-1" />
@@ -890,7 +902,7 @@ function PresentationsContent() {
                                     <select
                                         value={slideCount}
                                         onChange={(e) => setSlideCount(Number(e.target.value))}
-                                        className="appearance-none border-2 rounded-lg px-4 py-2 pr-8 text-sm font-medium focus:outline-none focus:ring-2 transition-all bg-white text-slate-700 shadow-sm"
+                                        className={`appearance-none border-2 rounded-lg px-4 py-2 pr-8 text-sm font-medium focus:outline-none focus:ring-2 transition-all shadow-sm ${isDark ? 'bg-gray-800 text-gray-200' : 'bg-white text-slate-700'}`}
                                         style={{
                                             borderColor: selectedTheme.colors.secondary
                                         }}
@@ -899,14 +911,14 @@ function PresentationsContent() {
                                             <option key={n} value={n}>{n} slides</option>
                                         ))}
                                     </select>
-                                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-slate-500" />
+                                    <ChevronDown className={`absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${isDark ? 'text-gray-400' : 'text-slate-500'}`} />
                                 </div>
 
                                 <div className="relative">
                                     <select
                                         value={theme}
                                         onChange={(e) => setTheme(e.target.value as Theme)}
-                                        className="appearance-none border-2 rounded-lg px-4 py-2 pr-8 text-sm font-medium focus:outline-none focus:ring-2 transition-all bg-white text-slate-700 shadow-sm"
+                                        className={`appearance-none border-2 rounded-lg px-4 py-2 pr-8 text-sm font-medium focus:outline-none focus:ring-2 transition-all shadow-sm ${isDark ? 'bg-gray-800 text-gray-200' : 'bg-white text-slate-700'}`}
                                         style={{
                                             borderColor: selectedTheme.colors.secondary
                                         }}
@@ -915,22 +927,22 @@ function PresentationsContent() {
                                             <option key={t.id} value={t.id}>{t.name}</option>
                                         ))}
                                     </select>
-                                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-slate-500" />
+                                    <ChevronDown className={`absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${isDark ? 'text-gray-400' : 'text-slate-500'}`} />
                                 </div>
                             </div>
 
                             {/* Main Input - Clean with visible text */}
                             <Card
                                 className="p-6 mb-8 shadow-xl border-0 transition-colors"
-                                style={{ backgroundColor: 'white' }}
+                                style={{ backgroundColor: isDark ? '#1f2937' : 'white' }}
                             >
                                 <div className="flex gap-3">
                                     <Input
                                         placeholder="Describe what you'd like to make (e.g., 'A pitch deck for my AI startup')"
-                                        className="text-lg h-14 border-2 focus-visible:ring-2 text-slate-800 placeholder:text-slate-400"
+                                        className={`text-lg h-14 border-2 focus-visible:ring-2 ${isDark ? 'text-gray-100 placeholder:text-gray-500' : 'text-slate-800 placeholder:text-slate-400'}`}
                                         style={{
-                                            backgroundColor: '#fafaf9',
-                                            borderColor: `${selectedTheme.colors.accent}80`,
+                                            backgroundColor: isDark ? '#111827' : '#fafaf9',
+                                            borderColor: isDark ? 'rgba(255,255,255,0.15)' : `${selectedTheme.colors.accent}80`,
                                         }}
                                         value={prompt}
                                         onChange={(e) => setPrompt(e.target.value)}
@@ -952,7 +964,7 @@ function PresentationsContent() {
 
                             {/* Example Prompts */}
                             <div className="text-center mb-6">
-                                <p className="text-sm text-slate-500">Example prompts</p>
+                                <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-slate-500'}`}>Example prompts</p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -960,31 +972,31 @@ function PresentationsContent() {
                                     <button
                                         key={i}
                                         onClick={() => setPrompt(`${example.title} ${example.subtitle}`)}
-                                        className="flex items-start gap-3 p-4 rounded-xl border-2 hover:shadow-lg transition-all text-left group bg-white"
+                                        className={`flex items-start gap-3 p-4 rounded-xl border-2 hover:shadow-lg transition-all text-left group ${isDark ? 'bg-gray-800' : 'bg-white'}`}
                                         style={{
-                                            borderColor: `${selectedTheme.colors.accent}50`
+                                            borderColor: isDark ? 'rgba(255,255,255,0.1)' : `${selectedTheme.colors.accent}50`
                                         }}
                                         onMouseEnter={(e) => {
                                             e.currentTarget.style.borderColor = selectedTheme.colors.secondary;
                                             e.currentTarget.style.transform = 'translateY(-2px)';
                                         }}
                                         onMouseLeave={(e) => {
-                                            e.currentTarget.style.borderColor = `${selectedTheme.colors.accent}50`;
+                                            e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.1)' : `${selectedTheme.colors.accent}50`;
                                             e.currentTarget.style.transform = 'translateY(0)';
                                         }}
                                     >
                                         <div
                                             className="w-8 h-8 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform"
                                             style={{
-                                                backgroundColor: `${selectedTheme.colors.accent}40`,
-                                                color: selectedTheme.colors.primary
+                                                backgroundColor: isDark ? `${selectedTheme.colors.accent}25` : `${selectedTheme.colors.accent}40`,
+                                                color: isDark ? '#ffffff' : selectedTheme.colors.primary
                                             }}
                                         >
                                             <example.icon className="w-4 h-4" />
                                         </div>
                                         <div>
-                                            <p className="font-medium text-sm text-slate-700">{example.title}</p>
-                                            <p className="text-xs text-slate-500">{example.subtitle}</p>
+                                            <p className={`font-medium text-sm ${isDark ? 'text-gray-200' : 'text-slate-700'}`}>{example.title}</p>
+                                            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-slate-500'}`}>{example.subtitle}</p>
                                         </div>
                                     </button>
                                 ))}
@@ -1004,12 +1016,12 @@ function PresentationsContent() {
                             {/* Settings Bar */}
                             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                                 <div className="flex items-center gap-3">
-                                    <span className="text-sm font-medium text-slate-500">Settings:</span>
+                                    <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>Settings:</span>
                                     <div className="relative">
                                         <select
                                             value={slideCount}
                                             onChange={(e) => setSlideCount(Number(e.target.value))}
-                                            className="appearance-none bg-white border-2 rounded-lg px-3 py-1.5 pr-7 text-sm font-medium text-slate-700 shadow-sm"
+                                            className={`appearance-none border-2 rounded-lg px-3 py-1.5 pr-7 text-sm font-medium shadow-sm ${isDark ? 'bg-gray-800 text-gray-200' : 'bg-white text-slate-700'}`}
                                             style={{ borderColor: selectedTheme.colors.secondary }}
                                             disabled={isGeneratingFull}
                                         >
@@ -1017,13 +1029,13 @@ function PresentationsContent() {
                                                 <option key={n} value={n}>{n} slides</option>
                                             ))}
                                         </select>
-                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none text-slate-500" />
+                                        <ChevronDown className={`absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none ${isDark ? 'text-gray-400' : 'text-slate-500'}`} />
                                     </div>
                                     <div className="relative">
                                         <select
                                             value={theme}
                                             onChange={(e) => setTheme(e.target.value as Theme)}
-                                            className="appearance-none bg-white border-2 rounded-lg px-3 py-1.5 pr-7 text-sm font-medium text-slate-700 shadow-sm"
+                                            className={`appearance-none border-2 rounded-lg px-3 py-1.5 pr-7 text-sm font-medium shadow-sm ${isDark ? 'bg-gray-800 text-gray-200' : 'bg-white text-slate-700'}`}
                                             style={{ borderColor: selectedTheme.colors.secondary }}
                                             disabled={isGeneratingFull}
                                         >
@@ -1031,7 +1043,7 @@ function PresentationsContent() {
                                                 <option key={t.id} value={t.id}>{t.name}</option>
                                             ))}
                                         </select>
-                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none text-slate-500" />
+                                        <ChevronDown className={`absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none ${isDark ? 'text-gray-400' : 'text-slate-500'}`} />
                                     </div>
                                 </div>
                                 <Button
@@ -1051,17 +1063,17 @@ function PresentationsContent() {
                             <Card
                                 className="p-4 mb-6 border-2 shadow-sm"
                                 style={{
-                                    backgroundColor: 'white',
+                                    backgroundColor: isDark ? '#1f2937' : 'white',
                                     borderColor: selectedTheme.colors.secondary
                                 }}
                             >
-                                <p className="text-slate-700 font-medium">{prompt}</p>
+                                <p className={`font-medium ${isDark ? 'text-gray-200' : 'text-slate-700'}`}>{prompt}</p>
                             </Card>
 
                             {/* Outline Label */}
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-sm font-semibold text-slate-600">Outline</h3>
-                                <p className="text-xs text-slate-400">Click any slide to edit • Drag to reorder</p>
+                                <h3 className={`text-sm font-semibold ${isDark ? 'text-gray-300' : 'text-slate-600'}`}>Outline</h3>
+                                <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>Click any slide to edit • Drag to reorder</p>
                             </div>
 
                             {/* Outline Cards */}
@@ -1098,10 +1110,10 @@ function PresentationsContent() {
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             transition={{ delay: i * 0.05 }}
-                                            className="rounded-xl p-4 border-l-4 shadow-sm transition-all bg-white"
+                                            className={`rounded-xl p-4 border-l-4 shadow-sm transition-all ${isDark ? 'bg-gray-800' : 'bg-white'}`}
                                             style={{
                                                 borderLeftColor: editingSlide === i ? selectedTheme.colors.primary : selectedTheme.colors.accent,
-                                                boxShadow: editingSlide === i ? `0 4px 12px ${selectedTheme.colors.accent}30` : '0 1px 3px rgba(0,0,0,0.06)'
+                                                boxShadow: editingSlide === i ? `0 4px 12px ${isDark ? 'rgba(0,0,0,0.3)' : selectedTheme.colors.accent + '30'}` : isDark ? '0 1px 3px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.06)'
                                             }}
                                         >
                                             <div className="flex items-start gap-4">
@@ -1109,13 +1121,13 @@ function PresentationsContent() {
                                                     <div
                                                         className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0"
                                                         style={{
-                                                            backgroundColor: `${selectedTheme.colors.accent}35`,
-                                                            color: selectedTheme.colors.primary
+                                                            backgroundColor: isDark ? `${selectedTheme.colors.accent}25` : `${selectedTheme.colors.accent}35`,
+                                                            color: isDark ? '#ffffff' : selectedTheme.colors.primary
                                                         }}
                                                     >
                                                         {i + 1}
                                                     </div>
-                                                    <button className="cursor-grab text-slate-300 hover:text-slate-500 transition-colors">
+                                                    <button className={`cursor-grab transition-colors ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-slate-300 hover:text-slate-500'}`}>
                                                         <GripVertical className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -1126,7 +1138,7 @@ function PresentationsContent() {
                                                             <Input
                                                                 value={slide.title}
                                                                 onChange={(e) => updateOutlineSlide(i, 'title', e.target.value)}
-                                                                className="font-semibold text-lg text-slate-800 border-2"
+                                                                className={`font-semibold text-lg border-2 ${isDark ? 'text-gray-200 bg-gray-700' : 'text-slate-800'}`}
                                                                 style={{ borderColor: `${selectedTheme.colors.secondary}80` }}
                                                                 placeholder="Slide title"
                                                             />
@@ -1141,7 +1153,7 @@ function PresentationsContent() {
                                                                             newContent[j] = e.target.value;
                                                                             updateOutlineSlide(i, 'content', newContent);
                                                                         }}
-                                                                        className="text-sm flex-1 text-slate-700"
+                                                                        className={`text-sm flex-1 ${isDark ? 'text-gray-300 bg-gray-700' : 'text-slate-700'}`}
                                                                         placeholder="Bullet point"
                                                                     />
                                                                     <Button
@@ -1180,12 +1192,12 @@ function PresentationsContent() {
                                                             onClick={() => setEditingSlide(i)}
                                                         >
                                                             <div className="flex items-center justify-between">
-                                                                <h4 className="font-semibold text-slate-700">{slide.title}</h4>
-                                                                <Edit3 className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400" />
+                                                                <h4 className={`font-semibold ${isDark ? 'text-gray-200' : 'text-slate-700'}`}>{slide.title}</h4>
+                                                                <Edit3 className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-slate-400'}`} />
                                                             </div>
                                                             <ul className="mt-2 space-y-1">
                                                                 {(slide.content || []).map((point, j) => (
-                                                                    <li key={j} className="text-sm flex items-start gap-2 text-slate-500">
+                                                                    <li key={j} className={`text-sm flex items-start gap-2 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
                                                                         <span className="mt-0.5" style={{ color: selectedTheme.colors.primary }}>•</span>
                                                                         {point}
                                                                     </li>
@@ -1200,7 +1212,7 @@ function PresentationsContent() {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-7 w-7 text-slate-400 hover:text-blue-600"
+                                                        className={`h-7 w-7 ${isDark ? 'text-gray-500 hover:text-blue-400' : 'text-slate-400 hover:text-blue-600'}`}
                                                         onClick={() => addSlide(i)}
                                                         title="Add slide after"
                                                     >
@@ -1209,7 +1221,7 @@ function PresentationsContent() {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-7 w-7 text-slate-400 hover:text-red-600"
+                                                        className={`h-7 w-7 ${isDark ? 'text-gray-500 hover:text-red-400' : 'text-slate-400 hover:text-red-600'}`}
                                                         onClick={() => removeSlide(i)}
                                                         title="Remove slide"
                                                     >
@@ -1225,13 +1237,13 @@ function PresentationsContent() {
                             {/* Bottom Generate Bar - Clean styling */}
                             {outline && (
                                 <div
-                                    className="fixed bottom-0 left-0 right-0 border-t-2 py-4 px-4 z-50 backdrop-blur-md bg-white/95 shadow-lg"
+                                    className={`fixed bottom-0 left-0 right-0 border-t-2 py-4 px-4 z-50 backdrop-blur-md shadow-lg ${isDark ? 'bg-gray-900/95' : 'bg-white/95'}`}
                                     style={{
-                                        borderColor: `${selectedTheme.colors.accent}40`
+                                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : `${selectedTheme.colors.accent}40`
                                     }}
                                 >
                                     <div className="container mx-auto max-w-4xl flex items-center justify-between">
-                                        <span className="text-sm text-slate-500">
+                                        <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
                                             {outline.slides.length} slides total
                                         </span>
                                         <Button
@@ -1268,15 +1280,15 @@ function PresentationsContent() {
                             exit={{ opacity: 0 }}
                             className="flex h-[calc(100vh-8rem)]"
                         >
-                            {/* Left Sidebar - Thumbnails with soothing theme background */}
+                            {/* Left Sidebar - Thumbnails with theme background */}
                             <div
                                 className="w-52 border-r overflow-y-auto p-4 space-y-3 hidden md:block transition-colors duration-300"
                                 style={{
-                                    backgroundColor: selectedTheme.colors.bg,
-                                    borderColor: `${selectedTheme.colors.accent}40`
+                                    backgroundColor: isDark ? '#111827' : selectedTheme.colors.bg,
+                                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : `${selectedTheme.colors.accent}40`
                                 }}
                             >
-                                <div className="text-xs font-medium mb-3 text-slate-500">SLIDES</div>
+                                <div className={`text-xs font-medium mb-3 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>SLIDES</div>
                                 {data.slides.map((slide, i) => {
                                     return (
                                         <div key={i} className="relative group">
@@ -1345,10 +1357,14 @@ function PresentationsContent() {
                                 })}
                             </div>
 
-                            {/* Main Preview Area - Soothing theme-based background */}
+                            {/* Main Preview Area - Theme-based background */}
                             <div
                                 className="flex-1 overflow-y-auto p-8 transition-colors duration-300"
-                                style={{ background: `linear-gradient(180deg, ${selectedTheme.colors.bgSecondary} 0%, ${selectedTheme.colors.bg} 100%)` }}
+                                style={{
+                                    background: isDark
+                                        ? 'linear-gradient(180deg, #0a0a0a 0%, #111111 100%)'
+                                        : `linear-gradient(180deg, ${selectedTheme.colors.bgSecondary} 0%, ${selectedTheme.colors.bg} 100%)`
+                                }}
                             >
                                 <div className="max-w-5xl mx-auto">
                                     {/* Current Slide Editor */}
@@ -1362,12 +1378,15 @@ function PresentationsContent() {
                                                         size="sm"
                                                         onClick={() => setActiveSlide(Math.max(0, activeSlide - 1))}
                                                         disabled={activeSlide === 0}
-                                                        className="border-2"
-                                                        style={{ borderColor: selectedTheme.colors.accent, color: selectedTheme.colors.primary }}
+                                                        className={`border-2 ${isDark ? 'bg-gray-800 hover:bg-gray-700' : ''}`}
+                                                        style={{
+                                                            borderColor: isDark ? 'rgba(255,255,255,0.2)' : selectedTheme.colors.accent,
+                                                            color: isDark ? '#ffffff' : selectedTheme.colors.primary
+                                                        }}
                                                     >
                                                         <ArrowLeft className="w-4 h-4" />
                                                     </Button>
-                                                    <span className="text-sm font-medium text-slate-600">
+                                                    <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-slate-600'}`}>
                                                         Slide {activeSlide + 1} of {data.slides.length}
                                                     </span>
                                                     <Button
@@ -1375,8 +1394,11 @@ function PresentationsContent() {
                                                         size="sm"
                                                         onClick={() => setActiveSlide(Math.min(data.slides.length - 1, activeSlide + 1))}
                                                         disabled={activeSlide === data.slides.length - 1}
-                                                        className="border-2"
-                                                        style={{ borderColor: selectedTheme.colors.accent, color: selectedTheme.colors.primary }}
+                                                        className={`border-2 ${isDark ? 'bg-gray-800 hover:bg-gray-700' : ''}`}
+                                                        style={{
+                                                            borderColor: isDark ? 'rgba(255,255,255,0.2)' : selectedTheme.colors.accent,
+                                                            color: isDark ? '#ffffff' : selectedTheme.colors.primary
+                                                        }}
                                                     >
                                                         <ArrowRight className="w-4 h-4" />
                                                     </Button>
@@ -1713,16 +1735,16 @@ function PresentationsContent() {
 
                                             {/* All Slides Overview */}
                                             <div className="mt-8">
-                                                <h3 className="text-sm font-medium text-muted-foreground mb-4">All Slides ({data.slides.length} total) - Hover over cards for quick actions</h3>
+                                                <h3 className={`text-sm font-medium mb-4 ${isDark ? 'text-gray-400' : 'text-muted-foreground'}`}>All Slides ({data.slides.length} total) - Hover over cards for quick actions</h3>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                     {data.slides.map((slide, i) => (
                                                         <div key={i} className="relative group">
                                                             <button
                                                                 onClick={() => setActiveSlide(i)}
-                                                                className={`w-full aspect-video rounded-lg overflow-hidden border-2 transition-all ${activeSlide === i ? 'ring-2' : 'border-slate-200 hover:border-slate-400'}`}
+                                                                className={`w-full aspect-video rounded-lg overflow-hidden border-2 transition-all ${activeSlide === i ? 'ring-2' : isDark ? 'border-gray-700 hover:border-gray-500' : 'border-slate-200 hover:border-slate-400'}`}
                                                                 style={activeSlide === i ? {
                                                                     borderColor: selectedTheme.colors.primary,
-                                                                    boxShadow: `0 0 0 2px ${selectedTheme.colors.accent}40`
+                                                                    boxShadow: `0 0 0 2px ${isDark ? 'rgba(255,255,255,0.1)' : selectedTheme.colors.accent + '40'}`
                                                                 } : undefined}
                                                             >
                                                                 <div className="w-full h-full scale-[0.25] origin-top-left" style={{ width: '400%', height: '400%' }}>

@@ -30,6 +30,7 @@ interface PresentationDashboardProps {
     onSelectWorkspace: (id: string) => void;
     onCreateNew: () => void;
     onDeleteWorkspace: (id: string) => void;
+    isDark?: boolean;
 }
 
 // Warm coral theme colors
@@ -45,7 +46,8 @@ export default function PresentationDashboard({
     userId,
     onSelectWorkspace,
     onCreateNew,
-    onDeleteWorkspace
+    onDeleteWorkspace,
+    isDark = false
 }: PresentationDashboardProps) {
     const [workspaces, setWorkspaces] = useState<PresentationWorkspace[]>([]);
     const [loading, setLoading] = useState(true);
@@ -120,10 +122,10 @@ export default function PresentationDashboard({
         <div className="container mx-auto p-8 max-w-6xl">
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold mb-2 text-slate-800">
+                    <h1 className={`text-3xl font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-800'}`}>
                         Your Presentations
                     </h1>
-                    <p className="text-slate-500">
+                    <p className={isDark ? 'text-gray-400' : 'text-slate-500'}>
                         Create, edit, and manage your AI-powered presentations
                     </p>
                 </div>
@@ -141,20 +143,20 @@ export default function PresentationDashboard({
                 <div
                     className="text-center py-20 rounded-xl border border-dashed"
                     style={{
-                        backgroundColor: WARM_THEME.bgSecondary,
-                        borderColor: WARM_THEME.accent
+                        backgroundColor: isDark ? '#1f2937' : WARM_THEME.bgSecondary,
+                        borderColor: isDark ? 'rgba(255,255,255,0.15)' : WARM_THEME.accent
                     }}
                 >
                     <div
                         className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                        style={{ backgroundColor: `${WARM_THEME.accent}40` }}
+                        style={{ backgroundColor: isDark ? `${WARM_THEME.accent}25` : `${WARM_THEME.accent}40` }}
                     >
-                        <Presentation className="w-8 h-8" style={{ color: WARM_THEME.primary }} />
+                        <Presentation className="w-8 h-8" style={{ color: isDark ? '#ffffff' : WARM_THEME.primary }} />
                     </div>
-                    <h3 className="text-xl font-semibold mb-2 text-slate-700">
+                    <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-gray-200' : 'text-slate-700'}`}>
                         No presentations yet
                     </h3>
-                    <p className="mb-6 text-slate-500">
+                    <p className={`mb-6 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
                         Create your first AI-powered presentation to get started
                     </p>
                     <Button
@@ -177,24 +179,24 @@ export default function PresentationDashboard({
                                 key={workspace._id}
                                 className="hover:shadow-lg transition-all cursor-pointer group relative overflow-hidden"
                                 style={{
-                                    backgroundColor: 'white',
-                                    borderColor: `${WARM_THEME.accent}40`
+                                    backgroundColor: isDark ? '#1f2937' : 'white',
+                                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : `${WARM_THEME.accent}40`
                                 }}
                                 onClick={() => onSelectWorkspace(workspace._id)}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.borderColor = WARM_THEME.primary;
                                 }}
                                 onMouseLeave={(e) => {
-                                    e.currentTarget.style.borderColor = `${WARM_THEME.accent}40`;
+                                    e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.1)' : `${WARM_THEME.accent}40`;
                                 }}
                             >
                                 <CardHeader className="pb-3">
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="flex-1 min-w-0 overflow-hidden">
-                                            <CardTitle className="text-lg leading-tight line-clamp-2 text-slate-700">
+                                            <CardTitle className={`text-lg leading-tight line-clamp-2 ${isDark ? 'text-gray-200' : 'text-slate-700'}`}>
                                                 {workspace.name}
                                             </CardTitle>
-                                            <CardDescription className="flex items-center gap-2 mt-1 text-slate-400">
+                                            <CardDescription className={`flex items-center gap-2 mt-1 ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
                                                 <Clock className="w-3 h-3" />
                                                 {formatDistanceToNow(new Date(workspace.updatedAt), { addSuffix: true })}
                                             </CardDescription>
@@ -214,25 +216,27 @@ export default function PresentationDashboard({
                                     <div
                                         className="h-28 rounded-lg flex flex-col items-center justify-center border overflow-hidden relative mb-3 transition-colors"
                                         style={{
-                                            background: `linear-gradient(135deg, ${WARM_THEME.bg} 0%, ${WARM_THEME.bgSecondary} 100%)`,
-                                            borderColor: `${WARM_THEME.accent}30`
+                                            background: isDark
+                                                ? 'linear-gradient(135deg, #111827 0%, #1f2937 100%)'
+                                                : `linear-gradient(135deg, ${WARM_THEME.bg} 0%, ${WARM_THEME.bgSecondary} 100%)`,
+                                            borderColor: isDark ? 'rgba(255,255,255,0.08)' : `${WARM_THEME.accent}30`
                                         }}
                                     >
                                         {preview.type === 'presentation' || preview.type === 'outline' ? (
                                             <div className="text-center px-4">
-                                                <Presentation className="w-8 h-8 mx-auto mb-2" style={{ color: WARM_THEME.primary }} />
-                                                <p className="text-sm font-medium line-clamp-2 text-slate-700">{preview.title}</p>
-                                                <span className="text-xs text-slate-400">{preview.slideCount} slides</span>
+                                                <Presentation className="w-8 h-8 mx-auto mb-2" style={{ color: isDark ? '#ffffff' : WARM_THEME.primary }} />
+                                                <p className={`text-sm font-medium line-clamp-2 ${isDark ? 'text-gray-200' : 'text-slate-700'}`}>{preview.title}</p>
+                                                <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>{preview.slideCount} slides</span>
                                             </div>
                                         ) : (
                                             <div className="text-center px-4">
                                                 <div
                                                     className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2"
-                                                    style={{ backgroundColor: `${WARM_THEME.accent}30` }}
+                                                    style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : `${WARM_THEME.accent}30` }}
                                                 >
-                                                    <FileText className="w-5 h-5 text-slate-400" />
+                                                    <FileText className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-slate-400'}`} />
                                                 </div>
-                                                <p className="text-xs line-clamp-2 text-slate-500">{preview.title}</p>
+                                                <p className={`text-xs line-clamp-2 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>{preview.title}</p>
                                             </div>
                                         )}
                                     </div>
@@ -248,7 +252,7 @@ export default function PresentationDashboard({
                                         >
                                             {statusBadge.label}
                                         </span>
-                                        <span className="text-xs text-slate-400">
+                                        <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
                                             {workspace.theme} • {workspace.slideCount} slides
                                         </span>
                                     </div>
