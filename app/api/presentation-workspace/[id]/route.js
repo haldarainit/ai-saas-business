@@ -1,14 +1,25 @@
 import dbConnect from '@/lib/mongodb';
 import PresentationWorkspace from '@/models/PresentationWorkspace';
 import { NextResponse } from 'next/server';
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
 // GET - Get a specific presentation workspace by ID
 export async function GET(request, { params }) {
     try {
+        const { userId } = await getAuthenticatedUser(request);
+
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { id } = await params;
         await dbConnect();
 
-        const workspace = await PresentationWorkspace.findById(id).lean();
+        // Find workspace by ID and verify ownership
+        const workspace = await PresentationWorkspace.findOne({
+            _id: id,
+            userId: userId
+        }).lean();
 
         if (!workspace) {
             return NextResponse.json(
@@ -30,6 +41,12 @@ export async function GET(request, { params }) {
 // PUT - Update presentation workspace
 export async function PUT(request, { params }) {
     try {
+        const { userId } = await getAuthenticatedUser(request);
+
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { id } = await params;
         await dbConnect();
 
@@ -45,8 +62,9 @@ export async function PUT(request, { params }) {
         if (outline !== undefined) updateData.outline = outline;
         if (presentation !== undefined) updateData.presentation = presentation;
 
-        const workspace = await PresentationWorkspace.findByIdAndUpdate(
-            id,
+        // Update workspace only if user owns it
+        const workspace = await PresentationWorkspace.findOneAndUpdate(
+            { _id: id, userId: userId },
             updateData,
             { new: true, runValidators: true }
         ).lean();
@@ -74,10 +92,20 @@ export async function PUT(request, { params }) {
 // DELETE - Delete a presentation workspace
 export async function DELETE(request, { params }) {
     try {
+        const { userId } = await getAuthenticatedUser(request);
+
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { id } = await params;
         await dbConnect();
 
-        const workspace = await PresentationWorkspace.findByIdAndDelete(id);
+        // Delete workspace only if user owns it
+        const workspace = await PresentationWorkspace.findOneAndDelete({
+            _id: id,
+            userId: userId
+        });
 
         if (!workspace) {
             return NextResponse.json(
