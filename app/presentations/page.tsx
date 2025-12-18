@@ -1360,7 +1360,7 @@ function PresentationsContent() {
                                         <div key={i} className="relative group">
                                             <button
                                                 onClick={() => setActiveSlide(i)}
-                                                className={`w-full aspect-[16/10] rounded-lg overflow-hidden border-2 transition-all relative ${activeSlide === i
+                                                className={`w-full aspect-[16/10] rounded-lg overflow-hidden border-2 transition-all relative bg-white ${activeSlide === i
                                                     ? "shadow-lg"
                                                     : "border-transparent hover:border-slate-300"
                                                     }`}
@@ -1375,7 +1375,8 @@ function PresentationsContent() {
                                                         {slide.layoutType}
                                                     </div>
                                                 )}
-                                                <div className="w-full h-full scale-[0.15] origin-top-left" style={{ width: '666%', height: '666%' }}>
+                                                {/* Slide container with white background to isolate from dark mode */}
+                                                <div className="w-full h-full scale-[0.15] origin-top-left bg-white" style={{ width: '666%', height: '666%' }}>
                                                     <SlidePreview
                                                         slide={slide}
                                                         slideIndex={i}
@@ -1518,12 +1519,12 @@ function PresentationsContent() {
                                                 </div>
                                             </div>
 
-                                            {/* Unified Slide Preview with Edit Overlay */}
+                                            {/* Unified Slide Preview with Edit Overlay - white bg to isolate from dark mode */}
                                             <motion.div
                                                 key={`${activeSlide}-unified`}
                                                 initial={{ opacity: 0, scale: 0.98 }}
                                                 animate={{ opacity: 1, scale: 1 }}
-                                                className="aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl relative group"
+                                                className="aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl relative group bg-white"
                                             >
                                                 {/* Slide Preview Component */}
                                                 <SlidePreview
