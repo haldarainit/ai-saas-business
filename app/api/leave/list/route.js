@@ -33,7 +33,7 @@ export async function GET(request) {
     const status = searchParams.get('status');
     const employeeId = searchParams.get('employeeId');
 
-    let query = {};
+    let query = { userId: decoded.userId }; // Filter by userId for data isolation
     
     // If employeeId is provided and matches token, show their leaves
     // Otherwise, if admin, show all leaves
@@ -43,7 +43,7 @@ export async function GET(request) {
       // Default: show employee's own leaves
       query.employeeId = decoded.employeeId;
     } else {
-      // Admin viewing specific employee
+      // Admin viewing specific employee (within same company/userId)
       query.employeeId = employeeId;
     }
 

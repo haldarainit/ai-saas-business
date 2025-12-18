@@ -83,6 +83,7 @@ export async function POST(request) {
         const token = jwt.sign(
             {
                 employeeId: employee.employeeId,
+                userId: employee.userId, // Add userId for data isolation
                 email: employee.email,
                 name: employee.name,
                 attendanceToken: employee.attendanceToken,

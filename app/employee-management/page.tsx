@@ -21,26 +21,26 @@ export default function EmployeeManagement() {
       iconColor: "text-cyan-500",
       link: "/employee-management/attendance",
     },
-    {
-      icon: DollarSign,
-      title: "Payroll",
-      description:
-        "Automate payroll processing with tax calculations, deductions, and direct deposit management.",
-      features: ["Auto Calculations", "Tax Management", "Direct Deposits", "Salary Slips"],
-      accentColor: "rgba(34, 197, 94, 0.5)",
-      iconColor: "text-green-500",
-      link: "/employee-management/payroll",
-    },
-    {
-      icon: Brain,
-      title: "HR AI Assistant",
-      description:
-        "AI-powered HR assistant to answer policy questions, handle queries, and provide instant support.",
-      features: ["24/7 Availability", "Policy Guidance", "Query Resolution", "Smart Suggestions"],
-      accentColor: "rgba(236, 72, 153, 0.5)",
-      iconColor: "text-pink-500",
-      link: "/employee-management/hr-ai",
-    },
+    // {
+    //   icon: DollarSign,
+    //   title: "Payroll",
+    //   description:
+    //     "Automate payroll processing with tax calculations, deductions, and direct deposit management.",
+    //   features: ["Auto Calculations", "Tax Management", "Direct Deposits", "Salary Slips"],
+    //   accentColor: "rgba(34, 197, 94, 0.5)",
+    //   iconColor: "text-green-500",
+    //   link: "/employee-management/payroll",
+    // },
+    // {
+    //   icon: Brain,
+    //   title: "HR AI Assistant",
+    //   description:
+    //     "AI-powered HR assistant to answer policy questions, handle queries, and provide instant support.",
+    //   features: ["24/7 Availability", "Policy Guidance", "Query Resolution", "Smart Suggestions"],
+    //   accentColor: "rgba(236, 72, 153, 0.5)",
+    //   iconColor: "text-pink-500",
+    //   link: "/employee-management/hr-ai",
+    // },
     {
       icon: Calendar,
       title: "Leave System",
@@ -51,16 +51,16 @@ export default function EmployeeManagement() {
       iconColor: "text-orange-500",
       link: "/employee-management/leave",
     },
-    {
-      icon: FileText,
-      title: "Tasks & Reports",
-      description:
-        "Assign tasks, track progress, and generate comprehensive HR reports with analytics.",
-      features: ["Task Assignment", "Progress Tracking", "Analytics Dashboard", "Custom Reports"],
-      accentColor: "rgba(139, 92, 246, 0.5)",
-      iconColor: "text-purple-500",
-      link: "/employee-management/tasks",
-    },
+    // {
+    //   icon: FileText,
+    //   title: "Tasks & Reports",
+    //   description:
+    //     "Assign tasks, track progress, and generate comprehensive HR reports with analytics.",
+    //   features: ["Task Assignment", "Progress Tracking", "Analytics Dashboard", "Custom Reports"],
+    //   accentColor: "rgba(139, 92, 246, 0.5)",
+    //   iconColor: "text-purple-500",
+    //   link: "/employee-management/tasks",
+    // },
     {
       icon: MapPin,
       title: "Live Tracking",
@@ -240,7 +240,7 @@ export default function EmployeeManagement() {
             </motion.div>
 
             {/* Bottom CTA */}
-            <motion.div
+            {/* <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
@@ -268,7 +268,7 @@ export default function EmployeeManagement() {
                   </Button>
                 </div>
               </div>
-            </motion.div>
+            </motion.div> */}
           </div>
         </section>
       </main>

@@ -3,10 +3,20 @@ import dbConnect from '@/lib/mongodb';
 import Leave from '@/lib/models/Leave';
 import Employee from '@/lib/models/Employee';
 import Attendance from '@/lib/models/Attendance';
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
 export async function POST(request) {
   try {
     await dbConnect();
+
+    // Extract authenticated user for data isolation
+    const { userId } = await getAuthenticatedUser(request);
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
 
     const body = await request.json();
     const { leaveId, action, rejectionReason, approvedBy } = body;
@@ -25,10 +35,10 @@ export async function POST(request) {
       );
     }
 
-    const leave = await Leave.findById(leaveId);
+    const leave = await Leave.findOne({ _id: leaveId, userId });
     if (!leave) {
       return NextResponse.json(
-        { success: false, error: 'Leave request not found' },
+        { success: false, error: 'Leave request not found or access denied' },
         { status: 404 }
       );
     }
@@ -47,7 +57,7 @@ export async function POST(request) {
       leave.approvedAt = new Date();
 
       // Deduct from leave balance
-      const employee = await Employee.findOne({ employeeId: leave.employeeId });
+      const employee = await Employee.findOne({ employeeId: leave.employeeId, userId });
       if (employee) {
         const leaveBalanceKey = leave.leaveType === 'casual' ? 'casual' : leave.leaveType === 'sick' ? 'sick' : 'annual';
         if (employee.leaveBalance?.[leaveBalanceKey] >= leave.days) {
@@ -68,10 +78,11 @@ export async function POST(request) {
       // Update or create attendance records
       for (const date of dates) {
         await Attendance.findOneAndUpdate(
-          { employeeId: leave.employeeId, date },
+          { employeeId: leave.employeeId, userId, date },
           {
             employeeId: leave.employeeId,
             employeeName: leave.employeeName,
+            userId, // Add userId for data isolation
             date,
             status: 'on-leave',
             notes: `Leave approved: ${leave.leaveType}`,

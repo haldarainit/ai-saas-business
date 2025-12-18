@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Employee from '@/lib/models/Employee';
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
 export async function POST(request) {
   try {
     await dbConnect();
+
+    // Get authenticated user
+    const { userId } = await getAuthenticatedUser(request);
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
 
     const body = await request.json();
     const { 
@@ -26,20 +36,22 @@ export async function POST(request) {
       );
     }
 
-    // Check if employee already exists
+    // Check if employee already exists for this user
     const existing = await Employee.findOne({ 
+      userId,
       $or: [{ employeeId }, { email }] 
     });
 
     if (existing) {
       return NextResponse.json(
-        { success: false, error: 'Employee ID or email already exists' },
+        { success: false, error: 'Employee ID or email already exists for your organization' },
         { status: 400 }
       );
     }
 
-    // Create employee
+    // Create employee with user association
     const employee = await Employee.create({
+      userId, // Associate employee with the authenticated user
       employeeId,
       name,
       email,
@@ -82,12 +94,21 @@ export async function GET(request) {
   try {
     await dbConnect();
 
+    // Get authenticated user
+    const { userId } = await getAuthenticatedUser(request);
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employeeId');
     const status = searchParams.get('status');
     const department = searchParams.get('department');
 
-    let query = {};
+    let query = { userId }; // Only get employees for this user
     
     if (employeeId) {
       query.employeeId = employeeId;

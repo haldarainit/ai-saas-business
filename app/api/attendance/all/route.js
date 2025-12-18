@@ -1,17 +1,28 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Attendance from '@/lib/models/Attendance';
+import { extractUserFromRequest } from '@/lib/auth-utils';
 
 export async function GET(request) {
     try {
         await dbConnect();
 
+        // Extract authenticated user
+        const authResult = extractUserFromRequest(request);
+        if (!authResult.success) {
+            return NextResponse.json(
+                { success: false, error: 'Authentication required' },
+                { status: 401 }
+            );
+        }
+        const userId = authResult.user.id;
+
         const { searchParams } = new URL(request.url);
         const date = searchParams.get('date');
         const employeeId = searchParams.get('employeeId');
 
-        // Build query
-        const query = {};
+        // Build query with userId filter for data isolation
+        const query = { userId };
 
         if (date) {
             query.date = date;
@@ -21,7 +32,7 @@ export async function GET(request) {
             query.employeeId = employeeId;
         }
 
-        // Fetch attendance records
+        // Fetch attendance records for this user only
         const attendance = await Attendance.find(query).sort({ date: -1 });
 
         return NextResponse.json({

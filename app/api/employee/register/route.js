@@ -10,10 +10,20 @@ import {
     generateAttendanceToken,
     generateTokenExpiry,
 } from '@/lib/utils/authUtils';
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
 export async function POST(request) {
     try {
         await dbConnect();
+
+        // Get authenticated user
+        const { userId } = await getAuthenticatedUser(request);
+        if (!userId) {
+            return NextResponse.json(
+                { success: false, error: 'Authentication required' },
+                { status: 401 }
+            );
+        }
 
         const body = await request.json();
         const {
@@ -35,14 +45,15 @@ export async function POST(request) {
             );
         }
 
-        // Check if employee already exists
+        // Check if employee already exists for this user
         const existing = await Employee.findOne({
+            userId,
             $or: [{ employeeId }, { email }]
         });
 
         if (existing) {
             return NextResponse.json(
-                { success: false, error: 'Employee ID or email already exists' },
+                { success: false, error: 'Employee ID or email already exists in your organization' },
                 { status: 400 }
             );
         }
@@ -54,8 +65,9 @@ export async function POST(request) {
         const attendanceToken = generateAttendanceToken();
         const verificationExpiry = generateTokenExpiry(24); // 24 hours
 
-        // Create employee
+        // Create employee with user association
         const employee = await Employee.create({
+            userId, // Associate employee with authenticated user
             employeeId,
             name,
             email,

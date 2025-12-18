@@ -39,6 +39,20 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
+// Helper function to get user-friendly geolocation error messages
+function getGeolocationErrorMessage(error: GeolocationPositionError): string {
+    switch (error.code) {
+        case error.PERMISSION_DENIED:
+            return "Location access denied. Please enable location permissions in your browser settings.";
+        case error.POSITION_UNAVAILABLE:
+            return "Location information is unavailable. Please check your device's location services.";
+        case error.TIMEOUT:
+            return "Location request timed out. Please try again.";
+        default:
+            return "Unknown location error occurred.";
+    }
+}
+
 interface AttendanceRecord {
     date: string;
     clockIn?: { time: string; location?: any };
@@ -94,12 +108,19 @@ export default function AttendancePortal() {
             
             if (!trackingData.employeeId) return;
 
+            // Check if geolocation is supported
+            if (!navigator.geolocation) {
+                console.error('Background tracking: Geolocation is not supported by this browser');
+                return;
+            }
+
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
                     try {
-                        await fetch('/api/tracking/update', {
+                        const trackingData = JSON.parse(localStorage.getItem('activeTracking') || '{}');
+                        
+                        const response = await employeeAuth.apiCall('/api/tracking/update', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 employeeId: trackingData.employeeId,
                                 location: {
@@ -119,8 +140,11 @@ export default function AttendancePortal() {
                         console.error('Failed to update location:', error);
                     }
                 },
-                (error) => console.error('Geolocation error:', error),
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+                (error) => {
+                    const errorMsg = getGeolocationErrorMessage(error);
+                    console.error('Background geolocation error:', errorMsg, error);
+                },
+                { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
             );
         };
 
@@ -161,6 +185,34 @@ export default function AttendancePortal() {
         loadAttendanceHistory();
         loadLeaves();
         loadLeavePolicy();
+        
+        // Check geolocation support and permissions
+        if (navigator.geolocation) {
+            // Test if geolocation is available and show helpful message
+            navigator.permissions?.query({ name: 'geolocation' }).then((result) => {
+                if (result.state === 'denied') {
+                    toast({
+                        title: "Location Permission Required",
+                        description: "Please enable location access in your browser settings for accurate attendance tracking.",
+                        variant: "destructive",
+                    });
+                } else if (result.state === 'prompt') {
+                    toast({
+                        title: "Location Permission",
+                        description: "You will be asked to allow location access when clocking in/out for accurate tracking.",
+                    });
+                }
+            }).catch(() => {
+                // Permissions API not supported, just continue
+                console.log('Permissions API not supported');
+            });
+        } else {
+            toast({
+                title: "Geolocation Not Supported",
+                description: "Your browser doesn't support location services. Default coordinates will be used.",
+                variant: "destructive",
+            });
+        }
         
         // Restore background tracking if user was clocked in
         const trackingData = localStorage.getItem('activeTracking');
@@ -209,7 +261,7 @@ export default function AttendancePortal() {
 
     const loadLeavePolicy = async () => {
         try {
-            const response = await fetch("/api/leave/policy");
+            const response = await employeeAuth.apiCall("/api/leave/policy");
             const data = await response.json();
 
             if (data.success) {
@@ -223,7 +275,7 @@ export default function AttendancePortal() {
     const loadTodayAttendance = async () => {
         const today = new Date().toISOString().split("T")[0];
         try {
-            const response = await fetch(`/api/attendance/all?date=${today}`);
+            const response = await employeeAuth.apiCall(`/api/attendance/all?date=${today}`);
             const data = await response.json();
 
             if (data.success && data.attendance.length > 0) {
@@ -502,8 +554,32 @@ export default function AttendancePortal() {
         try {
             // Get location with proper timeout and accuracy
             const location = await new Promise<{ latitude: number; longitude: number; accuracy: number }>((resolve) => {
+                // Check if geolocation is supported
+                if (!navigator.geolocation) {
+                    console.error('Geolocation is not supported by this browser');
+                    toast({
+                        title: "Location Warning",
+                        description: "Geolocation is not supported by your browser. Using default coordinates.",
+                        variant: "destructive",
+                    });
+                    resolve({ latitude: 0, longitude: 0, accuracy: 0 });
+                    return;
+                }
+
+                // Add timeout wrapper to prevent infinite hanging
+                const timeoutId = setTimeout(() => {
+                    console.error('Geolocation timeout after 15 seconds');
+                    toast({
+                        title: "Location Timeout",
+                        description: "Location request took too long. Using default coordinates.",
+                        variant: "destructive",
+                    });
+                    resolve({ latitude: 0, longitude: 0, accuracy: 0 });
+                }, 15000);
+
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
+                        clearTimeout(timeoutId);
                         console.log('Location obtained:', {
                             lat: position.coords.latitude,
                             lng: position.coords.longitude,
@@ -516,18 +592,20 @@ export default function AttendancePortal() {
                         });
                     },
                     (error) => {
-                        console.error('Geolocation error:', error);
+                        clearTimeout(timeoutId);
+                        const errorMsg = getGeolocationErrorMessage(error);
+                        console.error('Geolocation error:', errorMsg, error);
                         toast({
                             title: "Location Warning",
-                            description: "Unable to get location. Proceeding with default.",
+                            description: `Unable to get location: ${errorMsg}. Proceeding with default coordinates.`,
                             variant: "destructive",
                         });
                         resolve({ latitude: 0, longitude: 0, accuracy: 0 });
                     },
                     { 
-                        enableHighAccuracy: true, 
-                        timeout: 10000, 
-                        maximumAge: 0 
+                        enableHighAccuracy: false, // Set to false for better compatibility
+                        timeout: 15000, // Increased timeout
+                        maximumAge: 300000 // Allow 5 minutes old location
                     }
                 );
             });
@@ -541,9 +619,8 @@ export default function AttendancePortal() {
                 hasImage: !!imageData
             });
 
-            const response = await fetch("/api/attendance/mark", {
+            const response = await employeeAuth.apiCall("/api/attendance/mark", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     employeeId: empData.employeeId,
                     image: imageData,

@@ -1,16 +1,26 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Leave from '@/lib/models/Leave';
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
 export async function GET(request) {
   try {
     await dbConnect();
 
+    // Extract authenticated user for data isolation
+    const { userId } = await getAuthenticatedUser(request);
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const employeeId = searchParams.get('employeeId');
 
-    let query = {};
+    let query = { userId }; // Filter by userId for data isolation
     
     if (status) {
       query.status = status;

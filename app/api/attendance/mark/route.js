@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import Attendance from '@/lib/models/Attendance';
 import Employee from '@/lib/models/Employee';
 import { GoogleGenAI } from "@google/genai";
+import jwt from 'jsonwebtoken';
 
 // Rate limiting map (in production, use Redis)
 const rateLimitMap = new Map();
@@ -267,6 +268,29 @@ export async function POST(request) {
   try {
     await dbConnect();
 
+    // Get token from Authorization header (for employee authentication)
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+
+    // Verify employee token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (err) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { 
       employeeId, 
@@ -289,6 +313,14 @@ export async function POST(request) {
       return NextResponse.json(
         { success: false, error: 'Please wait 10 seconds before trying again' },
         { status: 429 }
+      );
+    }
+
+    // Verify that the employee can only mark their own attendance
+    if (decoded.employeeId !== employeeId) {
+      return NextResponse.json(
+        { success: false, error: 'You can only mark your own attendance' },
+        { status: 403 }
       );
     }
 
@@ -394,6 +426,7 @@ export async function POST(request) {
       const attendanceData = {
         employeeId,
         employeeName: employee.name,
+        userId: employee.userId, // Add userId for data isolation (from employee record)
         date: today,
         clockIn: {
           time: now,

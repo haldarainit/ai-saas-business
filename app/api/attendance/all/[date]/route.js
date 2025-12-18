@@ -1,10 +1,21 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Attendance from '@/lib/models/Attendance';
+import { extractUserFromRequest } from '@/lib/auth-utils';
 
 export async function GET(request, { params }) {
   try {
     await dbConnect();
+
+    // Extract authenticated user
+    const authResult = extractUserFromRequest(request);
+    if (!authResult.success) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    const userId = authResult.user.id;
 
     const { date } = params;
 
@@ -24,7 +35,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    const records = await Attendance.find({ date })
+    const records = await Attendance.find({ date, userId })
       .select('-clockIn.faceImage -clockOut.faceImage') // Exclude images for list view
       .sort({ 'clockIn.time': -1 })
       .lean();

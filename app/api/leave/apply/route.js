@@ -98,10 +98,10 @@ export async function POST(request) {
     }
 
     // Get employee info
-    const employee = await Employee.findOne({ employeeId: decoded.employeeId });
+    const employee = await Employee.findOne({ employeeId: decoded.employeeId, userId: decoded.userId });
     if (!employee) {
       return NextResponse.json(
-        { success: false, error: 'Employee not found' },
+        { success: false, error: 'Employee not found or access denied' },
         { status: 404 }
       );
     }
@@ -132,6 +132,7 @@ export async function POST(request) {
     const leave = await Leave.create({
       employeeId: decoded.employeeId,
       employeeName: employee.name,
+      userId: decoded.userId, // Add userId for data isolation
       leaveType,
       fromDate: from,
       toDate: to,
