@@ -262,6 +262,14 @@ interface SlideData {
     metrics?: Metric[];
     hasImage?: boolean;
     imageUrl?: string;
+    // New fields for image upload and resize
+    imagePublicId?: string;
+    imageSource?: 'ai' | 'upload';
+    imageSize?: {
+        width?: number;
+        height?: number;
+        objectFit?: 'cover' | 'contain' | 'fill' | 'none';
+    };
     customStyles?: {
         backgroundColor?: string;
         headingColor?: string;
@@ -412,7 +420,12 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                             <img
                                 src={slide.imageUrl}
                                 alt={slide.title}
-                                className="max-w-full max-h-full rounded-2xl shadow-2xl object-cover"
+                                className="rounded-2xl shadow-2xl"
+                                style={{
+                                    maxWidth: `${slide.imageSize?.width || 100}%`,
+                                    maxHeight: `${slide.imageSize?.height || 100}%`,
+                                    objectFit: slide.imageSize?.objectFit || 'cover',
+                                }}
                             />
                         </div>
                     )}
@@ -908,7 +921,12 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                             <img
                                 src={slide.imageUrl}
                                 alt={slide.title}
-                                className="max-w-full max-h-[280px] rounded-2xl shadow-xl object-cover"
+                                className="rounded-2xl shadow-xl"
+                                style={{
+                                    maxWidth: `${slide.imageSize?.width || 100}%`,
+                                    maxHeight: slide.imageSize?.height ? `${280 * (slide.imageSize.height / 100)}px` : '280px',
+                                    objectFit: slide.imageSize?.objectFit || 'cover',
+                                }}
                             />
                         </div>
                     )}
@@ -982,7 +1000,12 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                         <img
                             src={slide.imageUrl}
                             alt={slide.title}
-                            className="max-w-full max-h-[280px] rounded-2xl shadow-xl object-cover"
+                            className="rounded-2xl shadow-xl"
+                            style={{
+                                maxWidth: `${slide.imageSize?.width || 100}%`,
+                                maxHeight: slide.imageSize?.height ? `${280 * (slide.imageSize.height / 100)}px` : '280px',
+                                objectFit: slide.imageSize?.objectFit || 'cover',
+                            }}
                         />
                     </div>
                 )}

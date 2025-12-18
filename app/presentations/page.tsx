@@ -37,6 +37,9 @@ import {
     FolderOpen,
     Save,
     Wand2,
+    Upload,
+    Move,
+    Maximize2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
@@ -79,6 +82,14 @@ interface Slide {
     hasImage?: boolean;
     imageKeyword?: string;
     imageUrl?: string;
+    // New fields for image upload and resize
+    imagePublicId?: string;
+    imageSource?: 'ai' | 'upload';
+    imageSize?: {
+        width?: number; // percentage 10-100
+        height?: number; // percentage 10-100
+        objectFit?: 'cover' | 'contain' | 'fill' | 'none';
+    };
     customStyles?: {
         backgroundColor?: string;
         headingColor?: string;
@@ -254,6 +265,11 @@ function PresentationsContent() {
     const [isAIRegenerateOpen, setIsAIRegenerateOpen] = useState(false);
     const [isRegeneratingSlide, setIsRegeneratingSlide] = useState(false);
     const [slideStyles, setSlideStyles] = useState<Record<number, any>>({});
+
+    // Image upload state
+    const imageInputRef = useRef<HTMLInputElement>(null);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [imageUploadSlideIndex, setImageUploadSlideIndex] = useState<number | null>(null);
 
     // User must be logged in - no default user ID
     const userId = user?.id || '';
@@ -624,13 +640,100 @@ function PresentationsContent() {
         newSlides[slideIndex] = {
             ...newSlides[slideIndex],
             imageKeyword: imagePrompt,
-            imageUrl: newImageUrl
+            imageUrl: newImageUrl,
+            imageSource: 'ai', // Mark as AI-generated
+            imagePublicId: undefined, // Clear any previous upload public ID
         };
         setData({ ...data, slides: newSlides });
 
         setIsRegeneratingImage(null);
         setCustomImagePrompt("");
         toast.success(`Image regenerated with: "${imagePrompt.substring(0, 50)}..."`);
+    };
+
+    // Handle local image upload
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || imageUploadSlideIndex === null || !data) return;
+
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            toast.error('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+            return;
+        }
+
+        // Validate file size (10MB max)
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error('Image size must be less than 10MB');
+            return;
+        }
+
+        setIsUploadingImage(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            if (workspaceId) {
+                formData.append('workspaceId', workspaceId);
+                formData.append('slideIndex', imageUploadSlideIndex.toString());
+            }
+
+            const response = await fetch('/api/upload-presentation-image', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Upload failed');
+            }
+
+            // Update the slide with the uploaded image
+            const newSlides = [...data.slides];
+            newSlides[imageUploadSlideIndex] = {
+                ...newSlides[imageUploadSlideIndex],
+                imageUrl: result.image.url,
+                imagePublicId: result.image.publicId,
+                imageSource: 'upload',
+                hasImage: true,
+            };
+            setData({ ...data, slides: newSlides });
+
+            toast.success('Image uploaded successfully!');
+        } catch (error: any) {
+            console.error('Image upload error:', error);
+            toast.error(error.message || 'Failed to upload image');
+        } finally {
+            setIsUploadingImage(false);
+            setImageUploadSlideIndex(null);
+            // Reset the input
+            if (imageInputRef.current) {
+                imageInputRef.current.value = '';
+            }
+        }
+    };
+
+    // Trigger image upload dialog
+    const triggerImageUpload = (slideIndex: number) => {
+        setImageUploadSlideIndex(slideIndex);
+        imageInputRef.current?.click();
+    };
+
+    // Update image size for resize functionality
+    const updateImageSize = (slideIndex: number, size: { width?: number; height?: number; objectFit?: 'cover' | 'contain' | 'fill' | 'none' }) => {
+        if (!data) return;
+
+        const newSlides = [...data.slides];
+        newSlides[slideIndex] = {
+            ...newSlides[slideIndex],
+            imageSize: {
+                ...newSlides[slideIndex].imageSize,
+                ...size,
+            },
+        };
+        setData({ ...data, slides: newSlides });
     };
 
     // New: AI Slide Regeneration handler
@@ -1588,57 +1691,167 @@ function PresentationsContent() {
                                                     </div>
                                                 </div>
 
-                                                {/* Right Side - Image Controls (if slide has image) */}
-                                                {data.slides[activeSlide].hasImage !== false && data.slides[activeSlide].imageUrl && (
+                                                {/* Right Side - Image Controls (if slide has image or can have image) */}
+                                                {data.slides[activeSlide].hasImage !== false && (
                                                     <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-auto">
                                                         <div
-                                                            className="backdrop-blur-sm rounded-xl shadow-xl p-3 space-y-2 min-w-[200px] border-2"
+                                                            className="backdrop-blur-sm rounded-xl shadow-xl p-3 space-y-3 min-w-[220px] border-2"
                                                             style={{
                                                                 backgroundColor: `${selectedTheme.colors.bg}f8`,
                                                                 borderColor: selectedTheme.colors.accent
                                                             }}
                                                         >
-                                                            <p className="text-xs font-medium" style={{ color: selectedTheme.colors.primary }}>Regenerate Image</p>
-                                                            <Input
-                                                                placeholder="Custom image prompt..."
-                                                                value={customImagePrompt}
-                                                                onChange={(e) => setCustomImagePrompt(e.target.value)}
-                                                                className="text-sm bg-white border-2 text-slate-700"
-                                                                style={{ borderColor: `${selectedTheme.colors.secondary}60` }}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter' && customImagePrompt.trim()) {
-                                                                        regenerateImage(activeSlide, customImagePrompt);
-                                                                    }
+                                                            {/* Image Source Badge */}
+                                                            {data.slides[activeSlide].imageUrl && (
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-xs font-medium" style={{ color: selectedTheme.colors.primary }}>
+                                                                        Image Controls
+                                                                    </span>
+                                                                    <span
+                                                                        className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                                                                        style={{
+                                                                            backgroundColor: data.slides[activeSlide].imageSource === 'upload'
+                                                                                ? `${selectedTheme.colors.accent}30`
+                                                                                : `${selectedTheme.colors.secondary}30`,
+                                                                            color: data.slides[activeSlide].imageSource === 'upload'
+                                                                                ? selectedTheme.colors.primary
+                                                                                : selectedTheme.colors.secondary
+                                                                        }}
+                                                                    >
+                                                                        {data.slides[activeSlide].imageSource === 'upload' ? '📤 Uploaded' : '🤖 AI Generated'}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Upload Button */}
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="w-full text-xs border-2"
+                                                                style={{
+                                                                    borderColor: selectedTheme.colors.accent,
+                                                                    color: selectedTheme.colors.primary
                                                                 }}
-                                                            />
-                                                            <div className="flex gap-2">
-                                                                <Button
-                                                                    size="sm"
-                                                                    className="flex-1 text-xs text-white"
-                                                                    style={{ backgroundColor: selectedTheme.colors.secondary }}
-                                                                    onClick={() => regenerateImage(activeSlide)}
-                                                                    disabled={isRegeneratingImage === activeSlide}
-                                                                >
-                                                                    {isRegeneratingImage === activeSlide ? (
-                                                                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                                                    ) : (
-                                                                        <RefreshCw className="w-3 h-3 mr-1" />
-                                                                    )}
-                                                                    Random
-                                                                </Button>
-                                                                {customImagePrompt.trim() && (
+                                                                onClick={() => triggerImageUpload(activeSlide)}
+                                                                disabled={isUploadingImage}
+                                                            >
+                                                                {isUploadingImage ? (
+                                                                    <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                                                                ) : (
+                                                                    <Upload className="w-3 h-3 mr-2" />
+                                                                )}
+                                                                {isUploadingImage ? 'Uploading...' : 'Upload Image'}
+                                                            </Button>
+
+                                                            {/* AI Regeneration Section */}
+                                                            <div className="space-y-2">
+                                                                <p className="text-xs font-medium" style={{ color: selectedTheme.colors.primary }}>
+                                                                    AI Generate Image
+                                                                </p>
+                                                                <Input
+                                                                    placeholder="Custom image prompt..."
+                                                                    value={customImagePrompt}
+                                                                    onChange={(e) => setCustomImagePrompt(e.target.value)}
+                                                                    className="text-sm bg-white border-2 text-slate-700"
+                                                                    style={{ borderColor: `${selectedTheme.colors.secondary}60` }}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter' && customImagePrompt.trim()) {
+                                                                            regenerateImage(activeSlide, customImagePrompt);
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <div className="flex gap-2">
                                                                     <Button
                                                                         size="sm"
                                                                         className="flex-1 text-xs text-white"
-                                                                        style={{ backgroundColor: selectedTheme.colors.primary }}
-                                                                        onClick={() => regenerateImage(activeSlide, customImagePrompt)}
+                                                                        style={{ backgroundColor: selectedTheme.colors.secondary }}
+                                                                        onClick={() => regenerateImage(activeSlide)}
                                                                         disabled={isRegeneratingImage === activeSlide}
                                                                     >
-                                                                        <ImageIcon className="w-3 h-3 mr-1" />
-                                                                        Apply
+                                                                        {isRegeneratingImage === activeSlide ? (
+                                                                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                                                        ) : (
+                                                                            <RefreshCw className="w-3 h-3 mr-1" />
+                                                                        )}
+                                                                        Random
                                                                     </Button>
-                                                                )}
+                                                                    {customImagePrompt.trim() && (
+                                                                        <Button
+                                                                            size="sm"
+                                                                            className="flex-1 text-xs text-white"
+                                                                            style={{ backgroundColor: selectedTheme.colors.primary }}
+                                                                            onClick={() => regenerateImage(activeSlide, customImagePrompt)}
+                                                                            disabled={isRegeneratingImage === activeSlide}
+                                                                        >
+                                                                            <Wand2 className="w-3 h-3 mr-1" />
+                                                                            Generate
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
                                                             </div>
+
+                                                            {/* Image Resize Controls */}
+                                                            {data.slides[activeSlide].imageUrl && (
+                                                                <div className="space-y-2 pt-2 border-t" style={{ borderColor: `${selectedTheme.colors.accent}40` }}>
+                                                                    <p className="text-xs font-medium flex items-center gap-1" style={{ color: selectedTheme.colors.primary }}>
+                                                                        <Maximize2 className="w-3 h-3" />
+                                                                        Resize Image
+                                                                    </p>
+
+                                                                    {/* Width Slider */}
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-[10px] text-slate-500 w-6">W:</span>
+                                                                        <input
+                                                                            type="range"
+                                                                            min="30"
+                                                                            max="100"
+                                                                            value={data.slides[activeSlide].imageSize?.width || 100}
+                                                                            onChange={(e) => updateImageSize(activeSlide, { width: parseInt(e.target.value) })}
+                                                                            className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer"
+                                                                            style={{ accentColor: selectedTheme.colors.primary }}
+                                                                        />
+                                                                        <span className="text-[10px] text-slate-500 w-8">
+                                                                            {data.slides[activeSlide].imageSize?.width || 100}%
+                                                                        </span>
+                                                                    </div>
+
+                                                                    {/* Height Slider */}
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-[10px] text-slate-500 w-6">H:</span>
+                                                                        <input
+                                                                            type="range"
+                                                                            min="30"
+                                                                            max="100"
+                                                                            value={data.slides[activeSlide].imageSize?.height || 100}
+                                                                            onChange={(e) => updateImageSize(activeSlide, { height: parseInt(e.target.value) })}
+                                                                            className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer"
+                                                                            style={{ accentColor: selectedTheme.colors.primary }}
+                                                                        />
+                                                                        <span className="text-[10px] text-slate-500 w-8">
+                                                                            {data.slides[activeSlide].imageSize?.height || 100}%
+                                                                        </span>
+                                                                    </div>
+
+                                                                    {/* Object Fit Selection */}
+                                                                    <div className="flex gap-1">
+                                                                        {(['cover', 'contain', 'fill'] as const).map((fit) => (
+                                                                            <button
+                                                                                key={fit}
+                                                                                onClick={() => updateImageSize(activeSlide, { objectFit: fit })}
+                                                                                className={`flex-1 py-1 text-[10px] rounded capitalize transition-colors ${(data.slides[activeSlide].imageSize?.objectFit || 'cover') === fit
+                                                                                    ? 'text-white'
+                                                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                                                    }`}
+                                                                                style={(data.slides[activeSlide].imageSize?.objectFit || 'cover') === fit
+                                                                                    ? { backgroundColor: selectedTheme.colors.primary }
+                                                                                    : undefined}
+                                                                            >
+                                                                                {fit}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 )}
@@ -1919,6 +2132,15 @@ function PresentationsContent() {
                     isRegenerating={isRegeneratingSlide}
                 />
             )}
+
+            {/* Hidden file input for image upload */}
+            <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleImageUpload}
+                className="hidden"
+            />
         </div >
     );
 }
