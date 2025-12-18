@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
+import { AuthModal } from "@/components/auth-modal";
 import PresentationDashboard from "./components/PresentationDashboard";
 import SlidePreview from "./components/SlidePreview";
 import SlideEditorPanel from "./components/SlideEditorPanel";
@@ -213,15 +214,19 @@ const cleanMarkdown = (text: string): string => {
         .trim();
 };
 
-// Default user ID for unauthenticated users
-const DEFAULT_USER_ID = "user_default";
 
 function PresentationsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const { resolvedTheme } = useTheme();
-    const isDark = resolvedTheme === 'dark';
+
+    // Mounted state to prevent hydration mismatch - theme is only available on client
+    const [mounted, setMounted] = useState(false);
+    const [authModalOpen, setAuthModalOpen] = useState(false);
+
+    // Only use theme on client to prevent hydration mismatch
+    const isDark = mounted && resolvedTheme === 'dark';
 
     // Workspace state
     const [workspaceId, setWorkspaceId] = useState<string | null>(null);
@@ -250,7 +255,13 @@ function PresentationsContent() {
     const [isRegeneratingSlide, setIsRegeneratingSlide] = useState(false);
     const [slideStyles, setSlideStyles] = useState<Record<number, any>>({});
 
-    const userId = user?.id || DEFAULT_USER_ID;
+    // User must be logged in - no default user ID
+    const userId = user?.id || '';
+
+    // Set mounted on client
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Load workspace from URL params
     useEffect(() => {
@@ -730,17 +741,76 @@ function PresentationsContent() {
 
     const selectedTheme = THEMES.find(t => t.id === theme) || THEMES[0];
 
+    // Use light theme gradient by default for SSR consistency, dark mode via CSS
+    const backgroundGradient = isDark
+        ? `linear-gradient(180deg, #0a0a0a 0%, #111111 50%, #1a1a1a 100%)`
+        : `linear-gradient(180deg, #fefefe 0%, ${selectedTheme?.colors.bg || '#faf8f5'} 50%, ${selectedTheme?.colors.bgSecondary || '#f5f0eb'} 100%)`;
+
+    // Show loading while checking auth or before mount
+    // Use Tailwind dark mode classes which work with next-themes automatically
+    if (authLoading || !mounted) {
+        return (
+            <div className="flex min-h-screen flex-col bg-gradient-to-b from-white via-gray-50 to-gray-100 dark:from-[#0a0a0a] dark:via-[#111111] dark:to-[#1a1a1a]">
+                <Navbar />
+                <main className="flex-1 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-[#b64b6e]" />
+                </main>
+                <Footer />
+            </div>
+        );
+    }
+
+    // Show login required if user is not authenticated
+    if (!user) {
+        return (
+            <div
+                className="flex min-h-screen flex-col transition-colors duration-300"
+                style={{ background: backgroundGradient }}
+            >
+                <Navbar />
+                <main className="flex-1 flex items-center justify-center">
+                    <div className="text-center max-w-md mx-auto px-4">
+                        <div
+                            className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+                            style={{ boxShadow: `0 4px 20px ${selectedTheme.colors.accent}40` }}
+                        >
+                            <Presentation className="w-10 h-10" style={{ color: selectedTheme.colors.primary }} />
+                        </div>
+                        <h1 className={`text-3xl font-bold mb-4 ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                            Login Required
+                        </h1>
+                        <p className={`mb-6 ${isDark ? 'text-gray-400' : 'text-slate-600'}`}>
+                            Please sign in to access your presentations and create new ones.
+                        </p>
+                        <div className="flex gap-3 justify-center">
+                            <Button
+                                onClick={() => setAuthModalOpen(true)}
+                                className="text-white"
+                                style={{ backgroundColor: selectedTheme.colors.primary }}
+                            >
+                                Get Started
+                            </Button>
+                        </div>
+                    </div>
+                </main>
+                <Footer />
+
+                {/* Auth Modal */}
+                <AuthModal
+                    isOpen={authModalOpen}
+                    onClose={() => setAuthModalOpen(false)}
+                />
+            </div>
+        );
+    }
+
     // Show Dashboard if no workspace selected and not creating new
     const isCreatingNew = searchParams.get("new") === "true";
     if (!workspaceId && !isCreatingNew) {
         return (
             <div
                 className="flex min-h-screen flex-col transition-colors duration-300"
-                style={{
-                    background: isDark
-                        ? `linear-gradient(180deg, #0a0a0a 0%, #111111 50%, #1a1a1a 100%)`
-                        : `linear-gradient(180deg, #fefefe 0%, ${selectedTheme?.colors.bg || '#faf8f5'} 50%, ${selectedTheme?.colors.bgSecondary || '#f5f0eb'} 100%)`
-                }}
+                style={{ background: backgroundGradient }}
             >
                 <Navbar />
                 <main className="flex-1">
@@ -760,11 +830,7 @@ function PresentationsContent() {
     return (
         <div
             className="flex min-h-screen flex-col transition-colors duration-300"
-            style={{
-                background: isDark
-                    ? `linear-gradient(180deg, #0a0a0a 0%, #111111 50%, #1a1a1a 100%)`
-                    : `linear-gradient(180deg, #fefefe 0%, ${selectedTheme.colors.bg} 50%, ${selectedTheme.colors.bgSecondary} 100%)`
-            }}
+            style={{ background: backgroundGradient }}
         >
             <Navbar />
 
