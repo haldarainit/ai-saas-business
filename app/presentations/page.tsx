@@ -1360,11 +1360,14 @@ function PresentationsContent() {
                                         <div key={i} className="relative group">
                                             <button
                                                 onClick={() => setActiveSlide(i)}
-                                                className={`w-full aspect-[16/10] rounded-lg overflow-hidden border-2 transition-all relative bg-white ${activeSlide === i
+                                                className={`w-full aspect-[16/10] rounded-lg overflow-hidden border-2 transition-all relative ${activeSlide === i
                                                     ? "shadow-lg"
                                                     : "border-transparent hover:border-slate-300"
                                                     }`}
-                                                style={{ borderColor: activeSlide === i ? selectedTheme.colors.primary : undefined }}
+                                                style={{
+                                                    borderColor: activeSlide === i ? selectedTheme.colors.primary : undefined,
+                                                    backgroundColor: '#ffffff'
+                                                }}
                                             >
                                                 <div className="absolute top-1 left-1 bg-black/50 text-white text-[8px] px-1 rounded z-10">
                                                     {i + 1}
@@ -1376,7 +1379,10 @@ function PresentationsContent() {
                                                     </div>
                                                 )}
                                                 {/* Slide container with white background to isolate from dark mode */}
-                                                <div className="w-full h-full scale-[0.15] origin-top-left bg-white" style={{ width: '666%', height: '666%' }}>
+                                                <div
+                                                    className="w-full h-full scale-[0.15] origin-top-left"
+                                                    style={{ width: '666%', height: '666%', backgroundColor: '#ffffff' }}
+                                                >
                                                     <SlidePreview
                                                         slide={slide}
                                                         slideIndex={i}
@@ -1524,7 +1530,8 @@ function PresentationsContent() {
                                                 key={`${activeSlide}-unified`}
                                                 initial={{ opacity: 0, scale: 0.98 }}
                                                 animate={{ opacity: 1, scale: 1 }}
-                                                className="aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl relative group bg-white"
+                                                className="aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl relative group"
+                                                style={{ backgroundColor: '#ffffff' }}
                                             >
                                                 {/* Slide Preview Component */}
                                                 <SlidePreview
@@ -1800,7 +1807,7 @@ function PresentationsContent() {
                                                 )}
                                             </AnimatePresence>
 
-                                            {/* All Slides Overview */}
+                                            {/* All Slides Overview - COMMENTED OUT
                                             <div className="mt-8">
                                                 <h3 className={`text-sm font-medium mb-4 ${isDark ? 'text-gray-400' : 'text-muted-foreground'}`}>All Slides ({data.slides.length} total) - Hover over cards for quick actions</h3>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1828,19 +1835,16 @@ function PresentationsContent() {
                                                                 </div>
                                                             </button>
 
-                                                            {/* Slide number badge */}
                                                             <div className="absolute top-2 left-2 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded font-medium z-10">
                                                                 {i + 1}
                                                             </div>
 
-                                                            {/* Layout type badge */}
                                                             {slide.layoutType && (
                                                                 <div className="absolute top-2 right-2 bg-purple-500/80 text-white text-[8px] px-1.5 py-0.5 rounded z-10 uppercase font-medium">
                                                                     {slide.layoutType}
                                                                 </div>
                                                             )}
 
-                                                            {/* Hover-revealed action buttons */}
                                                             <div className="absolute bottom-2 left-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-auto">
                                                                 <button
                                                                     onClick={(e) => {
@@ -1871,6 +1875,7 @@ function PresentationsContent() {
                                                     ))}
                                                 </div>
                                             </div>
+                                            */}
                                         </div>
                                     )}
                                 </div>
