@@ -99,6 +99,11 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: "/",
+      // In production, set domain if needed
+      ...(process.env.NODE_ENV === "production" && process.env.COOKIE_DOMAIN && {
+        domain: process.env.COOKIE_DOMAIN
+      })
     });
 
     console.log("Login response sent");

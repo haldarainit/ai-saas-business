@@ -439,14 +439,20 @@ export default function Attendance() {
       {!user ? (
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
-            <p className="text-muted-foreground mb-4">Please log in to view attendance data.</p>
+            <h2 className="text-2xl font-bold mb-4">Admin Authentication Required</h2>
+            <p className="text-muted-foreground mb-4">This page is for administrators only.</p>
             <p className="text-sm text-muted-foreground mb-4">
-              Go to the main page and sign in with your account, then return to this page.
+              <strong>Employees:</strong> Please use the <Link href="/portal/attendance" className="text-blue-600 hover:underline">Employee Attendance Portal</Link>
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              <strong>Administrators:</strong> Please sign in with your admin account from the main page.
             </p>
             <div className="space-x-4">
               <Link href="/" className="text-blue-600 hover:underline">
-                Go to Home
+                Go to Home (Admin Login)
+              </Link>
+              <Link href="/portal/login" className="text-green-600 hover:underline">
+                Employee Portal
               </Link>
               <Button 
                 onClick={() => window.location.reload()}
