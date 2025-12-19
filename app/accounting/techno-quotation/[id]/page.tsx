@@ -1258,19 +1258,24 @@ export default function TechnoQuotationPage() {
                                     maxWidth: `${watermarkSize * 5}px`,
                                     maxHeight: `${watermarkSize * 5}px`,
                                     opacity: watermarkOpacity,
-                                    filter: watermarkColorMode === 'grayscale' ? 'grayscale(100%)' : 'none'
+                                    filter: watermarkColorMode === 'grayscale' ? 'grayscale(100%)' : 'none',
+                                    WebkitPrintColorAdjust: 'exact',
+                                    printColorAdjust: 'exact',
+                                    colorAdjust: 'exact'
                                 } as React.CSSProperties}
                             >
                                 <img
                                     src={watermarkLogoUrl}
                                     alt="Watermark"
                                     style={{
-                                        opacity: 1,
                                         maxWidth: '100%',
                                         maxHeight: '100%',
                                         width: 'auto',
-                                        height: 'auto'
-                                    }}
+                                        height: 'auto',
+                                        WebkitPrintColorAdjust: 'exact',
+                                        printColorAdjust: 'exact',
+                                        colorAdjust: 'exact'
+                                    } as React.CSSProperties}
                                 />
                             </div>
                         )}
@@ -1327,10 +1332,10 @@ export default function TechnoQuotationPage() {
                             </div>
                             <div className="header-info">
                                 <p><strong><input type="text" value={companyId} onChange={(e) => setCompanyId(e.target.value)} className="editable-field" /></strong></p>
-                                <p><input type="text" value={companyAddress1} onChange={(e) => setCompanyAddress1(e.target.value)} className="editable-field" /></p>
+                                <p>Address: <input type="text" value={companyAddress1} onChange={(e) => setCompanyAddress1(e.target.value)} className="editable-field" /></p>
                                 <p><input type="text" value={companyAddress2} onChange={(e) => setCompanyAddress2(e.target.value)} className="editable-field" /></p>
                                 <p>Phone: <input type="text" value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} className="editable-field" /></p>
-                                <p><input type="text" value={companyDate} onChange={(e) => setCompanyDate(e.target.value)} className="editable-field" /></p>
+                                <p>Date: <input type="text" value={companyDate} onChange={(e) => setCompanyDate(e.target.value)} className="editable-field" /></p>
                             </div>
                         </div>
 
@@ -2062,6 +2067,9 @@ export default function TechnoQuotationPage() {
                     /* Reset everything */
                     * {
                         box-sizing: border-box !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        color-adjust: exact !important;
                     }
 
                     html, body {
@@ -2357,20 +2365,23 @@ export default function TechnoQuotationPage() {
                         text-transform: uppercase !important;
                         letter-spacing: 0.1em !important;
                         white-space: nowrap !important;
-                        opacity: 1 !important;
                         visibility: visible !important;
                     }
 
                     .watermark-logo {
-                        opacity: 1 !important;
                         visibility: visible !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        color-adjust: exact !important;
                     }
 
                     .watermark-logo img {
                         max-width: 100% !important;
                         max-height: 100% !important;
-                        opacity: 1 !important;
                         visibility: visible !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        color-adjust: exact !important;
                     }
 
                     /* Ensure content is above watermark */
