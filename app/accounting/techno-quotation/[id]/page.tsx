@@ -3,6 +3,16 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { Printer, ArrowLeft, Plus, Trash2, PlusCircle, X, Sparkles, FileEdit, Zap, CloudOff, Check, Loader2 } from "lucide-react";
@@ -63,6 +73,28 @@ export default function TechnoQuotationPage() {
     const [currentAnswer, setCurrentAnswer] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [generationProgress, setGenerationProgress] = useState(0);
+
+    // Company Profiles State
+    interface CompanyProfile {
+        _id: string;
+        name: string;
+        address1?: string;
+        address2?: string;
+        phone?: string;
+        email?: string;
+        logo?: string;
+        isDefault?: boolean;
+    }
+    const [companyProfiles, setCompanyProfiles] = useState<CompanyProfile[]>([]);
+    const [showNewCompanyModal, setShowNewCompanyModal] = useState(false);
+    const [newCompanyData, setNewCompanyData] = useState({
+        name: '',
+        address1: '',
+        address2: '',
+        phone: '',
+        email: ''
+    });
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
 
     // Company Information & Logo
     const [logoUrl, setLogoUrl] = useState('');
@@ -244,6 +276,96 @@ export default function TechnoQuotationPage() {
             fetchQuotation();
         }
     }, [params.id, router]);
+
+    // Load Company Profiles
+    React.useEffect(() => {
+        const fetchCompanyProfiles = async () => {
+            try {
+                const response = await fetch('/api/company-profile');
+                if (response.ok) {
+                    const data = await response.json();
+                    setCompanyProfiles(data.profiles || []);
+                }
+            } catch (error) {
+                console.error('Error fetching company profiles:', error);
+            }
+        };
+        fetchCompanyProfiles();
+    }, []);
+
+    // Save new company profile
+    const saveNewCompanyProfile = async () => {
+        if (!newCompanyData.name.trim()) return;
+
+        setIsSavingProfile(true);
+        try {
+            const response = await fetch('/api/company-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newCompanyData)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setCompanyProfiles(prev => [...prev, data.profile]);
+
+                // Auto-select the new company and fill details
+                setCurrentAnswer(data.profile.name);
+                const detailsStr = [
+                    data.profile.address1,
+                    data.profile.address2,
+                    data.profile.phone ? `Phone: ${data.profile.phone}` : '',
+                    data.profile.email ? `Email: ${data.profile.email}` : ''
+                ].filter(Boolean).join('\n');
+
+                // Store details for auto-fill
+                setAnswers(prev => ({
+                    ...prev,
+                    company_name: data.profile.name,
+                    company_details: detailsStr
+                }));
+
+                setShowNewCompanyModal(false);
+                setNewCompanyData({ name: '', address1: '', address2: '', phone: '', email: '' });
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error || 'Failed to save company profile');
+            }
+        } catch (error) {
+            console.error('Error saving company profile:', error);
+            alert('Failed to save company profile');
+        } finally {
+            setIsSavingProfile(false);
+        }
+    };
+
+    // Handle company selection - auto-fill details
+    const handleCompanySelect = (companyName: string) => {
+        if (companyName === '__CREATE_NEW__') {
+            setShowNewCompanyModal(true);
+            return;
+        }
+
+        setCurrentAnswer(companyName);
+
+        // Find the selected company profile
+        const profile = companyProfiles.find(p => p.name === companyName);
+        if (profile) {
+            // Pre-fill company details for the next question
+            const detailsStr = [
+                profile.address1,
+                profile.address2,
+                profile.phone ? `Phone: ${profile.phone}` : '',
+                profile.email ? `Email: ${profile.email}` : ''
+            ].filter(Boolean).join('\n');
+
+            // Store in answers for auto-fill
+            setAnswers(prev => ({
+                ...prev,
+                company_details: detailsStr
+            }));
+        }
+    };
 
     // Auto-Save Logic
     const debouncedPages = useDebounce(pages, 2000);
@@ -673,13 +795,20 @@ export default function TechnoQuotationPage() {
     };
 
     // Questionnaire for Automated Quotation
-    const questions: { id: string; question: string; placeholder: string; type: 'text' | 'textarea' | 'select'; options?: string[] }[] = [
+    // Build dynamic company options from profiles
+    const companyOptions = [
+        ...companyProfiles.map(p => p.name),
+        '__CREATE_NEW__' // Special value for "Create New Company"
+    ];
+
+    const questions: { id: string; question: string; placeholder: string; type: 'text' | 'textarea' | 'select'; options?: string[]; optionLabels?: { [key: string]: string } }[] = [
         {
             id: 'company_name',
             question: 'What is your company name?',
-            placeholder: 'Select your company',
+            placeholder: 'Select your company or create new',
             type: 'select',
-            options: ['pikaG energy Pvt. Ltd.', 'Haldar AI and IT Pvt. Ltd.']
+            options: companyOptions,
+            optionLabels: { '__CREATE_NEW__': '+ Create New Company' }
         },
         {
             id: 'company_details',
@@ -743,7 +872,15 @@ export default function TechnoQuotationPage() {
             setCurrentAnswer('');
 
             if (currentQuestionIndex < questions.length - 1) {
-                setCurrentQuestionIndex(currentQuestionIndex + 1);
+                const nextQuestionIndex = currentQuestionIndex + 1;
+                const nextQuestionId = questions[nextQuestionIndex].id;
+
+                // Auto-fill company_details if we stored it during company selection
+                if (nextQuestionId === 'company_details' && answers.company_details) {
+                    setCurrentAnswer(answers.company_details);
+                }
+
+                setCurrentQuestionIndex(nextQuestionIndex);
             } else {
                 // All questions answered, generate quotation
                 generateQuotation();
@@ -998,22 +1135,123 @@ export default function TechnoQuotationPage() {
     // Automated Quotation Placeholder
     if (quotationType === 'automated') {
         return (
-            <AutomatedQuotationQuestionnaire
-                questions={questions}
-                currentQuestionIndex={currentQuestionIndex}
-                currentAnswer={currentAnswer}
-                answers={answers}
-                isGenerating={isGenerating}
-                generationProgress={generationProgress}
-                onAnswerChange={setCurrentAnswer}
-                onNext={handleNextQuestion}
-                onPrevious={handlePreviousQuestion}
-                onSkip={handleSkipQuestion}
-                onBack={() => {
-                    resetQuestionnaire();
-                    setQuotationType(null);
-                }}
-            />
+            <>
+                <AutomatedQuotationQuestionnaire
+                    questions={questions}
+                    currentQuestionIndex={currentQuestionIndex}
+                    currentAnswer={currentAnswer}
+                    answers={answers}
+                    isGenerating={isGenerating}
+                    generationProgress={generationProgress}
+                    onAnswerChange={setCurrentAnswer}
+                    onNext={handleNextQuestion}
+                    onPrevious={handlePreviousQuestion}
+                    onSkip={handleSkipQuestion}
+                    onBack={() => {
+                        resetQuestionnaire();
+                        setQuotationType(null);
+                    }}
+                    onCompanySelect={handleCompanySelect}
+                />
+
+                {/* Create New Company Modal */}
+                <Dialog open={showNewCompanyModal} onOpenChange={setShowNewCompanyModal}>
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
+                                Create New Company
+                            </DialogTitle>
+                            <DialogDescription>
+                                Add a new company profile that will be saved for future quotations.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="company-name">Company Name *</Label>
+                                <Input
+                                    id="company-name"
+                                    value={newCompanyData.name}
+                                    onChange={(e) => setNewCompanyData(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder="e.g., Green Energy Pvt. Ltd."
+                                    className="text-base"
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="address1">Address Line 1</Label>
+                                <Input
+                                    id="address1"
+                                    value={newCompanyData.address1}
+                                    onChange={(e) => setNewCompanyData(prev => ({ ...prev, address1: e.target.value }))}
+                                    placeholder="e.g., 123 Main Street"
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="address2">Address Line 2</Label>
+                                <Input
+                                    id="address2"
+                                    value={newCompanyData.address2}
+                                    onChange={(e) => setNewCompanyData(prev => ({ ...prev, address2: e.target.value }))}
+                                    placeholder="e.g., Mumbai, Maharashtra - 400001"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="phone">Phone</Label>
+                                    <Input
+                                        id="phone"
+                                        value={newCompanyData.phone}
+                                        onChange={(e) => setNewCompanyData(prev => ({ ...prev, phone: e.target.value }))}
+                                        placeholder="+91 99999 99999"
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="email">Email</Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        value={newCompanyData.email}
+                                        onChange={(e) => setNewCompanyData(prev => ({ ...prev, email: e.target.value }))}
+                                        placeholder="info@company.com"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setShowNewCompanyModal(false);
+                                    setNewCompanyData({ name: '', address1: '', address2: '', phone: '', email: '' });
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={saveNewCompanyProfile}
+                                disabled={!newCompanyData.name.trim() || isSavingProfile}
+                                className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700"
+                            >
+                                {isSavingProfile ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Plus className="w-4 h-4 mr-2" />
+                                        Create Company
+                                    </>
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </>
         );
     }
 

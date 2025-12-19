@@ -21,6 +21,7 @@ interface Question {
     placeholder: string;
     type: 'text' | 'textarea' | 'select';
     options?: string[];
+    optionLabels?: { [key: string]: string };
 }
 
 interface QuestionnaireProps {
@@ -35,6 +36,7 @@ interface QuestionnaireProps {
     onPrevious: () => void;
     onSkip: () => void;
     onBack: () => void;
+    onCompanySelect?: (value: string) => void;
 }
 
 export default function AutomatedQuotationQuestionnaire({
@@ -48,7 +50,8 @@ export default function AutomatedQuotationQuestionnaire({
     onNext,
     onPrevious,
     onSkip,
-    onBack
+    onBack,
+    onCompanySelect
 }: QuestionnaireProps) {
     const currentQuestion = questions[currentQuestionIndex];
     const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
@@ -151,15 +154,26 @@ export default function AutomatedQuotationQuestionnaire({
                                                 ) : currentQuestion.type === 'select' && currentQuestion.options ? (
                                                     <Select
                                                         value={currentAnswer}
-                                                        onValueChange={(value) => onAnswerChange(value)}
+                                                        onValueChange={(value) => {
+                                                            // Use custom handler for company selection
+                                                            if (currentQuestion.id === 'company_name' && onCompanySelect) {
+                                                                onCompanySelect(value);
+                                                            } else {
+                                                                onAnswerChange(value);
+                                                            }
+                                                        }}
                                                     >
                                                         <SelectTrigger className="text-base h-12">
                                                             <SelectValue placeholder={currentQuestion.placeholder} />
                                                         </SelectTrigger>
                                                         <SelectContent>
                                                             {currentQuestion.options.map((option) => (
-                                                                <SelectItem key={option} value={option} className="text-base">
-                                                                    {option}
+                                                                <SelectItem
+                                                                    key={option}
+                                                                    value={option}
+                                                                    className={`text-base ${option === '__CREATE_NEW__' ? 'text-teal-600 font-semibold border-t mt-1 pt-2' : ''}`}
+                                                                >
+                                                                    {currentQuestion.optionLabels?.[option] || option}
                                                                 </SelectItem>
                                                             ))}
                                                         </SelectContent>
