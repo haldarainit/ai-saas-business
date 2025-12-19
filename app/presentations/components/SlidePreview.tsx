@@ -269,6 +269,9 @@ interface SlideData {
         width?: number;
         height?: number;
         objectFit?: 'cover' | 'contain' | 'fill' | 'none';
+        positionX?: number;
+        positionY?: number;
+        cropRatio?: 'original' | 'square' | 'wide' | 'portrait';
     };
     customStyles?: {
         backgroundColor?: string;
@@ -415,7 +418,15 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                         )}
                     </div>
                     {slide.hasImage !== false && slide.imageUrl && (
-                        <div className="w-2/5 flex items-center justify-center">
+                        <div
+                            className="w-2/5 flex items-center justify-center overflow-hidden"
+                            style={{
+                                aspectRatio: slide.imageSize?.cropRatio === 'square' ? '1/1'
+                                    : slide.imageSize?.cropRatio === 'wide' ? '16/9'
+                                        : slide.imageSize?.cropRatio === 'portrait' ? '9/16'
+                                            : undefined,
+                            }}
+                        >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={slide.imageUrl}
@@ -425,6 +436,7 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                                     maxWidth: `${slide.imageSize?.width || 100}%`,
                                     maxHeight: `${slide.imageSize?.height || 100}%`,
                                     objectFit: slide.imageSize?.objectFit || 'cover',
+                                    transform: `translate(${slide.imageSize?.positionX || 0}%, ${slide.imageSize?.positionY || 0}%)`,
                                 }}
                             />
                         </div>

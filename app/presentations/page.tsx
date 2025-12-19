@@ -94,6 +94,9 @@ interface Slide {
         width?: number; // percentage 10-100
         height?: number; // percentage 10-100
         objectFit?: 'cover' | 'contain' | 'fill' | 'none';
+        positionX?: number; // X offset -50 to 50
+        positionY?: number; // Y offset -50 to 50
+        cropRatio?: 'original' | 'square' | 'wide' | 'portrait';
     };
     customStyles?: {
         backgroundColor?: string;
@@ -280,6 +283,7 @@ function PresentationsContent() {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
     const [isElementEditorOpen, setIsElementEditorOpen] = useState(false);
+    const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
 
     // User must be logged in - no default user ID
     const userId = user?.id || '';
@@ -732,7 +736,7 @@ function PresentationsContent() {
     };
 
     // Update image size for resize functionality
-    const updateImageSize = (slideIndex: number, size: { width?: number; height?: number; objectFit?: 'cover' | 'contain' | 'fill' | 'none' }) => {
+    const updateImageSize = (slideIndex: number, size: { width?: number; height?: number; objectFit?: 'cover' | 'contain' | 'fill' | 'none'; positionX?: number; positionY?: number; cropRatio?: 'original' | 'square' | 'wide' | 'portrait' }) => {
         if (!data) return;
 
         const newSlides = [...data.slides];
@@ -2125,6 +2129,8 @@ function PresentationsContent() {
                                         isRegeneratingImage={isRegeneratingImage === selectedElement.slideIndex}
                                         customImagePrompt={customImagePrompt}
                                         setCustomImagePrompt={setCustomImagePrompt}
+                                        isCollapsed={isEditorCollapsed}
+                                        onToggleCollapse={() => setIsEditorCollapsed(!isEditorCollapsed)}
                                     />
                                 )}
                             </AnimatePresence>

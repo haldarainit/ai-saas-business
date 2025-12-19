@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    X,
     Image as ImageIcon,
     Upload,
     Wand2,
@@ -14,12 +13,15 @@ import {
     Trash2,
     Type,
     Square,
-    Circle,
     ChevronDown,
     ChevronUp,
     Sparkles,
     Layers,
     Settings,
+    PanelRight,
+    PanelRightClose,
+    Crop,
+    Grid3X3,
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +39,9 @@ export interface ImageElementData {
         width?: number;
         height?: number;
         objectFit?: 'cover' | 'contain' | 'fill' | 'none';
+        positionX?: number;
+        positionY?: number;
+        cropRatio?: 'original' | 'square' | 'wide' | 'portrait';
     };
 }
 
@@ -58,12 +63,15 @@ interface ElementEditorPanelProps {
     // Image actions
     onImageUpload: (slideIndex: number) => void;
     onImageRegenerate: (slideIndex: number, prompt?: string) => void;
-    onImageSizeChange: (slideIndex: number, size: { width?: number; height?: number; objectFit?: 'cover' | 'contain' | 'fill' | 'none' }) => void;
+    onImageSizeChange: (slideIndex: number, size: { width?: number; height?: number; objectFit?: 'cover' | 'contain' | 'fill' | 'none'; positionX?: number; positionY?: number; cropRatio?: 'original' | 'square' | 'wide' | 'portrait' }) => void;
     onImageRemove: (slideIndex: number) => void;
     isUploadingImage: boolean;
     isRegeneratingImage: boolean;
     customImagePrompt: string;
     setCustomImagePrompt: (prompt: string) => void;
+    // Collapse state
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
 export default function ElementEditorPanel({
@@ -79,10 +87,21 @@ export default function ElementEditorPanel({
     isRegeneratingImage,
     customImagePrompt,
     setCustomImagePrompt,
+    isCollapsed = false,
+    onToggleCollapse,
 }: ElementEditorPanelProps) {
     const [expandedSection, setExpandedSection] = useState<string>('source');
 
     if (!isOpen || !selectedElement) return null;
+
+    // Handle toggle - use external control if provided, otherwise use onClose
+    const handleToggle = () => {
+        if (onToggleCollapse) {
+            onToggleCollapse();
+        } else {
+            onClose();
+        }
+    };
 
     // Section component for collapsible sections
     const Section = ({
@@ -135,6 +154,7 @@ export default function ElementEditorPanel({
     const renderImageEditor = () => {
         const imageData = selectedElement.data as ImageElementData;
         const hasImage = !!imageData?.url;
+        const currentSize = imageData?.size || {};
 
         return (
             <>
@@ -262,12 +282,15 @@ export default function ElementEditorPanel({
                                         className="text-xs px-2 py-0.5 rounded"
                                         style={{ backgroundColor: `${theme.accent}30`, color: theme.primary }}
                                     >
-                                        {imageData.size?.width || 100}%
+                                        {currentSize.width || 100}%
                                     </span>
                                 </div>
                                 <Slider
-                                    value={[imageData.size?.width || 100]}
-                                    onValueChange={([value]) => onImageSizeChange(selectedElement.slideIndex, { width: value })}
+                                    value={[currentSize.width || 100]}
+                                    onValueChange={([value]) => onImageSizeChange(selectedElement.slideIndex, {
+                                        ...currentSize,
+                                        width: value
+                                    })}
                                     min={30}
                                     max={100}
                                     step={5}
@@ -283,12 +306,15 @@ export default function ElementEditorPanel({
                                         className="text-xs px-2 py-0.5 rounded"
                                         style={{ backgroundColor: `${theme.accent}30`, color: theme.primary }}
                                     >
-                                        {imageData.size?.height || 100}%
+                                        {currentSize.height || 100}%
                                     </span>
                                 </div>
                                 <Slider
-                                    value={[imageData.size?.height || 100]}
-                                    onValueChange={([value]) => onImageSizeChange(selectedElement.slideIndex, { height: value })}
+                                    value={[currentSize.height || 100]}
+                                    onValueChange={([value]) => onImageSizeChange(selectedElement.slideIndex, {
+                                        ...currentSize,
+                                        height: value
+                                    })}
                                     min={30}
                                     max={100}
                                     step={5}
@@ -303,12 +329,15 @@ export default function ElementEditorPanel({
                                     {(['cover', 'contain', 'fill'] as const).map((fit) => (
                                         <button
                                             key={fit}
-                                            onClick={() => onImageSizeChange(selectedElement.slideIndex, { objectFit: fit })}
-                                            className={`py-2 px-2 text-xs rounded-lg capitalize transition-all border-2 ${(imageData.size?.objectFit || 'cover') === fit
-                                                    ? 'text-white border-transparent'
-                                                    : 'bg-white text-slate-600 hover:bg-slate-50'
+                                            onClick={() => onImageSizeChange(selectedElement.slideIndex, {
+                                                ...currentSize,
+                                                objectFit: fit
+                                            })}
+                                            className={`py-2 px-2 text-xs rounded-lg capitalize transition-all border-2 ${(currentSize.objectFit || 'cover') === fit
+                                                ? 'text-white border-transparent'
+                                                : 'bg-white text-slate-600 hover:bg-slate-50'
                                                 }`}
-                                            style={(imageData.size?.objectFit || 'cover') === fit
+                                            style={(currentSize.objectFit || 'cover') === fit
                                                 ? { backgroundColor: theme.primary, borderColor: theme.primary }
                                                 : { borderColor: `${theme.accent}50` }}
                                         >
@@ -321,13 +350,110 @@ export default function ElementEditorPanel({
                     </Section>
                 )}
 
-                {/* Position Section - Placeholder for future */}
+                {/* Position Section */}
                 {hasImage && (
                     <Section id="position" title="Position" icon={<Move className="w-4 h-4" />}>
-                        <div className="text-center py-4">
-                            <p className="text-xs text-slate-400">
-                                Drag & drop positioning coming soon
+                        <div className="space-y-4">
+                            {/* X Position Slider */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-xs font-medium text-slate-600">X Offset</label>
+                                    <span
+                                        className="text-xs px-2 py-0.5 rounded"
+                                        style={{ backgroundColor: `${theme.accent}30`, color: theme.primary }}
+                                    >
+                                        {currentSize.positionX || 0}%
+                                    </span>
+                                </div>
+                                <Slider
+                                    value={[currentSize.positionX || 0]}
+                                    onValueChange={([value]) => onImageSizeChange(selectedElement.slideIndex, {
+                                        ...currentSize,
+                                        positionX: value
+                                    })}
+                                    min={-50}
+                                    max={50}
+                                    step={5}
+                                    className="w-full"
+                                />
+                            </div>
+
+                            {/* Y Position Slider */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-xs font-medium text-slate-600">Y Offset</label>
+                                    <span
+                                        className="text-xs px-2 py-0.5 rounded"
+                                        style={{ backgroundColor: `${theme.accent}30`, color: theme.primary }}
+                                    >
+                                        {currentSize.positionY || 0}%
+                                    </span>
+                                </div>
+                                <Slider
+                                    value={[currentSize.positionY || 0]}
+                                    onValueChange={([value]) => onImageSizeChange(selectedElement.slideIndex, {
+                                        ...currentSize,
+                                        positionY: value
+                                    })}
+                                    min={-50}
+                                    max={50}
+                                    step={5}
+                                    className="w-full"
+                                />
+                            </div>
+
+                            {/* Reset Position Button */}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                style={{ borderColor: theme.accent, color: theme.primary }}
+                                onClick={() => onImageSizeChange(selectedElement.slideIndex, {
+                                    ...currentSize,
+                                    positionX: 0,
+                                    positionY: 0
+                                })}
+                            >
+                                <RefreshCw className="w-3 h-3 mr-2" />
+                                Reset Position
+                            </Button>
+                        </div>
+                    </Section>
+                )}
+
+                {/* Crop Section */}
+                {hasImage && (
+                    <Section id="crop" title="Crop Ratio" icon={<Crop className="w-4 h-4" />}>
+                        <div className="space-y-3">
+                            <p className="text-xs text-slate-500">
+                                Select aspect ratio for the image
                             </p>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { id: 'original', label: 'Original', icon: <ImageIcon className="w-4 h-4" /> },
+                                    { id: 'square', label: 'Square 1:1', icon: <Square className="w-4 h-4" /> },
+                                    { id: 'wide', label: 'Wide 16:9', icon: <Grid3X3 className="w-4 h-4" /> },
+                                    { id: 'portrait', label: 'Portrait 9:16', icon: <Grid3X3 className="w-4 h-4 rotate-90" /> },
+                                ].map((ratio) => (
+                                    <button
+                                        key={ratio.id}
+                                        onClick={() => onImageSizeChange(selectedElement.slideIndex, {
+                                            ...currentSize,
+                                            cropRatio: ratio.id as 'original' | 'square' | 'wide' | 'portrait'
+                                        })}
+                                        className={`flex items-center gap-2 py-2.5 px-3 text-xs rounded-lg transition-all border-2 ${(currentSize.cropRatio || 'original') === ratio.id
+                                            ? 'text-white border-transparent'
+                                            : 'bg-white text-slate-600 hover:bg-slate-50'
+                                            }`}
+                                        style={(currentSize.cropRatio || 'original') === ratio.id
+                                            ? { backgroundColor: theme.primary, borderColor: theme.primary }
+                                            : { borderColor: `${theme.accent}50` }}
+                                    >
+                                        {ratio.icon}
+                                        <span>{ratio.label}</span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </Section>
                 )}
@@ -395,7 +521,7 @@ export default function ElementEditorPanel({
     return (
         <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 320, opacity: 1 }}
+            animate={{ width: isCollapsed ? 60 : 320, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="h-full bg-white border-l-2 flex flex-col overflow-hidden"
@@ -403,43 +529,79 @@ export default function ElementEditorPanel({
         >
             {/* Header */}
             <div
-                className="flex items-center justify-between p-4 border-b"
+                className="flex items-center justify-between p-3 border-b"
                 style={{
                     borderColor: `${theme.accent}30`,
                     background: `linear-gradient(135deg, ${theme.primary}10 0%, ${theme.accent}10 100%)`
                 }}
             >
-                <div className="flex items-center gap-3">
-                    <div
-                        className="w-9 h-9 rounded-lg flex items-center justify-center"
-                        style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)` }}
-                    >
-                        {getIcon()}
+                {!isCollapsed && (
+                    <div className="flex items-center gap-3">
+                        <div
+                            className="w-9 h-9 rounded-lg flex items-center justify-center"
+                            style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)` }}
+                        >
+                            {getIcon()}
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-sm text-slate-700">{getTitle()}</h3>
+                            <p className="text-xs text-slate-400">Slide {selectedElement.slideIndex + 1}</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="font-semibold text-sm text-slate-700">{getTitle()}</h3>
-                        <p className="text-xs text-slate-400">Slide {selectedElement.slideIndex + 1}</p>
-                    </div>
-                </div>
-                <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-                    <X className="w-4 h-4" />
+                )}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleToggle}
+                    className={`h-8 w-8 ${isCollapsed ? 'mx-auto' : ''}`}
+                    title={isCollapsed ? 'Expand editor' : 'Collapse editor'}
+                >
+                    {isCollapsed ? (
+                        <PanelRight className="w-4 h-4" style={{ color: theme.primary }} />
+                    ) : (
+                        <PanelRightClose className="w-4 h-4" style={{ color: theme.primary }} />
+                    )}
                 </Button>
             </div>
 
-            {/* Editor Content */}
-            <div className="flex-1 overflow-y-auto">
-                {renderEditorContent()}
-            </div>
+            {/* Editor Content - only show when not collapsed */}
+            {!isCollapsed && (
+                <>
+                    <div className="flex-1 overflow-y-auto">
+                        {renderEditorContent()}
+                    </div>
 
-            {/* Footer */}
-            <div
-                className="p-3 border-t text-center"
-                style={{ borderColor: `${theme.accent}30` }}
-            >
-                <p className="text-[10px] text-slate-400">
-                    Click on any element in the slide to edit
-                </p>
-            </div>
+                    {/* Footer */}
+                    <div
+                        className="p-3 border-t text-center"
+                        style={{ borderColor: `${theme.accent}30` }}
+                    >
+                        <p className="text-[10px] text-slate-400">
+                            Click on image in slide to edit directly
+                        </p>
+                    </div>
+                </>
+            )}
+
+            {/* Collapsed view - show icon only */}
+            {isCollapsed && (
+                <div className="flex-1 flex flex-col items-center py-4 gap-3">
+                    <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+                        style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)` }}
+                        onClick={handleToggle}
+                        title="Click to expand"
+                    >
+                        {getIcon()}
+                    </div>
+                    <span
+                        className="text-[10px] font-medium -rotate-90 whitespace-nowrap mt-4"
+                        style={{ color: theme.primary }}
+                    >
+                        {getTitle()}
+                    </span>
+                </div>
+            )}
         </motion.div>
     );
 }
