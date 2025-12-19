@@ -1,21 +1,20 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Attendance from '@/lib/models/Attendance';
-import { extractUserFromRequest } from '@/lib/auth-utils';
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
 export async function GET(request) {
     try {
         await dbConnect();
 
-        // Extract authenticated user
-        const authResult = extractUserFromRequest(request);
-        if (!authResult.success) {
+        // Get authenticated user
+        const { userId } = await getAuthenticatedUser(request);
+        if (!userId) {
             return NextResponse.json(
                 { success: false, error: 'Authentication required' },
                 { status: 401 }
             );
         }
-        const userId = authResult.user.id;
 
         const { searchParams } = new URL(request.url);
         const date = searchParams.get('date');
