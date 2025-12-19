@@ -1538,80 +1538,70 @@ export default function TechnoQuotationPage() {
                                                 </Button>
                                             </div>
 
-                                            {/* Split columns into groups of 3 */}
-                                            {(() => {
-                                                const columns = section.table.columns;
-                                                const columnGroups = [];
-                                                const maxColumnsPerGroup = 3;
-
-                                                for (let i = 0; i < columns.length; i += maxColumnsPerGroup) {
-                                                    columnGroups.push(columns.slice(i, i + maxColumnsPerGroup));
-                                                }
-
-                                                return columnGroups.map((columnGroup, groupIndex) => (
-                                                    <div key={groupIndex} className="table-group" style={{ marginBottom: groupIndex < columnGroups.length - 1 ? '20px' : '0' }}>
-                                                        {groupIndex > 0 && (
-                                                            <div className="table-continuation-label" style={{ fontSize: '9px', color: '#666', marginBottom: '5px', fontStyle: 'italic' }}>
-                                                                Continued from above...
-                                                            </div>
-                                                        )}
-                                                        <table className="data-table">
-                                                            <thead>
-                                                                <tr>
-                                                                    {columnGroup.map((column) => (
-                                                                        <th key={column.id}>
-                                                                            <div className="th-content">
-                                                                                <input
-                                                                                    type="text"
-                                                                                    value={column.name}
-                                                                                    onChange={(e) => updateColumnName(page.id, section.id, column.id, e.target.value)}
-                                                                                    className="editable-field table-header-field"
-                                                                                />
-                                                                                {section.table!.columns.length > 1 && (
-                                                                                    <button
-                                                                                        className="no-print delete-column-btn"
-                                                                                        onClick={() => deleteColumn(page.id, section.id, column.id)}
-                                                                                    >
-                                                                                        <X className="w-3 h-3" />
-                                                                                    </button>
-                                                                                )}
-                                                                            </div>
-                                                                        </th>
-                                                                    ))}
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {section.table.rows.map((row) => (
-                                                                    <tr key={row.id}>
-                                                                        {columnGroup.map((column) => (
-                                                                            <td key={column.id}>
-                                                                                <input
-                                                                                    type="text"
-                                                                                    value={row.cells[column.id] || ''}
-                                                                                    onChange={(e) => updateCell(page.id, section.id, row.id, column.id, e.target.value)}
-                                                                                    className="editable-field table-cell-field"
-                                                                                />
-                                                                            </td>
-                                                                        ))}
-                                                                        {groupIndex === 0 && (
-                                                                            <td className="no-print" style={{ width: '40px', padding: '5px' }}>
-                                                                                {section.table!.rows.length > 1 && (
-                                                                                    <button
-                                                                                        className="delete-row-btn"
-                                                                                        onClick={() => deleteRow(page.id, section.id, row.id)}
-                                                                                    >
-                                                                                        <Trash2 className="w-3 h-3" />
-                                                                                    </button>
-                                                                                )}
-                                                                            </td>
-                                                                        )}
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                ));
-                                            })()}
+                                            {/* Display all columns in a single table - no grouping */}
+                                            <table className="data-table">
+                                                <thead>
+                                                    <tr>
+                                                        {section.table.columns.map((column) => (
+                                                            <th key={column.id}>
+                                                                <div className="th-content">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={column.name}
+                                                                        onChange={(e) => updateColumnName(page.id, section.id, column.id, e.target.value)}
+                                                                        className="editable-field table-header-field"
+                                                                    />
+                                                                    {section.table!.columns.length > 1 && (
+                                                                        <button
+                                                                            className="no-print delete-column-btn"
+                                                                            onClick={() => deleteColumn(page.id, section.id, column.id)}
+                                                                        >
+                                                                            <X className="w-3 h-3" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </th>
+                                                        ))}
+                                                        <th className="no-print" style={{ width: '40px' }}></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {section.table.rows.map((row) => (
+                                                        <tr key={row.id}>
+                                                            {section.table!.columns.map((column) => (
+                                                                <td key={column.id}>
+                                                                    <textarea
+                                                                        value={row.cells[column.id] || ''}
+                                                                        onChange={(e) => updateCell(page.id, section.id, row.id, column.id, e.target.value)}
+                                                                        className="editable-field table-cell-field"
+                                                                        rows={1}
+                                                                        style={{
+                                                                            resize: 'none',
+                                                                            overflow: 'hidden',
+                                                                            minHeight: '24px'
+                                                                        }}
+                                                                        onInput={(e) => {
+                                                                            const target = e.target as HTMLTextAreaElement;
+                                                                            target.style.height = 'auto';
+                                                                            target.style.height = target.scrollHeight + 'px';
+                                                                        }}
+                                                                    />
+                                                                </td>
+                                                            ))}
+                                                            <td className="no-print" style={{ width: '40px', padding: '5px' }}>
+                                                                {section.table!.rows.length > 1 && (
+                                                                    <button
+                                                                        className="delete-row-btn"
+                                                                        onClick={() => deleteRow(page.id, section.id, row.id)}
+                                                                    >
+                                                                        <Trash2 className="w-3 h-3" />
+                                                                    </button>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
                                         </div>
                                     )}
                                 </div>
@@ -1922,6 +1912,8 @@ export default function TechnoQuotationPage() {
 
                 .table-section {
                     margin: 12px 0;
+                    overflow-x: auto;
+                    max-width: 100%;
                 }
 
                 .table-controls {
@@ -1935,12 +1927,15 @@ export default function TechnoQuotationPage() {
                     border-collapse: collapse;
                     font-size: 10px;
                     margin-bottom: 12px;
+                    table-layout: fixed;
                 }
 
                 .data-table th,
                 .data-table td {
                     border: 1px solid #1a1a1a;
                     padding: 8px 10px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
                 }
 
                 .data-table th {
@@ -1948,11 +1943,13 @@ export default function TechnoQuotationPage() {
                     color: white;
                     font-weight: bold;
                     text-align: center;
+                    min-width: 60px;
                 }
 
                 .data-table td {
                     background: white;
                     vertical-align: top;
+                    min-width: 60px;
                 }
 
                 .th-content {
@@ -1988,6 +1985,12 @@ export default function TechnoQuotationPage() {
                     width: 100%;
                     background: transparent;
                     text-align: left;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                    word-break: break-word;
+                    line-height: 1.4;
+                    font-family: inherit;
+                    font-size: inherit;
                 }
 
                 .delete-row-btn {
@@ -2287,6 +2290,8 @@ export default function TechnoQuotationPage() {
                     /* Table styling */
                     .table-section {
                         margin: 10px 0 !important;
+                        overflow: hidden !important;
+                        max-width: 100% !important;
                     }
 
                     .data-table {
@@ -2294,22 +2299,28 @@ export default function TechnoQuotationPage() {
                         border-collapse: collapse !important;
                         font-size: 9px !important;
                         margin-bottom: 10px !important;
+                        table-layout: fixed !important;
                     }
 
                     .data-table th {
                         background: #374151 !important;
                         color: white !important;
                         font-weight: bold !important;
-                        padding: 6px 8px !important;
+                        padding: 4px 6px !important;
                         border: 1px solid #1a1a1a !important;
                         text-align: center !important;
+                        overflow: hidden !important;
+                        text-overflow: ellipsis !important;
+                        font-size: 8px !important;
                     }
 
                     .data-table td {
                         border: 1px solid #1a1a1a !important;
-                        padding: 5px 8px !important;
+                        padding: 4px 6px !important;
                         background: white !important;
                         vertical-align: top !important;
+                        overflow: hidden !important;
+                        font-size: 8px !important;
                     }
 
                     .table-header-field {
@@ -2320,6 +2331,9 @@ export default function TechnoQuotationPage() {
 
                     .table-cell-field {
                         font-size: 9px !important;
+                        white-space: pre-wrap !important;
+                        word-wrap: break-word !important;
+                        word-break: break-word !important;
                     }
 
                     /* Remove row delete column space */
