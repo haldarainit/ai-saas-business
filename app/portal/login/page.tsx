@@ -52,17 +52,34 @@ export default function EmployeeLogin() {
             const data = await response.json();
 
             if (data.success) {
+                console.log("Employee login successful, data:", data);
+                console.log("Token to store:", data.token);
+                console.log("Employee data to store:", data.employee);
+                
                 // Store token and employee data
                 employeeAuth.setToken(data.token);
                 employeeAuth.setEmployeeData(data.employee);
+                
+                // Verify storage immediately
+                console.log("Stored token:", employeeAuth.getToken());
+                console.log("Stored employee data:", employeeAuth.getEmployeeData());
+                console.log("Is authenticated after storage:", employeeAuth.isAuthenticated());
+
+                // Trigger auth context update
+                window.dispatchEvent(new Event('employeeAuthChange'));
 
                 toast({
                     title: "Login Successful",
                     description: `Welcome back, ${data.employee.name}!`,
                 });
 
-                // Redirect to attendance portal
-                router.push("/portal/attendance");
+                // Small delay to ensure auth context updates, then redirect
+                setTimeout(() => {
+                    // Check again before redirect
+                    console.log("Before redirect - token:", employeeAuth.getToken());
+                    console.log("Before redirect - isAuthenticated:", employeeAuth.isAuthenticated());
+                    router.push("/portal/attendance");
+                }, 100);
             } else {
                 toast({
                     title: "Login Failed",

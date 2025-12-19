@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import ManualLocationUpdate from "@/components/manual-location-update";
+import { useAuth } from "@/contexts/auth-context";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,7 @@ export default function Attendance() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
+  const { authToken, user } = useAuth();
 
   // Background tracking function
   const startBackgroundTracking = (employeeId: string, initialLocation: any) => {
@@ -102,11 +104,13 @@ export default function Attendance() {
     });
   };
 
-  // Load employees on mount
+  // Load employees on mount and when user or selectedDate changes
   useEffect(() => {
-    loadEmployees();
-    loadAttendanceData();
-  }, [selectedDate]);
+    if (user) {
+      loadEmployees();
+      loadAttendanceData();
+    }
+  }, [selectedDate, user]);
 
   // Cleanup camera stream
   useEffect(() => {
@@ -118,30 +122,82 @@ export default function Attendance() {
   }, [stream]);
 
   const loadEmployees = async () => {
+    if (!user) return;
+    
     try {
-      const response = await fetch('/api/employees?status=active');
+      const response = await fetch('/api/employees?status=active', {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       if (data.success) {
         setEmployees(data.employees);
+      } else {
+        console.error('API returned error:', data.error);
       }
     } catch (error) {
       console.error('Failed to load employees:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load employees. Please refresh the page.",
+        variant: "destructive",
+      });
     }
   };
 
   const loadAttendanceData = async () => {
+    if (!user) return;
+    
     try {
       setLoading(true);
-      // Load all attendance for selected date
-      const response = await fetch(`/api/attendance/all/${selectedDate}`);
+      
+      // Load all attendance for selected date using query parameter
+      const response = await fetch(`/api/attendance/all?date=${selectedDate}`, {
+        credentials: 'include',
+      });
+      
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setAttendanceData(data.records || []);
+          setAttendanceData(data.attendance || []);
+          console.log('Loaded attendance records:', data.attendance?.length || 0);
+        } else {
+          console.error('API returned error:', data.error);
+          toast({
+            title: "Error",
+            description: data.error || "Failed to load attendance data",
+            variant: "destructive",
+          });
+        }
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to load attendance:', response.status, errorText);
+        
+        if (response.status === 401) {
+          toast({
+            title: "Authentication Error",
+            description: "Please log in to view attendance data.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to load attendance data. Please try again.",
+            variant: "destructive",
+          });
         }
       }
     } catch (error) {
       console.error('Failed to load attendance:', error);
+      toast({
+        title: "Network Error",
+        description: "Unable to connect to server. Please check your connection.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -274,9 +330,13 @@ export default function Attendance() {
       });
 
       console.log('Sending attendance request...');
+      
       const response = await fetch('/api/attendance/mark', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
         body: JSON.stringify({
           employeeId: selectedEmployee,
           image: imageData,
@@ -376,6 +436,35 @@ export default function Attendance() {
     <div className="flex min-h-screen flex-col">
       <Navbar />
 
+      {!user ? (
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4">Admin Authentication Required</h2>
+            <p className="text-muted-foreground mb-4">This page is for administrators only.</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              <strong>Employees:</strong> Please use the <Link href="/portal/attendance" className="text-blue-600 hover:underline">Employee Attendance Portal</Link>
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              <strong>Administrators:</strong> Please sign in with your admin account from the main page.
+            </p>
+            <div className="space-x-4">
+              <Link href="/" className="text-blue-600 hover:underline">
+                Go to Home (Admin Login)
+              </Link>
+              <Link href="/portal/login" className="text-green-600 hover:underline">
+                Employee Portal
+              </Link>
+              <Button 
+                onClick={() => window.location.reload()}
+                variant="outline"
+                size="sm"
+              >
+                Retry
+              </Button>
+            </div>
+          </div>
+        </main>
+      ) : (
       <main className="flex-1">
         {/* Hero Section */}
         <section className="relative py-8 sm:py-12 md:py-16 overflow-hidden bg-gradient-to-br from-cyan-500/5 via-background to-blue-500/5">
@@ -874,6 +963,7 @@ export default function Attendance() {
           </div>
         </section>
       </main>
+      )}
 
       <Footer />
     </div>

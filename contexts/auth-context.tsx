@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
+import { employeeAuth } from "@/lib/utils/employeeAuth";
 
 interface User {
   id: string;
@@ -9,6 +10,7 @@ interface User {
   name?: string;
   image?: string;
   createdAt?: string;
+  isEmployee?: boolean;
 }
 
 interface AuthContextType {
@@ -30,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
 
   useEffect(() => {
     // Handle Google OAuth session
@@ -50,22 +53,93 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session, status]);
 
+  // Also check auth on initial load (for employee auth)
+  useEffect(() => {
+    // Only run if NextAuth is not loading and we don't have a user yet
+    // But don't run if we already found employee auth
+    if (status !== "loading" && !user && !loading) {
+      console.log("Running initial auth check");
+      checkAuthStatus();
+    }
+  }, [status]);
+
+  // Listen for changes in localStorage (employee login/logout)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'employee_token' || e.key === 'employee_data') {
+        // Re-check auth status when employee auth changes
+        checkAuthStatus();
+      }
+    };
+
+    const handleEmployeeAuthChange = () => {
+      // Re-check auth status when employee auth changes
+      checkAuthStatus();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('employeeAuthChange', handleEmployeeAuthChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('employeeAuthChange', handleEmployeeAuthChange);
+    };
+  }, []);
+
   const checkAuthStatus = async () => {
+    if (isCheckingAuth) {
+      console.log("Auth check already in progress, skipping");
+      return;
+    }
+
     try {
+      setIsCheckingAuth(true);
       console.log("Checking auth status...");
+      console.log("Current URL:", window.location.href);
+      
+      // First try admin authentication
       const response = await fetch("/api/auth/me");
       console.log("Auth check response:", response.status);
       if (response.ok) {
         const data = await response.json();
         console.log("Auth check data:", data);
         setUser(data.user);
+        return;
       } else {
-        console.log("Auth check failed:", response.status);
+        console.log("Admin auth check failed:", response.status);
       }
+      
+      // If admin auth failed, check for employee authentication
+      console.log("Checking employee authentication...");
+      console.log("Employee token:", employeeAuth.getToken());
+      console.log("Employee isAuthenticated:", employeeAuth.isAuthenticated());
+      
+      if (employeeAuth.isAuthenticated()) {
+        const employeeData = employeeAuth.getEmployeeData();
+        console.log("Employee data:", employeeData);
+        if (employeeData) {
+          console.log("Found employee auth, setting user:", employeeData);
+          // Set user data from employee auth
+          setUser({
+            id: employeeData.employeeId || employeeData.id,
+            email: employeeData.email,
+            name: employeeData.name,
+            isEmployee: true, // Flag to identify employee users
+          });
+          return;
+        } else {
+          console.log("Employee data is null/undefined");
+        }
+      } else {
+        console.log("Employee not authenticated");
+      }
+      
+      console.log("No valid authentication found");
     } catch (error) {
       console.error("Auth check failed:", error);
     } finally {
       setLoading(false);
+      setIsCheckingAuth(false);
     }
   };
 
@@ -134,6 +208,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
+      // Check if this is an employee user
+      if (user?.isEmployee) {
+        // Use employee logout
+        employeeAuth.logout();
+        setUser(null);
+        setAuthToken(null);
+        return;
+      }
+
       // Clear NextAuth session (for Google OAuth)
       await signOut({ redirect: false });
 
