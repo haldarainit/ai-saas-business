@@ -44,6 +44,8 @@ import {
     ChevronRight,
     PanelLeftClose,
     PanelLeft,
+    Play,
+    Minimize2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
@@ -285,6 +287,10 @@ function PresentationsContent() {
     const [isElementEditorOpen, setIsElementEditorOpen] = useState(false);
     const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
 
+    // Presentation mode state
+    const [isPresentationMode, setIsPresentationMode] = useState(false);
+    const [presentationSlide, setPresentationSlide] = useState(0);
+
     // User must be logged in - no default user ID
     const userId = user?.id || '';
 
@@ -292,6 +298,32 @@ function PresentationsContent() {
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    // Keyboard handler for presentation mode
+    useEffect(() => {
+        if (!isPresentationMode || !data) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setIsPresentationMode(false);
+            } else if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                setPresentationSlide(prev => Math.min(data.slides.length - 1, prev + 1));
+            } else if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
+                e.preventDefault();
+                setPresentationSlide(prev => Math.max(0, prev - 1));
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                setPresentationSlide(0);
+            } else if (e.key === 'End') {
+                e.preventDefault();
+                setPresentationSlide(data.slides.length - 1);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isPresentationMode, data]);
 
     // Load workspace from URL params
     useEffect(() => {
@@ -1073,12 +1105,30 @@ function PresentationsContent() {
 
                                 {step === "preview" && (
                                     <div className="flex items-center gap-3">
+                                        {/* Present Button */}
+                                        <Button
+                                            onClick={() => {
+                                                setPresentationSlide(activeSlide);
+                                                setIsPresentationMode(true);
+                                            }}
+                                            className="text-white shadow-lg"
+                                            style={{
+                                                background: `linear-gradient(135deg, ${selectedTheme.colors.primary} 0%, ${selectedTheme.colors.secondary} 100%)`,
+                                            }}
+                                        >
+                                            <Play className="mr-2 h-4 w-4" />
+                                            Present
+                                        </Button>
+
+                                        {/* Download PPTX Button */}
                                         <Button
                                             onClick={handleDownload}
                                             disabled={isDownloading}
-                                            className="text-white transition-colors"
+                                            variant="outline"
+                                            className="border-2"
                                             style={{
-                                                backgroundColor: selectedTheme.colors.primary,
+                                                borderColor: selectedTheme.colors.secondary,
+                                                color: isDark ? '#ffffff' : selectedTheme.colors.primary
                                             }}
                                         >
                                             {isDownloading ? (
@@ -2166,6 +2216,96 @@ function PresentationsContent() {
                 onChange={handleImageUpload}
                 className="hidden"
             />
+
+            {/* Fullscreen Presentation Mode */}
+            <AnimatePresence>
+                {isPresentationMode && data && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                                setIsPresentationMode(false);
+                            } else if (e.key === 'ArrowRight' || e.key === ' ') {
+                                setPresentationSlide(Math.min(data.slides.length - 1, presentationSlide + 1));
+                            } else if (e.key === 'ArrowLeft') {
+                                setPresentationSlide(Math.max(0, presentationSlide - 1));
+                            }
+                        }}
+                        tabIndex={0}
+                        ref={(el) => el?.focus()}
+                    >
+                        {/* Slide content */}
+                        <motion.div
+                            key={presentationSlide}
+                            initial={{ opacity: 0, x: 50 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -50 }}
+                            transition={{ duration: 0.3 }}
+                            className="w-full h-full max-w-[100vw] max-h-[100vh] flex items-center justify-center p-4"
+                        >
+                            <div className="w-full h-full max-w-[95vw] max-h-[90vh] aspect-[16/9] rounded-lg overflow-hidden shadow-2xl">
+                                <SlidePreview
+                                    slide={data.slides[presentationSlide]}
+                                    slideIndex={presentationSlide}
+                                    totalSlides={data.slides.length}
+                                    theme={{
+                                        primary: selectedTheme.colors.primary,
+                                        secondary: selectedTheme.colors.secondary,
+                                        accent: selectedTheme.colors.accent,
+                                    }}
+                                    isActive={false}
+                                />
+                            </div>
+                        </motion.div>
+
+                        {/* Controls overlay */}
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/50 backdrop-blur-md rounded-full px-6 py-3">
+                            {/* Previous */}
+                            <button
+                                onClick={() => setPresentationSlide(Math.max(0, presentationSlide - 1))}
+                                disabled={presentationSlide === 0}
+                                className="p-2 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 transition-colors"
+                            >
+                                <ChevronLeft className="w-6 h-6 text-white" />
+                            </button>
+
+                            {/* Slide counter */}
+                            <span className="text-white font-medium tabular-nums min-w-[80px] text-center">
+                                {presentationSlide + 1} / {data.slides.length}
+                            </span>
+
+                            {/* Next */}
+                            <button
+                                onClick={() => setPresentationSlide(Math.min(data.slides.length - 1, presentationSlide + 1))}
+                                disabled={presentationSlide === data.slides.length - 1}
+                                className="p-2 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 transition-colors"
+                            >
+                                <ChevronRight className="w-6 h-6 text-white" />
+                            </button>
+
+                            {/* Separator */}
+                            <div className="w-px h-6 bg-white/30" />
+
+                            {/* Exit button */}
+                            <button
+                                onClick={() => setIsPresentationMode(false)}
+                                className="p-2 rounded-full bg-white/10 hover:bg-red-500/50 transition-colors"
+                                title="Exit presentation (ESC)"
+                            >
+                                <X className="w-6 h-6 text-white" />
+                            </button>
+                        </div>
+
+                        {/* ESC hint */}
+                        <div className="absolute top-4 right-4 text-white/50 text-sm">
+                            Press ESC to exit
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div >
     );
 }
