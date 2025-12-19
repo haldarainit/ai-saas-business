@@ -139,16 +139,17 @@ export default function ElementEditorPanel({
         });
     };
 
-    // Debounced size change for smooth slider updates
+    // Slider change handler - immediate local update, debounced parent update
     const handleSliderChange = useCallback((field: string, value: number) => {
-        // Update local state immediately (smooth UI)
+        // Update local state immediately for smooth UI
         setLocalValues(prev => ({ ...prev, [field]: value }));
 
-        // Debounce the actual update to parent
+        // Clear existing debounce
         if (debounceRef.current) {
             clearTimeout(debounceRef.current);
         }
 
+        // Very short debounce - just to batch rapid changes
         debounceRef.current = setTimeout(() => {
             const imageData = selectedElement?.data as ImageElementData;
             const currentSize = imageData?.size || {};
@@ -156,10 +157,25 @@ export default function ElementEditorPanel({
                 ...currentSize,
                 [field]: value,
             });
-        }, 50); // Small debounce for smooth feel
+        }, 16); // ~1 frame at 60fps
     }, [selectedElement, onImageSizeChange]);
 
-    // Section component with smooth animations
+    // Commit slider value on slider release (more immediate than debounce)
+    const handleSliderCommit = useCallback((field: string, value: number) => {
+        // Clear any pending debounce
+        if (debounceRef.current) {
+            clearTimeout(debounceRef.current);
+        }
+
+        const imageData = selectedElement?.data as ImageElementData;
+        const currentSize = imageData?.size || {};
+        onImageSizeChange(selectedElement!.slideIndex, {
+            ...currentSize,
+            [field]: value,
+        });
+    }, [selectedElement, onImageSizeChange]);
+
+    // Section component - simplified to avoid scroll issues
     const Section = ({
         id,
         title,
@@ -176,7 +192,11 @@ export default function ElementEditorPanel({
         return (
             <div className="border-b" style={{ borderColor: `${theme.accent}20` }}>
                 <button
-                    onClick={() => toggleSection(id)}
+                    type="button"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        toggleSection(id);
+                    }}
                     className="w-full flex items-center justify-between p-3 hover:bg-slate-50/80 transition-colors"
                 >
                     <div className="flex items-center gap-2.5">
@@ -188,28 +208,15 @@ export default function ElementEditorPanel({
                         </span>
                         <span className="font-medium text-sm text-slate-700">{title}</span>
                     </div>
-                    <motion.div
-                        animate={{ rotate: isExpanded ? 90 : 0 }}
-                        transition={{ duration: 0.15 }}
-                    >
-                        <ChevronRight className="w-4 h-4 text-slate-400" />
-                    </motion.div>
+                    <ChevronRight
+                        className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+                    />
                 </button>
-                <AnimatePresence initial={false}>
-                    {isExpanded && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.15, ease: 'easeOut' }}
-                            style={{ overflow: 'hidden' }}
-                        >
-                            <div className="px-3 pb-3 space-y-3">
-                                {children}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                {isExpanded && (
+                    <div className="px-3 pb-3 space-y-3">
+                        {children}
+                    </div>
+                )}
             </div>
         );
     };
@@ -381,6 +388,7 @@ export default function ElementEditorPanel({
                                 <Slider
                                     value={[localValues.width]}
                                     onValueChange={([value]) => handleSliderChange('width', value)}
+                                    onValueCommit={([value]) => handleSliderCommit('width', value)}
                                     min={30}
                                     max={100}
                                     step={1}
@@ -402,6 +410,7 @@ export default function ElementEditorPanel({
                                 <Slider
                                     value={[localValues.height]}
                                     onValueChange={([value]) => handleSliderChange('height', value)}
+                                    onValueCommit={([value]) => handleSliderCommit('height', value)}
                                     min={30}
                                     max={100}
                                     step={1}
@@ -455,6 +464,7 @@ export default function ElementEditorPanel({
                                 <Slider
                                     value={[localValues.positionX]}
                                     onValueChange={([value]) => handleSliderChange('positionX', value)}
+                                    onValueCommit={([value]) => handleSliderCommit('positionX', value)}
                                     min={-50}
                                     max={50}
                                     step={1}
@@ -476,6 +486,7 @@ export default function ElementEditorPanel({
                                 <Slider
                                     value={[localValues.positionY]}
                                     onValueChange={([value]) => handleSliderChange('positionY', value)}
+                                    onValueCommit={([value]) => handleSliderCommit('positionY', value)}
                                     min={-50}
                                     max={50}
                                     step={1}

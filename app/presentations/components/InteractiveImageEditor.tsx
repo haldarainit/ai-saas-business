@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 
 interface ImageSize {
     width?: number;
@@ -36,32 +36,31 @@ export default function InteractiveImageEditor({
 }: InteractiveImageEditorProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
-    const [resizeHandle, setResizeHandle] = useState<string>('');
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-    const [initialSize, setInitialSize] = useState<ImageSize>({});
+    const [activeHandle, setActiveHandle] = useState<string>('');
+    const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+    const [startSize, setStartSize] = useState<ImageSize>({});
 
-    // Local state for smooth updates
+    // Local state for smooth UI updates
     const [localSize, setLocalSize] = useState<ImageSize>(imageSize);
 
-    // Sync local state when props change (only when not actively manipulating)
+    // Sync with props when not actively manipulating
     useEffect(() => {
         if (!isDragging && !isResizing) {
             setLocalSize(imageSize);
         }
     }, [imageSize, isDragging, isResizing]);
 
-    // Derived values
-    const positionX = localSize.positionX ?? 0;
-    const positionY = localSize.positionY ?? 0;
+    // Current values
     const width = localSize.width ?? 100;
     const height = localSize.height ?? 100;
+    const posX = localSize.positionX ?? 0;
+    const posY = localSize.positionY ?? 0;
     const cropRatio = localSize.cropRatio ?? 'original';
 
-    // Handle image drag for repositioning
-    const handleDragStart = useCallback((e: React.MouseEvent) => {
+    // Start dragging image
+    const onDragStart = useCallback((e: React.MouseEvent) => {
         if (!isEditable || !onSizeChange) return;
 
-        // First click selects, don't drag yet
         if (!isSelected) {
             onSelect();
             return;
@@ -70,227 +69,206 @@ export default function InteractiveImageEditor({
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(true);
-        setDragStart({ x: e.clientX, y: e.clientY });
-        setInitialSize({ ...localSize });
+        setStartPos({ x: e.clientX, y: e.clientY });
+        setStartSize({ ...localSize });
     }, [isEditable, isSelected, localSize, onSelect, onSizeChange]);
 
-    // Handle resize start from handles
-    const handleResizeStart = useCallback((e: React.MouseEvent, handle: string) => {
+    // Start resizing from a handle
+    const onResizeStart = useCallback((e: React.MouseEvent, handle: string) => {
         if (!isEditable || !isSelected || !onSizeChange) return;
         e.preventDefault();
         e.stopPropagation();
         setIsResizing(true);
-        setResizeHandle(handle);
-        setDragStart({ x: e.clientX, y: e.clientY });
-        setInitialSize({ ...localSize });
+        setActiveHandle(handle);
+        setStartPos({ x: e.clientX, y: e.clientY });
+        setStartSize({ ...localSize });
     }, [isEditable, isSelected, localSize, onSizeChange]);
 
-    // Mouse move and mouse up handlers
+    // Mouse move handler
     useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            if (!onSizeChange) return;
+        if (!isDragging && !isResizing) return;
 
-            const deltaX = e.clientX - dragStart.x;
-            const deltaY = e.clientY - dragStart.y;
-            const scale = 0.15; // Sensitivity
+        const onMouseMove = (e: MouseEvent) => {
+            const dx = e.clientX - startPos.x;
+            const dy = e.clientY - startPos.y;
+            const sensitivity = 0.15;
 
             if (isDragging) {
-                const newX = Math.max(-50, Math.min(50, (initialSize.positionX ?? 0) + deltaX * scale));
-                const newY = Math.max(-50, Math.min(50, (initialSize.positionY ?? 0) + deltaY * scale));
-                setLocalSize(prev => ({
-                    ...prev,
-                    positionX: Math.round(newX),
-                    positionY: Math.round(newY),
-                }));
+                // Move the image
+                const newX = Math.round(Math.max(-50, Math.min(50, (startSize.positionX ?? 0) + dx * sensitivity)));
+                const newY = Math.round(Math.max(-50, Math.min(50, (startSize.positionY ?? 0) + dy * sensitivity)));
+                setLocalSize(prev => ({ ...prev, positionX: newX, positionY: newY }));
             } else if (isResizing) {
-                let newWidth = initialSize.width ?? 100;
-                let newHeight = initialSize.height ?? 100;
+                let newW = startSize.width ?? 100;
+                let newH = startSize.height ?? 100;
 
-                // Handle-specific resize logic
-                if (resizeHandle === 'right' || resizeHandle === 'top-right' || resizeHandle === 'bottom-right') {
-                    newWidth = Math.max(20, Math.min(100, (initialSize.width ?? 100) + deltaX * scale));
-                }
-                if (resizeHandle === 'left' || resizeHandle === 'top-left' || resizeHandle === 'bottom-left') {
-                    newWidth = Math.max(20, Math.min(100, (initialSize.width ?? 100) - deltaX * scale));
-                }
-                if (resizeHandle === 'bottom' || resizeHandle === 'bottom-left' || resizeHandle === 'bottom-right') {
-                    newHeight = Math.max(20, Math.min(100, (initialSize.height ?? 100) + deltaY * scale));
-                }
-                if (resizeHandle === 'top' || resizeHandle === 'top-left' || resizeHandle === 'top-right') {
-                    newHeight = Math.max(20, Math.min(100, (initialSize.height ?? 100) - deltaY * scale));
+                // Handle width changes
+                if (activeHandle.includes('right')) {
+                    newW = (startSize.width ?? 100) + dx * sensitivity;
+                } else if (activeHandle.includes('left')) {
+                    newW = (startSize.width ?? 100) - dx * sensitivity;
                 }
 
-                setLocalSize(prev => ({
-                    ...prev,
-                    width: Math.round(newWidth),
-                    height: Math.round(newHeight),
-                }));
+                // Handle height changes  
+                if (activeHandle.includes('bottom')) {
+                    newH = (startSize.height ?? 100) + dy * sensitivity;
+                } else if (activeHandle.includes('top')) {
+                    newH = (startSize.height ?? 100) - dy * sensitivity;
+                }
+
+                // Clamp values
+                newW = Math.round(Math.max(20, Math.min(100, newW)));
+                newH = Math.round(Math.max(20, Math.min(100, newH)));
+
+                setLocalSize(prev => ({ ...prev, width: newW, height: newH }));
             }
         };
 
-        const handleMouseUp = () => {
-            if ((isDragging || isResizing) && onSizeChange) {
-                // Commit final size to parent
+        const onMouseUp = () => {
+            if (onSizeChange && (isDragging || isResizing)) {
                 onSizeChange(localSize);
             }
             setIsDragging(false);
             setIsResizing(false);
-            setResizeHandle('');
+            setActiveHandle('');
         };
 
-        if (isDragging || isResizing) {
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-        }
-
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
         return () => {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
         };
-    }, [isDragging, isResizing, dragStart, initialSize, localSize, onSizeChange, resizeHandle]);
+    }, [isDragging, isResizing, startPos, startSize, activeHandle, localSize, onSizeChange]);
 
-    // Crop preset click handler - FIXED: properly stop all events
-    const handleCropClick = useCallback((e: React.MouseEvent, ratio: 'original' | 'square' | 'wide' | 'portrait') => {
+    // Handle crop button click
+    const onCropSelect = useCallback((e: React.MouseEvent, ratio: 'original' | 'square' | 'wide' | 'portrait') => {
         e.preventDefault();
         e.stopPropagation();
-
         if (!onSizeChange) return;
 
-        const newSize = {
-            ...localSize,
-            cropRatio: ratio,
-        };
+        const newSize = { ...localSize, cropRatio: ratio };
         setLocalSize(newSize);
         onSizeChange(newSize);
     }, [localSize, onSizeChange]);
 
-    // Get aspect ratio CSS value
-    const getAspectRatio = () => {
-        switch (cropRatio) {
-            case 'square': return '1 / 1';
-            case 'wide': return '16 / 9';
-            case 'portrait': return '9 / 16';
-            default: return undefined;
-        }
-    };
+    // Aspect ratio CSS
+    const aspectRatio = cropRatio === 'square' ? '1/1'
+        : cropRatio === 'wide' ? '16/9'
+            : cropRatio === 'portrait' ? '9/16'
+                : undefined;
 
-    // Handle configurations for all 8 handles
-    const handles = [
+    // All 8 resize handles
+    const resizeHandles = [
         // Corners
-        { id: 'top-left', cursor: 'nwse-resize', style: { top: 0, left: 0, transform: 'translate(-50%, -50%)' } },
-        { id: 'top-right', cursor: 'nesw-resize', style: { top: 0, right: 0, transform: 'translate(50%, -50%)' } },
-        { id: 'bottom-left', cursor: 'nesw-resize', style: { bottom: 0, left: 0, transform: 'translate(-50%, 50%)' } },
-        { id: 'bottom-right', cursor: 'nwse-resize', style: { bottom: 0, right: 0, transform: 'translate(50%, 50%)' } },
-        // Sides
-        { id: 'top', cursor: 'ns-resize', style: { top: 0, left: '50%', transform: 'translate(-50%, -50%)' } },
-        { id: 'bottom', cursor: 'ns-resize', style: { bottom: 0, left: '50%', transform: 'translate(-50%, 50%)' } },
-        { id: 'left', cursor: 'ew-resize', style: { top: '50%', left: 0, transform: 'translate(-50%, -50%)' } },
-        { id: 'right', cursor: 'ew-resize', style: { top: '50%', right: 0, transform: 'translate(50%, -50%)' } },
-    ];
-
-    const cropOptions = [
-        { id: 'original', label: 'Original' },
-        { id: 'square', label: 'Square' },
-        { id: 'wide', label: 'Wide' },
+        { id: 'top-left', pos: { top: -8, left: -8 }, cursor: 'nwse-resize' },
+        { id: 'top-right', pos: { top: -8, right: -8 }, cursor: 'nesw-resize' },
+        { id: 'bottom-left', pos: { bottom: -8, left: -8 }, cursor: 'nesw-resize' },
+        { id: 'bottom-right', pos: { bottom: -8, right: -8 }, cursor: 'nwse-resize' },
+        // Edges
+        { id: 'top', pos: { top: -8, left: '50%', marginLeft: -8 }, cursor: 'ns-resize' },
+        { id: 'bottom', pos: { bottom: -8, left: '50%', marginLeft: -8 }, cursor: 'ns-resize' },
+        { id: 'left', pos: { left: -8, top: '50%', marginTop: -8 }, cursor: 'ew-resize' },
+        { id: 'right', pos: { right: -8, top: '50%', marginTop: -8 }, cursor: 'ew-resize' },
     ];
 
     return (
         <div
-            className={`relative w-full h-full flex items-center justify-center select-none ${isEditable ? 'cursor-pointer' : ''}`}
+            className={`relative w-full h-full flex items-center justify-center select-none ${isEditable ? 'cursor-move' : ''}`}
             onClick={(e) => {
-                e.stopPropagation();
-                if (isEditable) {
+                if (isEditable && !isSelected) {
+                    e.stopPropagation();
                     onSelect();
                 }
             }}
         >
-            {/* Image container with size, position, and crop applied */}
+            {/* Image wrapper with transforms */}
             <div
-                className="relative"
                 style={{
+                    position: 'relative',
                     width: `${width}%`,
                     height: `${height}%`,
-                    transform: `translate(${positionX}%, ${positionY}%)`,
-                    transition: (isDragging || isResizing) ? 'none' : 'all 0.2s ease-out',
-                    aspectRatio: getAspectRatio(),
+                    transform: `translate(${posX}%, ${posY}%)`,
+                    transition: (isDragging || isResizing) ? 'none' : 'all 0.2s ease',
+                    aspectRatio,
                 }}
-                onMouseDown={handleDragStart}
+                onMouseDown={onDragStart}
             >
-                {/* The actual image */}
+                {/* Image container */}
                 <div className="w-full h-full overflow-hidden rounded-xl shadow-lg">
                     {children}
                 </div>
 
-                {/* Selection UI - only when selected and editable */}
+                {/* Selection controls */}
                 {isSelected && isEditable && (
                     <>
-                        {/* Selection border */}
+                        {/* Border */}
                         <div
                             className="absolute inset-0 pointer-events-none rounded-xl"
                             style={{
-                                border: `2px solid ${theme.primary}`,
-                                boxShadow: `0 0 0 2px ${theme.primary}20`,
+                                border: `3px solid ${theme.primary}`,
+                                boxShadow: `0 0 0 1px white, 0 0 12px ${theme.primary}40`
                             }}
                         />
 
                         {/* Resize handles */}
-                        {handles.map((handle) => (
+                        {resizeHandles.map((h) => (
                             <div
-                                key={handle.id}
-                                className="absolute w-4 h-4 bg-white rounded-full shadow-md z-40 hover:scale-110 active:scale-95 transition-transform"
+                                key={h.id}
+                                className="absolute w-4 h-4 bg-white rounded-full shadow-lg z-50"
                                 style={{
-                                    ...handle.style,
+                                    ...h.pos,
                                     border: `2px solid ${theme.primary}`,
-                                    cursor: handle.cursor,
+                                    cursor: h.cursor,
                                 }}
-                                onMouseDown={(e) => handleResizeStart(e, handle.id)}
+                                onMouseDown={(e) => onResizeStart(e, h.id)}
                             />
                         ))}
 
                         {/* Toolbar */}
                         <div
-                            className="absolute left-1/2 top-3 -translate-x-1/2 z-50 flex items-center gap-1.5 bg-white/95 backdrop-blur-md rounded-lg shadow-xl px-2 py-1.5 border border-slate-200"
+                            className="absolute left-1/2 top-4 -translate-x-1/2 z-[100] flex items-center gap-2 bg-white rounded-lg shadow-2xl px-3 py-2 border border-gray-200"
                             onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Size display */}
-                            <span className="text-[10px] font-medium text-slate-500 px-1">
+                            <span className="text-xs font-semibold text-gray-600 tabular-nums">
                                 {width}% × {height}%
                             </span>
 
-                            <div className="w-px h-4 bg-slate-200" />
+                            <div className="w-px h-5 bg-gray-300" />
 
-                            {/* Crop presets */}
-                            {cropOptions.map((option) => (
+                            {/* Crop buttons */}
+                            {[
+                                { id: 'original', label: 'Original' },
+                                { id: 'square', label: 'Square' },
+                                { id: 'wide', label: 'Wide' },
+                            ].map((opt) => (
                                 <button
-                                    key={option.id}
+                                    key={opt.id}
                                     type="button"
-                                    className={`px-2 py-1 rounded text-[10px] font-medium transition-all ${cropRatio === option.id
-                                            ? 'text-white shadow-sm'
-                                            : 'text-slate-600 hover:bg-slate-100'
+                                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${cropRatio === opt.id
+                                            ? 'text-white shadow-md'
+                                            : 'text-gray-600 hover:bg-gray-100'
                                         }`}
-                                    style={cropRatio === option.id ? { backgroundColor: theme.primary } : {}}
-                                    onClick={(e) => handleCropClick(e, option.id as any)}
+                                    style={cropRatio === opt.id ? { backgroundColor: theme.primary } : {}}
                                     onMouseDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => onCropSelect(e, opt.id as any)}
                                 >
-                                    {option.label}
+                                    {opt.label}
                                 </button>
                             ))}
                         </div>
                     </>
                 )}
 
-                {/* Hover overlay when not selected */}
+                {/* Hover state when not selected */}
                 {!isSelected && isEditable && (
                     <div
-                        className="absolute inset-0 z-20 opacity-0 hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center bg-black/10 cursor-pointer"
+                        className="absolute inset-0 z-20 opacity-0 hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center bg-black/20"
                         style={{ border: `2px dashed ${theme.primary}` }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onSelect();
-                        }}
                     >
-                        <div className="bg-white/95 backdrop-blur px-3 py-1.5 rounded-lg shadow-lg text-xs font-medium text-slate-700">
+                        <div className="bg-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium text-gray-700">
                             Click to Edit
                         </div>
                     </div>

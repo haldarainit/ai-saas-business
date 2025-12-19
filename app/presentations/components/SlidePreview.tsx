@@ -431,7 +431,7 @@ export default function SlidePreview({
                         )}
                     </div>
                     {slide.hasImage !== false && slide.imageUrl && (
-                        <div className="w-2/5 flex items-center justify-center relative h-full">
+                        <div className="w-2/5 flex items-center justify-center relative h-full overflow-visible">
                             <InteractiveImageEditor
                                 imageSize={slide.imageSize}
                                 isSelected={selectedElement?.type === 'image' && selectedElement?.slideIndex === slideIndex}
@@ -940,7 +940,7 @@ export default function SlidePreview({
 
                 <div className="p-8 h-full flex items-center gap-8 relative z-10">
                     {slide.hasImage !== false && slide.imageUrl && (
-                        <div className="w-2/5 flex items-center justify-center h-full relative">
+                        <div className="w-2/5 flex items-center justify-center h-full relative overflow-visible">
                             <InteractiveImageEditor
                                 imageSize={slide.imageSize}
                                 isSelected={selectedElement?.type === 'image' && selectedElement?.slideIndex === slideIndex}
@@ -1027,7 +1027,7 @@ export default function SlidePreview({
                 </div>
 
                 {slide.hasImage !== false && slide.imageUrl && layoutType !== 'textOnly' && (
-                    <div className="w-2/5 flex items-center justify-center h-full relative">
+                    <div className="w-2/5 flex items-center justify-center h-full relative overflow-visible">
                         <InteractiveImageEditor
                             imageSize={slide.imageSize}
                             isSelected={selectedElement?.type === 'image' && selectedElement?.slideIndex === slideIndex}
