@@ -57,8 +57,14 @@ export default function InteractiveImageEditor({
     const posY = localSize.positionY ?? 0;
     const cropRatio = localSize.cropRatio ?? 'original';
 
-    // Start dragging image
+    // Start dragging image (only if not clicking on a control)
     const onDragStart = useCallback((e: React.MouseEvent) => {
+        // Don't start drag if target is a button or handle
+        const target = e.target as HTMLElement;
+        if (target.closest('[data-handle]') || target.closest('[data-toolbar]')) {
+            return;
+        }
+
         if (!isEditable || !onSizeChange) return;
 
         if (!isSelected) {
@@ -67,7 +73,6 @@ export default function InteractiveImageEditor({
         }
 
         e.preventDefault();
-        e.stopPropagation();
         setIsDragging(true);
         setStartPos({ x: e.clientX, y: e.clientY });
         setStartSize({ ...localSize });
@@ -75,9 +80,10 @@ export default function InteractiveImageEditor({
 
     // Start resizing from a handle
     const onResizeStart = useCallback((e: React.MouseEvent, handle: string) => {
-        if (!isEditable || !isSelected || !onSizeChange) return;
         e.preventDefault();
         e.stopPropagation();
+        if (!isEditable || !isSelected || !onSizeChange) return;
+
         setIsResizing(true);
         setActiveHandle(handle);
         setStartPos({ x: e.clientX, y: e.clientY });
@@ -94,7 +100,6 @@ export default function InteractiveImageEditor({
             const sensitivity = 0.15;
 
             if (isDragging) {
-                // Move the image
                 const newX = Math.round(Math.max(-50, Math.min(50, (startSize.positionX ?? 0) + dx * sensitivity)));
                 const newY = Math.round(Math.max(-50, Math.min(50, (startSize.positionY ?? 0) + dy * sensitivity)));
                 setLocalSize(prev => ({ ...prev, positionX: newX, positionY: newY }));
@@ -102,21 +107,24 @@ export default function InteractiveImageEditor({
                 let newW = startSize.width ?? 100;
                 let newH = startSize.height ?? 100;
 
-                // Handle width changes
+                // Width changes
                 if (activeHandle.includes('right')) {
                     newW = (startSize.width ?? 100) + dx * sensitivity;
                 } else if (activeHandle.includes('left')) {
                     newW = (startSize.width ?? 100) - dx * sensitivity;
                 }
 
-                // Handle height changes  
+                // Height changes
                 if (activeHandle.includes('bottom')) {
                     newH = (startSize.height ?? 100) + dy * sensitivity;
-                } else if (activeHandle.includes('top')) {
+                } else if (activeHandle.includes('top') && activeHandle !== 'top') {
+                    // For corners like top-left, top-right
+                    newH = (startSize.height ?? 100) - dy * sensitivity;
+                } else if (activeHandle === 'top') {
+                    // For center top handle
                     newH = (startSize.height ?? 100) - dy * sensitivity;
                 }
 
-                // Clamp values
                 newW = Math.round(Math.max(20, Math.min(100, newW)));
                 newH = Math.round(Math.max(20, Math.min(100, newH)));
 
@@ -142,35 +150,34 @@ export default function InteractiveImageEditor({
     }, [isDragging, isResizing, startPos, startSize, activeHandle, localSize, onSizeChange]);
 
     // Handle crop button click
-    const onCropSelect = useCallback((e: React.MouseEvent, ratio: 'original' | 'square' | 'wide' | 'portrait') => {
-        e.preventDefault();
-        e.stopPropagation();
+    const onCropSelect = useCallback((ratio: 'original' | 'square' | 'wide' | 'portrait') => {
         if (!onSizeChange) return;
-
         const newSize = { ...localSize, cropRatio: ratio };
         setLocalSize(newSize);
         onSizeChange(newSize);
     }, [localSize, onSizeChange]);
 
-    // Aspect ratio CSS
+    // Get aspect ratio
     const aspectRatio = cropRatio === 'square' ? '1/1'
         : cropRatio === 'wide' ? '16/9'
             : cropRatio === 'portrait' ? '9/16'
                 : undefined;
 
-    // All 8 resize handles
-    const resizeHandles = [
-        // Corners
-        { id: 'top-left', pos: { top: -8, left: -8 }, cursor: 'nwse-resize' },
-        { id: 'top-right', pos: { top: -8, right: -8 }, cursor: 'nesw-resize' },
-        { id: 'bottom-left', pos: { bottom: -8, left: -8 }, cursor: 'nesw-resize' },
-        { id: 'bottom-right', pos: { bottom: -8, right: -8 }, cursor: 'nwse-resize' },
-        // Edges
-        { id: 'top', pos: { top: -8, left: '50%', marginLeft: -8 }, cursor: 'ns-resize' },
-        { id: 'bottom', pos: { bottom: -8, left: '50%', marginLeft: -8 }, cursor: 'ns-resize' },
-        { id: 'left', pos: { left: -8, top: '50%', marginTop: -8 }, cursor: 'ew-resize' },
-        { id: 'right', pos: { right: -8, top: '50%', marginTop: -8 }, cursor: 'ew-resize' },
-    ];
+    // Handle component - positioned INSIDE boundaries
+    const Handle = ({ id, style }: { id: string; style: React.CSSProperties }) => (
+        <div
+            data-handle={id}
+            className="absolute bg-white rounded-full shadow-lg cursor-pointer hover:scale-110 active:scale-95 transition-transform"
+            style={{
+                width: 14,
+                height: 14,
+                border: `2.5px solid ${theme.primary}`,
+                zIndex: 100,
+                ...style,
+            }}
+            onMouseDown={(e) => onResizeStart(e, id)}
+        />
+    );
 
     return (
         <div
@@ -182,14 +189,16 @@ export default function InteractiveImageEditor({
                 }
             }}
         >
-            {/* Image wrapper with transforms */}
+            {/* Image wrapper */}
             <div
                 style={{
                     position: 'relative',
                     width: `${width}%`,
                     height: `${height}%`,
+                    maxWidth: '100%',
+                    maxHeight: '100%',
                     transform: `translate(${posX}%, ${posY}%)`,
-                    transition: (isDragging || isResizing) ? 'none' : 'all 0.2s ease',
+                    transition: (isDragging || isResizing) ? 'none' : 'all 0.15s ease-out',
                     aspectRatio,
                 }}
                 onMouseDown={onDragStart}
@@ -199,40 +208,40 @@ export default function InteractiveImageEditor({
                     {children}
                 </div>
 
-                {/* Selection controls */}
+                {/* Selection UI */}
                 {isSelected && isEditable && (
                     <>
                         {/* Border */}
                         <div
-                            className="absolute inset-0 pointer-events-none rounded-xl"
+                            className="absolute pointer-events-none rounded-xl"
                             style={{
+                                inset: -2,
                                 border: `3px solid ${theme.primary}`,
-                                boxShadow: `0 0 0 1px white, 0 0 12px ${theme.primary}40`
+                                boxShadow: `0 0 0 1px white`,
                             }}
                         />
 
-                        {/* Resize handles */}
-                        {resizeHandles.map((h) => (
-                            <div
-                                key={h.id}
-                                className="absolute w-4 h-4 bg-white rounded-full shadow-lg z-50"
-                                style={{
-                                    ...h.pos,
-                                    border: `2px solid ${theme.primary}`,
-                                    cursor: h.cursor,
-                                }}
-                                onMouseDown={(e) => onResizeStart(e, h.id)}
-                            />
-                        ))}
+                        {/* Corner handles - positioned at corners INSIDE with offset */}
+                        <Handle id="top-left" style={{ top: -7, left: -7, cursor: 'nwse-resize' }} />
+                        <Handle id="top-right" style={{ top: -7, right: -7, cursor: 'nesw-resize' }} />
+                        <Handle id="bottom-left" style={{ bottom: -7, left: -7, cursor: 'nesw-resize' }} />
+                        <Handle id="bottom-right" style={{ bottom: -7, right: -7, cursor: 'nwse-resize' }} />
+
+                        {/* Edge handles - centered on edges */}
+                        <Handle id="top" style={{ top: -7, left: '50%', transform: 'translateX(-50%)', cursor: 'ns-resize' }} />
+                        <Handle id="bottom" style={{ bottom: -7, left: '50%', transform: 'translateX(-50%)', cursor: 'ns-resize' }} />
+                        <Handle id="left" style={{ left: -7, top: '50%', transform: 'translateY(-50%)', cursor: 'ew-resize' }} />
+                        <Handle id="right" style={{ right: -7, top: '50%', transform: 'translateY(-50%)', cursor: 'ew-resize' }} />
 
                         {/* Toolbar */}
                         <div
-                            className="absolute left-1/2 top-4 -translate-x-1/2 z-[100] flex items-center gap-2 bg-white rounded-lg shadow-2xl px-3 py-2 border border-gray-200"
+                            data-toolbar="true"
+                            className="absolute left-1/2 top-3 -translate-x-1/2 flex items-center gap-1.5 bg-white rounded-lg shadow-2xl px-3 py-2 border border-gray-200"
+                            style={{ zIndex: 150 }}
                             onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
                         >
                             {/* Size display */}
-                            <span className="text-xs font-semibold text-gray-600 tabular-nums">
+                            <span className="text-xs font-bold text-gray-600 tabular-nums min-w-[60px]">
                                 {width}% × {height}%
                             </span>
 
@@ -247,13 +256,20 @@ export default function InteractiveImageEditor({
                                 <button
                                     key={opt.id}
                                     type="button"
-                                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${cropRatio === opt.id
+                                    className={`px-2.5 py-1.5 rounded-md text-xs font-bold transition-all ${cropRatio === opt.id
                                             ? 'text-white shadow-md'
-                                            : 'text-gray-600 hover:bg-gray-100'
+                                            : 'text-gray-600 hover:bg-gray-100 active:bg-gray-200'
                                         }`}
                                     style={cropRatio === opt.id ? { backgroundColor: theme.primary } : {}}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    onClick={(e) => onCropSelect(e, opt.id as any)}
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                    }}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        onCropSelect(opt.id as any);
+                                    }}
                                 >
                                     {opt.label}
                                 </button>
@@ -262,7 +278,7 @@ export default function InteractiveImageEditor({
                     </>
                 )}
 
-                {/* Hover state when not selected */}
+                {/* Hover overlay when not selected */}
                 {!isSelected && isEditable && (
                     <div
                         className="absolute inset-0 z-20 opacity-0 hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center bg-black/20"
