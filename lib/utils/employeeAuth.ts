@@ -45,21 +45,14 @@ export const employeeAuth = {
 
     // Check if user is authenticated
     isAuthenticated(): boolean {
+        if (typeof window === 'undefined') return false;
+        
         const token = this.getToken();
-        if (!token) return false;
-
-        try {
-            const decoded = jwt.decode(token);
-            if (!decoded || typeof decoded === 'string') return false;
-
-            const payload = decoded as JwtPayload;
-            if (!payload.exp) return false;
-
-            // Check if token is expired
-            return payload.exp * 1000 > Date.now();
-        } catch (error) {
-            return false;
-        }
+        const data = this.getEmployeeData();
+        
+        // Simple check: if we have both token and data, consider authenticated
+        // JWT verification should be done server-side, not client-side
+        return !!(token && data);
     },
 
     // Decode token

@@ -52,6 +52,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session, status]);
 
+  // Also check auth on initial load (for employee auth)
+  useEffect(() => {
+    // Only run if NextAuth is not loading and we don't have a user yet
+    if (status !== "loading" && !user) {
+      checkAuthStatus();
+    }
+  }, [status, user]);
+
   // Listen for changes in localStorage (employee login/logout)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -92,10 +100,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       // If admin auth failed, check for employee authentication
+      console.log("Checking employee authentication...");
+      console.log("Employee token:", employeeAuth.getToken());
+      console.log("Employee isAuthenticated:", employeeAuth.isAuthenticated());
+      
       if (employeeAuth.isAuthenticated()) {
         const employeeData = employeeAuth.getEmployeeData();
+        console.log("Employee data:", employeeData);
         if (employeeData) {
-          console.log("Found employee auth:", employeeData);
+          console.log("Found employee auth, setting user:", employeeData);
           // Set user data from employee auth
           setUser({
             id: employeeData.employeeId || employeeData.id,
@@ -104,7 +117,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             isEmployee: true, // Flag to identify employee users
           });
           return;
+        } else {
+          console.log("Employee data is null/undefined");
         }
+      } else {
+        console.log("Employee not authenticated");
       }
       
       console.log("No valid authentication found");

@@ -64,8 +64,10 @@ export default function EmployeeLogin() {
                     description: `Welcome back, ${data.employee.name}!`,
                 });
 
-                // Redirect to attendance portal
-                router.push("/portal/attendance");
+                // Small delay to ensure auth context updates, then redirect
+                setTimeout(() => {
+                    router.push("/portal/attendance");
+                }, 100);
             } else {
                 toast({
                     title: "Login Failed",
