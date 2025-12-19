@@ -1,18 +1,19 @@
 import DataMigrationUtil from "../../../lib/email/DataMigrationUtil";
-import { extractUserFromRequest } from "../../../lib/auth-utils";
+import { getAuthenticatedUser } from "../../../lib/get-auth-user.ts";
 
 export async function POST(request) {
   try {
-    // Extract user information from authentication token
-    const authResult = extractUserFromRequest(request);
-    if (!authResult.success) {
+    // Extract user information from authentication - supports both Google OAuth and email/password login
+    const authResult = await getAuthenticatedUser(request);
+    const userId = authResult.userId;
+
+    if (!userId) {
+      console.error("❌ No authenticated user found for data-migration request");
       return Response.json(
         { success: false, error: "Authentication required" },
         { status: 401 }
       );
     }
-
-    const userId = authResult.user.id;
     const { action } = await request.json();
 
     const migrationUtil = new DataMigrationUtil();

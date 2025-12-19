@@ -1,24 +1,26 @@
 import { createCampaignScheduler } from "../../../lib/email/CampaignScheduler";
-import { extractUserFromRequest } from "../../../lib/auth-utils";
+import { getAuthenticatedUser } from "../../../lib/get-auth-user.ts";
 import Campaign from "../../../lib/models/Campaign";
 import CampaignEmailHistory from "../../../lib/models/CampaignEmailHistory";
 import dbConnect from "../../../lib/mongodb";
 
 export async function GET(request) {
   try {
-    // Extract user information from authentication token (optional for development)
-    let userId = null;
-    const authResult = extractUserFromRequest(request);
-    if (authResult.success) {
-      userId = authResult.user.id;
-    } else {
-      // For development: use a default user ID when no auth token
-      userId =
-        "dev-user-" +
-        (process.env.NODE_ENV === "development" ? "default" : "anonymous");
-      console.log("🔧 Development mode: using default user ID:", userId);
-    }
     await dbConnect();
+
+    // Extract user information from authentication - supports both Google OAuth and email/password login
+    const authResult = await getAuthenticatedUser(request);
+    const userId = authResult.userId;
+
+    if (!userId) {
+      console.error("❌ No authenticated user found for debug-campaigns GET request");
+      return Response.json(
+        { success: false, error: "Unauthorized - Please log in" },
+        { status: 401 }
+      );
+    }
+
+    console.log("✅ Authenticated user for debug-campaigns:", userId);
 
     // Get all campaigns for this user
     const campaigns = await Campaign.find({ userId }).sort({ createdAt: -1 });
@@ -87,20 +89,21 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    // Extract user information from authentication token (optional for development)
-    let userId = null;
-    const authResult = extractUserFromRequest(request);
-    if (authResult.success) {
-      userId = authResult.user.id;
-    } else {
-      // For development: use a default user ID when no auth token
-      userId =
-        "dev-user-" +
-        (process.env.NODE_ENV === "development" ? "default" : "anonymous");
+    await dbConnect();
+
+    // Extract user information from authentication - supports both Google OAuth and email/password login
+    const authResult = await getAuthenticatedUser(request);
+    const userId = authResult.userId;
+
+    if (!userId) {
+      console.error("❌ No authenticated user found for debug-campaigns POST request");
+      return Response.json(
+        { success: false, error: "Unauthorized - Please log in" },
+        { status: 401 }
+      );
     }
 
     const { action, campaignId } = await request.json();
-    await dbConnect();
 
     if (action === "getCampaignDetails") {
       const campaign = await Campaign.findOne({ _id: campaignId, userId });
