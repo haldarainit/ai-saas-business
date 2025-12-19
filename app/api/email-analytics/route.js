@@ -1,21 +1,24 @@
 import dbConnect from "../../../lib/mongodb";
 import EmailTracking from "../../../lib/models/EmailTracking";
-import { extractUserFromRequest } from "../../../lib/auth-utils";
+import { getAuthenticatedUser } from "../../../lib/get-auth-user.ts";
 
 export async function GET(request) {
   try {
     await dbConnect();
 
-    let userId = null;
-    const auth = extractUserFromRequest(request);
-    if (auth.success) {
-      userId = auth.user.id;
-    } else {
-      userId =
-        "dev-user-" +
-        (process.env.NODE_ENV === "development" ? "default" : "anonymous");
+    // Extract user information from authentication - supports both Google OAuth and email/password login
+    const authResult = await getAuthenticatedUser(request);
+    const userId = authResult.userId;
+
+    if (!userId) {
+      console.error("❌ No authenticated user found for email-analytics request");
+      return Response.json(
+        { success: false, error: "Unauthorized - Please log in to view analytics" },
+        { status: 401 }
+      );
     }
 
+    console.log("✅ Authenticated user for email-analytics:", userId);
     const { searchParams } = new URL(request.url);
     const campaignId = searchParams.get("campaignId");
 

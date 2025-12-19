@@ -1,21 +1,22 @@
 import dbConnect from "../../../lib/mongodb.js";
 import Campaign from "../../../lib/models/Campaign.js";
 import CampaignEmailHistory from "../../../lib/models/CampaignEmailHistory.js";
-import { extractUserFromRequest } from "../../../lib/auth-utils.js";
+import { getAuthenticatedUser } from "../../../lib/get-auth-user.ts";
 
 export async function POST(request) {
   try {
     await dbConnect();
 
-    // Extract user information from authentication token
-    let userId = null;
-    const authResult = extractUserFromRequest(request);
-    if (authResult.success) {
-      userId = authResult.user.id;
-    } else {
-      userId =
-        "dev-user-" +
-        (process.env.NODE_ENV === "development" ? "default" : "anonymous");
+    // Extract user information from authentication - supports both Google OAuth and email/password login
+    const authResult = await getAuthenticatedUser(request);
+    const userId = authResult.userId;
+
+    if (!userId) {
+      console.error("❌ No authenticated user found for cleanup-campaigns POST request");
+      return Response.json(
+        { success: false, error: "Unauthorized - Please log in" },
+        { status: 401 }
+      );
     }
 
     const { action, allUsers } = await request.json();
@@ -70,11 +71,11 @@ export async function POST(request) {
           console.log(`🔧 Fixing sentCount for campaign ${campaign._id}: ${campaign.sentCount} -> ${actualSentCount}`);
           await Campaign.updateOne(
             { _id: campaign._id },
-            { 
-              $set: { 
+            {
+              $set: {
                 sentCount: actualSentCount,
                 currentIndex: actualSentCount,
-              } 
+              }
             }
           );
           results.fixed++;
@@ -85,12 +86,12 @@ export async function POST(request) {
           console.log(`🔧 Fixing totalEmails for completed campaign ${campaign._id}: ${campaign.totalEmails} -> ${actualSentCount}`);
           await Campaign.updateOne(
             { _id: campaign._id },
-            { 
-              $set: { 
+            {
+              $set: {
                 totalEmails: actualSentCount,
                 sentCount: actualSentCount,
                 currentIndex: actualSentCount,
-              } 
+              }
             }
           );
           results.fixed++;
@@ -208,15 +209,16 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const allUsers = searchParams.get("allUsers") === "true";
 
-    // Extract user information
-    let userId = null;
-    const authResult = extractUserFromRequest(request);
-    if (authResult.success) {
-      userId = authResult.user.id;
-    } else {
-      userId =
-        "dev-user-" +
-        (process.env.NODE_ENV === "development" ? "default" : "anonymous");
+    // Extract user information from authentication - supports both Google OAuth and email/password login
+    const authResult = await getAuthenticatedUser(request);
+    const userId = authResult.userId;
+
+    if (!userId) {
+      console.error("❌ No authenticated user found for cleanup-campaigns GET request");
+      return Response.json(
+        { success: false, error: "Unauthorized - Please log in" },
+        { status: 401 }
+      );
     }
 
     // Get campaign health report - optionally for all users

@@ -2,24 +2,26 @@ import mongoose from "mongoose";
 import dbConnect from "../../../lib/mongodb.js";
 import CampaignEmailHistory from "../../../lib/models/CampaignEmailHistory.js";
 import CampaignStorage from "../../../lib/email/CampaignStorage.js";
-import { extractUserFromRequest } from "../../../lib/auth-utils.js";
+import { getAuthenticatedUser } from "../../../lib/get-auth-user.ts";
 
 export async function GET(request) {
   try {
     await dbConnect();
 
-    // Extract user information from authentication token
-    let userId = null;
-    const authResult = extractUserFromRequest(request);
-    if (authResult.success) {
-      userId = authResult.user.id;
-    } else {
-      // For development: use a default user ID when no auth token
-      userId =
-        "dev-user-" +
-        (process.env.NODE_ENV === "development" ? "default" : "anonymous");
-      console.log("🔧 Development mode: using default user ID:", userId);
+    // Extract user information from authentication - supports both Google OAuth and email/password login
+    const authResult = await getAuthenticatedUser(request);
+    let userId = authResult.userId;
+
+    if (!userId) {
+      // Return unauthorized error instead of using a fallback userId
+      console.error("❌ No authenticated user found for email-history request");
+      return Response.json(
+        { success: false, error: "Unauthorized - Please log in to view email history" },
+        { status: 401 }
+      );
     }
+
+    console.log("✅ Authenticated user for email-history:", userId);
 
     // Get query parameters
     const { searchParams } = new URL(request.url);

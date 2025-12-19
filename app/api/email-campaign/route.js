@@ -1,20 +1,22 @@
 import { createCampaignScheduler } from "../../../lib/email/CampaignScheduler";
-import { extractUserFromRequest } from "../../../lib/auth-utils";
+import { getAuthenticatedUser } from "../../../lib/get-auth-user.ts";
 
 export async function POST(request) {
   try {
-    // Extract user information from authentication token (optional for development)
-    let userId = null;
-    const authResult = extractUserFromRequest(request);
-    if (authResult.success) {
-      userId = authResult.user.id;
-    } else {
-      // For development: use a default user ID when no auth token
-      userId =
-        "dev-user-" +
-        (process.env.NODE_ENV === "development" ? "default" : "anonymous");
-      console.log("🔧 Development mode: using default user ID:", userId);
+    // Extract user information from authentication - supports both Google OAuth and email/password login
+    const authResult = await getAuthenticatedUser(request);
+    let userId = authResult.userId;
+
+    if (!userId) {
+      // Return unauthorized error instead of using a fallback userId
+      console.error("❌ No authenticated user found for email-campaign POST request");
+      return Response.json(
+        { success: false, error: "Unauthorized - Please log in to manage campaigns" },
+        { status: 401 }
+      );
     }
+
+    console.log("✅ Authenticated user for email-campaign:", userId);
     const campaignScheduler = createCampaignScheduler(userId);
 
     const { action, campaignData } = await request.json();
@@ -155,18 +157,20 @@ export async function POST(request) {
 
 export async function GET(request) {
   try {
-    // Extract user information from authentication token (optional for development)
-    let userId = null;
-    const authResult = extractUserFromRequest(request);
-    if (authResult.success) {
-      userId = authResult.user.id;
-    } else {
-      // For development: use a default user ID when no auth token
-      userId =
-        "dev-user-" +
-        (process.env.NODE_ENV === "development" ? "default" : "anonymous");
-      console.log("🔧 Development mode: using default user ID:", userId);
+    // Extract user information from authentication - supports both Google OAuth and email/password login
+    const authResult = await getAuthenticatedUser(request);
+    let userId = authResult.userId;
+
+    if (!userId) {
+      // Return unauthorized error instead of using a fallback userId
+      console.error("❌ No authenticated user found for email-campaign GET request");
+      return Response.json(
+        { success: false, error: "Unauthorized - Please log in to view campaign status" },
+        { status: 401 }
+      );
     }
+
+    console.log("✅ Authenticated user for email-campaign GET:", userId);
     const campaignScheduler = createCampaignScheduler(userId);
 
     const statusResult = await campaignScheduler.getCampaignStatus();
