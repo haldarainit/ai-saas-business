@@ -19,6 +19,7 @@ import {
     Map, Navigation, Compass, Anchor, Send, Download, Upload, RefreshCw,
     type LucideIcon
 } from 'lucide-react';
+import InteractiveImageEditor from "./InteractiveImageEditor";
 
 // Icon mapping - comprehensive list for AI-generated content
 const ICON_COMPONENTS: Record<string, LucideIcon> = {
@@ -295,6 +296,9 @@ interface SlidePreviewProps {
         accent: string;
     };
     isActive?: boolean;
+    selectedElement?: { type: string; slideIndex: number } | null;
+    onElementSelect?: (type: 'image' | 'text' | 'shape') => void;
+    onImageUpdate?: (size: any) => void;
 }
 
 // Helper to get icon component
@@ -315,7 +319,16 @@ const cleanMarkdown = (text: string): string => {
         .trim();
 };
 
-export default function SlidePreview({ slide, slideIndex, totalSlides, theme, isActive = false }: SlidePreviewProps) {
+export default function SlidePreview({
+    slide,
+    slideIndex,
+    totalSlides,
+    theme,
+    isActive = false,
+    selectedElement,
+    onElementSelect,
+    onImageUpdate
+}: SlidePreviewProps) {
     const layoutType = slide.layoutType || 'imageRight';
     const isFirstSlide = slideIndex === 0;
     const isLastSlide = slideIndex === totalSlides - 1;
@@ -418,27 +431,26 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                         )}
                     </div>
                     {slide.hasImage !== false && slide.imageUrl && (
-                        <div
-                            className="w-2/5 flex items-center justify-center overflow-hidden"
-                            style={{
-                                aspectRatio: slide.imageSize?.cropRatio === 'square' ? '1/1'
-                                    : slide.imageSize?.cropRatio === 'wide' ? '16/9'
-                                        : slide.imageSize?.cropRatio === 'portrait' ? '9/16'
-                                            : undefined,
-                            }}
-                        >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={slide.imageUrl}
-                                alt={slide.title}
-                                className="rounded-2xl shadow-2xl"
-                                style={{
-                                    maxWidth: `${slide.imageSize?.width || 100}%`,
-                                    maxHeight: `${slide.imageSize?.height || 100}%`,
-                                    objectFit: slide.imageSize?.objectFit || 'cover',
-                                    transform: `translate(${slide.imageSize?.positionX || 0}%, ${slide.imageSize?.positionY || 0}%)`,
-                                }}
-                            />
+                        <div className="w-2/5 flex items-center justify-center relative h-full">
+                            <InteractiveImageEditor
+                                imageSize={slide.imageSize}
+                                isSelected={selectedElement?.type === 'image' && selectedElement?.slideIndex === slideIndex}
+                                onSelect={() => onElementSelect?.('image')}
+                                onSizeChange={onImageUpdate}
+                                isEditable={isActive}
+                                theme={theme}
+                            >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={slide.imageUrl}
+                                    alt={slide.title}
+                                    draggable={false}
+                                    className="rounded-2xl shadow-2xl w-full h-full"
+                                    style={{
+                                        objectFit: slide.imageSize?.objectFit || 'cover',
+                                    }}
+                                />
+                            </InteractiveImageEditor>
                         </div>
                     )}
                 </div>
@@ -928,18 +940,26 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
 
                 <div className="p-8 h-full flex items-center gap-8 relative z-10">
                     {slide.hasImage !== false && slide.imageUrl && (
-                        <div className="w-2/5 flex items-center justify-center">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={slide.imageUrl}
-                                alt={slide.title}
-                                className="rounded-2xl shadow-xl"
-                                style={{
-                                    maxWidth: `${slide.imageSize?.width || 100}%`,
-                                    maxHeight: slide.imageSize?.height ? `${280 * (slide.imageSize.height / 100)}px` : '280px',
-                                    objectFit: slide.imageSize?.objectFit || 'cover',
-                                }}
-                            />
+                        <div className="w-2/5 flex items-center justify-center h-full relative">
+                            <InteractiveImageEditor
+                                imageSize={slide.imageSize}
+                                isSelected={selectedElement?.type === 'image' && selectedElement?.slideIndex === slideIndex}
+                                onSelect={() => onElementSelect?.('image')}
+                                onSizeChange={onImageUpdate}
+                                isEditable={isActive}
+                                theme={theme}
+                            >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={slide.imageUrl}
+                                    alt={slide.title}
+                                    draggable={false}
+                                    className="rounded-2xl shadow-xl w-full h-full"
+                                    style={{
+                                        objectFit: slide.imageSize?.objectFit || 'cover',
+                                    }}
+                                />
+                            </InteractiveImageEditor>
                         </div>
                     )}
 
@@ -1007,18 +1027,26 @@ export default function SlidePreview({ slide, slideIndex, totalSlides, theme, is
                 </div>
 
                 {slide.hasImage !== false && slide.imageUrl && layoutType !== 'textOnly' && (
-                    <div className="w-2/5 flex items-center justify-center">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={slide.imageUrl}
-                            alt={slide.title}
-                            className="rounded-2xl shadow-xl"
-                            style={{
-                                maxWidth: `${slide.imageSize?.width || 100}%`,
-                                maxHeight: slide.imageSize?.height ? `${280 * (slide.imageSize.height / 100)}px` : '280px',
-                                objectFit: slide.imageSize?.objectFit || 'cover',
-                            }}
-                        />
+                    <div className="w-2/5 flex items-center justify-center h-full relative">
+                        <InteractiveImageEditor
+                            imageSize={slide.imageSize}
+                            isSelected={selectedElement?.type === 'image' && selectedElement?.slideIndex === slideIndex}
+                            onSelect={() => onElementSelect?.('image')}
+                            onSizeChange={onImageUpdate}
+                            isEditable={isActive}
+                            theme={theme}
+                        >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={slide.imageUrl}
+                                alt={slide.title}
+                                draggable={false}
+                                className="rounded-2xl shadow-xl w-full h-full"
+                                style={{
+                                    objectFit: slide.imageSize?.objectFit || 'cover',
+                                }}
+                            />
+                        </InteractiveImageEditor>
                     </div>
                 )}
             </div>

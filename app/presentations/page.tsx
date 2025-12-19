@@ -1774,6 +1774,10 @@ function PresentationsContent() {
                                                         secondary: selectedTheme.colors.secondary,
                                                         accent: selectedTheme.colors.accent,
                                                     }}
+                                                    isActive={true}
+                                                    selectedElement={selectedElement}
+                                                    onElementSelect={(type) => handleElementSelect(activeSlide, type)}
+                                                    onImageUpdate={(size) => updateImageSize(activeSlide, size)}
                                                 />
 
                                                 {/* Edit Overlay - REMOVED: no darkening on hover */}
@@ -1819,27 +1823,7 @@ function PresentationsContent() {
                                                     </div>
                                                 </div>
 
-                                                {/* Click on Image to Edit - Canva Style */}
-                                                {data.slides[activeSlide].hasImage !== false && data.slides[activeSlide].imageUrl && (
-                                                    <div
-                                                        className="absolute top-4 right-4 bottom-16 w-2/5 z-40 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        onClick={() => handleElementSelect(activeSlide, 'image')}
-                                                    >
-                                                        {/* Visual indicator that image is clickable */}
-                                                        <div
-                                                            className="absolute inset-0 rounded-xl border-2 border-dashed flex items-center justify-center transition-all hover:bg-white/10"
-                                                            style={{ borderColor: selectedTheme.colors.primary }}
-                                                        >
-                                                            <div
-                                                                className="bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg flex items-center gap-2"
-                                                                style={{ color: selectedTheme.colors.primary }}
-                                                            >
-                                                                <ImageIcon className="w-4 h-4" />
-                                                                <span className="text-xs font-medium">Click to Edit Image</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
+
 
                                                 {/* Add Image Button - when no image exists */}
                                                 {data.slides[activeSlide].hasImage !== false && !data.slides[activeSlide].imageUrl && (
