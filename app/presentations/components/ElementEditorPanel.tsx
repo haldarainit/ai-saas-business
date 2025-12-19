@@ -101,8 +101,9 @@ export default function ElementEditorPanel({
         positionY: 0,
     });
 
-    // Debounce timer ref
+    // Refs
     const debounceRef = useRef<NodeJS.Timeout | null>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // Sync local values when selectedElement changes
     useEffect(() => {
@@ -624,7 +625,32 @@ export default function ElementEditorPanel({
 
             {/* Editor Content - only show when not collapsed */}
             {!isCollapsed && (
-                <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                <div
+                    ref={scrollContainerRef}
+                    className="flex-1 overflow-y-auto overflow-x-hidden"
+                    style={{ scrollBehavior: 'auto' }}
+                    onMouseDown={(e) => {
+                        // Prevent scroll jump when clicking sliders
+                        const target = e.target as HTMLElement;
+                        if (target.closest('[data-slot="slider"]') || target.closest('[data-radix-slider-thumb]')) {
+                            const container = scrollContainerRef.current;
+                            if (container) {
+                                const scrollTop = container.scrollTop;
+                                container.style.overflow = 'hidden';
+                                // Restore scroll position immediately
+                                requestAnimationFrame(() => {
+                                    container.scrollTop = scrollTop;
+                                });
+                                const restoreScroll = () => {
+                                    container.style.overflow = 'auto';
+                                    container.scrollTop = scrollTop;
+                                    document.removeEventListener('mouseup', restoreScroll);
+                                };
+                                document.addEventListener('mouseup', restoreScroll);
+                            }
+                        }
+                    }}
+                >
                     {renderEditorContent()}
                 </div>
             )}
