@@ -78,6 +78,8 @@ export const employeeAuth = {
     logout() {
         this.removeToken();
         if (typeof window !== 'undefined') {
+            // Trigger auth context update
+            window.dispatchEvent(new Event('employeeAuthChange'));
             window.location.href = '/portal/login';
         }
     },

@@ -56,6 +56,9 @@ export default function EmployeeLogin() {
                 employeeAuth.setToken(data.token);
                 employeeAuth.setEmployeeData(data.employee);
 
+                // Trigger auth context update
+                window.dispatchEvent(new Event('employeeAuthChange'));
+
                 toast({
                     title: "Login Successful",
                     description: `Welcome back, ${data.employee.name}!`,
