@@ -3,6 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { ArrowLeft, Sparkles } from "lucide-react";
@@ -12,7 +19,8 @@ interface Question {
     id: string;
     question: string;
     placeholder: string;
-    type: 'text' | 'textarea';
+    type: 'text' | 'textarea' | 'select';
+    options?: string[];
 }
 
 interface QuestionnaireProps {
@@ -140,6 +148,22 @@ export default function AutomatedQuotationQuestionnaire({
                                                             }
                                                         }}
                                                     />
+                                                ) : currentQuestion.type === 'select' && currentQuestion.options ? (
+                                                    <Select
+                                                        value={currentAnswer}
+                                                        onValueChange={(value) => onAnswerChange(value)}
+                                                    >
+                                                        <SelectTrigger className="text-base h-12">
+                                                            <SelectValue placeholder={currentQuestion.placeholder} />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {currentQuestion.options.map((option) => (
+                                                                <SelectItem key={option} value={option} className="text-base">
+                                                                    {option}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
                                                 ) : (
                                                     <Input
                                                         type="text"
@@ -156,7 +180,7 @@ export default function AutomatedQuotationQuestionnaire({
                                                     />
                                                 )}
                                                 <p className="text-xs text-muted-foreground mt-2">
-                                                    {currentQuestion.type === 'textarea' ? 'Press Ctrl+Enter to continue' : 'Press Enter to continue'}
+                                                    {currentQuestion.type === 'textarea' ? 'Press Ctrl+Enter to continue' : currentQuestion.type === 'select' ? 'Select an option to continue' : 'Press Enter to continue'}
                                                 </p>
                                             </div>
 

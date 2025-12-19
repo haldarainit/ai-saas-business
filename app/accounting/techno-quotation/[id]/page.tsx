@@ -100,7 +100,8 @@ export default function TechnoQuotationPage() {
     const [isProcessingOverflow, setIsProcessingOverflow] = React.useState(false);
 
     React.useEffect(() => {
-        if (isProcessingOverflow || quotationType !== 'manual') return;
+        // Only run auto-pagination for manual and ai-generated quotations (not during 'automated' questionnaire flow)
+        if (isProcessingOverflow || (quotationType !== 'manual' && quotationType !== 'ai-generated')) return;
 
         const checkOverflow = () => {
             pageContentRefs.current.forEach((contentEl, pageIndex) => {
@@ -149,14 +150,14 @@ export default function TechnoQuotationPage() {
                         return newPages;
                     });
 
-                    // Reset flag after a shorter delay for faster response
-                    setTimeout(() => setIsProcessingOverflow(false), 200);
+                    // Reset flag after a shorter delay for faster response (especially for AI-generated content)
+                    setTimeout(() => setIsProcessingOverflow(false), 100);
                 }
             });
         };
 
-        // Check after content settles to avoid premature pagination
-        const timeoutId = setTimeout(checkOverflow, 500);
+        // Check after content settles - use shorter delay for faster pagination
+        const timeoutId = setTimeout(checkOverflow, 300);
 
         return () => clearTimeout(timeoutId);
     }, [pages, isProcessingOverflow, quotationType]);
@@ -672,12 +673,13 @@ export default function TechnoQuotationPage() {
     };
 
     // Questionnaire for Automated Quotation
-    const questions: { id: string; question: string; placeholder: string; type: 'text' | 'textarea' }[] = [
+    const questions: { id: string; question: string; placeholder: string; type: 'text' | 'textarea' | 'select'; options?: string[] }[] = [
         {
             id: 'company_name',
             question: 'What is your company name?',
-            placeholder: 'e.g., GREEN ENERGY PVT. LTD',
-            type: 'text'
+            placeholder: 'Select your company',
+            type: 'select',
+            options: ['pikaG energy Pvt. Ltd.', 'Haldar AI and IT Pvt. Ltd.']
         },
         {
             id: 'company_details',
