@@ -1695,7 +1695,7 @@ export default function TechnoQuotationPage() {
 
                 /* Tables headers - dark professional look */
                 .page .data-table th {
-                    background: #374151 !important;
+                    background: #ffffffff !important;
                     color: #ffffff !important;
                 }
 
@@ -1939,11 +1939,12 @@ export default function TechnoQuotationPage() {
                 }
 
                 .data-table th {
-                    background: #374151;
-                    color: white;
+                    background: transparent;
+                    color: #1a1a1a;
                     font-weight: bold;
                     text-align: center;
                     min-width: 60px;
+                    overflow: visible;
                 }
 
                 .data-table td {
@@ -1955,16 +1956,22 @@ export default function TechnoQuotationPage() {
                 .th-content {
                     display: flex;
                     align-items: center;
+                    justify-content: center;
                     gap: 5px;
                     position: relative;
+                    width: 100%;
                 }
 
                 .table-header-field {
                     flex: 1;
                     background: transparent;
-                    color: white;
+                    color: #1a1a1a;
                     font-weight: bold;
                     text-align: center;
+                    min-width: 0;
+                    width: 100%;
+                    white-space: normal;
+                    word-wrap: break-word;
                 }
 
                 .delete-column-btn {
@@ -2303,15 +2310,16 @@ export default function TechnoQuotationPage() {
                     }
 
                     .data-table th {
-                        background: #374151 !important;
-                        color: white !important;
+                        background: white !important;
+                        background-color: white !important;
+                        color: #000000 !important;
                         font-weight: bold !important;
                         padding: 4px 6px !important;
                         border: 1px solid #1a1a1a !important;
                         text-align: center !important;
-                        overflow: hidden !important;
-                        text-overflow: ellipsis !important;
                         font-size: 8px !important;
+                        white-space: normal !important;
+                        word-wrap: break-word !important;
                     }
 
                     .data-table td {
@@ -2324,9 +2332,12 @@ export default function TechnoQuotationPage() {
                     }
 
                     .table-header-field {
-                        color: white !important;
+                        color: #000000 !important;
+                        background: transparent !important;
                         font-weight: bold !important;
                         text-align: center !important;
+                        white-space: normal !important;
+                        word-wrap: break-word !important;
                     }
 
                     .table-cell-field {
