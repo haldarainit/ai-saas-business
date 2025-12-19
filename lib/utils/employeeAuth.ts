@@ -53,10 +53,13 @@ export const employeeAuth = {
     // Remove JWT token
     removeToken() {
         if (typeof window !== 'undefined') {
+            console.log('REMOVING TOKENS - Stack trace:');
+            console.trace();
             localStorage.removeItem('employee_token');
             localStorage.removeItem('employee_data');
             sessionStorage.removeItem('employee_token');
             sessionStorage.removeItem('employee_data');
+            console.log('All employee tokens and data removed');
         }
     },
 

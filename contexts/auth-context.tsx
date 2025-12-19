@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
 
   useEffect(() => {
     // Handle Google OAuth session
@@ -55,10 +56,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Also check auth on initial load (for employee auth)
   useEffect(() => {
     // Only run if NextAuth is not loading and we don't have a user yet
-    if (status !== "loading" && !user) {
+    // But don't run if we already found employee auth
+    if (status !== "loading" && !user && !loading) {
+      console.log("Running initial auth check");
       checkAuthStatus();
     }
-  }, [status, user]);
+  }, [status]);
 
   // Listen for changes in localStorage (employee login/logout)
   useEffect(() => {
@@ -84,8 +87,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const checkAuthStatus = async () => {
+    if (isCheckingAuth) {
+      console.log("Auth check already in progress, skipping");
+      return;
+    }
+
     try {
+      setIsCheckingAuth(true);
       console.log("Checking auth status...");
+      console.log("Current URL:", window.location.href);
       
       // First try admin authentication
       const response = await fetch("/api/auth/me");
@@ -129,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Auth check failed:", error);
     } finally {
       setLoading(false);
+      setIsCheckingAuth(false);
     }
   };
 
