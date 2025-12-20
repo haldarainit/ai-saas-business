@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -552,9 +553,13 @@ export default function TechnoQuotationPage() {
         }
     };
 
-    const handlePrint = () => {
-        window.print();
-    };
+    // Print ref for react-to-print
+    const printRef = useRef<HTMLDivElement>(null);
+
+    const handlePrint = useReactToPrint({
+        contentRef: printRef,
+        documentTitle: mainTitle || 'Quotation',
+    });
 
     // Page Management
     const addPage = () => {
@@ -1555,7 +1560,7 @@ export default function TechnoQuotationPage() {
             </div>
 
             {/* Quotation Pages */}
-            <div className="quotation-container">
+            <div className="quotation-container" ref={printRef}>
                 {pages.map((page, pageIndex) => (
                     <div key={page.id} className="page">
                         {/* Watermark Overlay */}
@@ -2418,7 +2423,7 @@ export default function TechnoQuotationPage() {
                     font-weight: bold;
                 }
 
-                /* Page size for printing */
+                /* Page size for printing - exact A4 with no browser margins */
                 @page {
                     size: A4 portrait;
                     margin: 0;
@@ -2440,6 +2445,7 @@ export default function TechnoQuotationPage() {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                         width: 210mm !important;
+                        min-height: 297mm !important;
                         height: auto !important;
                         overflow: visible !important;
                     }
@@ -2472,31 +2478,31 @@ export default function TechnoQuotationPage() {
                         left: -9999px !important;
                     }
 
-                    /* Container adjustments */
+                    /* Container adjustments - must match A4 width for print */
                     .quotation-container {
                         padding: 0 !important;
                         margin: 0 !important;
-                        max-width: none !important;
-                        width: 100% !important;
+                        max-width: 210mm !important;
+                        width: 210mm !important;
                         background: white !important;
                     }
 
-                    /* Page layout - allow content to flow naturally */
+                    /* Page layout - match preview exactly */
                     .page {
                         width: 210mm !important;
                         min-height: 297mm !important;
-                        height: auto !important;
-                        max-height: none !important;
+                        height: 297mm !important;
+                        max-height: 297mm !important;
                         margin: 0 !important;
-                        padding: 12mm 15mm !important;
+                        padding: 15mm !important;
                         box-shadow: none !important;
                         page-break-after: always !important;
-                        page-break-inside: auto !important;
+                        page-break-inside: avoid !important;
                         break-after: page !important;
-                        break-inside: auto !important;
+                        break-inside: avoid !important;
                         background: white !important;
                         position: relative !important;
-                        overflow: visible !important;
+                        overflow: hidden !important;
                         display: flex !important;
                         flex-direction: column !important;
                     }
