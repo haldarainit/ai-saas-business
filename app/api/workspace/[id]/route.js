@@ -1,14 +1,25 @@
 import dbConnect from '@/lib/mongodb';
 import Workspace from '@/models/Workspace';
 import { NextResponse } from 'next/server';
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
-// GET - Get a specific workspace by ID
+// GET - Get a specific workspace by ID (with ownership check)
 export async function GET(request, { params }) {
     try {
         const { id } = await params;
         console.log(`GET /api/workspace/${id} - Connecting to DB...`);
         await dbConnect();
         console.log(`GET /api/workspace/${id} - Connected`);
+
+        // Get authenticated user
+        const { userId } = await getAuthenticatedUser(request);
+
+        if (!userId) {
+            return NextResponse.json(
+                { error: 'Authentication required' },
+                { status: 401 }
+            );
+        }
 
         const workspace = await Workspace.findById(id).lean();
 
@@ -17,6 +28,15 @@ export async function GET(request, { params }) {
             return NextResponse.json(
                 { error: 'Workspace not found' },
                 { status: 404 }
+            );
+        }
+
+        // Verify ownership
+        if (workspace.userId !== userId) {
+            console.log(`GET /api/workspace/${id} - Access denied`);
+            return NextResponse.json(
+                { error: 'Access denied' },
+                { status: 403 }
             );
         }
 
@@ -31,13 +51,38 @@ export async function GET(request, { params }) {
     }
 }
 
-// PUT - Update workspace (messages and/or files)
+// PUT - Update workspace (messages and/or files) - with ownership check
 export async function PUT(request, { params }) {
     try {
         const { id } = await params;
         console.log(`PUT /api/workspace/${id} - Connecting to DB...`);
         await dbConnect();
         console.log(`PUT /api/workspace/${id} - Connected`);
+
+        // Get authenticated user
+        const { userId } = await getAuthenticatedUser(request);
+
+        if (!userId) {
+            return NextResponse.json(
+                { error: 'Authentication required' },
+                { status: 401 }
+            );
+        }
+
+        // First, verify ownership
+        const existingWorkspace = await Workspace.findById(id).lean();
+        if (!existingWorkspace) {
+            return NextResponse.json(
+                { error: 'Workspace not found' },
+                { status: 404 }
+            );
+        }
+        if (existingWorkspace.userId !== userId) {
+            return NextResponse.json(
+                { error: 'Access denied' },
+                { status: 403 }
+            );
+        }
 
         let body;
         try {
@@ -119,20 +164,37 @@ export async function PUT(request, { params }) {
     }
 }
 
-// DELETE - Delete a workspace
+// DELETE - Delete a workspace - with ownership check
 export async function DELETE(request, { params }) {
     try {
         await dbConnect();
-
         const { id } = await params;
 
-        // Find workspace first to get attachments
+        // Get authenticated user
+        const { userId } = await getAuthenticatedUser(request);
+
+        if (!userId) {
+            return NextResponse.json(
+                { error: 'Authentication required' },
+                { status: 401 }
+            );
+        }
+
+        // Find workspace first to get attachments and verify ownership
         const workspace = await Workspace.findById(id);
 
         if (!workspace) {
             return NextResponse.json(
                 { error: 'Workspace not found' },
                 { status: 404 }
+            );
+        }
+
+        // Verify ownership
+        if (workspace.userId !== userId) {
+            return NextResponse.json(
+                { error: 'Access denied' },
+                { status: 403 }
             );
         }
 
