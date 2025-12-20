@@ -182,7 +182,7 @@ export default function Features() {
                   unprecedented growth for your business.
                 </p>
 
-                <div className="flex flex-col sm:flex-row gap-4">
+                {/* <div className="flex flex-col sm:flex-row gap-4">
                   <Button size="lg" className="text-lg px-8 py-6 h-auto">
                     Get Started Free
                     <ArrowRight className="ml-2 w-5 h-5" />
@@ -194,10 +194,10 @@ export default function Features() {
                   >
                     Watch Demo
                   </Button>
-                </div>
+                </div> */}
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-8 mt-16 w-full max-w-2xl">
+                {/* <div className="grid grid-cols-3 gap-8 mt-16 w-full max-w-2xl">
                   <div className="text-center">
                     <div className="text-3xl font-bold text-primary">10K+</div>
                     <div className="text-sm text-muted-foreground">
@@ -214,7 +214,7 @@ export default function Features() {
                     <div className="text-3xl font-bold text-primary">99.9%</div>
                     <div className="text-sm text-muted-foreground">Uptime</div>
                   </div>
-                </div>
+                </div> */}
               </motion.div>
             </div>
           </section>
@@ -378,7 +378,7 @@ export default function Features() {
                 viewport={{ once: true }}
                 className="text-center mt-20"
               >
-                <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-3xl p-12 border border-primary/20">
+                {/* <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-3xl p-12 border border-primary/20">
                   <h3 className="text-3xl font-bold mb-4">
                     Ready to Transform Your Business?
                   </h3>
@@ -399,7 +399,7 @@ export default function Features() {
                       Schedule Demo
                     </Button>
                   </div>
-                </div>
+                </div> */}
               </motion.div>
             </div>
           </section>

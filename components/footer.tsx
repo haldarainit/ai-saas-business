@@ -8,7 +8,7 @@ export default function Footer() {
       <div className="container px-4 md:px-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
-            <h3 className="text-lg font-bold">AI Enterprise</h3>
+            <h3 className="text-lg font-bold">HALDAR AI & IT PVT LTD</h3>
             <p className="text-sm text-muted-foreground">
               Enterprise-grade AI solutions for organizations that demand security, customization, and control.
             </p>
@@ -96,7 +96,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="mt-12 pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-muted-foreground">© {currentYear} AI Enterprise. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">© {currentYear} HALDAR AI & IT. All rights reserved.</p>
           <div className="flex gap-4">
             <Link
               href="https://linkedin.com"

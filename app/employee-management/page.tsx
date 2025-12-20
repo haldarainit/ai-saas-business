@@ -130,17 +130,17 @@ export default function EmployeeManagement() {
                     Register Employee
                   </Button>
                 </Link>
-                <Button
+                {/* <Button
                   variant="outline"
                   size="lg"
                   className="text-lg px-8 py-6 h-auto"
                 >
                   Watch Demo
-                </Button>
+                </Button> */}
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-8 mt-16 w-full max-w-2xl">
+              {/* <div className="grid grid-cols-3 gap-8 mt-16 w-full max-w-2xl">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-purple-500">500+</div>
                   <div className="text-sm text-muted-foreground">
@@ -157,7 +157,7 @@ export default function EmployeeManagement() {
                   <div className="text-3xl font-bold text-purple-500">80%</div>
                   <div className="text-sm text-muted-foreground">Time Saved</div>
                 </div>
-              </div>
+              </div> */}
             </motion.div>
           </div>
         </section>
