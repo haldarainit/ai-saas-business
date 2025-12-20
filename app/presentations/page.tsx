@@ -44,6 +44,8 @@ import {
     ChevronRight,
     PanelLeftClose,
     PanelLeft,
+    Play,
+    Minimize2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
@@ -94,6 +96,9 @@ interface Slide {
         width?: number; // percentage 10-100
         height?: number; // percentage 10-100
         objectFit?: 'cover' | 'contain' | 'fill' | 'none';
+        positionX?: number; // X offset -50 to 50
+        positionY?: number; // Y offset -50 to 50
+        cropRatio?: 'original' | 'square' | 'wide' | 'portrait';
     };
     customStyles?: {
         backgroundColor?: string;
@@ -280,14 +285,103 @@ function PresentationsContent() {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
     const [isElementEditorOpen, setIsElementEditorOpen] = useState(false);
+    const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
+
+    // Presentation mode state
+    const [isPresentationMode, setIsPresentationMode] = useState(false);
+    const [presentationSlide, setPresentationSlide] = useState(0);
+    const presentationContainerRef = useRef<HTMLDivElement>(null);
 
     // User must be logged in - no default user ID
     const userId = user?.id || '';
+
+    // Function to enter fullscreen presentation mode
+    const enterPresentationMode = async (startSlide: number = 0) => {
+        setPresentationSlide(startSlide);
+        setIsPresentationMode(true);
+
+        // Wait for the container to render, then request fullscreen
+        setTimeout(async () => {
+            const container = presentationContainerRef.current;
+            if (container) {
+                try {
+                    if (container.requestFullscreen) {
+                        await container.requestFullscreen();
+                    } else if ((container as any).webkitRequestFullscreen) {
+                        await (container as any).webkitRequestFullscreen();
+                    } else if ((container as any).msRequestFullscreen) {
+                        await (container as any).msRequestFullscreen();
+                    }
+                } catch (err) {
+                    console.log('Fullscreen not supported or denied');
+                }
+            }
+        }, 100);
+    };
+
+    // Function to exit fullscreen presentation mode
+    const exitPresentationMode = async () => {
+        setIsPresentationMode(false);
+
+        // Exit fullscreen if we're in it
+        if (document.fullscreenElement) {
+            try {
+                await document.exitFullscreen();
+            } catch (err) {
+                console.log('Error exiting fullscreen');
+            }
+        }
+    };
 
     // Set mounted on client
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    // Listen for fullscreen change (user pressed ESC in fullscreen)
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            if (!document.fullscreenElement && isPresentationMode) {
+                setIsPresentationMode(false);
+            }
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+        };
+    }, [isPresentationMode]);
+
+    // Keyboard handler for presentation mode
+    useEffect(() => {
+        if (!isPresentationMode || !data) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                // Fullscreen API handles ESC, but if not in fullscreen, close manually
+                if (!document.fullscreenElement) {
+                    exitPresentationMode();
+                }
+            } else if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                setPresentationSlide(prev => Math.min(data.slides.length - 1, prev + 1));
+            } else if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
+                e.preventDefault();
+                setPresentationSlide(prev => Math.max(0, prev - 1));
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                setPresentationSlide(0);
+            } else if (e.key === 'End') {
+                e.preventDefault();
+                setPresentationSlide(data.slides.length - 1);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isPresentationMode, data]);
 
     // Load workspace from URL params
     useEffect(() => {
@@ -732,7 +826,7 @@ function PresentationsContent() {
     };
 
     // Update image size for resize functionality
-    const updateImageSize = (slideIndex: number, size: { width?: number; height?: number; objectFit?: 'cover' | 'contain' | 'fill' | 'none' }) => {
+    const updateImageSize = (slideIndex: number, size: { width?: number; height?: number; objectFit?: 'cover' | 'contain' | 'fill' | 'none'; positionX?: number; positionY?: number; cropRatio?: 'original' | 'square' | 'wide' | 'portrait' }) => {
         if (!data) return;
 
         const newSlides = [...data.slides];
@@ -1069,12 +1163,27 @@ function PresentationsContent() {
 
                                 {step === "preview" && (
                                     <div className="flex items-center gap-3">
+                                        {/* Present Button */}
+                                        <Button
+                                            onClick={() => enterPresentationMode(activeSlide)}
+                                            className="text-white shadow-lg"
+                                            style={{
+                                                background: `linear-gradient(135deg, ${selectedTheme.colors.primary} 0%, ${selectedTheme.colors.secondary} 100%)`,
+                                            }}
+                                        >
+                                            <Play className="mr-2 h-4 w-4" />
+                                            Present
+                                        </Button>
+
+                                        {/* Download PPTX Button */}
                                         <Button
                                             onClick={handleDownload}
                                             disabled={isDownloading}
-                                            className="text-white transition-colors"
+                                            variant="outline"
+                                            className="border-2"
                                             style={{
-                                                backgroundColor: selectedTheme.colors.primary,
+                                                borderColor: selectedTheme.colors.secondary,
+                                                color: isDark ? '#ffffff' : selectedTheme.colors.primary
                                             }}
                                         >
                                             {isDownloading ? (
@@ -1770,6 +1879,10 @@ function PresentationsContent() {
                                                         secondary: selectedTheme.colors.secondary,
                                                         accent: selectedTheme.colors.accent,
                                                     }}
+                                                    isActive={true}
+                                                    selectedElement={selectedElement}
+                                                    onElementSelect={(type) => handleElementSelect(activeSlide, type)}
+                                                    onImageUpdate={(size) => updateImageSize(activeSlide, size)}
                                                 />
 
                                                 {/* Edit Overlay - REMOVED: no darkening on hover */}
@@ -1815,27 +1928,7 @@ function PresentationsContent() {
                                                     </div>
                                                 </div>
 
-                                                {/* Click on Image to Edit - Canva Style */}
-                                                {data.slides[activeSlide].hasImage !== false && data.slides[activeSlide].imageUrl && (
-                                                    <div
-                                                        className="absolute top-4 right-4 bottom-16 w-2/5 z-40 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        onClick={() => handleElementSelect(activeSlide, 'image')}
-                                                    >
-                                                        {/* Visual indicator that image is clickable */}
-                                                        <div
-                                                            className="absolute inset-0 rounded-xl border-2 border-dashed flex items-center justify-center transition-all hover:bg-white/10"
-                                                            style={{ borderColor: selectedTheme.colors.primary }}
-                                                        >
-                                                            <div
-                                                                className="bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg flex items-center gap-2"
-                                                                style={{ color: selectedTheme.colors.primary }}
-                                                            >
-                                                                <ImageIcon className="w-4 h-4" />
-                                                                <span className="text-xs font-medium">Click to Edit Image</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
+
 
                                                 {/* Add Image Button - when no image exists */}
                                                 {data.slides[activeSlide].hasImage !== false && !data.slides[activeSlide].imageUrl && (
@@ -2125,6 +2218,8 @@ function PresentationsContent() {
                                         isRegeneratingImage={isRegeneratingImage === selectedElement.slideIndex}
                                         customImagePrompt={customImagePrompt}
                                         setCustomImagePrompt={setCustomImagePrompt}
+                                        isCollapsed={isEditorCollapsed}
+                                        onToggleCollapse={() => setIsEditorCollapsed(!isEditorCollapsed)}
                                     />
                                 )}
                             </AnimatePresence>
@@ -2176,6 +2271,98 @@ function PresentationsContent() {
                 onChange={handleImageUpload}
                 className="hidden"
             />
+
+            {/* Fullscreen Presentation Mode */}
+            <AnimatePresence>
+                {isPresentationMode && data && (
+                    <motion.div
+                        ref={presentationContainerRef}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[9999] flex items-center justify-center"
+                        style={{ backgroundColor: '#1a1a1a' }}
+                        tabIndex={0}
+                    >
+                        {/* Slide content - full screen */}
+                        <motion.div
+                            key={presentationSlide}
+                            initial={{ opacity: 0, scale: 0.98 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.98 }}
+                            transition={{ duration: 0.25 }}
+                            className="w-full h-full flex items-center justify-center"
+                            style={{ padding: '40px' }}
+                        >
+                            <div
+                                className="w-full h-full overflow-hidden shadow-2xl"
+                                style={{
+                                    maxWidth: 'calc(100vh * 16 / 9)',
+                                    maxHeight: 'calc(100vw * 9 / 16)',
+                                    aspectRatio: '16/9',
+                                    borderRadius: '8px',
+                                    backgroundColor: '#ffffff'
+                                }}
+                            >
+                                <SlidePreview
+                                    slide={data.slides[presentationSlide]}
+                                    slideIndex={presentationSlide}
+                                    totalSlides={data.slides.length}
+                                    theme={{
+                                        primary: selectedTheme.colors.primary,
+                                        secondary: selectedTheme.colors.secondary,
+                                        accent: selectedTheme.colors.accent,
+                                    }}
+                                    isActive={false}
+                                />
+                            </div>
+                        </motion.div>
+
+                        {/* Controls overlay - auto-hide after 3 seconds */}
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/50 backdrop-blur-md rounded-full px-6 py-3 opacity-100 hover:opacity-100 transition-opacity">
+                            {/* Previous */}
+                            <button
+                                onClick={() => setPresentationSlide(Math.max(0, presentationSlide - 1))}
+                                disabled={presentationSlide === 0}
+                                className="p-2 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 transition-colors"
+                            >
+                                <ChevronLeft className="w-6 h-6 text-white" />
+                            </button>
+
+                            {/* Slide counter */}
+                            <span className="text-white font-medium tabular-nums min-w-[80px] text-center">
+                                {presentationSlide + 1} / {data.slides.length}
+                            </span>
+
+                            {/* Next */}
+                            <button
+                                onClick={() => setPresentationSlide(Math.min(data.slides.length - 1, presentationSlide + 1))}
+                                disabled={presentationSlide === data.slides.length - 1}
+                                className="p-2 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 transition-colors"
+                            >
+                                <ChevronRight className="w-6 h-6 text-white" />
+                            </button>
+
+                            {/* Separator */}
+                            <div className="w-px h-6 bg-white/30" />
+
+                            {/* Exit button */}
+                            <button
+                                onClick={exitPresentationMode}
+                                className="p-2 rounded-full bg-white/10 hover:bg-red-500/50 transition-colors"
+                                title="Exit presentation (ESC)"
+                            >
+                                <X className="w-6 h-6 text-white" />
+                            </button>
+                        </div>
+
+                        {/* ESC hint */}
+                        <div className="absolute top-4 right-4 text-white/50 text-sm">
+                            Press ESC to exit
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div >
     );
 }
