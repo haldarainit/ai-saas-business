@@ -2424,9 +2424,11 @@ export default function TechnoQuotationPage() {
                 }
 
                 /* Page size for printing - exact A4 with no browser margins */
+
+                /* Page size for printing - let printer determine size (Letter/A4) */
                 @page {
-                    size: A4 portrait;
-                    margin: 0;
+                    size: auto;
+                    margin: 0mm;
                 }
 
                 @media print {
@@ -2444,8 +2446,7 @@ export default function TechnoQuotationPage() {
                         background: white !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
-                        width: 210mm !important;
-                        min-height: 297mm !important;
+                        width: 100% !important;
                         height: auto !important;
                         overflow: visible !important;
                     }
@@ -2478,53 +2479,60 @@ export default function TechnoQuotationPage() {
                         left: -9999px !important;
                     }
 
-                    /* Container adjustments - must match A4 width for print */
+                    /* Container adjustments - fill paper width */
                     .quotation-container {
                         padding: 0 !important;
                         margin: 0 !important;
-                        max-width: 210mm !important;
-                        width: 210mm !important;
+                        max-width: none !important;
+                        width: 100% !important;
                         background: white !important;
                     }
 
-                    /* Page layout - match preview exactly */
+                    /* Page layout - flex with safe min-height to push footer to bottom */
                     .page {
-                        width: 210mm !important;
-                        min-height: 297mm !important;
-                        height: 297mm !important;
-                        max-height: 297mm !important;
+                        width: 100% !important;
+                        min-height: 230mm !important; /* Safe for Letter (279mm) with ~50mm buffer for margins */
+                        height: auto !important;
                         margin: 0 !important;
                         padding: 15mm !important;
                         box-shadow: none !important;
                         page-break-after: always !important;
-                        page-break-inside: avoid !important;
+                        page-break-inside: auto !important;
                         break-after: page !important;
-                        break-inside: avoid !important;
+                        break-inside: auto !important;
                         background: white !important;
                         position: relative !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
                         display: flex !important;
                         flex-direction: column !important;
                     }
-
-                    .page:last-child {
-                        page-break-after: auto !important;
-                        break-after: auto !important;
+                    
+                    /* Header at top */
+                    .header {
+                        flex-shrink: 0 !important;
                     }
-
-                    /* Page content - allow content to flow */
+                    
+                    /* Content fills available space */
                     .page-content {
-                        flex: 1 !important;
+                        flex: 1 0 auto !important;
                         display: block !important;
                         overflow: visible !important;
                         page-break-inside: auto !important;
                     }
-
-                    /* Footer - stays at bottom with margin-top: auto */
+                    
+                    /* Footer pushed to bottom with margin-top: auto */
                     .footer {
-                        margin-top: auto !important;
                         flex-shrink: 0 !important;
+                        page-break-before: auto !important;
+                        break-inside: avoid !important;
+                        margin-top: auto !important; /* Push to bottom of min-height container */
                     }
+
+                    .page:last-child {
+                        page-break-after: auto !important;
+                        break-after: avoid !important;
+                    }
+
 
                     /* Make all inputs look like regular text */
                     .page input,
@@ -2740,7 +2748,6 @@ export default function TechnoQuotationPage() {
 
                     /* Footer styling */
                     .footer {
-                        margin-top: auto !important;
                         padding-top: 10px !important;
                         border-top: 1px solid #374151 !important;
                         font-size: 7px !important;
