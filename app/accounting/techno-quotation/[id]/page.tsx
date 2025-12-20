@@ -1962,8 +1962,6 @@ export default function TechnoQuotationPage() {
                 .quotation-container {
                     max-width: 210mm;
                     margin: 0 auto;
-                    padding: 20px;
-                    background: white;
                 }
 
                 .page {
