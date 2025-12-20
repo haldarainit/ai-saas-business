@@ -1,27 +1,40 @@
 import dbConnect from '@/lib/mongodb';
 import Product from '@/models/Product';
 import { NextResponse } from 'next/server';
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
 // GET /api/inventory/products
-// Get all products
-export async function GET() {
+// Get all products for the authenticated user
+export async function GET(request) {
   console.log('GET /api/inventory/products - Request received');
   
   try {
+    // Get authenticated user
+    const { userId } = await getAuthenticatedUser(request);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { message: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     // Log environment for debugging
     console.log('Environment:', {
       NODE_ENV: process.env.NODE_ENV,
-      MONGODB_URI: process.env.MONGODB_URI ? 'Set' : 'Not set'
+      MONGODB_URI: process.env.MONGODB_URI ? 'Set' : 'Not set',
+      userId: userId
     });
 
     console.log('Connecting to database...');
     await dbConnect();
     
-    console.log('Database connected. Fetching products...');
+    console.log('Database connected. Fetching products for user:', userId);
     
     try {
-      const products = await Product.find({}).sort({ createdAt: -1 });
-      console.log(`Successfully fetched ${products.length} products`);
+      // Filter products by userId
+      const products = await Product.find({ userId }).sort({ createdAt: -1 });
+      console.log(`Successfully fetched ${products.length} products for user ${userId}`);
       
       // Ensure we're sending proper JSON
       const response = NextResponse.json(products);
@@ -72,17 +85,28 @@ export async function GET() {
 }
 
 // POST /api/inventory/products
-// Create a new product
+// Create a new product for the authenticated user
 export async function POST(request) {
   console.log('POST /api/inventory/products - Request received');
   
   try {
+    // Get authenticated user
+    const { userId } = await getAuthenticatedUser(request);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { message: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     // Log request headers for debugging
     const headers = {};
     request.headers.forEach((value, key) => {
       headers[key] = value;
     });
     console.log('Request headers:', headers);
+    console.log('Authenticated user:', userId);
     
     // Parse request body
     let productData;
@@ -158,12 +182,12 @@ export async function POST(request) {
     console.log('Connecting to database...');
     await dbConnect();
     
-    // Check for duplicate SKU
-    console.log('Checking for existing product with SKU:', productData.sku);
+    // Check for duplicate SKU for this user
+    console.log('Checking for existing product with SKU:', productData.sku, 'for user:', userId);
     try {
-      const existingProduct = await Product.findOne({ sku: productData.sku });
+      const existingProduct = await Product.findOne({ userId, sku: productData.sku });
       if (existingProduct) {
-        console.error('Product with SKU already exists:', productData.sku);
+        console.error('Product with SKU already exists for this user:', productData.sku);
         return NextResponse.json(
           { 
             message: 'A product with this SKU already exists',
@@ -192,9 +216,10 @@ export async function POST(request) {
     }
 
     // Create and save new product
-    console.log('Creating new product with data:', productData);
+    console.log('Creating new product with data:', productData, 'for user:', userId);
     try {
       const product = new Product({
+        userId: userId,
         name: String(productData.name).trim(),
         description: productData.description ? String(productData.description).trim() : '',
         sku: String(productData.sku).trim(),

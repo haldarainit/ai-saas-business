@@ -2,13 +2,26 @@ import dbConnect from '@/lib/mongodb';
 import Product from '@/models/Product';
 import { NextResponse } from 'next/server';
 import Papa from 'papaparse';
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
 // POST /api/inventory/upload-csv
-// Upload CSV file and create products
+// Upload CSV file and create products for the authenticated user
 export async function POST(request) {
   console.log('POST /api/inventory/upload-csv - Request received');
   
   try {
+    // Get authenticated user
+    const { userId } = await getAuthenticatedUser(request);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { message: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    console.log('Authenticated user:', userId);
+    
     // Parse form data
     const formData = await request.formData();
     const file = formData.get('file');
@@ -168,8 +181,8 @@ export async function POST(request) {
 
     for (const product of validatedProducts) {
       try {
-        // Check for existing SKU
-        const existingProduct = await Product.findOne({ sku: product.sku });
+        // Check for existing SKU for this user
+        const existingProduct = await Product.findOne({ userId, sku: product.sku });
         
         if (existingProduct) {
           results.duplicates.push({
@@ -180,8 +193,8 @@ export async function POST(request) {
           continue;
         }
 
-        // Create new product
-        const newProduct = new Product(product);
+        // Create new product with userId
+        const newProduct = new Product({ ...product, userId });
         const savedProduct = await newProduct.save();
         results.success.push(savedProduct);
         

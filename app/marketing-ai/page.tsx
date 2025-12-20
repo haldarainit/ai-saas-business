@@ -19,38 +19,38 @@ import Link from "next/link";
 
 export default function MarketingAI() {
   const marketingTools = [
-    {
-      icon: <PenTool className="w-8 h-8" />,
-      title: "Ads Copy",
-      description:
-        "Generate compelling ad copy that converts. Our AI analyzes your target audience and creates persuasive copy for Facebook, Google, and Instagram ads.",
-      features: [
-        "Multi-platform optimization",
-        "A/B testing suggestions",
-        "Brand voice matching",
-      ],
-      image:
-        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-      accentColor: "rgba(236, 72, 153, 0.5)",
-      iconColor: "text-pink-500",
-      gradient: "from-pink-500/20 to-rose-500/20",
-    },
-    {
-      icon: <Sparkles className="w-8 h-8" />,
-      title: "Creative Generator",
-      description:
-        "Create stunning visuals and graphics for your marketing campaigns. From social media posts to email banners, our AI generates professional designs instantly.",
-      features: [
-        "Brand-consistent designs",
-        "Multiple format support",
-        "Instant customization",
-      ],
-      image:
-        "https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-      accentColor: "rgba(34, 211, 238, 0.5)",
-      iconColor: "text-cyan-500",
-      gradient: "from-cyan-500/20 to-blue-500/20",
-    },
+    // {
+    //   icon: <PenTool className="w-8 h-8" />,
+    //   title: "Ads Copy",
+    //   description:
+    //     "Generate compelling ad copy that converts. Our AI analyzes your target audience and creates persuasive copy for Facebook, Google, and Instagram ads.",
+    //   features: [
+    //     "Multi-platform optimization",
+    //     "A/B testing suggestions",
+    //     "Brand voice matching",
+    //   ],
+    //   image:
+    //     "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+    //   accentColor: "rgba(236, 72, 153, 0.5)",
+    //   iconColor: "text-pink-500",
+    //   gradient: "from-pink-500/20 to-rose-500/20",
+    // },
+    // {
+    //   icon: <Sparkles className="w-8 h-8" />,
+    //   title: "Creative Generator",
+    //   description:
+    //     "Create stunning visuals and graphics for your marketing campaigns. From social media posts to email banners, our AI generates professional designs instantly.",
+    //   features: [
+    //     "Brand-consistent designs",
+    //     "Multiple format support",
+    //     "Instant customization",
+    //   ],
+    //   image:
+    //     "https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+    //   accentColor: "rgba(34, 211, 238, 0.5)",
+    //   iconColor: "text-cyan-500",
+    //   gradient: "from-cyan-500/20 to-blue-500/20",
+    // },
     {
       icon: <Target className="w-8 h-8" />,
       title: "Campaign Planner AI",

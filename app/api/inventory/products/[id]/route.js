@@ -1,15 +1,27 @@
 import dbConnect from '@/lib/mongodb';
 import Product from '@/models/Product';
 import { NextResponse } from 'next/server';
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
 // GET /api/inventory/products/[id]
-// Get a single product by ID
+// Get a single product by ID for the authenticated user
 export async function GET(request, { params }) {
   try {
     const { id } = params;
     
+    // Get authenticated user
+    const { userId } = await getAuthenticatedUser(request);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { message: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     await dbConnect();
-    const product = await Product.findById(id);
+    // Find product that belongs to this user
+    const product = await Product.findOne({ _id: id, userId });
     
     if (!product) {
       return NextResponse.json(
@@ -29,11 +41,21 @@ export async function GET(request, { params }) {
 }
 
 // PUT /api/inventory/products/[id]
-// Update a product
+// Update a product for the authenticated user
 export async function PUT(request, { params }) {
   try {
     const { id } = params;
     const updateData = await request.json();
+    
+    // Get authenticated user
+    const { userId } = await getAuthenticatedUser(request);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { message: 'Authentication required' },
+        { status: 401 }
+      );
+    }
     
     // Validate required fields - check for undefined/null/empty strings
     if (!updateData.name || updateData.name.trim() === '' || 
@@ -49,14 +71,24 @@ export async function PUT(request, { params }) {
     
     await dbConnect();
     
-    // Check if SKU is being updated to an existing one
+    // First verify the product belongs to this user
+    const existingProduct = await Product.findOne({ _id: id, userId });
+    if (!existingProduct) {
+      return NextResponse.json(
+        { message: 'Product not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Check if SKU is being updated to an existing one (for this user)
     if (updateData.sku) {
-      const existingProduct = await Product.findOne({ 
+      const duplicateProduct = await Product.findOne({ 
         _id: { $ne: id },
+        userId: userId,
         sku: updateData.sku.trim() 
       });
       
-      if (existingProduct) {
+      if (duplicateProduct) {
         return NextResponse.json(
           { message: 'A product with this SKU already exists' },
           { status: 400 }
@@ -79,8 +111,8 @@ export async function PUT(request, { params }) {
       updatedAt: new Date()
     };
     
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id,
+    const updatedProduct = await Product.findOneAndUpdate(
+      { _id: id, userId },
       updatePayload,
       { new: true, runValidators: true }
     );
@@ -121,13 +153,24 @@ export async function PUT(request, { params }) {
 }
 
 // DELETE /api/inventory/products/[id]
-// Delete a product
+// Delete a product for the authenticated user
 export async function DELETE(request, { params }) {
   try {
     const { id } = params;
     
+    // Get authenticated user
+    const { userId } = await getAuthenticatedUser(request);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { message: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     await dbConnect();
-    const deletedProduct = await Product.findByIdAndDelete(id);
+    // Only delete if product belongs to this user
+    const deletedProduct = await Product.findOneAndDelete({ _id: id, userId });
     
     if (!deletedProduct) {
       return NextResponse.json(

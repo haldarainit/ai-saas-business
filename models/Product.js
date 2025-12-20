@@ -5,6 +5,11 @@ console.log('Product model loading...');
 
 // Schema definition
 const productSchema = new mongoose.Schema({
+  userId: {
+    type: String,
+    required: true,
+    index: true
+  },
   name: {
     type: String,
     required: true,
@@ -17,8 +22,7 @@ const productSchema = new mongoose.Schema({
   },
   sku: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   category: {
     type: String,
@@ -87,8 +91,9 @@ productSchema.virtual('isExpired').get(function() {
   return new Date(this.expiryDate) < new Date();
 });
 
-// Create indexes
-productSchema.index({ sku: 1 }, { unique: true });
+// Create indexes - SKU must be unique per user, not globally
+productSchema.index({ userId: 1, sku: 1 }, { unique: true });
+productSchema.index({ userId: 1 });
 productSchema.index({ name: 'text', description: 'text' });
 
 // Middleware for validation
@@ -106,11 +111,12 @@ productSchema.post('save', function(error, doc, next) {
   }
 });
 
-// Static method to find products expiring soon
-productSchema.statics.findExpiringSoon = function(days = 15) {
+// Static method to find products expiring soon for a specific user
+productSchema.statics.findExpiringSoon = function(userId, days = 15) {
   const futureDate = new Date();
   futureDate.setDate(futureDate.getDate() + days);
   return this.find({
+    userId: userId,
     expiryDate: { 
       $exists: true, 
       $ne: null,

@@ -82,6 +82,7 @@ export default function CSVUpload({ onUploadSuccess }) {
 
       const response = await fetch('/api/inventory/upload-csv', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
 

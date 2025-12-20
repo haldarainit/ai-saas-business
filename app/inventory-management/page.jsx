@@ -49,6 +49,7 @@ export default function InventoryManagement() {
         setLoading(true);
         const response = await fetch('/api/inventory/products', {
           cache: 'no-store',
+          credentials: 'include',
         });
         
         if (!response.ok) {
@@ -83,6 +84,7 @@ export default function InventoryManagement() {
         setLoading(true);
         const response = await fetch('/api/inventory/products', {
           cache: 'no-store',
+          credentials: 'include',
         });
         
         if (!response.ok) {
@@ -469,6 +471,7 @@ export default function InventoryManagement() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(requestBody),
       });
       
@@ -549,6 +552,7 @@ export default function InventoryManagement() {
     try {
       const response = await fetch(`/api/inventory/products/${productId}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       if (!response.ok) {

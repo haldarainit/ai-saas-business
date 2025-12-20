@@ -60,17 +60,17 @@ export default function Features() {
       iconColor: "text-cyan-500",
       link: "/sales-ai",
     },
-    {
-      image:
-        "https://images.unsplash.com/photo-1581094794329-c8112a89af12?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-      title: "Techno Tally ChatBot",
-      description:
-        "Intelligent chatbot solution to fetch and analyze your Tally data through natural conversations. Get insights instantly.",
-      benefits: ["Natural Language Queries", "Real-time Data Fetch", "Tally Integration"],
-      accentColor: "rgba(20, 184, 166, 0.5)",
-      iconColor: "text-teal-500",
-      link: "/tally-chatbot",
-    },
+    // {
+    //   image:
+    //     "https://images.unsplash.com/photo-1581094794329-c8112a89af12?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+    //   title: "Techno Tally ChatBot",
+    //   description:
+    //     "Intelligent chatbot solution to fetch and analyze your Tally data through natural conversations. Get insights instantly.",
+    //   benefits: ["Natural Language Queries", "Real-time Data Fetch", "Tally Integration"],
+    //   accentColor: "rgba(20, 184, 166, 0.5)",
+    //   iconColor: "text-teal-500",
+    //   link: "/tally-chatbot",
+    // },
     {
       image:
         "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
