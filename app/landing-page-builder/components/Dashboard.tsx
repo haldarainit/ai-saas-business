@@ -29,7 +29,8 @@ export default function Dashboard({ userId, onSelectWorkspace, onCreateNew, onDe
 
     const fetchWorkspaces = async () => {
         try {
-            const response = await fetch(`/api/workspace?userId=${userId}`);
+            // API now handles authentication server-side
+            const response = await fetch('/api/workspace');
             const data = await response.json();
             if (data.workspaces) {
                 setWorkspaces(data.workspaces);
