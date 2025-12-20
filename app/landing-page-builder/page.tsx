@@ -10,10 +10,12 @@ import Footer from "@/components/footer"
 import StructuredData from "@/components/structured-data"
 import { ActionProvider } from "@/contexts/ActionContext"
 import { Button } from "@/components/ui/button"
-import { RotateCcw, Plus, FolderOpen } from "lucide-react"
+import { RotateCcw, Plus, FolderOpen, Loader2, LogIn } from "lucide-react"
 import { toast } from "sonner"
 import Dashboard from "./components/Dashboard"
 import ResizableSplitPane from "./components/ResizableSplitPane"
+import { useAuth } from "@/contexts/auth-context"
+import Link from "next/link"
 
 interface Message {
   role: "user" | "model"
@@ -30,9 +32,9 @@ interface BusinessDetails {
   logo: File | null
 }
 
-const CURRENT_USER_ID = "user_123"
-
 function LandingPageBuilderContent() {
+  // Get authenticated user
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [showForm, setShowForm] = useState(false)
@@ -276,12 +278,17 @@ function LandingPageBuilderContent() {
     router.push("/landing-page-builder")
   }
 
-  const createWorkspace = async (name: string, userId: string = CURRENT_USER_ID) => {
+  const createWorkspace = async (name: string) => {
+    if (!user?.id) {
+      toast.error("Please log in to create a workspace")
+      return null
+    }
     try {
+      // API gets userId from server-side authentication
       const response = await fetch("/api/workspace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, userId }),
+        body: JSON.stringify({ name }),
       })
 
       const data = await response.json()
@@ -290,6 +297,8 @@ function LandingPageBuilderContent() {
         setWorkspaceId(data.workspace._id)
         localStorage.setItem("currentWorkspaceId", data.workspace._id)
         return data.workspace._id
+      } else if (data.error) {
+        toast.error(data.error)
       }
     } catch (error) {
       console.error("Error creating workspace:", error)
@@ -599,6 +608,45 @@ function LandingPageBuilderContent() {
     }
   }
 
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center" suppressHydrationWarning>
+        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+        <p className="mt-4 text-gray-400">Loading...</p>
+      </div>
+    )
+  }
+
+  // Show login prompt if user is not authenticated
+  if (!user) {
+    return (
+      <>
+        <StructuredData />
+        <div className="min-h-screen bg-black flex flex-col" suppressHydrationWarning>
+          <Navbar />
+          <main className="flex-1 flex items-center justify-center">
+            <div className="text-center max-w-md mx-auto p-8">
+              <div className="bg-gray-800 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <LogIn className="w-10 h-10 text-blue-400" />
+              </div>
+              <h1 className="text-3xl font-bold text-white mb-4">Sign In Required</h1>
+              <p className="text-gray-400 mb-8">
+                Please sign in to access the Landing Page Builder and manage your workspaces.
+              </p>
+              <Link href="/get-started">
+                <Button className="bg-blue-600 hover:bg-blue-700 px-8 py-3">
+                  Sign In / Sign Up
+                </Button>
+              </Link>
+            </div>
+          </main>
+          <Footer />
+        </div>
+      </>
+    )
+  }
+
   if (showForm) {
     return (
       <>
@@ -620,7 +668,7 @@ function LandingPageBuilderContent() {
         <Navbar />
         <main className="flex-1">
           <Dashboard
-            userId={CURRENT_USER_ID}
+            userId={user.id}
             onSelectWorkspace={handleSwitchWorkspace}
             onCreateNew={handleNewWorkspace}
             onDeleteWorkspace={handleDeleteWorkspaceById}

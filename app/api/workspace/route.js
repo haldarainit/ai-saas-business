@@ -1,22 +1,23 @@
 import dbConnect from '@/lib/mongodb';
 import Workspace from '@/models/Workspace';
 import { NextResponse } from 'next/server';
+import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
-// GET - Get all workspaces for a user
+// GET - Get all workspaces for the authenticated user
 export async function GET(request) {
     try {
         console.log("GET /api/workspace - Connecting to DB...");
         await dbConnect();
         console.log("GET /api/workspace - Connected to DB");
 
-        const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId');
+        // Get authenticated user from session
+        const { userId } = await getAuthenticatedUser(request);
         console.log("GET /api/workspace - userId:", userId);
 
         if (!userId) {
             return NextResponse.json(
-                { error: 'User ID is required' },
-                { status: 400 }
+                { error: 'Authentication required' },
+                { status: 401 }
             );
         }
 
@@ -42,13 +43,23 @@ export async function POST(request) {
         await dbConnect();
         console.log("POST /api/workspace - Connected to DB");
 
+        // Get authenticated user from session
+        const { userId } = await getAuthenticatedUser(request);
+
+        if (!userId) {
+            return NextResponse.json(
+                { error: 'Authentication required' },
+                { status: 401 }
+            );
+        }
+
         const body = await request.json();
-        const { name, userId } = body;
+        const { name } = body;
         console.log("POST /api/workspace - Creating workspace:", { name, userId });
 
-        if (!name || !userId) {
+        if (!name) {
             return NextResponse.json(
-                { error: 'Name and userId are required' },
+                { error: 'Name is required' },
                 { status: 400 }
             );
         }
