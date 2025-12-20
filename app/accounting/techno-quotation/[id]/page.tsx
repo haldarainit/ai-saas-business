@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -144,11 +145,12 @@ export default function TechnoQuotationPage() {
 
                 // Get content height
                 const contentHeight = contentEl.scrollHeight;
-                // Calculate available space with safe margin to prevent footer overlap
-                const maxHeight = (215 * 96) / 25.4; // Convert mm to px (96 DPI)
+                // Calculate available space - Use 230mm for content area (A4 is 297mm minus header/footer/margins)
+                // This gives more room for content before triggering page break
+                const maxHeight = (230 * 96) / 25.4; // Convert mm to px (96 DPI)
 
                 // If content exceeds available space, move last section to next page
-                if (contentHeight > maxHeight && page.sections.length > 0) {
+                if (contentHeight > maxHeight && page.sections.length > 1) {
                     setIsProcessingOverflow(true);
 
                     // Move the last section to next page or create new page
@@ -188,10 +190,70 @@ export default function TechnoQuotationPage() {
             });
         };
 
+        // Also check if we can pull content back from the next page to fill empty space
+        const checkUnderflow = () => {
+            pageContentRefs.current.forEach((contentEl, pageIndex) => {
+                if (!contentEl) return;
+
+                const page = pages[pageIndex];
+                const nextPage = pages[pageIndex + 1];
+
+                // Skip if no next page or next page has no sections
+                if (!page || !nextPage || nextPage.sections.length === 0) return;
+
+                const contentHeight = contentEl.scrollHeight;
+                // Allow pulling content if there's significant empty space (at least 100px)
+                const maxHeight = (230 * 96) / 25.4;
+                const availableSpace = maxHeight - contentHeight;
+
+                // If there's room and next page has content, try to pull first section back
+                if (availableSpace > 100) {
+                    setIsProcessingOverflow(true);
+
+                    setPages(prevPages => {
+                        const newPages = [...prevPages];
+                        const nextPageSections = newPages[pageIndex + 1].sections;
+
+                        if (nextPageSections.length > 0) {
+                            const firstSection = nextPageSections[0];
+                            const remainingNextSections = nextPageSections.slice(1);
+
+                            // Add first section from next page to current page
+                            newPages[pageIndex] = {
+                                ...newPages[pageIndex],
+                                sections: [...newPages[pageIndex].sections, firstSection]
+                            };
+
+                            // Update next page
+                            if (remainingNextSections.length > 0) {
+                                newPages[pageIndex + 1] = {
+                                    ...newPages[pageIndex + 1],
+                                    sections: remainingNextSections
+                                };
+                            } else {
+                                // Remove empty page (unless it's the only page)
+                                if (newPages.length > 1) {
+                                    newPages.splice(pageIndex + 1, 1);
+                                }
+                            }
+                        }
+
+                        return newPages;
+                    });
+
+                    setTimeout(() => setIsProcessingOverflow(false), 150);
+                }
+            });
+        };
+
         // Check after content settles - use shorter delay for faster pagination
         const timeoutId = setTimeout(checkOverflow, 300);
+        const underflowTimeoutId = setTimeout(checkUnderflow, 500);
 
-        return () => clearTimeout(timeoutId);
+        return () => {
+            clearTimeout(timeoutId);
+            clearTimeout(underflowTimeoutId);
+        };
     }, [pages, isProcessingOverflow, quotationType]);
 
 
@@ -491,9 +553,13 @@ export default function TechnoQuotationPage() {
         }
     };
 
-    const handlePrint = () => {
-        window.print();
-    };
+    // Print ref for react-to-print
+    const printRef = useRef<HTMLDivElement>(null);
+
+    const handlePrint = useReactToPrint({
+        contentRef: printRef,
+        documentTitle: mainTitle || 'Quotation',
+    });
 
     // Page Management
     const addPage = () => {
@@ -731,6 +797,29 @@ export default function TechnoQuotationPage() {
             }
             return page;
         }));
+    };
+
+    // Helper function to determine column width based on column name
+    const getColumnWidth = (columnName: string): string => {
+        const name = columnName.toLowerCase().trim();
+        // Narrow columns for serial numbers, quantities, numbers
+        if (name.includes('s.no') || name.includes('sl') || name.includes('serial') ||
+            name.includes('#') || name === 'no' || name === 'no.') {
+            return '8%';
+        }
+        if (name.includes('qty') || name.includes('quantity') || name.includes('unit') ||
+            name.includes('rate') || name.includes('price') || name.includes('amount') ||
+            name.includes('total') || name.includes('compliance')) {
+            return '12%';
+        }
+        // Wide columns for descriptions, names, specifications
+        if (name.includes('description') || name.includes('desc') || name.includes('detail') ||
+            name.includes('specification') || name.includes('spec') || name.includes('name') ||
+            name.includes('item') || name.includes('parameter') || name.includes('particular')) {
+            return 'auto';
+        }
+        // Default medium width for other columns
+        return '15%';
     };
 
     // List Management
@@ -1471,7 +1560,7 @@ export default function TechnoQuotationPage() {
             </div>
 
             {/* Quotation Pages */}
-            <div className="quotation-container">
+            <div className="quotation-container" ref={printRef}>
                 {pages.map((page, pageIndex) => (
                     <div key={page.id} className="page">
                         {/* Watermark Overlay */}
@@ -1697,8 +1786,24 @@ export default function TechnoQuotationPage() {
                                             <textarea
                                                 value={section.content || ''}
                                                 onChange={(e) => updateSection(page.id, section.id, { content: e.target.value })}
-                                                className="editable-field full-width"
-                                                rows={3}
+                                                className="editable-field full-width text-content-field"
+                                                rows={1}
+                                                style={{
+                                                    resize: 'none',
+                                                    overflow: 'hidden',
+                                                    minHeight: '20px'
+                                                }}
+                                                onInput={(e) => {
+                                                    const target = e.target as HTMLTextAreaElement;
+                                                    target.style.height = 'auto';
+                                                    target.style.height = target.scrollHeight + 'px';
+                                                }}
+                                                ref={(el) => {
+                                                    if (el) {
+                                                        el.style.height = 'auto';
+                                                        el.style.height = el.scrollHeight + 'px';
+                                                    }
+                                                }}
                                             />
                                         </div>
                                     )}
@@ -1781,7 +1886,7 @@ export default function TechnoQuotationPage() {
                                                 <thead>
                                                     <tr>
                                                         {section.table.columns.map((column) => (
-                                                            <th key={column.id}>
+                                                            <th key={column.id} style={{ width: getColumnWidth(column.name) }}>
                                                                 <div className="th-content">
                                                                     <input
                                                                         type="text"
@@ -1800,7 +1905,7 @@ export default function TechnoQuotationPage() {
                                                                 </div>
                                                             </th>
                                                         ))}
-                                                        <th className="no-print" style={{ width: '40px' }}></th>
+                                                        <th className="no-print" style={{ width: '30px' }}></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -1862,8 +1967,6 @@ export default function TechnoQuotationPage() {
                 .quotation-container {
                     max-width: 210mm;
                     margin: 0 auto;
-                    padding: 20px;
-                    background: white;
                 }
 
                 .page {
@@ -1953,9 +2056,9 @@ export default function TechnoQuotationPage() {
                     display: flex;
                     justify-content: space-between;
                     align-items: flex-start;
-                    padding-bottom: 12px;
+                    padding-bottom: 8px;
                     border-bottom: 1px solid #1a1a1a;
-                    margin-bottom: 20px;
+                    margin-bottom: 12px;
                     position: relative;
                     z-index: 2;
                 }
@@ -2007,7 +2110,7 @@ export default function TechnoQuotationPage() {
                     font-size: 14px;
                     font-weight: bold;
                     color: #1a1a1a;
-                    margin: 15px 0 10px 0;
+                    margin: 8px 0 6px 0;
                     padding: 0;
                     background: transparent;
                     border-radius: 0;
@@ -2033,8 +2136,8 @@ export default function TechnoQuotationPage() {
                 }
 
                 .page-controls {
-                    margin-bottom: 15px;
-                    padding: 10px;
+                    margin-bottom: 8px;
+                    padding: 6px 10px;
                     background: #f9fafb;
                     border-radius: 8px;
                 }
@@ -2052,7 +2155,7 @@ export default function TechnoQuotationPage() {
 
                 .section-wrapper {
                     position: relative;
-                    margin-bottom: 12px;
+                    margin-bottom: 4px;
                 }
 
                 .section-controls {
@@ -2075,7 +2178,7 @@ export default function TechnoQuotationPage() {
                     font-size: 12px;
                     font-weight: bold;
                     color: #1a1a1a;
-                    margin: 12px 0 8px 0;
+                    margin: 6px 0 4px 0;
                     padding: 0;
                     background: transparent;
                     border-left: none;
@@ -2091,20 +2194,30 @@ export default function TechnoQuotationPage() {
                 }
 
                 .text-section {
-                    margin: 8px 0;
+                    margin: 4px 0;
                     font-size: 11px;
-                    line-height: 1.6;
+                    line-height: 1.4;
                     text-align: justify;
                 }
 
+                .text-content-field {
+                    width: 100%;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                    word-break: break-word;
+                    overflow-wrap: break-word;
+                    font-size: 11px;
+                    line-height: 1.4;
+                }
+
                 .list-section {
-                    margin: 8px 0;
+                    margin: 4px 0;
                 }
 
                 .section-heading {
                     font-size: 11px;
                     font-weight: bold;
-                    margin-bottom: 6px;
+                    margin-bottom: 3px;
                     color: #1a1a1a;
                 }
 
@@ -2119,7 +2232,7 @@ export default function TechnoQuotationPage() {
                 .list-section ul {
                     margin-left: 25px;
                     font-size: 11px;
-                    line-height: 1.6;
+                    line-height: 1.4;
                 }
 
                 .list-section ul li {
@@ -2149,7 +2262,7 @@ export default function TechnoQuotationPage() {
                 }
 
                 .table-section {
-                    margin: 12px 0;
+                    margin: 6px 0;
                     overflow-x: auto;
                     max-width: 100%;
                 }
@@ -2164,16 +2277,17 @@ export default function TechnoQuotationPage() {
                     width: 100%;
                     border-collapse: collapse;
                     font-size: 10px;
-                    margin-bottom: 12px;
-                    table-layout: fixed;
+                    margin-bottom: 6px;
+                    table-layout: auto;
                 }
 
                 .data-table th,
                 .data-table td {
                     border: 1px solid #1a1a1a;
-                    padding: 8px 10px;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
+                    padding: 4px 6px;
+                    overflow: visible;
+                    text-align: center;
+                    vertical-align: middle;
                 }
 
                 .data-table th {
@@ -2181,14 +2295,14 @@ export default function TechnoQuotationPage() {
                     color: #1a1a1a;
                     font-weight: bold;
                     text-align: center;
-                    min-width: 60px;
+                    min-width: 30px;
                     overflow: visible;
                 }
 
                 .data-table td {
                     background: white;
-                    vertical-align: top;
-                    min-width: 60px;
+                    vertical-align: middle;
+                    min-width: 30px;
                 }
 
                 .th-content {
@@ -2229,13 +2343,15 @@ export default function TechnoQuotationPage() {
                 .table-cell-field {
                     width: 100%;
                     background: transparent;
-                    text-align: left;
+                    text-align: center;
                     white-space: pre-wrap;
                     word-wrap: break-word;
                     word-break: break-word;
-                    line-height: 1.4;
+                    overflow-wrap: break-word;
+                    line-height: 1.3;
                     font-family: inherit;
                     font-size: inherit;
+                    padding: 2px !important;
                 }
 
                 .delete-row-btn {
@@ -2252,14 +2368,14 @@ export default function TechnoQuotationPage() {
 
                 .footer {
                     margin-top: auto;
-                    padding-top: 12px;
+                    padding-top: 8px;
                     border-top: 1px solid #374151;
                     font-size: 8px;
                     text-align: center;
                     color: #374151;
                     position: relative;
                     z-index: 2;
-                    line-height: 1.5;
+                    line-height: 1.4;
                 }
 
                 .footer p {
@@ -2307,10 +2423,12 @@ export default function TechnoQuotationPage() {
                     font-weight: bold;
                 }
 
-                /* Page size for printing */
+                /* Page size for printing - exact A4 with no browser margins */
+
+                /* Page size for printing - let printer determine size (Letter/A4) */
                 @page {
-                    size: A4 portrait;
-                    margin: 0;
+                    size: auto;
+                    margin: 0mm;
                 }
 
                 @media print {
@@ -2328,7 +2446,7 @@ export default function TechnoQuotationPage() {
                         background: white !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
-                        width: 210mm !important;
+                        width: 100% !important;
                         height: auto !important;
                         overflow: visible !important;
                     }
@@ -2361,7 +2479,7 @@ export default function TechnoQuotationPage() {
                         left: -9999px !important;
                     }
 
-                    /* Container adjustments */
+                    /* Container adjustments - fill paper width */
                     .quotation-container {
                         padding: 0 !important;
                         margin: 0 !important;
@@ -2370,43 +2488,51 @@ export default function TechnoQuotationPage() {
                         background: white !important;
                     }
 
-                    /* Page layout - keep footer at bottom */
+                    /* Page layout - flex with safe min-height to push footer to bottom */
                     .page {
-                        width: 210mm !important;
-                        min-height: 297mm !important;
-                        height: 297mm !important;
-                        max-height: 297mm !important;
+                        width: 100% !important;
+                        min-height: 230mm !important; /* Safe for Letter (279mm) with ~50mm buffer for margins */
+                        height: auto !important;
                         margin: 0 !important;
-                        padding: 12mm 15mm !important;
+                        padding: 15mm !important;
                         box-shadow: none !important;
                         page-break-after: always !important;
-                        page-break-inside: avoid !important;
+                        page-break-inside: auto !important;
                         break-after: page !important;
-                        break-inside: avoid !important;
+                        break-inside: auto !important;
                         background: white !important;
                         position: relative !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
                         display: flex !important;
                         flex-direction: column !important;
+                    }
+                    
+                    /* Header at top */
+                    .header {
+                        flex-shrink: 0 !important;
+                    }
+                    
+                    /* Content fills available space */
+                    .page-content {
+                        flex: 1 0 auto !important;
+                        display: block !important;
+                        overflow: visible !important;
+                        page-break-inside: auto !important;
+                    }
+                    
+                    /* Footer pushed to bottom with margin-top: auto */
+                    .footer {
+                        flex-shrink: 0 !important;
+                        page-break-before: auto !important;
+                        break-inside: avoid !important;
+                        margin-top: auto !important; /* Push to bottom of min-height container */
                     }
 
                     .page:last-child {
                         page-break-after: auto !important;
-                        break-after: auto !important;
+                        break-after: avoid !important;
                     }
 
-                    /* Page content - keep flex behavior for footer positioning */
-                    .page-content {
-                        flex: 1 !important;
-                        display: block !important;
-                        overflow: visible !important;
-                    }
-
-                    /* Footer - stays at bottom with margin-top: auto */
-                    .footer {
-                        margin-top: auto !important;
-                        flex-shrink: 0 !important;
-                    }
 
                     /* Make all inputs look like regular text */
                     .page input,
@@ -2441,8 +2567,8 @@ export default function TechnoQuotationPage() {
                     /* Header styling */
                     .header {
                         border-bottom: 1px solid #1a1a1a !important;
-                        padding-bottom: 12px !important;
-                        margin-bottom: 20px !important;
+                        padding-bottom: 8px !important;
+                        margin-bottom: 10px !important;
                     }
 
                     .logo-image {
@@ -2466,7 +2592,7 @@ export default function TechnoQuotationPage() {
                     /* Main title styling */
                     .main-title {
                         text-align: left !important;
-                        margin: 15px 0 10px 0 !important;
+                        margin: 6px 0 4px 0 !important;
                         padding: 0 !important;
                         background: transparent !important;
                         border-radius: 0 !important;
@@ -2482,7 +2608,8 @@ export default function TechnoQuotationPage() {
 
                     /* Section styling */
                     .section-wrapper {
-                        margin-bottom: 10px !important;
+                        margin-bottom: 3px !important;
+                        page-break-inside: auto !important;
                     }
 
                     .section-title {
@@ -2490,7 +2617,7 @@ export default function TechnoQuotationPage() {
                         font-weight: bold !important;
                         color: #1a1a1a !important;
                         padding: 0 !important;
-                        margin: 10px 0 6px 0 !important;
+                        margin: 4px 0 3px 0 !important;
                         background: transparent !important;
                         border-left: none !important;
                         text-decoration: underline !important;
@@ -2511,9 +2638,17 @@ export default function TechnoQuotationPage() {
                     /* Text sections */
                     .text-section {
                         font-size: 10px !important;
-                        line-height: 1.6 !important;
-                        margin: 6px 0 !important;
+                        line-height: 1.4 !important;
+                        margin: 3px 0 !important;
                         text-align: justify !important;
+                    }
+
+                    .text-content-field {
+                        white-space: pre-wrap !important;
+                        word-wrap: break-word !important;
+                        word-break: break-word !important;
+                        overflow-wrap: break-word !important;
+                        overflow: visible !important;
                     }
 
                     /* List sections */
@@ -2534,17 +2669,19 @@ export default function TechnoQuotationPage() {
 
                     /* Table styling */
                     .table-section {
-                        margin: 10px 0 !important;
-                        overflow: hidden !important;
+                        margin: 4px 0 !important;
+                        overflow: visible !important;
                         max-width: 100% !important;
+                        page-break-inside: auto !important;
                     }
 
                     .data-table {
                         width: 100% !important;
                         border-collapse: collapse !important;
                         font-size: 9px !important;
-                        margin-bottom: 10px !important;
-                        table-layout: fixed !important;
+                        margin-bottom: 6px !important;
+                        table-layout: auto !important;
+                        page-break-inside: auto !important;
                     }
 
                     .data-table th {
@@ -2552,21 +2689,36 @@ export default function TechnoQuotationPage() {
                         background-color: white !important;
                         color: #000000 !important;
                         font-weight: bold !important;
-                        padding: 4px 6px !important;
+                        padding: 3px 4px !important;
                         border: 1px solid #1a1a1a !important;
                         text-align: center !important;
                         font-size: 8px !important;
                         white-space: normal !important;
                         word-wrap: break-word !important;
+                        vertical-align: middle !important;
                     }
 
                     .data-table td {
                         border: 1px solid #1a1a1a !important;
-                        padding: 4px 6px !important;
+                        padding: 3px 4px !important;
                         background: white !important;
-                        vertical-align: top !important;
-                        overflow: hidden !important;
+                        vertical-align: middle !important;
+                        text-align: center !important;
+                        overflow: visible !important;
                         font-size: 8px !important;
+                    }
+
+                    .data-table tr {
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                    }
+
+                    .data-table thead {
+                        display: table-header-group !important;
+                    }
+
+                    .data-table tbody {
+                        page-break-inside: auto !important;
                     }
 
                     .table-header-field {
@@ -2583,6 +2735,10 @@ export default function TechnoQuotationPage() {
                         white-space: pre-wrap !important;
                         word-wrap: break-word !important;
                         word-break: break-word !important;
+                        overflow-wrap: break-word !important;
+                        overflow: visible !important;
+                        padding: 1px !important;
+                        text-align: center !important;
                     }
 
                     /* Remove row delete column space */
@@ -2592,7 +2748,6 @@ export default function TechnoQuotationPage() {
 
                     /* Footer styling */
                     .footer {
-                        margin-top: auto !important;
                         padding-top: 10px !important;
                         border-top: 1px solid #374151 !important;
                         font-size: 7px !important;
