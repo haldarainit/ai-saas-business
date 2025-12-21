@@ -1669,12 +1669,11 @@ export default function TechnoQuotationPage() {
                                 <div className="header-row">
                                     <span className="header-label">Contact :</span>
                                     <input type="text" value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} className="editable-field header-input" placeholder="+91- 8349873989" />
-                                    <span className="print-only header-value-print">{companyPhone}</span>
+
                                 </div>
                                 <div className="header-row">
                                     <span className="header-label">Email :</span>
                                     <input type="text" value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} className="editable-field header-input" placeholder="email@company.com" />
-                                    <span className="print-only header-value-print">{companyEmail}</span>
                                 </div>
                                 <div className="header-row address-row">
                                     <span className="header-label">Address :</span>
@@ -1700,10 +1699,7 @@ export default function TechnoQuotationPage() {
                                             }
                                         }}
                                     />
-                                    <span className="print-only header-value-print address-print">
-                                        {companyAddress1}
-                                        {companyAddress2 && <><br />{companyAddress2}</>}
-                                    </span>
+
                                 </div>
                             </div>
                         </div>
