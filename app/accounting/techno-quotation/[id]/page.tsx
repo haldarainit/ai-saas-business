@@ -1664,14 +1664,17 @@ export default function TechnoQuotationPage() {
                                 <div className="header-row">
                                     <span className="header-label">GSTIN :</span>
                                     <input type="text" value={companyId} onChange={(e) => setCompanyId(e.target.value)} className="editable-field header-input" placeholder="22AAJCP7742A1ZP" />
+                                    <span className="print-only header-value-print">{companyId}</span>
                                 </div>
                                 <div className="header-row">
                                     <span className="header-label">Contact :</span>
                                     <input type="text" value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} className="editable-field header-input" placeholder="+91- 8349873989" />
+                                    <span className="print-only header-value-print">{companyPhone}</span>
                                 </div>
                                 <div className="header-row">
                                     <span className="header-label">Email :</span>
                                     <input type="text" value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} className="editable-field header-input" placeholder="email@company.com" />
+                                    <span className="print-only header-value-print">{companyEmail}</span>
                                 </div>
                                 <div className="header-row address-row">
                                     <span className="header-label">Address :</span>
@@ -1697,6 +1700,10 @@ export default function TechnoQuotationPage() {
                                             }
                                         }}
                                     />
+                                    <span className="print-only header-value-print address-print">
+                                        {companyAddress1}
+                                        {companyAddress2 && <><br />{companyAddress2}</>}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -2644,6 +2651,21 @@ export default function TechnoQuotationPage() {
                         break-after: avoid !important;
                     }
 
+                    /* Print-only elements */
+                    .print-only {
+                        display: none !important;
+                    }
+                    
+                    @media print {
+                        .print-only {
+                            display: block !important;
+                        }
+                        .header-input,
+                        .address-textarea {
+                            display: none !important;
+                        }
+                    }
+
 
                     /* Make all inputs look like regular text */
                     .page input,
@@ -2733,7 +2755,6 @@ export default function TechnoQuotationPage() {
                         margin: 0 !important;
                         gap: 4px !important;
                         line-height: 1.3 !important;
-                        width: 100% !important;
                     }
                     
                     .header-label {
@@ -2745,31 +2766,18 @@ export default function TechnoQuotationPage() {
                         flex-shrink: 0 !important;
                     }
                     
-                    .header-value,
-                    .header-input {
+                    .header-value-print {
                         font-size: 9px !important;
                         text-align: left !important;
-                        max-width: none !important;
+                        color: #374151 !important;
+                        overflow: visible !important;
+                        display: block !important;
                         width: auto !important;
-                        min-width: 120px !important;
-                        overflow: visible !important;
-                        color: #374151 !important;
-                        display: inline-block !important;
                     }
-                    
-                    .address-textarea {
-                        font-size: 9px !important;
-                        color: #374151 !important;
-                        line-height: 1.3 !important;
-                        overflow: visible !important;
-                        max-width: none !important;
-                        width: 200px !important;
-                        min-width: 200px !important;
-                        height: auto !important;
-                        min-height: 28px !important;
+
+                    .header-value-print.address-print {
                         white-space: pre-wrap !important;
                         word-wrap: break-word !important;
-                        display: block !important;
                     }
 
                     /* Main title styling */
