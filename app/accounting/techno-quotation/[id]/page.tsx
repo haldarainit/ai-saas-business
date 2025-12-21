@@ -2656,16 +2656,6 @@ export default function TechnoQuotationPage() {
                     .print-only {
                         display: none !important;
                     }
-                    
-                    @media print {
-                        .print-only {
-                            display: block !important;
-                        }
-                        .header-input,
-                        .address-textarea {
-                            display: none !important;
-                        }
-                    }
 
 
                     /* Make all inputs look like regular text */
