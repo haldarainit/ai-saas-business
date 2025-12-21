@@ -1529,6 +1529,7 @@ export default function QuotationPage() {
                                         fontSize: `${quotationData.watermarkHeight * 0.4}px`,
                                         color: quotationData.watermarkColor,
                                         fontWeight: 'bold',
+                                        whiteSpace: 'nowrap',
                                     }}>
                                         {quotationData.watermarkText}
                                     </span>
@@ -1812,8 +1813,8 @@ export default function QuotationPage() {
                 }
                 
                 .quotation-preview .header-info-row.address-row .info-label {
-                    float: left;
-                    margin-right: 1px;
+                    display: inline;
+                    margin-right: 4px;
                 }
                 
                 .quotation-preview .header-info-row.address-row .address-value {
@@ -1949,8 +1950,12 @@ export default function QuotationPage() {
                     }
                     
                     .quotation-preview .watermark {
+                        position: fixed !important;
+                        top: 50% !important;
+                        left: 50% !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                        z-index: -1;
                     }
                     
                     .quotation-preview .header {
