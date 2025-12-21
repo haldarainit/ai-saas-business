@@ -1790,7 +1790,7 @@ export default function QuotationPage() {
                 .quotation-preview .header-right {
                     text-align: left;
                     font-size: 12px;
-                    max-width: 55%;
+                    max-width: 30%;
                 }
                 
                 .quotation-preview .header-info-row {
@@ -1801,11 +1801,9 @@ export default function QuotationPage() {
                 .quotation-preview .header-info-row .info-label {
                     font-weight: bold;
                     color: #1a1a1a;
-                    display: inline;
                 }
                 
                 .quotation-preview .header-info-row .info-value {
-                    display: inline;
                     margin-left: 4px;
                 }
                 
@@ -1813,10 +1811,15 @@ export default function QuotationPage() {
                     display: block;
                 }
                 
+                .quotation-preview .header-info-row.address-row .info-label {
+                    float: left;
+                    margin-right: 1px;
+                }
+                
                 .quotation-preview .header-info-row.address-row .address-value {
                     display: inline;
-                    word-wrap: break-word;
                     color: #1a1a1a;
+                    margin-left: 0;
                 }
                 
                 .quotation-preview .document-title {
