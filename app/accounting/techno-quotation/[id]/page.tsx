@@ -203,7 +203,9 @@ export default function TechnoQuotationPage() {
                 if (!page || !nextPage || nextPage.sections.length === 0) return;
 
                 const contentHeight = contentEl.scrollHeight;
-                // Only pull content if there's A LOT of empty space (at least 200px) to reduce bouncing
+                // Only pull content if there's clearly visible empty space (at least ~80px)
+                // so that headings like "Technical Specifications" / "Bill of Quantity" can
+                // move back up instead of leaving a big white gap above the footer.
                 const maxHeight = (250 * 96) / 25.4;
                 const availableSpace = maxHeight - contentHeight;
 
@@ -2784,16 +2786,20 @@ export default function TechnoQuotationPage() {
                         text-align: left !important;
                         margin: 6px 0 4px 0 !important;
                         padding: 0 !important;
+                        padding-left: 0 !important;
                         background: transparent !important;
                         border-radius: 0 !important;
                         text-decoration: underline !important;
                     }
 
                     .main-title-field {
-                        font-size: 13px !important;
+                        /* Slightly larger in print so title fills space better */
+                        font-size: 17px !important;
                         font-weight: bold !important;
                         color: #1a1a1a !important;
                         text-align: left !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
                     }
 
                     /* Section styling - allow browser to pack sections more tightly
@@ -2809,7 +2815,8 @@ export default function TechnoQuotationPage() {
                        can appear near the bottom of a page instead of being forced
                        onto the next page with a big blank area before them. */
                     .section-title {
-                        font-size: 11px !important;
+                        /* Moderately larger section headings for better balance */
+                        font-size: 13px !important;
                         font-weight: bold !important;
                         color: #1a1a1a !important;
                         padding: 0 !important;
@@ -2822,13 +2829,13 @@ export default function TechnoQuotationPage() {
                     }
 
                     .section-title-field {
-                        font-size: 11px !important;
+                        font-size: 12px !important;
                         font-weight: bold !important;
                     }
 
                     /* Section heading inside list/table sections - normal breaks */
                     .section-heading {
-                        font-size: 10px !important;
+                        font-size: 12px !important;
                         font-weight: bold !important;
                         color: #1a1a1a !important;
                         margin-bottom: 4px !important;
@@ -2837,13 +2844,31 @@ export default function TechnoQuotationPage() {
                     }
 
                     /* Text sections - keep text with heading */
-                    .text-section {
-                        font-size: 10px !important;
-                        line-height: 1.4 !important;
-                        margin: 3px 0 !important;
+                          .text-section {
+                                /* Increase body text & spacing so content
+                                    fills more of the space between header/footer. */
+                                font-size: 11px !important;
+                                line-height: 1.6 !important;
+                                margin: 4px 0 !important;
                         text-align: justify !important;
                         page-break-inside: avoid !important;
                         break-inside: avoid !important;
+                    }
+
+                    /* For print, keep label (e.g. "Ref No") and its value
+                       on the same line, with a tight column between label
+                       and value so the colon sits close. */
+                    .text-section p {
+                        display: inline-block !important;
+                        margin-right: 6px !important;
+                        white-space: nowrap !important;
+                        min-width: 85px !important; /* keeps label column compact */
+                    }
+
+                    .text-section .text-content-field {
+                        display: inline-block !important;
+                        width: 68% !important;
+                        vertical-align: baseline !important;
                     }
 
                     .text-content-field {
@@ -2863,8 +2888,8 @@ export default function TechnoQuotationPage() {
                     .list-section ul {
                         margin-left: 20px !important;
                         padding-left: 0 !important;
-                        font-size: 10px !important;
-                        line-height: 1.6 !important;
+                        font-size: 11px !important;
+                        line-height: 1.7 !important;
                     }
 
                     .list-section li {
@@ -2897,6 +2922,7 @@ export default function TechnoQuotationPage() {
                     .data-table {
                         width: 100% !important;
                         border-collapse: collapse !important;
+                        /* Slightly larger than original, but not too big */
                         font-size: 9px !important;
                         margin-bottom: 6px !important;
                         table-layout: auto !important;
@@ -2911,7 +2937,7 @@ export default function TechnoQuotationPage() {
                         padding: 3px 4px !important;
                         border: 1px solid #1a1a1a !important;
                         text-align: center !important;
-                        font-size: 8px !important;
+                        font-size: 8.5px !important;
                         white-space: normal !important;
                         word-wrap: break-word !important;
                         vertical-align: middle !important;
@@ -2924,7 +2950,7 @@ export default function TechnoQuotationPage() {
                         vertical-align: middle !important;
                         text-align: center !important;
                         overflow: visible !important;
-                        font-size: 8px !important;
+                        font-size: 8.5px !important;
                     }
 
                     .data-table tr {
