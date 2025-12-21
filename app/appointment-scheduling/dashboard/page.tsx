@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import Navbar from "@/components/navbar";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, Clock, Plus, Video, Phone, MapPin, Copy, ExternalLink, Loader2, Link2, User, Settings, Trash2, Check, Mail, Send, CalendarCheck, Users, Globe, Bell, ChevronLeft, ChevronRight, CalendarDays, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { Calendar, Clock, Plus, Video, Phone, MapPin, Copy, ExternalLink, Loader2, Link2, User, Settings, Trash2, Check, Mail, Send, CalendarCheck, Users, Globe, Bell, ChevronLeft, ChevronRight, CalendarDays, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -123,11 +123,8 @@ export default function AppointmentDashboard() {
 
     useEffect(() => {
         if (profile) {
-            console.log("🔄 [FRONTEND] Profile changed, updating form");
-            console.log("🔄 [FRONTEND] Profile emailSettings:", (profile as any).emailSettings);
-
             const p = profile as any;
-            const newFormData = {
+            setProfileForm({
                 displayName: profile.displayName || "",
                 username: profile.username || "",
                 bio: profile.bio || "",
@@ -147,45 +144,27 @@ export default function AppointmentDashboard() {
                 sendConfirmationToAttendee: p.emailSettings?.sendConfirmationToAttendee !== false,
                 sendNotificationToHost: p.emailSettings?.sendNotificationToHost !== false,
                 sendReminders: p.emailSettings?.sendReminders !== false
-            };
-
-            console.log("🔄 [FRONTEND] New form emailSettings:", {
-                emailProvider: newFormData.emailProvider,
-                emailUser: newFormData.emailUser,
-                fromName: newFormData.fromName
             });
-
-            setProfileForm(newFormData);
         }
     }, [profile]);
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            console.log("🔄 [FRONTEND] Fetching profile data for userId:", userId);
-
             // First ensure profile exists
             let profileRes = await fetch(`/api/scheduling/profile?userId=${userId}`);
             let profileData = await profileRes.json();
 
-            console.log("🔄 [FRONTEND] Profile fetch response:", profileData);
-
             if (!profileData.success || !profileData.profile) {
-                console.log("🔄 [FRONTEND] Profile not found, creating new profile...");
                 const createRes = await fetch("/api/scheduling/profile", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ userId, email: user?.email || userId })
                 });
                 profileData = await createRes.json();
-                console.log("🔄 [FRONTEND] New profile created:", profileData);
             }
 
-            if (profileData.success) {
-                console.log("🔄 [FRONTEND] Setting profile state");
-                console.log("🔄 [FRONTEND] Profile emailSettings:", profileData.profile?.emailSettings);
-                setProfile(profileData.profile);
-            }
+            if (profileData.success) setProfile(profileData.profile);
 
             const [eventsRes, bookingsRes] = await Promise.all([
                 fetch(`/api/scheduling/event-types?userId=${userId}`),
@@ -470,25 +449,7 @@ export default function AppointmentDashboard() {
                     {/* Bookings Tab */}
                     <TabsContent value="bookings">
                         <Card>
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <CardTitle>Upcoming Bookings</CardTitle>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={async () => {
-                                            setLoading(true);
-                                            await fetchData();
-                                            setLoading(false);
-                                            toast.success("Bookings refreshed!");
-                                        }}
-                                        disabled={loading}
-                                    >
-                                        <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                                        Refresh
-                                    </Button>
-                                </div>
-                            </CardHeader>
+                            <CardHeader><CardTitle>Upcoming Bookings</CardTitle></CardHeader>
                             <CardContent>
                                 {upcomingBookings.length === 0 ? (
                                     <div className="text-center py-12 text-muted-foreground">
@@ -557,20 +518,6 @@ export default function AppointmentDashboard() {
                                                 </Button>
                                                 <Button variant="ghost" size="sm" onClick={goToToday}>
                                                     Today
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={async () => {
-                                                        setLoading(true);
-                                                        await fetchData();
-                                                        setLoading(false);
-                                                        toast.success("Data refreshed!");
-                                                    }}
-                                                    disabled={loading}
-                                                >
-                                                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                                                    Refresh
                                                 </Button>
                                             </div>
                                             <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -1410,9 +1357,11 @@ export default function AppointmentDashboard() {
                                                     });
                                                     const data = await res.json();
                                                     if (data.success) {
-                                                        setProfile(data.profile);
+                                                        // Update profile state to reflect saved values
+                                                        if (data.profile) {
+                                                            setProfile(data.profile);
+                                                        }
                                                         toast.success("Email settings saved!");
-                                                        await fetchData();
                                                     } else {
                                                         toast.error(data.error || "Failed to save email settings");
                                                     }
@@ -1426,6 +1375,34 @@ export default function AppointmentDashboard() {
                                         >
                                             {savingEmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
                                             Save Email Settings
+                                        </Button>
+
+                                        {/* Test Email Button */}
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={async () => {
+                                                const toastId = toast.loading("Sending test email...");
+                                                try {
+                                                    const res = await fetch("/api/scheduling/test-email", {
+                                                        method: "POST",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({ userId })
+                                                    });
+                                                    const data = await res.json();
+                                                    if (data.success) {
+                                                        toast.success(data.message, { id: toastId });
+                                                    } else {
+                                                        toast.error(data.error || "Failed to send test email", { id: toastId });
+                                                    }
+                                                } catch (err) {
+                                                    toast.error("Failed to send test email", { id: toastId });
+                                                }
+                                            }}
+                                            disabled={!profileForm.emailUser || !profileForm.emailPassword}
+                                        >
+                                            <Mail className="w-4 h-4 mr-2" />
+                                            Test Email
                                         </Button>
 
                                         {/* Help Text */}

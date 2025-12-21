@@ -2602,11 +2602,14 @@ export default function TechnoQuotationPage() {
                         background: white !important;
                     }
 
-                    /* Page layout - flex with safe min-height to push footer to bottom */
-                    .page {
-                        width: 100% !important;
-                        min-height: 230mm !important; /* Safe for Letter (279mm) with ~50mm buffer for margins */
-                        height: auto !important;
+                          /* Page layout - flex with slightly reduced height so footer/content
+                              fit on a single physical sheet without being pushed to the next page. */
+                          .page {
+                                width: 100% !important;
+                                /* Slightly less than full A4 to avoid browser/printer margin rounding
+                                    pushing the footer onto an extra page during print. */
+                                min-height: 230mm !important;
+                                height: 230mm !important;
                         margin: 0 !important;
                         padding: 15mm !important;
                         box-shadow: none !important;
@@ -2793,14 +2796,18 @@ export default function TechnoQuotationPage() {
                         text-align: left !important;
                     }
 
-                    /* Section styling - KEEP HEADING WITH CONTENT */
+                    /* Section styling - allow browser to pack sections more tightly
+                       so we don't leave large empty gaps at the bottom of a page. */
                     .section-wrapper {
                         margin-bottom: 3px !important;
-                        page-break-inside: avoid !important; /* Keep section together */
-                        break-inside: avoid !important;
+                        page-break-inside: auto !important;
+                        break-inside: auto !important;
                     }
 
-                    /* Section title (heading type) - avoid breaking after */
+                    /* Section title (heading type) - allow normal page breaks
+                       so headings like "Technical Specifications" or "Bill of Quantity"
+                       can appear near the bottom of a page instead of being forced
+                       onto the next page with a big blank area before them. */
                     .section-title {
                         font-size: 11px !important;
                         font-weight: bold !important;
@@ -2810,8 +2817,8 @@ export default function TechnoQuotationPage() {
                         background: transparent !important;
                         border-left: none !important;
                         text-decoration: underline !important;
-                        page-break-after: avoid !important; /* Don't break after heading */
-                        break-after: avoid !important;
+                        page-break-after: auto !important;
+                        break-after: auto !important;
                     }
 
                     .section-title-field {
@@ -2819,14 +2826,14 @@ export default function TechnoQuotationPage() {
                         font-weight: bold !important;
                     }
 
-                    /* Section heading inside list/table sections - avoid breaking */
+                    /* Section heading inside list/table sections - normal breaks */
                     .section-heading {
                         font-size: 10px !important;
                         font-weight: bold !important;
                         color: #1a1a1a !important;
                         margin-bottom: 4px !important;
-                        page-break-after: avoid !important; /* Keep heading with content below */
-                        break-after: avoid !important;
+                        page-break-after: auto !important;
+                        break-after: auto !important;
                     }
 
                     /* Text sections - keep text with heading */
