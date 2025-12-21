@@ -145,11 +145,11 @@ export default function TechnoQuotationPage() {
 
                 // Get content height
                 const contentHeight = contentEl.scrollHeight;
-                // Calculate available space - Use 230mm for content area (A4 is 297mm minus header/footer/margins)
-                // This gives more room for content before triggering page break
-                const maxHeight = (230 * 96) / 25.4; // Convert mm to px (96 DPI)
+                // Calculate available space - Use 250mm for content area (A4 is 297mm, be generous)
+                // This prevents too many page breaks
+                const maxHeight = (250 * 96) / 25.4; // Convert mm to px (96 DPI) = ~945px
 
-                // If content exceeds available space, move last section to next page
+                // If content exceeds available space significantly AND there's more than one section to move
                 if (contentHeight > maxHeight && page.sections.length > 1) {
                     setIsProcessingOverflow(true);
 
@@ -184,8 +184,8 @@ export default function TechnoQuotationPage() {
                         return newPages;
                     });
 
-                    // Reset flag after a shorter delay for faster response (especially for AI-generated content)
-                    setTimeout(() => setIsProcessingOverflow(false), 100);
+                    // Reset flag after delay for faster response
+                    setTimeout(() => setIsProcessingOverflow(false), 200);
                 }
             });
         };
@@ -202,12 +202,12 @@ export default function TechnoQuotationPage() {
                 if (!page || !nextPage || nextPage.sections.length === 0) return;
 
                 const contentHeight = contentEl.scrollHeight;
-                // Allow pulling content if there's significant empty space (at least 100px)
-                const maxHeight = (230 * 96) / 25.4;
+                // Only pull content if there's A LOT of empty space (at least 200px) to reduce bouncing
+                const maxHeight = (250 * 96) / 25.4;
                 const availableSpace = maxHeight - contentHeight;
 
-                // If there's room and next page has content, try to pull first section back
-                if (availableSpace > 100) {
+                // If there's significant room and next page has content, try to pull first section back
+                if (availableSpace > 200) {
                     setIsProcessingOverflow(true);
 
                     setPages(prevPages => {
@@ -2606,12 +2606,14 @@ export default function TechnoQuotationPage() {
                         text-align: left !important;
                     }
 
-                    /* Section styling */
+                    /* Section styling - KEEP HEADING WITH CONTENT */
                     .section-wrapper {
                         margin-bottom: 3px !important;
-                        page-break-inside: auto !important;
+                        page-break-inside: avoid !important; /* Keep section together */
+                        break-inside: avoid !important;
                     }
 
+                    /* Section title (heading type) - avoid breaking after */
                     .section-title {
                         font-size: 11px !important;
                         font-weight: bold !important;
@@ -2621,6 +2623,8 @@ export default function TechnoQuotationPage() {
                         background: transparent !important;
                         border-left: none !important;
                         text-decoration: underline !important;
+                        page-break-after: avoid !important; /* Don't break after heading */
+                        break-after: avoid !important;
                     }
 
                     .section-title-field {
@@ -2628,19 +2632,24 @@ export default function TechnoQuotationPage() {
                         font-weight: bold !important;
                     }
 
+                    /* Section heading inside list/table sections - avoid breaking */
                     .section-heading {
                         font-size: 10px !important;
                         font-weight: bold !important;
                         color: #1a1a1a !important;
                         margin-bottom: 4px !important;
+                        page-break-after: avoid !important; /* Keep heading with content below */
+                        break-after: avoid !important;
                     }
 
-                    /* Text sections */
+                    /* Text sections - keep text with heading */
                     .text-section {
                         font-size: 10px !important;
                         line-height: 1.4 !important;
                         margin: 3px 0 !important;
                         text-align: justify !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
                     }
 
                     .text-content-field {
@@ -2651,7 +2660,12 @@ export default function TechnoQuotationPage() {
                         overflow: visible !important;
                     }
 
-                    /* List sections */
+                    /* List sections - keep list with heading */
+                    .list-section {
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                    }
+                    
                     .list-section ul {
                         margin-left: 20px !important;
                         padding-left: 0 !important;
@@ -2661,27 +2675,31 @@ export default function TechnoQuotationPage() {
 
                     .list-section li {
                         margin: 3px 0 !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
                     }
 
                     .list-item-wrapper {
                         margin: 3px 0 !important;
                     }
 
-                    /* Table styling */
+                    /* Table styling - KEEP TABLE WITH HEADING */
                     .table-section {
                         margin: 4px 0 !important;
                         overflow: visible !important;
                         max-width: 100% !important;
-                        page-break-inside: auto !important;
+                        page-break-inside: avoid !important; /* Keep table together if possible */
+                        break-inside: avoid !important;
                     }
 
+                    /* Data table - try to keep together, but allow break if too large */
                     .data-table {
                         width: 100% !important;
                         border-collapse: collapse !important;
                         font-size: 9px !important;
                         margin-bottom: 6px !important;
                         table-layout: auto !important;
-                        page-break-inside: auto !important;
+                        page-break-inside: auto !important; /* Allow breaking for very long tables */
                     }
 
                     .data-table th {
