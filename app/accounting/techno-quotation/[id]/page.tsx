@@ -105,6 +105,7 @@ export default function TechnoQuotationPage() {
     const [companyAddress1, setCompanyAddress1] = useState('');
     const [companyAddress2, setCompanyAddress2] = useState('');
     const [companyPhone, setCompanyPhone] = useState('');
+    const [companyEmail, setCompanyEmail] = useState('');
     const [companyDate, setCompanyDate] = useState('');
 
     // Main Title
@@ -1660,11 +1661,43 @@ export default function TechnoQuotationPage() {
                                 </div>
                             </div>
                             <div className="header-info">
-                                <p><strong><input type="text" value={companyId} onChange={(e) => setCompanyId(e.target.value)} className="editable-field" /></strong></p>
-                                <p>Address: <input type="text" value={companyAddress1} onChange={(e) => setCompanyAddress1(e.target.value)} className="editable-field" /></p>
-                                <p><input type="text" value={companyAddress2} onChange={(e) => setCompanyAddress2(e.target.value)} className="editable-field" /></p>
-                                <p>Phone: <input type="text" value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} className="editable-field" /></p>
-                                <p>Date: <input type="text" value={companyDate} onChange={(e) => setCompanyDate(e.target.value)} className="editable-field" /></p>
+                                <div className="header-row">
+                                    <span className="header-label">GSTIN :</span>
+                                    <input type="text" value={companyId} onChange={(e) => setCompanyId(e.target.value)} className="editable-field header-input" placeholder="22AAJCP7742A1ZP" />
+                                </div>
+                                <div className="header-row">
+                                    <span className="header-label">Contact :</span>
+                                    <input type="text" value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} className="editable-field header-input" placeholder="+91- 8349873989" />
+                                </div>
+                                <div className="header-row">
+                                    <span className="header-label">Email :</span>
+                                    <input type="text" value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} className="editable-field header-input" placeholder="email@company.com" />
+                                </div>
+                                <div className="header-row address-row">
+                                    <span className="header-label">Address :</span>
+                                    <textarea
+                                        value={`${companyAddress1}${companyAddress2 ? '\n' + companyAddress2 : ''}`}
+                                        onChange={(e) => {
+                                            const lines = e.target.value.split('\n');
+                                            setCompanyAddress1(lines[0] || '');
+                                            setCompanyAddress2(lines.slice(1).join('\n') || '');
+                                        }}
+                                        className="editable-field address-textarea"
+                                        rows={2}
+                                        placeholder="Plot No. 173, Engineering Park, Hathkhoj, Bhilai, 490026"
+                                        onInput={(e) => {
+                                            const target = e.target as HTMLTextAreaElement;
+                                            target.style.height = 'auto';
+                                            target.style.height = target.scrollHeight + 'px';
+                                        }}
+                                        ref={(el) => {
+                                            if (el) {
+                                                el.style.height = 'auto';
+                                                el.style.height = el.scrollHeight + 'px';
+                                            }
+                                        }}
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -1823,11 +1856,22 @@ export default function TechnoQuotationPage() {
                                             <ul>
                                                 {section.items?.map((item, index) => (
                                                     <li key={index} className="list-item-wrapper">
-                                                        <input
-                                                            type="text"
+                                                        <textarea
                                                             value={item}
                                                             onChange={(e) => updateListItem(page.id, section.id, index, e.target.value)}
-                                                            className="editable-field full-width"
+                                                            className="editable-field full-width list-item-field"
+                                                            rows={1}
+                                                            onInput={(e) => {
+                                                                const target = e.target as HTMLTextAreaElement;
+                                                                target.style.height = 'auto';
+                                                                target.style.height = target.scrollHeight + 'px';
+                                                            }}
+                                                            ref={(el) => {
+                                                                if (el) {
+                                                                    el.style.height = 'auto';
+                                                                    el.style.height = el.scrollHeight + 'px';
+                                                                }
+                                                            }}
                                                         />
                                                         <button
                                                             className="no-print delete-item-btn"
@@ -2095,14 +2139,62 @@ export default function TechnoQuotationPage() {
                 }
 
                 .header-info {
-                    text-align: right;
                     font-size: 10px;
                     line-height: 1.5;
                     color: #374151;
+                    min-width: 200px;
+                    flex-shrink: 0;
                 }
 
                 .header-info p {
                     margin: 2px 0;
+                    text-align: right;
+                }
+
+                /* Header row - label on left, value on right */
+                .header-row {
+                    display: flex;
+                    justify-content: flex-start;
+                    align-items: flex-start;
+                    margin: 0;
+                    gap: 4px;
+                    line-height: 1.4;
+                }
+
+                .header-label {
+                    font-size: 10px;
+                    font-weight: bold;
+                    color: #1a1a1a;
+                    white-space: nowrap;
+                    min-width: 55px;
+                    text-align: left;
+                }
+
+                .header-value {
+                    font-size: 10px;
+                    text-align: left;
+                    flex: 1;
+                    color: #374151;
+                }
+
+                .header-input {
+                    font-size: 10px;
+                    color: #374151;
+                    width: auto;
+                    min-width: 150px;
+                }
+
+                /* Address textarea - auto-expand */
+                .address-textarea {
+                    font-size: 10px;
+                    color: #374151;
+                    resize: none;
+                    overflow: hidden;
+                    min-height: 32px;
+                    line-height: 1.4;
+                    width: 200px;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
                 }
 
                 .main-title {
@@ -2261,6 +2353,17 @@ export default function TechnoQuotationPage() {
                     cursor: pointer;
                 }
 
+                /* List item text field - textarea */
+                .list-item-field {
+                    resize: none;
+                    overflow: hidden;
+                    min-height: 20px;
+                    line-height: 1.4;
+                    padding: 2px 4px;
+                    word-wrap: break-word;
+                    white-space: pre-wrap;
+                }
+
                 .table-section {
                     margin: 6px 0;
                     overflow-x: auto;
@@ -2395,6 +2498,10 @@ export default function TechnoQuotationPage() {
                     border-radius: 3px;
                     transition: all 0.2s;
                     font-family: inherit;
+                    word-wrap: break-word;
+                    word-break: break-word;
+                    overflow-wrap: break-word;
+                    white-space: pre-wrap;
                 }
 
                 .editable-field:hover {
@@ -2408,8 +2515,12 @@ export default function TechnoQuotationPage() {
                     background: white;
                 }
 
+                /* Full width textareas for content fields */
                 .full-width {
                     width: 100%;
+                    display: block;
+                    resize: none;
+                    min-height: 20px;
                 }
 
                 .overflow-warning {
@@ -2549,6 +2660,19 @@ export default function TechnoQuotationPage() {
                         resize: none !important;
                         font-family: inherit !important;
                         color: inherit !important;
+                        overflow: visible !important;
+                        white-space: pre-wrap !important;
+                        word-wrap: break-word !important;
+                        word-break: break-word !important;
+                        height: auto !important;
+                        min-height: auto !important;
+                    }
+                    
+                    /* Ensure header textarea content is visible */
+                    .header-textarea {
+                        overflow: visible !important;
+                        height: auto !important;
+                        max-width: none !important;
                     }
 
                     /* Hide placeholder text in print */
@@ -2569,6 +2693,10 @@ export default function TechnoQuotationPage() {
                         border-bottom: 1px solid #1a1a1a !important;
                         padding-bottom: 8px !important;
                         margin-bottom: 10px !important;
+                        display: flex !important;
+                        justify-content: space-between !important;
+                        align-items: flex-start !important;
+                        gap: 10px !important;
                     }
 
                     .logo-image {
@@ -2585,8 +2713,63 @@ export default function TechnoQuotationPage() {
 
                     .header-info {
                         font-size: 9px !important;
-                        line-height: 1.5 !important;
+                        line-height: 1.4 !important;
                         color: #374151 !important;
+                        overflow: visible !important;
+                        max-width: none !important;
+                        width: auto !important;
+                        flex-shrink: 0 !important;
+                    }
+                    
+                    .header-info p {
+                        margin: 2px 0 !important;
+                        text-align: left !important;
+                    }
+                    
+                    .header-row {
+                        display: flex !important;
+                        justify-content: flex-start !important;
+                        align-items: flex-start !important;
+                        margin: 0 !important;
+                        gap: 4px !important;
+                        line-height: 1.3 !important;
+                        width: 100% !important;
+                    }
+                    
+                    .header-label {
+                        font-size: 9px !important;
+                        font-weight: bold !important;
+                        color: #1a1a1a !important;
+                        white-space: nowrap !important;
+                        min-width: 45px !important;
+                        flex-shrink: 0 !important;
+                    }
+                    
+                    .header-value,
+                    .header-input {
+                        font-size: 9px !important;
+                        text-align: left !important;
+                        max-width: none !important;
+                        width: auto !important;
+                        min-width: 120px !important;
+                        overflow: visible !important;
+                        color: #374151 !important;
+                        display: inline-block !important;
+                    }
+                    
+                    .address-textarea {
+                        font-size: 9px !important;
+                        color: #374151 !important;
+                        line-height: 1.3 !important;
+                        overflow: visible !important;
+                        max-width: none !important;
+                        width: 200px !important;
+                        min-width: 200px !important;
+                        height: auto !important;
+                        min-height: 28px !important;
+                        white-space: pre-wrap !important;
+                        word-wrap: break-word !important;
+                        display: block !important;
                     }
 
                     /* Main title styling */
@@ -2681,6 +2864,13 @@ export default function TechnoQuotationPage() {
 
                     .list-item-wrapper {
                         margin: 3px 0 !important;
+                    }
+                    
+                    .list-item-field {
+                        overflow: visible !important;
+                        height: auto !important;
+                        white-space: pre-wrap !important;
+                        word-wrap: break-word !important;
                     }
 
                     /* Table styling - KEEP TABLE WITH HEADING */
