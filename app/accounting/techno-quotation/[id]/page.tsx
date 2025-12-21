@@ -1,3054 +1,1380 @@
-'use client';
+"use client"
 
-import React, { useState, useRef } from 'react';
-import { useReactToPrint } from 'react-to-print';
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useState, useRef, useEffect, useCallback } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Label } from "@/components/ui/label"
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import Navbar from "@/components/navbar";
-import Footer from "@/components/footer";
-import { Printer, ArrowLeft, Plus, Trash2, PlusCircle, X, Sparkles, FileEdit, Zap, CloudOff, Check, Loader2 } from "lucide-react";
-import Link from "next/link";
-import { motion } from "framer-motion";
-import AutomatedQuotationQuestionnaire from "@/components/AutomatedQuotationQuestionnaire";
-import { useParams, useRouter } from "next/navigation";
-import { useDebounce } from "@/hooks/use-debounce";
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
+    ArrowLeft,
+    Printer,
+    Cloud,
+    CloudOff,
+    Building2,
+    Plus,
+    Trash2,
+    Upload,
+    Bold,
+    Italic,
+    Underline,
+    AlignLeft,
+    AlignCenter,
+    AlignRight,
+    List,
+    ListOrdered,
+    Table,
+    Type,
+    FileText,
+    Loader2,
+    Image as ImageIcon
+} from "lucide-react"
+import Link from "next/link"
+import { useReactToPrint } from 'react-to-print'
+import { useDebounce } from "@/hooks/use-debounce"
+import Navbar from "@/components/navbar"
 
-// Types for dynamic structures
-interface Column {
-    id: string;
-    name: string;
-    width?: string;
+// Types
+interface TableData {
+    headers: string[]
+    rows: string[][]
 }
 
-interface TableRow {
-    id: string;
-    cells: { [columnId: string]: string };
-}
-
-interface DynamicTable {
-    id: string;
-    name: string;
-    columns: Column[];
-    rows: TableRow[];
-}
-
-interface Section {
-    id: string;
-    type: 'text' | 'list' | 'table' | 'heading';
-    heading?: string;
-    content?: string;
-    items?: string[];
-    table?: DynamicTable;
-}
-
-interface Page {
-    id: string;
-    sections: Section[];
-}
-
-export default function TechnoQuotationPage() {
-    const params = useParams();
-    const router = useRouter();
-    const [isLoading, setIsLoading] = useState(true);
-    const [isInitialized, setIsInitialized] = useState(false); // Tracks if debounce has caught up after loading
-    const [isSaving, setIsSaving] = useState(false);
-    const [lastSaved, setLastSaved] = useState<Date | null>(null);
-    const [hasChanges, setHasChanges] = useState(false);
-
-    // Selection state: null = show selection screen, 'manual' = manual quotation, 'automated' = AI quotation, 'ai-generated' = showing AI generated quotation
-    const [quotationType, setQuotationType] = useState<'manual' | 'automated' | 'ai-generated' | null>('manual'); // Default to manual/view mode, will be updated by fetch
-
-    // Automated Quotation States
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [answers, setAnswers] = useState<{ [key: string]: string }>({});
-    const [currentAnswer, setCurrentAnswer] = useState('');
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [generationProgress, setGenerationProgress] = useState(0);
-
-    // Company Profiles State
-    interface CompanyProfile {
-        _id: string;
-        name: string;
-        address1?: string;
-        address2?: string;
-        phone?: string;
-        email?: string;
-        logo?: string;
-        isDefault?: boolean;
+interface ContentBlock {
+    id: string
+    type: 'heading' | 'paragraph' | 'list' | 'table' | 'image'
+    content: string
+    items?: string[]
+    tableData?: TableData
+    imageUrl?: string
+    style?: {
+        fontSize?: number
+        fontWeight?: 'normal' | 'bold'
+        fontStyle?: 'normal' | 'italic'
+        textDecoration?: 'none' | 'underline'
+        textAlign?: 'left' | 'center' | 'right'
+        color?: string
     }
-    const [companyProfiles, setCompanyProfiles] = useState<CompanyProfile[]>([]);
-    const [showNewCompanyModal, setShowNewCompanyModal] = useState(false);
-    const [newCompanyData, setNewCompanyData] = useState({
-        name: '',
-        address1: '',
-        address2: '',
-        phone: '',
-        email: ''
-    });
-    const [isSavingProfile, setIsSavingProfile] = useState(false);
+}
 
-    // Company Information & Logo
-    const [logoUrl, setLogoUrl] = useState('');
-    const [logoLetter, setLogoLetter] = useState('G');
-    const [companyName, setCompanyName] = useState('');
-    const [companyId, setCompanyId] = useState('');
-    const [companyAddress1, setCompanyAddress1] = useState('');
-    const [companyAddress2, setCompanyAddress2] = useState('');
-    const [companyPhone, setCompanyPhone] = useState('');
-    const [companyEmail, setCompanyEmail] = useState('');
-    const [companyDate, setCompanyDate] = useState('');
+interface QuotationData {
+    title: string
+    refNo: string
+    date: string
 
-    // Main Title
-    const [mainTitle, setMainTitle] = useState('');
+    // Company Details
+    companyName: string
+    companyLogo: string
+    companyGSTIN: string
+    companyPhone: string
+    companyEmail: string
+    companyAddress: string
 
-    // Footer Content
-    const [footerLine1, setFooterLine1] = useState('');
-    const [footerLine2, setFooterLine2] = useState('');
-    const [footerLine3, setFooterLine3] = useState('');
+    // Client Details
+    clientName: string
+    clientDesignation: string
+    clientCompany: string
+    clientAddress: string
+
+    // Subject
+    subject: string
+    greeting: string
+
+    // Content blocks
+    contentBlocks: ContentBlock[]
+
+    // Footer
+    footerLine1: string
+    footerLine2: string
+    footerLine3: string
+
+    // Signature
+    signatureName: string
+    signatureDesignation: string
 
     // Watermark
-    const [watermarkType, setWatermarkType] = useState<'text' | 'logo'>('text');
-    const [watermarkText, setWatermarkText] = useState('CONFIDENTIAL');
-    const [watermarkLogoUrl, setWatermarkLogoUrl] = useState('');
-    const [watermarkSize, setWatermarkSize] = useState(80); // Font size for text, max-width for logo
-    const [watermarkOpacity, setWatermarkOpacity] = useState(0.15);
-    const [watermarkColorMode, setWatermarkColorMode] = useState<'original' | 'grayscale'>('original');
-    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-    const [isUploadingWatermark, setIsUploadingWatermark] = useState(false);
+    watermarkText: string
+    watermarkOpacity: number
+}
 
-    // Dynamic Pages State
-    const [pages, setPages] = useState<Page[]>([]);
+const defaultQuotationData: QuotationData = {
+    title: "TECHNO-COMMERCIAL QUOTATION",
+    refNo: "QT/2025/001",
+    date: new Date().toISOString().split('T')[0],
 
-    // Auto-pagination: detect overflow and create new pages
-    const pageContentRefs = React.useRef<(HTMLDivElement | null)[]>([]);
-    const [isProcessingOverflow, setIsProcessingOverflow] = React.useState(false);
+    companyName: "Your Company Name",
+    companyLogo: "",
+    companyGSTIN: "22AAJCP7742A1ZP",
+    companyPhone: "+91-8349873989",
+    companyEmail: "info@company.com",
+    companyAddress: "Plot No. 173, Engineering Park, Hathkhoj, Bhilai, 490026",
 
-    React.useEffect(() => {
-        // Only run auto-pagination for manual and ai-generated quotations (not during 'automated' questionnaire flow)
-        if (isProcessingOverflow || (quotationType !== 'manual' && quotationType !== 'ai-generated')) return;
+    clientName: "",
+    clientDesignation: "",
+    clientCompany: "",
+    clientAddress: "",
 
-        const checkOverflow = () => {
-            pageContentRefs.current.forEach((contentEl, pageIndex) => {
-                if (!contentEl) return;
+    subject: "Offer for Supply of Equipment",
+    greeting: "Dear Sir,",
 
-                const page = pages[pageIndex];
-                if (!page || page.sections.length === 0) return;
+    contentBlocks: [
+        {
+            id: "1",
+            type: "paragraph",
+            content: "We thank you for the opportunity to submit our techno-commercial quotation.",
+            style: { fontSize: 11, fontWeight: 'normal', textAlign: 'left' }
+        }
+    ],
 
-                // Get content height
-                const contentHeight = contentEl.scrollHeight;
-                // Calculate available space - Use 250mm for content area (A4 is 297mm, be generous)
-                // This prevents too many page breaks
-                const maxHeight = (250 * 96) / 25.4; // Convert mm to px (96 DPI) = ~945px
+    footerLine1: "Your Products | Your Services | Your Solutions",
+    footerLine2: "Additional Services | Customized Solutions",
+    footerLine3: "Authorized Signatory: Your Name - Your Position",
 
-                // If content exceeds available space significantly AND there's more than one section to move
-                if (contentHeight > maxHeight && page.sections.length > 1) {
-                    setIsProcessingOverflow(true);
+    signatureName: "Authorized Signatory",
+    signatureDesignation: "Manager",
 
-                    // Move the last section to next page or create new page
-                    const lastSection = page.sections[page.sections.length - 1];
-                    const remainingSections = page.sections.slice(0, -1);
+    watermarkText: "CONFIDENTIAL",
+    watermarkOpacity: 0.08
+}
 
-                    setPages(prevPages => {
-                        const newPages = [...prevPages];
+export default function QuotationPage() {
+    const params = useParams()
+    const router = useRouter()
+    const printRef = useRef<HTMLDivElement>(null)
 
-                        // Update current page
-                        newPages[pageIndex] = {
-                            ...newPages[pageIndex],
-                            sections: remainingSections
-                        };
+    const [quotationData, setQuotationData] = useState<QuotationData>(defaultQuotationData)
+    const [activeTab, setActiveTab] = useState("company")
+    const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
+    const [isLoading, setIsLoading] = useState(true)
+    const [isSaving, setIsSaving] = useState(false)
+    const [hasChanges, setHasChanges] = useState(false)
+    const [lastSaved, setLastSaved] = useState<Date | null>(null)
 
-                        // Check if next page exists
-                        if (pageIndex + 1 < newPages.length) {
-                            // Add to beginning of next page
-                            newPages[pageIndex + 1] = {
-                                ...newPages[pageIndex + 1],
-                                sections: [lastSection, ...newPages[pageIndex + 1].sections]
-                            };
-                        } else {
-                            // Create new page with the overflow section
-                            newPages.push({
-                                id: `page-${Date.now()}`,
-                                sections: [lastSection]
-                            });
-                        }
-
-                        return newPages;
-                    });
-
-                    // Reset flag after delay for faster response
-                    setTimeout(() => setIsProcessingOverflow(false), 200);
-                }
-            });
-        };
-
-        // Also check if we can pull content back from the next page to fill empty space
-        const checkUnderflow = () => {
-            pageContentRefs.current.forEach((contentEl, pageIndex) => {
-                if (!contentEl) return;
-
-                const page = pages[pageIndex];
-                const nextPage = pages[pageIndex + 1];
-
-                // Skip if no next page or next page has no sections
-                if (!page || !nextPage || nextPage.sections.length === 0) return;
-
-                const contentHeight = contentEl.scrollHeight;
-                // Only pull content if there's clearly visible empty space (at least ~80px)
-                // so that headings like "Technical Specifications" / "Bill of Quantity" can
-                // move back up instead of leaving a big white gap above the footer.
-                const maxHeight = (250 * 96) / 25.4;
-                const availableSpace = maxHeight - contentHeight;
-
-                // If there's significant room and next page has content, try to pull first section back
-                if (availableSpace > 200) {
-                    setIsProcessingOverflow(true);
-
-                    setPages(prevPages => {
-                        const newPages = [...prevPages];
-                        const nextPageSections = newPages[pageIndex + 1].sections;
-
-                        if (nextPageSections.length > 0) {
-                            const firstSection = nextPageSections[0];
-                            const remainingNextSections = nextPageSections.slice(1);
-
-                            // Add first section from next page to current page
-                            newPages[pageIndex] = {
-                                ...newPages[pageIndex],
-                                sections: [...newPages[pageIndex].sections, firstSection]
-                            };
-
-                            // Update next page
-                            if (remainingNextSections.length > 0) {
-                                newPages[pageIndex + 1] = {
-                                    ...newPages[pageIndex + 1],
-                                    sections: remainingNextSections
-                                };
-                            } else {
-                                // Remove empty page (unless it's the only page)
-                                if (newPages.length > 1) {
-                                    newPages.splice(pageIndex + 1, 1);
-                                }
-                            }
-                        }
-
-                        return newPages;
-                    });
-
-                    setTimeout(() => setIsProcessingOverflow(false), 150);
-                }
-            });
-        };
-
-        // Check after content settles - use shorter delay for faster pagination
-        const timeoutId = setTimeout(checkOverflow, 300);
-        const underflowTimeoutId = setTimeout(checkUnderflow, 500);
-
-        return () => {
-            clearTimeout(timeoutId);
-            clearTimeout(underflowTimeoutId);
-        };
-    }, [pages, isProcessingOverflow, quotationType]);
-
-
-    // Load Data
-    React.useEffect(() => {
+    // Fetch quotation data
+    useEffect(() => {
         const fetchQuotation = async () => {
             try {
-                const response = await fetch(`/api/techno-quotation/${params.id}`, { cache: 'no-store' });
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        alert("Quotation not found");
-                        router.push('/accounting/techno-quotation');
-                        return;
-                    }
-                    throw new Error('Failed to fetch');
+                const res = await fetch(`/api/techno-quotation/${params.id}`)
+                if (!res.ok) {
+                    router.push('/accounting/techno-quotation')
+                    return
                 }
-                const data = await response.json();
-                const q = data.quotation;
-
-                if (q) {
-                    setQuotationType(q.quotationType);
-                    setMainTitle(q.mainTitle || q.title || 'TECHNO COMMERCIAL QUOTATION');
-                    setCompanyName(q.companyDetails?.name || 'Your Company Name');
-                    setCompanyId(q.companyId || '');
-                    setCompanyAddress1(q.companyDetails?.address1 || '');
-                    setCompanyAddress2(q.companyDetails?.address2 || '');
-                    setCompanyPhone(q.companyDetails?.phone || '');
-                    setCompanyDate(q.companyDate || '');
-                    setLogoUrl(q.companyDetails?.logo || '');
-                    setLogoLetter(q.logoLetter || 'G');
-
-                    // Load footer from database or use defaults
-                    setFooterLine1(q.footer?.line1 || 'Solar Solutions | Owner & VP and Power Plans | Water Heater | Street Lights | Home Lighting');
-                    setFooterLine2(q.footer?.line2 || 'LED Lighting Solutions | Inverters | Commercial | Industrial | Customized solution');
-                    setFooterLine3(q.footer?.line3 || 'Authorized Submitter: Your Name - Your Position');
-
-                    if (q.watermarkSettings) {
-                        setWatermarkType(q.watermarkSettings.type || 'text');
-                        setWatermarkText(q.watermarkSettings.text || 'CONFIDENTIAL');
-                        setWatermarkLogoUrl(q.watermarkSettings.logoUrl || '');
-                        setWatermarkSize(q.watermarkSettings.size || 80);
-                        setWatermarkOpacity(q.watermarkSettings.opacity || 0.15);
-                        setWatermarkColorMode(q.watermarkSettings.colorMode || 'original');
-                    }
-
-                    if (q.answers) setAnswers(q.answers);
-
-                    // If pages exist, use them. If not, set default pages ONLY if it's a new/empty quotation
-                    if (q.pages && q.pages.length > 0) {
-                        setPages(q.pages);
-                    } else {
-                        // Default pages for new quotation
-                        setPages([{
-                            id: 'page-1',
-                            sections: [
-                                { id: 'section-1', type: 'heading', heading: 'Reference Information' },
-                                { id: 'section-2', type: 'text', heading: 'Ref No', content: 'PTP/305/DAAN/2025-26/0181' },
-                                { id: 'section-3', type: 'text', heading: 'Date', content: '04/05/2025' },
-                                { id: 'section-4', type: 'heading', heading: 'Customer Details' },
-                                { id: 'section-5', type: 'text', heading: 'Customer Name', content: 'The Head Plant - SAIL' },
-                                { id: 'section-6', type: 'text', heading: 'Address', content: 'DSM, CSTL & SMRH, Bhilai, Chhattisgarh' }
-                            ]
-                        }]);
-                    }
+                const data = await res.json()
+                if (data.quotation) {
+                    const q = data.quotation
+                    setQuotationData({
+                        ...defaultQuotationData,
+                        title: q.title || defaultQuotationData.title,
+                        refNo: q.refNo || defaultQuotationData.refNo,
+                        date: q.date || defaultQuotationData.date,
+                        companyName: q.companyDetails?.name || defaultQuotationData.companyName,
+                        companyLogo: q.companyDetails?.logo || "",
+                        companyGSTIN: q.companyDetails?.gstin || defaultQuotationData.companyGSTIN,
+                        companyPhone: q.companyDetails?.phone || defaultQuotationData.companyPhone,
+                        companyEmail: q.companyDetails?.email || defaultQuotationData.companyEmail,
+                        companyAddress: q.companyDetails?.address || defaultQuotationData.companyAddress,
+                        clientName: q.clientDetails?.name || "",
+                        clientDesignation: q.clientDetails?.designation || "",
+                        clientCompany: q.clientDetails?.company || "",
+                        clientAddress: q.clientDetails?.address || "",
+                        subject: q.subject || defaultQuotationData.subject,
+                        greeting: q.greeting || defaultQuotationData.greeting,
+                        contentBlocks: q.contentBlocks || defaultQuotationData.contentBlocks,
+                        footerLine1: q.footer?.line1 || defaultQuotationData.footerLine1,
+                        footerLine2: q.footer?.line2 || defaultQuotationData.footerLine2,
+                        footerLine3: q.footer?.line3 || defaultQuotationData.footerLine3,
+                        signatureName: q.signature?.name || defaultQuotationData.signatureName,
+                        signatureDesignation: q.signature?.designation || defaultQuotationData.signatureDesignation,
+                        watermarkText: q.watermark?.text || defaultQuotationData.watermarkText,
+                        watermarkOpacity: q.watermark?.opacity || defaultQuotationData.watermarkOpacity,
+                    })
+                    setLastSaved(new Date())
                 }
-                // Set lastSaved after initial load to enable change tracking
-                setLastSaved(new Date());
-
-                // Wait for debounce to catch up before allowing auto-save
-                setTimeout(() => {
-                    setIsInitialized(true);
-                    console.log("Initialization complete - auto-save now enabled");
-                }, 2500);
             } catch (error) {
-                console.error("Error loading quotation:", error);
+                console.error("Error loading quotation:", error)
             } finally {
-                setIsLoading(false);
+                setIsLoading(false)
             }
-        };
+        }
 
         if (params.id) {
-            fetchQuotation();
+            fetchQuotation()
         }
-    }, [params.id, router]);
+    }, [params.id, router])
 
-    // Load Company Profiles
-    React.useEffect(() => {
-        const fetchCompanyProfiles = async () => {
-            try {
-                const response = await fetch('/api/company-profile');
-                if (response.ok) {
-                    const data = await response.json();
-                    setCompanyProfiles(data.profiles || []);
-                }
-            } catch (error) {
-                console.error('Error fetching company profiles:', error);
-            }
-        };
-        fetchCompanyProfiles();
-    }, []);
+    // Auto-save
+    const debouncedData = useDebounce(quotationData, 2000)
 
-    // Save new company profile
-    const saveNewCompanyProfile = async () => {
-        if (!newCompanyData.name.trim()) return;
-
-        setIsSavingProfile(true);
-        try {
-            const response = await fetch('/api/company-profile', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newCompanyData)
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setCompanyProfiles(prev => [...prev, data.profile]);
-
-                // Auto-select the new company and fill details
-                setCurrentAnswer(data.profile.name);
-                const detailsStr = [
-                    data.profile.address1,
-                    data.profile.address2,
-                    data.profile.phone ? `Phone: ${data.profile.phone}` : '',
-                    data.profile.email ? `Email: ${data.profile.email}` : ''
-                ].filter(Boolean).join('\n');
-
-                // Store details for auto-fill
-                setAnswers(prev => ({
-                    ...prev,
-                    company_name: data.profile.name,
-                    company_details: detailsStr
-                }));
-
-                setShowNewCompanyModal(false);
-                setNewCompanyData({ name: '', address1: '', address2: '', phone: '', email: '' });
-            } else {
-                const errorData = await response.json();
-                alert(errorData.error || 'Failed to save company profile');
-            }
-        } catch (error) {
-            console.error('Error saving company profile:', error);
-            alert('Failed to save company profile');
-        } finally {
-            setIsSavingProfile(false);
+    useEffect(() => {
+        if (!isLoading && lastSaved) {
+            setHasChanges(true)
         }
-    };
+    }, [quotationData, isLoading])
 
-    // Handle company selection - auto-fill details
-    const handleCompanySelect = (companyName: string) => {
-        if (companyName === '__CREATE_NEW__') {
-            setShowNewCompanyModal(true);
-            return;
-        }
-
-        setCurrentAnswer(companyName);
-
-        // Find the selected company profile
-        const profile = companyProfiles.find(p => p.name === companyName);
-        if (profile) {
-            // Pre-fill company details for the next question
-            const detailsStr = [
-                profile.address1,
-                profile.address2,
-                profile.phone ? `Phone: ${profile.phone}` : '',
-                profile.email ? `Email: ${profile.email}` : ''
-            ].filter(Boolean).join('\n');
-
-            // Store in answers for auto-fill
-            setAnswers(prev => ({
-                ...prev,
-                company_details: detailsStr
-            }));
-        }
-    };
-
-    // Auto-Save Logic
-    const debouncedPages = useDebounce(pages, 2000);
-    const debouncedTitle = useDebounce(mainTitle, 2000);
-    const debouncedCompanyMap = useDebounce({
-        name: companyName,
-        address1: companyAddress1,
-        address2: companyAddress2,
-        phone: companyPhone,
-        logo: logoUrl
-    }, 2000);
-    const debouncedQuotationType = useDebounce(quotationType, 2000);
-    const debouncedWatermarkSettings = useDebounce({
-        type: watermarkType,
-        text: watermarkText,
-        logoUrl: watermarkLogoUrl,
-        size: watermarkSize,
-        opacity: watermarkOpacity,
-        colorMode: watermarkColorMode
-    }, 2000);
-
-    // Track changes - set hasChanges to true when user modifies anything
-    // ONLY after initialization is complete (debounce caught up)
-    React.useEffect(() => {
-        if (!isLoading && isInitialized && lastSaved) {
-            setHasChanges(true);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pages, mainTitle, companyName, companyId, companyAddress1, companyAddress2, companyPhone, companyDate, logoUrl, logoLetter, quotationType, watermarkType, watermarkText, watermarkLogoUrl, watermarkSize, watermarkOpacity, watermarkColorMode, footerLine1, footerLine2, footerLine3, isLoading, isInitialized]);
-
-    React.useEffect(() => {
-        // Don't save if:
-        // 1. Still loading initial data
-        // 2. Not yet initialized (debounce hasn't caught up)
-        // 3. No changes have been made
-        if (isLoading || !isInitialized || !hasChanges) {
-            return;
-        }
+    useEffect(() => {
+        if (isLoading || !hasChanges) return
 
         const saveQuotation = async () => {
-            setIsSaving(true);
+            setIsSaving(true)
             try {
-                console.log("Auto-saving quotation:", {
-                    title: debouncedTitle,
-                    watermarkSettings: debouncedWatermarkSettings
-                });
+                const payload = {
+                    title: debouncedData.title,
+                    refNo: debouncedData.refNo,
+                    date: debouncedData.date,
+                    companyDetails: {
+                        name: debouncedData.companyName,
+                        logo: debouncedData.companyLogo,
+                        gstin: debouncedData.companyGSTIN,
+                        phone: debouncedData.companyPhone,
+                        email: debouncedData.companyEmail,
+                        address: debouncedData.companyAddress,
+                    },
+                    clientDetails: {
+                        name: debouncedData.clientName,
+                        designation: debouncedData.clientDesignation,
+                        company: debouncedData.clientCompany,
+                        address: debouncedData.clientAddress,
+                    },
+                    subject: debouncedData.subject,
+                    greeting: debouncedData.greeting,
+                    contentBlocks: debouncedData.contentBlocks,
+                    footer: {
+                        line1: debouncedData.footerLine1,
+                        line2: debouncedData.footerLine2,
+                        line3: debouncedData.footerLine3,
+                    },
+                    signature: {
+                        name: debouncedData.signatureName,
+                        designation: debouncedData.signatureDesignation,
+                    },
+                    watermark: {
+                        text: debouncedData.watermarkText,
+                        opacity: debouncedData.watermarkOpacity,
+                    }
+                }
 
                 await fetch(`/api/techno-quotation/${params.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        title: debouncedTitle,
-                        mainTitle: debouncedTitle,
-                        pages: debouncedPages,
-                        companyDetails: debouncedCompanyMap,
-                        companyId: companyId,
-                        companyDate: companyDate,
-                        logoLetter: logoLetter,
-                        footer: {
-                            line1: footerLine1,
-                            line2: footerLine2,
-                            line3: footerLine3
-                        },
-                        quotationType: debouncedQuotationType,
-                        watermarkSettings: debouncedWatermarkSettings
-                    })
-                });
-                setLastSaved(new Date());
-                setHasChanges(false); // Reset after successful save
+                    body: JSON.stringify(payload)
+                })
+                setLastSaved(new Date())
+                setHasChanges(false)
             } catch (error) {
-                console.error("Error auto-saving:", error);
+                console.error("Error saving:", error)
             } finally {
-                setIsSaving(false);
+                setIsSaving(false)
             }
-        };
-
-        saveQuotation();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [debouncedPages, debouncedTitle, debouncedCompanyMap, debouncedQuotationType, debouncedWatermarkSettings, params.id, isLoading]);
-
-    const handleImageUpload = async (file: File, setUrl: (url: string) => void) => {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-            setIsSaving(true); // Show saving indicator during upload
-            const response = await fetch('/api/upload-file', {
-                method: 'POST',
-                body: formData,
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                setUrl(data.file.url);
-            } else {
-                console.error("Upload failed:", data.error);
-                alert(`Upload failed: ${data.error}`);
-            }
-        } catch (error) {
-            console.error("Error uploading image:", error);
-            alert("Error uploading image. Please try again.");
-        } finally {
-            setIsSaving(false);
         }
-    };
 
-    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setIsUploadingLogo(true);
-            await handleImageUpload(file, setLogoUrl);
-            setIsUploadingLogo(false);
-        }
-    };
-
-    const handleWatermarkLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setWatermarkType('logo');
-            setIsUploadingWatermark(true);
-            await handleImageUpload(file, setWatermarkLogoUrl);
-            setIsUploadingWatermark(false);
-        }
-    };
-
-    // Print ref for react-to-print
-    const printRef = useRef<HTMLDivElement>(null);
+        saveQuotation()
+    }, [debouncedData, params.id, isLoading, hasChanges])
 
     const handlePrint = useReactToPrint({
         contentRef: printRef,
-        documentTitle: mainTitle || 'Quotation',
-    });
+        documentTitle: quotationData.refNo,
+    })
 
-    // Page Management
-    const addPage = () => {
-        const newPage: Page = {
-            id: `page-${Date.now()}`,
-            sections: []
-        };
-        setPages([...pages, newPage]);
-    };
-
-    const deletePage = (pageId: string) => {
-        if (pages.length > 1) {
-            setPages(pages.filter(p => p.id !== pageId));
+    // Content block handlers
+    const addBlock = (type: ContentBlock['type']) => {
+        const newBlock: ContentBlock = {
+            id: Date.now().toString(),
+            type,
+            content: type === 'heading' ? 'New Heading' : 'New paragraph text...',
+            items: type === 'list' ? ['Item 1'] : undefined,
+            tableData: type === 'table' ? { headers: ['Column 1', 'Column 2'], rows: [['', '']] } : undefined,
+            style: { fontSize: type === 'heading' ? 14 : 11, fontWeight: type === 'heading' ? 'bold' : 'normal', textAlign: 'left' }
         }
-    };
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: [...prev.contentBlocks, newBlock]
+        }))
+        setSelectedBlockId(newBlock.id)
+    }
 
-    // Section Management
-    const addSection = (pageId: string, type: Section['type']) => {
-        setPages(pages.map(page => {
-            if (page.id === pageId) {
-                const newSection: Section = {
-                    id: `section-${Date.now()}`,
-                    type,
-                    heading: type === 'heading' ? 'New Heading' : type === 'list' ? 'New List' : type === 'table' ? 'New Table' : undefined,
-                    content: type === 'text' ? 'New content' : undefined,
-                    items: type === 'list' ? ['Item 1'] : undefined,
-                    table: type === 'table' ? {
-                        id: `table-${Date.now()}`,
-                        name: 'New Table',
-                        columns: [
-                            { id: 'col-1', name: 'Column 1', width: '50%' },
-                            { id: 'col-2', name: 'Column 2', width: '50%' }
-                        ],
-                        rows: [
-                            { id: 'row-1', cells: { 'col-1': 'Data 1', 'col-2': 'Data 2' } }
-                        ]
-                    } : undefined
-                };
-                return { ...page, sections: [...page.sections, newSection] };
-            }
-            return page;
-        }));
-    };
+    const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: prev.contentBlocks.map(block =>
+                block.id === id ? { ...block, ...updates } : block
+            )
+        }))
+    }
 
-    const deleteSection = (pageId: string, sectionId: string) => {
-        setPages(pages.map(page => {
-            if (page.id === pageId) {
-                return { ...page, sections: page.sections.filter(s => s.id !== sectionId) };
-            }
-            return page;
-        }));
-    };
+    const deleteBlock = (id: string) => {
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: prev.contentBlocks.filter(block => block.id !== id)
+        }))
+        if (selectedBlockId === id) setSelectedBlockId(null)
+    }
 
-    const updateSection = (pageId: string, sectionId: string, updates: Partial<Section>) => {
-        setPages(pages.map(page => {
-            if (page.id === pageId) {
-                return {
-                    ...page,
-                    sections: page.sections.map(section =>
-                        section.id === sectionId ? { ...section, ...updates } : section
-                    )
-                };
-            }
-            return page;
-        }));
-    };
+    const addListItem = (blockId: string) => {
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: prev.contentBlocks.map(block =>
+                block.id === blockId && block.items
+                    ? { ...block, items: [...block.items, ''] }
+                    : block
+            )
+        }))
+    }
 
-    // Table Management
-    const addColumn = (pageId: string, sectionId: string) => {
-        setPages(pages.map(page => {
-            if (page.id === pageId) {
-                return {
-                    ...page,
-                    sections: page.sections.map(section => {
-                        if (section.id === sectionId && section.table) {
-                            const newColId = `col-${Date.now()}`;
-                            const newColumn: Column = { id: newColId, name: 'New Column' };
-                            const updatedRows = section.table.rows.map(row => ({
-                                ...row,
-                                cells: { ...row.cells, [newColId]: '' }
-                            }));
-                            return {
-                                ...section,
-                                table: {
-                                    ...section.table,
-                                    columns: [...section.table.columns, newColumn],
-                                    rows: updatedRows
-                                }
-                            };
+    const updateListItem = (blockId: string, index: number, value: string) => {
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: prev.contentBlocks.map(block =>
+                block.id === blockId && block.items
+                    ? { ...block, items: block.items.map((item, i) => i === index ? value : item) }
+                    : block
+            )
+        }))
+    }
+
+    const deleteListItem = (blockId: string, index: number) => {
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: prev.contentBlocks.map(block =>
+                block.id === blockId && block.items && block.items.length > 1
+                    ? { ...block, items: block.items.filter((_, i) => i !== index) }
+                    : block
+            )
+        }))
+    }
+
+    const addTableRow = (blockId: string) => {
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: prev.contentBlocks.map(block =>
+                block.id === blockId && block.tableData
+                    ? {
+                        ...block,
+                        tableData: {
+                            ...block.tableData,
+                            rows: [...block.tableData.rows, new Array(block.tableData.headers.length).fill('')]
                         }
-                        return section;
-                    })
-                };
-            }
-            return page;
-        }));
-    };
-
-    const deleteColumn = (pageId: string, sectionId: string, columnId: string) => {
-        setPages(pages.map(page => {
-            if (page.id === pageId) {
-                return {
-                    ...page,
-                    sections: page.sections.map(section => {
-                        if (section.id === sectionId && section.table) {
-                            const updatedColumns = section.table.columns.filter(col => col.id !== columnId);
-                            if (updatedColumns.length === 0) return section;
-
-                            const updatedRows = section.table.rows.map(row => {
-                                const newCells = { ...row.cells };
-                                delete newCells[columnId];
-                                return { ...row, cells: newCells };
-                            });
-
-                            return {
-                                ...section,
-                                table: {
-                                    ...section.table,
-                                    columns: updatedColumns,
-                                    rows: updatedRows
-                                }
-                            };
-                        }
-                        return section;
-                    })
-                };
-            }
-            return page;
-        }));
-    };
-
-    const addRow = (pageId: string, sectionId: string) => {
-        setPages(pages.map(page => {
-            if (page.id === pageId) {
-                return {
-                    ...page,
-                    sections: page.sections.map(section => {
-                        if (section.id === sectionId && section.table) {
-                            const newRow: TableRow = {
-                                id: `row-${Date.now()}`,
-                                cells: section.table.columns.reduce((acc, col) => {
-                                    acc[col.id] = '';
-                                    return acc;
-                                }, {} as { [key: string]: string })
-                            };
-                            return {
-                                ...section,
-                                table: {
-                                    ...section.table,
-                                    rows: [...section.table.rows, newRow]
-                                }
-                            };
-                        }
-                        return section;
-                    })
-                };
-            }
-            return page;
-        }));
-    };
-
-    const deleteRow = (pageId: string, sectionId: string, rowId: string) => {
-        setPages(pages.map(page => {
-            if (page.id === pageId) {
-                return {
-                    ...page,
-                    sections: page.sections.map(section => {
-                        if (section.id === sectionId && section.table) {
-                            const updatedRows = section.table.rows.filter(row => row.id !== rowId);
-                            if (updatedRows.length === 0) return section;
-
-                            return {
-                                ...section,
-                                table: {
-                                    ...section.table,
-                                    rows: updatedRows
-                                }
-                            };
-                        }
-                        return section;
-                    })
-                };
-            }
-            return page;
-        }));
-    };
-
-    const updateCell = (pageId: string, sectionId: string, rowId: string, columnId: string, value: string) => {
-        setPages(pages.map(page => {
-            if (page.id === pageId) {
-                return {
-                    ...page,
-                    sections: page.sections.map(section => {
-                        if (section.id === sectionId && section.table) {
-                            return {
-                                ...section,
-                                table: {
-                                    ...section.table,
-                                    rows: section.table.rows.map(row =>
-                                        row.id === rowId
-                                            ? { ...row, cells: { ...row.cells, [columnId]: value } }
-                                            : row
-                                    )
-                                }
-                            };
-                        }
-                        return section;
-                    })
-                };
-            }
-            return page;
-        }));
-    };
-
-    const updateColumnName = (pageId: string, sectionId: string, columnId: string, name: string) => {
-        setPages(pages.map(page => {
-            if (page.id === pageId) {
-                return {
-                    ...page,
-                    sections: page.sections.map(section => {
-                        if (section.id === sectionId && section.table) {
-                            return {
-                                ...section,
-                                table: {
-                                    ...section.table,
-                                    columns: section.table.columns.map(col =>
-                                        col.id === columnId ? { ...col, name } : col
-                                    )
-                                }
-                            };
-                        }
-                        return section;
-                    })
-                };
-            }
-            return page;
-        }));
-    };
-
-    // Helper function to determine column width based on column name
-    const getColumnWidth = (columnName: string): string => {
-        const name = columnName.toLowerCase().trim();
-        // Narrow columns for serial numbers, quantities, numbers
-        if (name.includes('s.no') || name.includes('sl') || name.includes('serial') ||
-            name.includes('#') || name === 'no' || name === 'no.') {
-            return '8%';
-        }
-        if (name.includes('qty') || name.includes('quantity') || name.includes('unit') ||
-            name.includes('rate') || name.includes('price') || name.includes('amount') ||
-            name.includes('total') || name.includes('compliance')) {
-            return '12%';
-        }
-        // Wide columns for descriptions, names, specifications
-        if (name.includes('description') || name.includes('desc') || name.includes('detail') ||
-            name.includes('specification') || name.includes('spec') || name.includes('name') ||
-            name.includes('item') || name.includes('parameter') || name.includes('particular')) {
-            return 'auto';
-        }
-        // Default medium width for other columns
-        return '15%';
-    };
-
-    // List Management
-    const addListItem = (pageId: string, sectionId: string) => {
-        setPages(pages.map(page => {
-            if (page.id === pageId) {
-                return {
-                    ...page,
-                    sections: page.sections.map(section => {
-                        if (section.id === sectionId && section.items) {
-                            return {
-                                ...section,
-                                items: [...section.items, 'New item']
-                            };
-                        }
-                        return section;
-                    })
-                };
-            }
-            return page;
-        }));
-    };
-
-    const deleteListItem = (pageId: string, sectionId: string, index: number) => {
-        setPages(pages.map(page => {
-            if (page.id === pageId) {
-                return {
-                    ...page,
-                    sections: page.sections.map(section => {
-                        if (section.id === sectionId && section.items) {
-                            return {
-                                ...section,
-                                items: section.items.filter((_, i) => i !== index)
-                            };
-                        }
-                        return section;
-                    })
-                };
-            }
-            return page;
-        }));
-    };
-
-    const updateListItem = (pageId: string, sectionId: string, index: number, value: string) => {
-        setPages(pages.map(page => {
-            if (page.id === pageId) {
-                return {
-                    ...page,
-                    sections: page.sections.map(section => {
-                        if (section.id === sectionId && section.items) {
-                            return {
-                                ...section,
-                                items: section.items.map((item, i) => i === index ? value : item)
-                            };
-                        }
-                        return section;
-                    })
-                };
-            }
-            return page;
-        }));
-    };
-
-    // Questionnaire for Automated Quotation
-    // Build dynamic company options from profiles
-    const companyOptions = [
-        ...companyProfiles.map(p => p.name),
-        '__CREATE_NEW__' // Special value for "Create New Company"
-    ];
-
-    const questions: { id: string; question: string; placeholder: string; type: 'text' | 'textarea' | 'select'; options?: string[]; optionLabels?: { [key: string]: string } }[] = [
-        {
-            id: 'company_name',
-            question: 'What is your company name?',
-            placeholder: 'Select your company or create new',
-            type: 'select',
-            options: companyOptions,
-            optionLabels: { '__CREATE_NEW__': '+ Create New Company' }
-        },
-        {
-            id: 'company_details',
-            question: 'Please provide your company details (address, phone, email)',
-            placeholder: 'e.g., Malad - 400 064, Mumbai, Maharashtra, India\nPhone: +91 99205 21473',
-            type: 'textarea'
-        },
-        {
-            id: 'client_name',
-            question: 'Who is the client/customer for this quotation?',
-            placeholder: 'e.g., The Head Plant - SAIL',
-            type: 'text'
-        },
-        {
-            id: 'client_details',
-            question: 'Please provide client details (address, contact information)',
-            placeholder: 'e.g., DSM, CSTL & SMRH, Bhilai, Chhattisgarh',
-            type: 'textarea'
-        },
-        {
-            id: 'project_type',
-            question: 'What type of project/product is this quotation for?',
-            placeholder: 'e.g., Solar Panel Installation, LED Lighting Solutions, etc.',
-            type: 'text'
-        },
-        {
-            id: 'project_scope',
-            question: 'Describe the scope of work and project requirements',
-            placeholder: 'Provide detailed information about what needs to be done, specifications, quantities, etc.',
-            type: 'textarea'
-        },
-        {
-            id: 'technical_specs',
-            question: 'What are the key technical specifications or compliance requirements?',
-            placeholder: 'e.g., Panel capacity, voltage requirements, certifications needed, etc.',
-            type: 'textarea'
-        },
-        {
-            id: 'items_services',
-            question: 'List the main items/services to be included in the quotation',
-            placeholder: 'e.g., Solar panels, inverters, installation, testing, etc.',
-            type: 'textarea'
-        },
-        {
-            id: 'terms_conditions',
-            question: 'Any specific terms and conditions or special requirements?',
-            placeholder: 'e.g., Payment terms, delivery schedule, warranty, etc.',
-            type: 'textarea'
-        },
-        {
-            id: 'additional_info',
-            question: 'Any additional information you\'d like to include?',
-            placeholder: 'Optional: Any other details that should be in the quotation',
-            type: 'textarea'
-        }
-    ];
-
-    const handleNextQuestion = () => {
-        if (currentAnswer.trim()) {
-            setAnswers({ ...answers, [questions[currentQuestionIndex].id]: currentAnswer });
-            setCurrentAnswer('');
-
-            if (currentQuestionIndex < questions.length - 1) {
-                const nextQuestionIndex = currentQuestionIndex + 1;
-                const nextQuestionId = questions[nextQuestionIndex].id;
-
-                // Auto-fill company_details if we stored it during company selection
-                if (nextQuestionId === 'company_details' && answers.company_details) {
-                    setCurrentAnswer(answers.company_details);
-                }
-
-                setCurrentQuestionIndex(nextQuestionIndex);
-            } else {
-                // All questions answered, generate quotation
-                generateQuotation();
-            }
-        }
-    };
-
-    const handlePreviousQuestion = () => {
-        if (currentQuestionIndex > 0) {
-            const prevQuestionId = questions[currentQuestionIndex - 1].id;
-            setCurrentAnswer(answers[prevQuestionId] || '');
-            setCurrentQuestionIndex(currentQuestionIndex - 1);
-        }
-    };
-
-    const handleSkipQuestion = () => {
-        setCurrentAnswer('');
-        if (currentQuestionIndex < questions.length - 1) {
-            setCurrentQuestionIndex(currentQuestionIndex + 1);
-        } else {
-            generateQuotation();
-        }
-    };
-
-    const generateQuotation = async () => {
-        setIsGenerating(true);
-        setGenerationProgress(0);
-
-        try {
-            // Simulate progress
-            const progressInterval = setInterval(() => {
-                setGenerationProgress(prev => {
-                    if (prev >= 90) {
-                        clearInterval(progressInterval);
-                        return 90;
                     }
-                    return prev + 10;
-                });
-            }, 300);
+                    : block
+            )
+        }))
+    }
 
-            // Call AI API to generate quotation
-            const response = await fetch('/api/generate-quotation', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ answers }),
-            });
+    const addTableColumn = (blockId: string) => {
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: prev.contentBlocks.map(block =>
+                block.id === blockId && block.tableData
+                    ? {
+                        ...block,
+                        tableData: {
+                            headers: [...block.tableData.headers, 'New Column'],
+                            rows: block.tableData.rows.map(row => [...row, ''])
+                        }
+                    }
+                    : block
+            )
+        }))
+    }
 
-            clearInterval(progressInterval);
+    const updateTableCell = (blockId: string, rowIndex: number, colIndex: number, value: string) => {
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: prev.contentBlocks.map(block =>
+                block.id === blockId && block.tableData
+                    ? {
+                        ...block,
+                        tableData: {
+                            ...block.tableData,
+                            rows: block.tableData.rows.map((row, ri) =>
+                                ri === rowIndex
+                                    ? row.map((cell, ci) => ci === colIndex ? value : cell)
+                                    : row
+                            )
+                        }
+                    }
+                    : block
+            )
+        }))
+    }
 
-            if (!response.ok) {
-                throw new Error('Failed to generate quotation');
+    const updateTableHeader = (blockId: string, colIndex: number, value: string) => {
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: prev.contentBlocks.map(block =>
+                block.id === blockId && block.tableData
+                    ? {
+                        ...block,
+                        tableData: {
+                            ...block.tableData,
+                            headers: block.tableData.headers.map((h, i) => i === colIndex ? value : h)
+                        }
+                    }
+                    : block
+            )
+        }))
+    }
+
+    const deleteTableRow = (blockId: string, rowIndex: number) => {
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: prev.contentBlocks.map(block =>
+                block.id === blockId && block.tableData && block.tableData.rows.length > 1
+                    ? {
+                        ...block,
+                        tableData: {
+                            ...block.tableData,
+                            rows: block.tableData.rows.filter((_, i) => i !== rowIndex)
+                        }
+                    }
+                    : block
+            )
+        }))
+    }
+
+    const deleteTableColumn = (blockId: string, colIndex: number) => {
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: prev.contentBlocks.map(block =>
+                block.id === blockId && block.tableData && block.tableData.headers.length > 1
+                    ? {
+                        ...block,
+                        tableData: {
+                            headers: block.tableData.headers.filter((_, i) => i !== colIndex),
+                            rows: block.tableData.rows.map(row => row.filter((_, i) => i !== colIndex))
+                        }
+                    }
+                    : block
+            )
+        }))
+    }
+
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setQuotationData(prev => ({ ...prev, companyLogo: reader.result as string }))
             }
-
-            const data = await response.json();
-
-            setGenerationProgress(100);
-
-            // Parse the AI response and populate the quotation data
-            if (data.quotation) {
-                // Set company information
-                setCompanyName(data.quotation.companyName || answers.company_name || 'Your Company');
-                setCompanyAddress1(data.quotation.companyAddress1 || '');
-                setCompanyAddress2(data.quotation.companyAddress2 || '');
-                setCompanyPhone(data.quotation.companyPhone || '');
-
-                // Set pages with AI-generated content
-                if (data.quotation.pages && data.quotation.pages.length > 0) {
-                    setPages(data.quotation.pages);
-                }
-
-                // Switch to AI-generated view
-                setTimeout(() => {
-                    setQuotationType('ai-generated');
-                    setIsGenerating(false);
-                }, 500);
-            }
-        } catch (error) {
-            console.error('Error generating quotation:', error);
-            setIsGenerating(false);
-            alert('Failed to generate quotation. Please try again.');
+            reader.readAsDataURL(file)
         }
-    };
-
-    const resetQuestionnaire = () => {
-        setCurrentQuestionIndex(0);
-        setAnswers({});
-        setCurrentAnswer('');
-        setIsGenerating(false);
-        setGenerationProgress(0);
-    };
-
-    // Loading State
-    if (isLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-                    <p className="text-muted-foreground">Loading workspace...</p>
-                </div>
-            </div>
-        );
     }
 
-    /* Selection Screen REMOVED */
-    if (false) {
-        return (
-            <>
-                <div className="flex min-h-screen flex-col">
-                    <Navbar />
+    const selectedBlock = quotationData.contentBlocks.find(b => b.id === selectedBlockId)
 
-                    <main className="flex-1 bg-gradient-to-br from-emerald-500/10 via-background to-teal-500/10">
-                        {/* Header */}
-                        <section className="py-12 border-b">
-                            <div className="container px-4">
-                                <Link href="/accounting" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6 transition-colors">
-                                    <ArrowLeft className="w-4 h-4 mr-2" />
-                                    Back to Accounting
-                                </Link>
-                                <div className="text-center max-w-3xl mx-auto">
-                                    <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
-                                        Techno Commercial Quotation
-                                    </h1>
-                                    <p className="text-lg text-muted-foreground">
-                                        Choose how you'd like to create your quotation
-                                    </p>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* Selection Cards */}
-                        <section className="py-16">
-                            <div className="container px-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                                    {/* Manual Quotation Card */}
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.1 }}
-                                    >
-                                        <Card className="relative overflow-hidden border-2 border-border/50 hover:border-emerald-500/50 transition-all duration-300 hover:shadow-xl group cursor-pointer h-full"
-                                            onClick={() => setQuotationType('manual')}
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                                            <div className="relative p-8 flex flex-col h-full">
-                                                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 mb-6 group-hover:scale-110 transition-transform">
-                                                    <FileEdit className="w-8 h-8 text-white" />
-                                                </div>
-
-                                                <h3 className="text-2xl font-bold mb-3 text-emerald-600">
-                                                    Manual Quotation
-                                                </h3>
-
-                                                <p className="text-muted-foreground mb-6 flex-grow">
-                                                    Create a fully customizable quotation with complete control over every detail. Add pages, sections, tables, and customize the layout to match your exact requirements.
-                                                </p>
-
-                                                <div className="space-y-2 mb-6">
-                                                    <div className="flex items-center text-sm text-muted-foreground">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2" />
-                                                        Dynamic page management
-                                                    </div>
-                                                    <div className="flex items-center text-sm text-muted-foreground">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2" />
-                                                        Custom tables & sections
-                                                    </div>
-                                                    <div className="flex items-center text-sm text-muted-foreground">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2" />
-                                                        Full design control
-                                                    </div>
-                                                </div>
-
-                                                <Button
-                                                    className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 group-hover:shadow-lg transition-all"
-                                                    size="lg"
-                                                >
-                                                    Start Manual Creation
-                                                    <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
-                                                </Button>
-                                            </div>
-                                        </Card>
-                                    </motion.div>
-
-                                    {/* Automated Quotation Card */}
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.2 }}
-                                    >
-                                        <Card className="relative overflow-hidden border-2 border-border/50 hover:border-teal-500/50 transition-all duration-300 hover:shadow-xl group cursor-pointer h-full"
-                                            onClick={() => setQuotationType('automated')}
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                                            {/* AI Badge */}
-                                            <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-xs font-bold flex items-center gap-1">
-                                                <Sparkles className="w-3 h-3" />
-                                                AI Powered
-                                            </div>
-
-                                            <div className="relative p-8 flex flex-col h-full">
-                                                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 mb-6 group-hover:scale-110 transition-transform">
-                                                    <Zap className="w-8 h-8 text-white" />
-                                                </div>
-
-                                                <h3 className="text-2xl font-bold mb-3 text-teal-600">
-                                                    Automated Quotation
-                                                </h3>
-
-                                                <p className="text-muted-foreground mb-6 flex-grow">
-                                                    Let AI generate professional quotations instantly. Simply provide your requirements and let our intelligent system create a comprehensive quotation for you.
-                                                </p>
-
-                                                <div className="space-y-2 mb-6">
-                                                    <div className="flex items-center text-sm text-muted-foreground">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mr-2" />
-                                                        AI-powered generation
-                                                    </div>
-                                                    <div className="flex items-center text-sm text-muted-foreground">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mr-2" />
-                                                        Instant results
-                                                    </div>
-                                                    <div className="flex items-center text-sm text-muted-foreground">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mr-2" />
-                                                        Smart formatting
-                                                    </div>
-                                                </div>
-
-                                                <Button
-                                                    className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 group-hover:shadow-lg transition-all"
-                                                    size="lg"
-                                                >
-                                                    <Sparkles className="w-4 h-4 mr-2" />
-                                                    Generate with AI
-                                                </Button>
-                                            </div>
-                                        </Card>
-                                    </motion.div>
-                                </div>
-                            </div>
-                        </section>
-                    </main>
-
-                    <Footer />
-                </div>
-            </>
-        );
-    }
-
-    // Automated Quotation Placeholder
-    if (quotationType === 'automated') {
-        return (
-            <>
-                <AutomatedQuotationQuestionnaire
-                    questions={questions}
-                    currentQuestionIndex={currentQuestionIndex}
-                    currentAnswer={currentAnswer}
-                    answers={answers}
-                    isGenerating={isGenerating}
-                    generationProgress={generationProgress}
-                    onAnswerChange={setCurrentAnswer}
-                    onNext={handleNextQuestion}
-                    onPrevious={handlePreviousQuestion}
-                    onSkip={handleSkipQuestion}
-                    onBack={() => {
-                        resetQuestionnaire();
-                        setQuotationType(null);
-                    }}
-                    onCompanySelect={handleCompanySelect}
-                />
-
-                {/* Create New Company Modal */}
-                <Dialog open={showNewCompanyModal} onOpenChange={setShowNewCompanyModal}>
-                    <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
-                            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
-                                Create New Company
-                            </DialogTitle>
-                            <DialogDescription>
-                                Add a new company profile that will be saved for future quotations.
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="company-name">Company Name *</Label>
-                                <Input
-                                    id="company-name"
-                                    value={newCompanyData.name}
-                                    onChange={(e) => setNewCompanyData(prev => ({ ...prev, name: e.target.value }))}
-                                    placeholder="e.g., Green Energy Pvt. Ltd."
-                                    className="text-base"
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="address1">Address Line 1</Label>
-                                <Input
-                                    id="address1"
-                                    value={newCompanyData.address1}
-                                    onChange={(e) => setNewCompanyData(prev => ({ ...prev, address1: e.target.value }))}
-                                    placeholder="e.g., 123 Main Street"
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="address2">Address Line 2</Label>
-                                <Input
-                                    id="address2"
-                                    value={newCompanyData.address2}
-                                    onChange={(e) => setNewCompanyData(prev => ({ ...prev, address2: e.target.value }))}
-                                    placeholder="e.g., Mumbai, Maharashtra - 400001"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="phone">Phone</Label>
-                                    <Input
-                                        id="phone"
-                                        value={newCompanyData.phone}
-                                        onChange={(e) => setNewCompanyData(prev => ({ ...prev, phone: e.target.value }))}
-                                        placeholder="+91 99999 99999"
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        value={newCompanyData.email}
-                                        onChange={(e) => setNewCompanyData(prev => ({ ...prev, email: e.target.value }))}
-                                        placeholder="info@company.com"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <DialogFooter>
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    setShowNewCompanyModal(false);
-                                    setNewCompanyData({ name: '', address1: '', address2: '', phone: '', email: '' });
-                                }}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                onClick={saveNewCompanyProfile}
-                                disabled={!newCompanyData.name.trim() || isSavingProfile}
-                                className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700"
-                            >
-                                {isSavingProfile ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Saving...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Plus className="w-4 h-4 mr-2" />
-                                        Create Company
-                                    </>
-                                )}
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            </>
-        );
-    }
-
-    // Manual Quotation (existing functionality)
     return (
-        <>
-            <div className="no-print">
-                <Navbar />
-                <div className="bg-gradient-to-br from-emerald-500/10 via-background to-teal-500/10 py-6 border-b">
-                    <div className="container px-4">
-                        {/* Top Bar */}
-                        <div className="flex items-center justify-between mb-6">
-                            <Link href="/accounting/techno-quotation">
-                                <Button variant="ghost" size="sm" className="hover:bg-emerald-50">
-                                    <ArrowLeft className="w-4 h-4 mr-2" />
-                                    Back to List
-                                </Button>
-                            </Link>
+        <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300">
+            <Navbar />
 
-                            {/* Auto-save Indicator - Compact & Modern */}
-                            <div className="flex items-center gap-2">
-                                {isSaving ? (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800">
-                                        <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />
-                                        <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Saving...</span>
-                                    </div>
-                                ) : lastSaved ? (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800">
-                                        <Check className="w-3.5 h-3.5 text-emerald-500" />
-                                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Saved</span>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                                        <CloudOff className="w-3.5 h-3.5 text-gray-400" />
-                                        <span className="text-xs font-medium text-gray-500">Unsaved</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Quotation Title & Type */}
-                        <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <input
-                                        type="text"
-                                        value={mainTitle}
-                                        onChange={(e) => setMainTitle(e.target.value)}
-                                        className="text-3xl font-bold bg-transparent border-none outline-none focus:ring-2 focus:ring-emerald-500 rounded px-2 -ml-2 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent"
-                                        placeholder="Quotation Title"
-                                    />
-                                    {quotationType === 'automated' || quotationType === 'ai-generated' ? (
-                                        <div className="px-3 py-1 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-xs font-bold flex items-center gap-1">
-                                            <Sparkles className="w-3 h-3" />
-                                            AI Generated
-                                        </div>
-                                    ) : (
-                                        <div className="px-3 py-1 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs font-bold flex items-center gap-1">
-                                            <FileEdit className="w-3 h-3" />
-                                            Manual
-                                        </div>
-                                    )}
-                                </div>
-                                <p className="text-sm text-muted-foreground">
-                                    Fully customizable quotation - Add/delete pages, sections, tables, columns, and rows as needed.
-                                    {isProcessingOverflow && (
-                                        <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">
-                                            📄 Auto-creating page...
-                                        </span>
-                                    )}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-3 flex-wrap">
-                            <Button
-                                onClick={handlePrint}
-                                size="lg"
-                                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-                            >
-                                <Printer className="w-5 h-5 mr-2" />
-                                Print Quotation
-                            </Button>
-                            <Button
-                                onClick={addPage}
-                                size="lg"
-                                variant="outline"
-                                className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
-                            >
-                                <PlusCircle className="w-5 h-5 mr-2" />
-                                Add New Page
-                            </Button>
-                            <div className="flex flex-col gap-3 ml-4 p-4 border border-border rounded-lg bg-background">
-                                <div className="flex items-center gap-2">
-                                    <label className="text-sm font-medium text-muted-foreground min-w-[80px]">
-                                        Watermark:
-                                    </label>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            onClick={() => setWatermarkType('text')}
-                                            size="sm"
-                                            variant={watermarkType === 'text' ? 'default' : 'outline'}
-                                            className={watermarkType === 'text' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-                                        >
-                                            Text
-                                        </Button>
-                                        <Button
-                                            onClick={() => setWatermarkType('logo')}
-                                            size="sm"
-                                            variant={watermarkType === 'logo' ? 'default' : 'outline'}
-                                            className={watermarkType === 'logo' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-                                        >
-                                            Logo
-                                        </Button>
-                                    </div>
-                                    {watermarkType === 'text' ? (
-                                        <input
-                                            type="text"
-                                            value={watermarkText}
-                                            onChange={(e) => setWatermarkText(e.target.value)}
-                                            placeholder="Enter watermark text"
-                                            className="px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                                        />
-                                    ) : (
-                                        <div className="flex items-center gap-2">
-                                            <label
-                                                htmlFor="watermark-logo-upload"
-                                                className={`px-3 py-2 border border-border rounded-md text-sm transition-colors flex items-center gap-2 ${isUploadingWatermark
-                                                    ? 'cursor-not-allowed bg-emerald-50 border-emerald-300 text-emerald-600'
-                                                    : 'cursor-pointer hover:bg-accent'
-                                                    }`}
-                                            >
-                                                {isUploadingWatermark ? (
-                                                    <>
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                        Uploading...
-                                                    </>
-                                                ) : (
-                                                    watermarkLogoUrl ? 'Change Logo' : 'Upload Logo'
-                                                )}
-                                            </label>
-                                            <input
-                                                id="watermark-logo-upload"
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handleWatermarkLogoUpload}
-                                                style={{ display: 'none' }}
-                                                disabled={isUploadingWatermark}
-                                            />
-                                            {watermarkLogoUrl && !isUploadingWatermark && (
-                                                <span className="text-xs text-emerald-600">✓ Logo uploaded</span>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Size Control */}
-                                <div className="flex items-center gap-3">
-                                    <label className="text-xs text-muted-foreground min-w-[80px]">
-                                        Size: {watermarkSize}px
-                                    </label>
-                                    <input
-                                        type="range"
-                                        min="40"
-                                        max="200"
-                                        value={watermarkSize}
-                                        onChange={(e) => setWatermarkSize(Number(e.target.value))}
-                                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                                    />
-                                </div>
-
-                                {/* Opacity Control */}
-                                <div className="flex items-center gap-3">
-                                    <label className="text-xs text-muted-foreground min-w-[80px]">
-                                        Opacity: {Math.round(watermarkOpacity * 100)}%
-                                    </label>
-                                    <input
-                                        type="range"
-                                        min="0.05"
-                                        max="0.5"
-                                        step="0.05"
-                                        value={watermarkOpacity}
-                                        onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
-                                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                                    />
-                                </div>
-
-                                {/* Color Mode Control */}
-                                <div className="flex items-center gap-3">
-                                    <label className="text-xs text-muted-foreground min-w-[80px]">
-                                        Color Mode:
-                                    </label>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            onClick={() => setWatermarkColorMode('original')}
-                                            size="sm"
-                                            variant={watermarkColorMode === 'original' ? 'default' : 'outline'}
-                                            className={watermarkColorMode === 'original' ? 'bg-emerald-600 hover:bg-emerald-700 text-xs' : 'text-xs'}
-                                        >
-                                            Original
-                                        </Button>
-                                        <Button
-                                            onClick={() => setWatermarkColorMode('grayscale')}
-                                            size="sm"
-                                            variant={watermarkColorMode === 'grayscale' ? 'default' : 'outline'}
-                                            className={watermarkColorMode === 'grayscale' ? 'bg-emerald-600 hover:bg-emerald-700 text-xs' : 'text-xs'}
-                                        >
-                                            B&W
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            {/* Header Toolbar */}
+            <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b shadow-sm px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <Link href="/accounting/techno-quotation" className="text-muted-foreground hover:text-foreground">
+                        <ArrowLeft className="w-5 h-5" />
+                    </Link>
+                    <div className="flex flex-col">
+                        <h1 className="text-xl font-semibold">
+                            {isLoading ? "Loading..." : quotationData.refNo || "New Quotation"}
+                        </h1>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            {isSaving ? (
+                                <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
+                            ) : hasChanges ? (
+                                <><CloudOff className="w-3 h-3" /> Unsaved changes...</>
+                            ) : (
+                                <><Cloud className="w-3 h-3" /> Saved</>
+                            )}
+                        </span>
                     </div>
                 </div>
+
+                <div className="flex items-center gap-2">
+                    <Button
+                        onClick={() => handlePrint()}
+                        className="bg-cyan-600 hover:bg-cyan-700 text-white gap-2"
+                    >
+                        <Printer className="w-4 h-4" />
+                        Print / Download PDF
+                    </Button>
+                </div>
             </div>
 
-            {/* Quotation Pages */}
-            <div className="quotation-container" ref={printRef}>
-                {pages.map((page, pageIndex) => (
-                    <div key={page.id} className="page">
-                        {/* Watermark Overlay */}
-                        {watermarkType === 'text' && watermarkText && (
-                            <div
-                                className="watermark-overlay watermark-text"
-                                style={{
-                                    fontSize: `${watermarkSize}px`,
-                                    color: watermarkColorMode === 'grayscale'
-                                        ? `rgba(0, 0, 0, ${watermarkOpacity})`
-                                        : `rgba(16, 185, 129, ${watermarkOpacity})`,
-                                    opacity: 1
-                                } as React.CSSProperties}
-                            >
-                                {watermarkText}
-                            </div>
-                        )}
-                        {watermarkType === 'logo' && watermarkLogoUrl && (
-                            <div
-                                className="watermark-overlay watermark-logo"
-                                style={{
-                                    width: `${watermarkSize * 5}px`,
-                                    height: `${watermarkSize * 5}px`,
-                                    maxWidth: `${watermarkSize * 5}px`,
-                                    maxHeight: `${watermarkSize * 5}px`,
-                                    opacity: watermarkOpacity,
-                                    filter: watermarkColorMode === 'grayscale' ? 'grayscale(100%)' : 'none',
-                                    WebkitPrintColorAdjust: 'exact',
-                                    printColorAdjust: 'exact',
-                                    colorAdjust: 'exact'
-                                } as React.CSSProperties}
-                            >
-                                <img
-                                    src={watermarkLogoUrl}
-                                    alt="Watermark"
-                                    style={{
-                                        maxWidth: '100%',
-                                        maxHeight: '100%',
-                                        width: 'auto',
-                                        height: 'auto',
-                                        WebkitPrintColorAdjust: 'exact',
-                                        printColorAdjust: 'exact',
-                                        colorAdjust: 'exact'
-                                    } as React.CSSProperties}
-                                />
-                            </div>
-                        )}
+            <div className="flex-1 container mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-                        {/* Header */}
-                        <div className="header">
-                            <div className="logo-section">
-                                {logoUrl ? (
-                                    <img src={logoUrl} alt="Company Logo" className="logo-image" />
-                                ) : (
-                                    <div className="logo-circle" contentEditable suppressContentEditableWarning onBlur={(e) => setLogoLetter(e.currentTarget.textContent || 'G')}>
-                                        {logoLetter}
-                                    </div>
-                                )}
-                                <div>
-                                    <input
-                                        type="text"
-                                        value={companyName}
-                                        onChange={(e) => setCompanyName(e.target.value)}
-                                        className="editable-field company-name-field"
-                                    />
-                                    <div className="no-print" style={{ marginTop: '5px' }}>
-                                        <label
-                                            htmlFor="logo-upload"
-                                            style={{
-                                                cursor: isUploadingLogo ? 'not-allowed' : 'pointer',
-                                                fontSize: '9px',
-                                                color: isUploadingLogo ? '#10b981' : '#666',
-                                                textDecoration: 'underline',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px'
-                                            }}
-                                        >
-                                            {isUploadingLogo ? (
-                                                <>
-                                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                                    Uploading...
-                                                </>
+                {/* Editor Panel (Left Side) */}
+                <div className="lg:col-span-5 space-y-4 overflow-y-auto h-[calc(100vh-140px)] pr-2 scrollbar-thin">
+
+                    {/* Add Content Buttons */}
+                    <Card className="p-3">
+                        <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" onClick={() => addBlock('heading')} className="gap-1">
+                                <Type className="w-4 h-4" /> Heading
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => addBlock('paragraph')} className="gap-1">
+                                <FileText className="w-4 h-4" /> Paragraph
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => addBlock('list')} className="gap-1">
+                                <List className="w-4 h-4" /> List
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => addBlock('table')} className="gap-1">
+                                <Table className="w-4 h-4" /> Table
+                            </Button>
+                        </div>
+                    </Card>
+
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                        <TabsList className="grid grid-cols-4 w-full mb-4">
+                            <TabsTrigger value="company">Company</TabsTrigger>
+                            <TabsTrigger value="client">Client</TabsTrigger>
+                            <TabsTrigger value="content">Content</TabsTrigger>
+                            <TabsTrigger value="footer">Footer</TabsTrigger>
+                        </TabsList>
+
+                        {/* Company Tab */}
+                        <TabsContent value="company" className="space-y-4">
+                            <Card className="p-4 border-l-4 border-l-cyan-500">
+                                <h3 className="font-semibold text-lg mb-4 flex items-center">
+                                    <Building2 className="w-4 h-4 mr-2" /> Company Details
+                                </h3>
+                                <div className="space-y-3">
+                                    <div>
+                                        <Label>Company Logo</Label>
+                                        <div className="flex items-center gap-3 mt-1">
+                                            {quotationData.companyLogo ? (
+                                                <img src={quotationData.companyLogo} alt="Logo" className="w-16 h-16 object-contain border rounded" />
                                             ) : (
-                                                'Upload Logo'
+                                                <div className="w-16 h-16 border rounded flex items-center justify-center bg-muted">
+                                                    <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                                                </div>
                                             )}
-                                        </label>
-                                        <input
-                                            id="logo-upload"
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleLogoUpload}
-                                            style={{ display: 'none' }}
-                                            disabled={isUploadingLogo}
+                                            <label className="cursor-pointer">
+                                                <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                                                <Button variant="outline" size="sm" asChild>
+                                                    <span><Upload className="w-4 h-4 mr-1" /> Upload</span>
+                                                </Button>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Label>Company Name</Label>
+                                        <Input
+                                            value={quotationData.companyName}
+                                            onChange={e => setQuotationData({ ...quotationData, companyName: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <Label>GSTIN</Label>
+                                            <Input
+                                                value={quotationData.companyGSTIN}
+                                                onChange={e => setQuotationData({ ...quotationData, companyGSTIN: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label>Phone</Label>
+                                            <Input
+                                                value={quotationData.companyPhone}
+                                                onChange={e => setQuotationData({ ...quotationData, companyPhone: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Label>Email</Label>
+                                        <Input
+                                            value={quotationData.companyEmail}
+                                            onChange={e => setQuotationData({ ...quotationData, companyEmail: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Address</Label>
+                                        <Textarea
+                                            value={quotationData.companyAddress}
+                                            onChange={e => setQuotationData({ ...quotationData, companyAddress: e.target.value })}
+                                            rows={2}
                                         />
                                     </div>
                                 </div>
-                            </div>
-                            <div className="header-info">
-                                <div className="header-row">
-                                    <span className="header-label">GSTIN :</span>
-                                    <input type="text" value={companyId} onChange={(e) => setCompanyId(e.target.value)} className="editable-field header-input" placeholder="22AAJCP7742A1ZP" />
-                                    <span className="print-only header-value-print">{companyId}</span>
+                            </Card>
+
+                            <Card className="p-4 border-l-4 border-l-orange-500">
+                                <h3 className="font-semibold text-lg mb-4">Document Info</h3>
+                                <div className="space-y-3">
+                                    <div>
+                                        <Label>Document Title</Label>
+                                        <Input
+                                            value={quotationData.title}
+                                            onChange={e => setQuotationData({ ...quotationData, title: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <Label>Reference No.</Label>
+                                            <Input
+                                                value={quotationData.refNo}
+                                                onChange={e => setQuotationData({ ...quotationData, refNo: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label>Date</Label>
+                                            <Input
+                                                type="date"
+                                                value={quotationData.date}
+                                                onChange={e => setQuotationData({ ...quotationData, date: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="header-row">
-                                    <span className="header-label">Contact :</span>
-                                    <input type="text" value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} className="editable-field header-input" placeholder="+91- 8349873989" />
+                            </Card>
+                        </TabsContent>
 
+                        {/* Client Tab */}
+                        <TabsContent value="client" className="space-y-4">
+                            <Card className="p-4 border-l-4 border-l-blue-500">
+                                <h3 className="font-semibold text-lg mb-4">Client Details</h3>
+                                <div className="space-y-3">
+                                    <div>
+                                        <Label>To (Company/Organization)</Label>
+                                        <Input
+                                            value={quotationData.clientCompany}
+                                            onChange={e => setQuotationData({ ...quotationData, clientCompany: e.target.value })}
+                                            placeholder="Client Company Name"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <Label>Contact Person</Label>
+                                            <Input
+                                                value={quotationData.clientName}
+                                                onChange={e => setQuotationData({ ...quotationData, clientName: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label>Designation</Label>
+                                            <Input
+                                                value={quotationData.clientDesignation}
+                                                onChange={e => setQuotationData({ ...quotationData, clientDesignation: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Label>Address</Label>
+                                        <Textarea
+                                            value={quotationData.clientAddress}
+                                            onChange={e => setQuotationData({ ...quotationData, clientAddress: e.target.value })}
+                                            rows={3}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="header-row">
-                                    <span className="header-label">Email :</span>
-                                    <input type="text" value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} className="editable-field header-input" placeholder="email@company.com" />
+                            </Card>
+
+                            <Card className="p-4 border-l-4 border-l-green-500">
+                                <h3 className="font-semibold text-lg mb-4">Subject & Greeting</h3>
+                                <div className="space-y-3">
+                                    <div>
+                                        <Label>Subject Line</Label>
+                                        <Input
+                                            value={quotationData.subject}
+                                            onChange={e => setQuotationData({ ...quotationData, subject: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Greeting</Label>
+                                        <Input
+                                            value={quotationData.greeting}
+                                            onChange={e => setQuotationData({ ...quotationData, greeting: e.target.value })}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="header-row address-row">
-                                    <span className="header-label">Address :</span>
-                                    <textarea
-                                        value={`${companyAddress1}${companyAddress2 ? '\n' + companyAddress2 : ''}`}
-                                        onChange={(e) => {
-                                            const lines = e.target.value.split('\n');
-                                            setCompanyAddress1(lines[0] || '');
-                                            setCompanyAddress2(lines.slice(1).join('\n') || '');
-                                        }}
-                                        className="editable-field address-textarea"
-                                        rows={2}
-                                        placeholder="Plot No. 173, Engineering Park, Hathkhoj, Bhilai, 490026"
-                                        onInput={(e) => {
-                                            const target = e.target as HTMLTextAreaElement;
-                                            target.style.height = 'auto';
-                                            target.style.height = target.scrollHeight + 'px';
-                                        }}
-                                        ref={(el) => {
-                                            if (el) {
-                                                el.style.height = 'auto';
-                                                el.style.height = el.scrollHeight + 'px';
-                                            }
-                                        }}
-                                    />
+                            </Card>
+                        </TabsContent>
 
-                                </div>
-                            </div>
-                        </div>
-
-                        {pageIndex === 0 && (
-                            <h1 className="main-title">
-                                <input
-                                    type="text"
-                                    value={mainTitle}
-                                    onChange={(e) => setMainTitle(e.target.value)}
-                                    className="editable-field main-title-field"
-                                />
-                            </h1>
-                        )}
-
-                        {/* Overflow Warning */}
-                        <div className="no-print overflow-warning" id={`overflow-warning-${pageIndex}`} style={{ display: 'none' }}>
-                            ⚠️ Page Full! Add a new page →
-                        </div>
-
-                        {/* Page Content Container */}
-                        <div
-                            className="page-content"
-                            id={`page-content-${pageIndex}`}
-                            ref={(el) => {
-                                pageContentRefs.current[pageIndex] = el;
-                            }}
-                        >
-                            {/* Page Controls */}
-                            <div className="no-print page-controls">
-                                <div className="control-buttons">
-                                    <Button
-                                        onClick={() => addSection(page.id, 'heading')}
-                                        size="sm"
-                                        variant="outline"
-                                        className="control-btn"
-                                    >
-                                        <Plus className="w-3 h-3 mr-1" />
-                                        Heading
-                                    </Button>
-                                    <Button
-                                        onClick={() => addSection(page.id, 'text')}
-                                        size="sm"
-                                        variant="outline"
-                                        className="control-btn"
-                                    >
-                                        <Plus className="w-3 h-3 mr-1" />
-                                        Text
-                                    </Button>
-                                    <Button
-                                        onClick={() => addSection(page.id, 'list')}
-                                        size="sm"
-                                        variant="outline"
-                                        className="control-btn"
-                                    >
-                                        <Plus className="w-3 h-3 mr-1" />
-                                        List
-                                    </Button>
-                                    <Button
-                                        onClick={() => addSection(page.id, 'table')}
-                                        size="sm"
-                                        variant="outline"
-                                        className="control-btn"
-                                    >
-                                        <Plus className="w-3 h-3 mr-1" />
-                                        Table
-                                    </Button>
-                                    {pages.length > 1 && (
+                        {/* Content Tab */}
+                        <TabsContent value="content" className="space-y-4">
+                            {quotationData.contentBlocks.map((block, index) => (
+                                <Card
+                                    key={block.id}
+                                    className={`p-4 border-l-4 ${selectedBlockId === block.id ? 'border-l-purple-500 ring-2 ring-purple-200' : 'border-l-gray-300'}`}
+                                    onClick={() => setSelectedBlockId(block.id)}
+                                >
+                                    <div className="flex justify-between items-start mb-3">
+                                        <span className="text-xs font-medium text-muted-foreground uppercase">
+                                            {block.type}
+                                        </span>
                                         <Button
-                                            onClick={() => deletePage(page.id)}
-                                            size="sm"
-                                            variant="destructive"
-                                            className="control-btn"
-                                        >
-                                            <Trash2 className="w-3 h-3 mr-1" />
-                                            Delete Page
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Sections */}
-                            {page.sections.map((section) => (
-                                <div key={section.id} className="section-wrapper">
-                                    <div className="no-print section-controls">
-                                        <Button
-                                            onClick={() => deleteSection(page.id, section.id)}
-                                            size="sm"
+                                            size="icon"
                                             variant="ghost"
-                                            className="delete-section-btn"
+                                            className="h-6 w-6 text-destructive"
+                                            onClick={(e) => { e.stopPropagation(); deleteBlock(block.id); }}
                                         >
-                                            <X className="w-3 h-3" />
+                                            <Trash2 className="w-3 h-3" />
                                         </Button>
                                     </div>
 
-                                    {section.type === 'heading' && (
-                                        <h2 className="section-title">
-                                            <input
-                                                type="text"
-                                                value={section.heading || ''}
-                                                onChange={(e) => updateSection(page.id, section.id, { heading: e.target.value })}
-                                                className="editable-field section-title-field"
-                                            />
-                                        </h2>
-                                    )}
-
-                                    {section.type === 'text' && (
-                                        <div className="text-section">
-                                            {section.heading && (
-                                                <p><strong>
-                                                    <input
-                                                        type="text"
-                                                        value={section.heading}
-                                                        onChange={(e) => updateSection(page.id, section.id, { heading: e.target.value })}
-                                                        className="editable-field"
-                                                        placeholder="Heading"
-                                                    />:
-                                                </strong></p>
-                                            )}
-                                            <textarea
-                                                value={section.content || ''}
-                                                onChange={(e) => updateSection(page.id, section.id, { content: e.target.value })}
-                                                className="editable-field full-width text-content-field"
-                                                rows={1}
-                                                style={{
-                                                    resize: 'none',
-                                                    overflow: 'hidden',
-                                                    minHeight: '20px'
-                                                }}
-                                                onInput={(e) => {
-                                                    const target = e.target as HTMLTextAreaElement;
-                                                    target.style.height = 'auto';
-                                                    target.style.height = target.scrollHeight + 'px';
-                                                }}
-                                                ref={(el) => {
-                                                    if (el) {
-                                                        el.style.height = 'auto';
-                                                        el.style.height = el.scrollHeight + 'px';
-                                                    }
-                                                }}
-                                            />
-                                        </div>
-                                    )}
-
-                                    {section.type === 'list' && (
-                                        <div className="list-section">
-                                            {section.heading && (
-                                                <h3 className="section-heading">
-                                                    <input
-                                                        type="text"
-                                                        value={section.heading}
-                                                        onChange={(e) => updateSection(page.id, section.id, { heading: e.target.value })}
-                                                        className="editable-field section-heading-field"
-                                                    />
-                                                </h3>
-                                            )}
-                                            <ul>
-                                                {section.items?.map((item, index) => (
-                                                    <li key={index} className="list-item-wrapper">
-                                                        <textarea
-                                                            value={item}
-                                                            onChange={(e) => updateListItem(page.id, section.id, index, e.target.value)}
-                                                            className="editable-field full-width list-item-field"
-                                                            rows={1}
-                                                            onInput={(e) => {
-                                                                const target = e.target as HTMLTextAreaElement;
-                                                                target.style.height = 'auto';
-                                                                target.style.height = target.scrollHeight + 'px';
-                                                            }}
-                                                            ref={(el) => {
-                                                                if (el) {
-                                                                    el.style.height = 'auto';
-                                                                    el.style.height = el.scrollHeight + 'px';
-                                                                }
-                                                            }}
-                                                        />
-                                                        <button
-                                                            className="no-print delete-item-btn"
-                                                            onClick={() => deleteListItem(page.id, section.id, index)}
-                                                        >
-                                                            <X className="w-3 h-3" />
-                                                        </button>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                            <Button
-                                                onClick={() => addListItem(page.id, section.id)}
-                                                size="sm"
-                                                variant="outline"
-                                                className="no-print mt-2"
+                                    {/* Style Controls */}
+                                    {selectedBlockId === block.id && (block.type === 'heading' || block.type === 'paragraph') && (
+                                        <div className="flex flex-wrap gap-2 mb-3 p-2 bg-muted/50 rounded">
+                                            <Select
+                                                value={String(block.style?.fontSize || 11)}
+                                                onValueChange={(v) => updateBlock(block.id, { style: { ...block.style, fontSize: parseInt(v) } })}
                                             >
-                                                <Plus className="w-3 h-3 mr-1" />
-                                                Add Item
+                                                <SelectTrigger className="w-20 h-8">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {[8, 9, 10, 11, 12, 14, 16, 18, 20, 24].map(size => (
+                                                        <SelectItem key={size} value={String(size)}>{size}px</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <Button
+                                                size="icon"
+                                                variant={block.style?.fontWeight === 'bold' ? 'default' : 'outline'}
+                                                className="h-8 w-8"
+                                                onClick={() => updateBlock(block.id, { style: { ...block.style, fontWeight: block.style?.fontWeight === 'bold' ? 'normal' : 'bold' } })}
+                                            >
+                                                <Bold className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                variant={block.style?.fontStyle === 'italic' ? 'default' : 'outline'}
+                                                className="h-8 w-8"
+                                                onClick={() => updateBlock(block.id, { style: { ...block.style, fontStyle: block.style?.fontStyle === 'italic' ? 'normal' : 'italic' } })}
+                                            >
+                                                <Italic className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                variant={block.style?.textDecoration === 'underline' ? 'default' : 'outline'}
+                                                className="h-8 w-8"
+                                                onClick={() => updateBlock(block.id, { style: { ...block.style, textDecoration: block.style?.textDecoration === 'underline' ? 'none' : 'underline' } })}
+                                            >
+                                                <Underline className="w-4 h-4" />
+                                            </Button>
+                                            <div className="border-l mx-1" />
+                                            <Button
+                                                size="icon"
+                                                variant={block.style?.textAlign === 'left' ? 'default' : 'outline'}
+                                                className="h-8 w-8"
+                                                onClick={() => updateBlock(block.id, { style: { ...block.style, textAlign: 'left' } })}
+                                            >
+                                                <AlignLeft className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                variant={block.style?.textAlign === 'center' ? 'default' : 'outline'}
+                                                className="h-8 w-8"
+                                                onClick={() => updateBlock(block.id, { style: { ...block.style, textAlign: 'center' } })}
+                                            >
+                                                <AlignCenter className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                variant={block.style?.textAlign === 'right' ? 'default' : 'outline'}
+                                                className="h-8 w-8"
+                                                onClick={() => updateBlock(block.id, { style: { ...block.style, textAlign: 'right' } })}
+                                            >
+                                                <AlignRight className="w-4 h-4" />
                                             </Button>
                                         </div>
                                     )}
 
-                                    {section.type === 'table' && section.table && (
-                                        <div className="table-section">
-                                            {section.heading && (
-                                                <h3 className="section-heading">
-                                                    <input
-                                                        type="text"
-                                                        value={section.heading}
-                                                        onChange={(e) => updateSection(page.id, section.id, { heading: e.target.value })}
-                                                        className="editable-field section-heading-field"
+                                    {/* Content Editor based on type */}
+                                    {(block.type === 'heading' || block.type === 'paragraph') && (
+                                        <Textarea
+                                            value={block.content}
+                                            onChange={e => updateBlock(block.id, { content: e.target.value })}
+                                            rows={block.type === 'heading' ? 1 : 3}
+                                            className="resize-none"
+                                        />
+                                    )}
+
+                                    {block.type === 'list' && block.items && (
+                                        <div className="space-y-2">
+                                            {block.items.map((item, idx) => (
+                                                <div key={idx} className="flex gap-2">
+                                                    <span className="mt-2 text-muted-foreground">•</span>
+                                                    <Input
+                                                        value={item}
+                                                        onChange={e => updateListItem(block.id, idx, e.target.value)}
+                                                        className="flex-1"
                                                     />
-                                                </h3>
-                                            )}
-                                            <div className="table-controls no-print">
-                                                <Button
-                                                    onClick={() => addColumn(page.id, section.id)}
-                                                    size="sm"
-                                                    variant="outline"
-                                                >
-                                                    <Plus className="w-3 h-3 mr-1" />
-                                                    Add Column
+                                                    {block.items!.length > 1 && (
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-8 w-8 text-destructive"
+                                                            onClick={() => deleteListItem(block.id, idx)}
+                                                        >
+                                                            <Trash2 className="w-3 h-3" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="w-full border-dashed"
+                                                onClick={() => addListItem(block.id)}
+                                            >
+                                                <Plus className="w-3 h-3 mr-1" /> Add Item
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    {block.type === 'table' && block.tableData && (
+                                        <div className="space-y-2">
+                                            <div className="flex gap-2 mb-2">
+                                                <Button size="sm" variant="outline" onClick={() => addTableColumn(block.id)}>
+                                                    <Plus className="w-3 h-3 mr-1" /> Column
                                                 </Button>
-                                                <Button
-                                                    onClick={() => addRow(page.id, section.id)}
-                                                    size="sm"
-                                                    variant="outline"
-                                                >
-                                                    <Plus className="w-3 h-3 mr-1" />
-                                                    Add Row
+                                                <Button size="sm" variant="outline" onClick={() => addTableRow(block.id)}>
+                                                    <Plus className="w-3 h-3 mr-1" /> Row
                                                 </Button>
                                             </div>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full border-collapse text-sm">
+                                                    <thead>
+                                                        <tr>
+                                                            {block.tableData.headers.map((header, ci) => (
+                                                                <th key={ci} className="border p-1 bg-muted">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Input
+                                                                            value={header}
+                                                                            onChange={e => updateTableHeader(block.id, ci, e.target.value)}
+                                                                            className="h-7 text-xs font-semibold"
+                                                                        />
+                                                                        {block.tableData!.headers.length > 1 && (
+                                                                            <Button
+                                                                                size="icon"
+                                                                                variant="ghost"
+                                                                                className="h-6 w-6 text-destructive shrink-0"
+                                                                                onClick={() => deleteTableColumn(block.id, ci)}
+                                                                            >
+                                                                                <Trash2 className="w-3 h-3" />
+                                                                            </Button>
+                                                                        )}
+                                                                    </div>
+                                                                </th>
+                                                            ))}
+                                                            <th className="w-8"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {block.tableData.rows.map((row, ri) => (
+                                                            <tr key={ri}>
+                                                                {row.map((cell, ci) => (
+                                                                    <td key={ci} className="border p-1">
+                                                                        <Input
+                                                                            value={cell}
+                                                                            onChange={e => updateTableCell(block.id, ri, ci, e.target.value)}
+                                                                            className="h-7 text-xs"
+                                                                        />
+                                                                    </td>
+                                                                ))}
+                                                                <td className="border p-1 w-8">
+                                                                    {block.tableData!.rows.length > 1 && (
+                                                                        <Button
+                                                                            size="icon"
+                                                                            variant="ghost"
+                                                                            className="h-6 w-6 text-destructive"
+                                                                            onClick={() => deleteTableRow(block.id, ri)}
+                                                                        >
+                                                                            <Trash2 className="w-3 h-3" />
+                                                                        </Button>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+                                </Card>
+                            ))}
 
-                                            {/* Display all columns in a single table - no grouping */}
-                                            <table className="data-table">
+                            {quotationData.contentBlocks.length === 0 && (
+                                <div className="text-center py-8 text-muted-foreground">
+                                    <p>No content blocks yet. Add headings, paragraphs, lists, or tables using the buttons above.</p>
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        {/* Footer Tab */}
+                        <TabsContent value="footer" className="space-y-4">
+                            <Card className="p-4 border-l-4 border-l-indigo-500">
+                                <h3 className="font-semibold text-lg mb-4">Footer Lines</h3>
+                                <div className="space-y-3">
+                                    <div>
+                                        <Label>Line 1</Label>
+                                        <Input
+                                            value={quotationData.footerLine1}
+                                            onChange={e => setQuotationData({ ...quotationData, footerLine1: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Line 2</Label>
+                                        <Input
+                                            value={quotationData.footerLine2}
+                                            onChange={e => setQuotationData({ ...quotationData, footerLine2: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Line 3</Label>
+                                        <Input
+                                            value={quotationData.footerLine3}
+                                            onChange={e => setQuotationData({ ...quotationData, footerLine3: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                            </Card>
+
+                            <Card className="p-4 border-l-4 border-l-pink-500">
+                                <h3 className="font-semibold text-lg mb-4">Signature</h3>
+                                <div className="space-y-3">
+                                    <div>
+                                        <Label>Signatory Name</Label>
+                                        <Input
+                                            value={quotationData.signatureName}
+                                            onChange={e => setQuotationData({ ...quotationData, signatureName: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Designation</Label>
+                                        <Input
+                                            value={quotationData.signatureDesignation}
+                                            onChange={e => setQuotationData({ ...quotationData, signatureDesignation: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                            </Card>
+
+                            <Card className="p-4 border-l-4 border-l-yellow-500">
+                                <h3 className="font-semibold text-lg mb-4">Watermark</h3>
+                                <div className="space-y-3">
+                                    <div>
+                                        <Label>Watermark Text</Label>
+                                        <Input
+                                            value={quotationData.watermarkText}
+                                            onChange={e => setQuotationData({ ...quotationData, watermarkText: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Opacity ({Math.round(quotationData.watermarkOpacity * 100)}%)</Label>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="0.3"
+                                            step="0.01"
+                                            value={quotationData.watermarkOpacity}
+                                            onChange={e => setQuotationData({ ...quotationData, watermarkOpacity: parseFloat(e.target.value) })}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                </div>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
+                </div>
+
+                {/* Preview Panel (Right Side) */}
+                <div className="lg:col-span-7 overflow-y-auto h-[calc(100vh-140px)] bg-gray-100 dark:bg-gray-900 rounded-lg p-4">
+                    <div ref={printRef} className="quotation-preview">
+                        <div className="page">
+                            {/* Watermark */}
+                            <div
+                                className="watermark"
+                                style={{ opacity: quotationData.watermarkOpacity }}
+                            >
+                                {quotationData.watermarkText}
+                            </div>
+
+                            {/* Header */}
+                            <div className="header">
+                                <div className="header-left">
+                                    {quotationData.companyLogo ? (
+                                        <img src={quotationData.companyLogo} alt="Logo" className="company-logo" />
+                                    ) : (
+                                        <div className="logo-placeholder">LOGO</div>
+                                    )}
+                                    <div className="company-name">{quotationData.companyName}</div>
+                                </div>
+                                <div className="header-right">
+                                    <div className="header-row">
+                                        <span className="label">GSTIN :</span>
+                                        <span className="value">{quotationData.companyGSTIN}</span>
+                                    </div>
+                                    <div className="header-row">
+                                        <span className="label">Contact :</span>
+                                        <span className="value">{quotationData.companyPhone}</span>
+                                    </div>
+                                    <div className="header-row">
+                                        <span className="label">Email :</span>
+                                        <span className="value">{quotationData.companyEmail}</span>
+                                    </div>
+                                    <div className="header-row">
+                                        <span className="label">Factory :</span>
+                                        <span className="value">{quotationData.companyAddress}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Title */}
+                            <h1 className="document-title">{quotationData.title}</h1>
+
+                            {/* Reference & Date */}
+                            <div className="ref-section">
+                                <p><strong>Ref No.:</strong> {quotationData.refNo}</p>
+                                <p><strong>Date:</strong> {new Date(quotationData.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                            </div>
+
+                            {/* To Section */}
+                            <div className="to-section">
+                                <p><strong>To</strong></p>
+                                <p><strong>{quotationData.clientCompany}</strong></p>
+                                {quotationData.clientName && <p>{quotationData.clientName}{quotationData.clientDesignation && `, ${quotationData.clientDesignation}`}</p>}
+                                {quotationData.clientAddress && <p style={{ whiteSpace: 'pre-line' }}>{quotationData.clientAddress}</p>}
+                            </div>
+
+                            {/* Subject */}
+                            <div className="subject-section">
+                                <p><strong>Sub:</strong> {quotationData.subject}</p>
+                                <p>{quotationData.greeting}</p>
+                            </div>
+
+                            {/* Content Blocks */}
+                            <div className="content-section">
+                                {quotationData.contentBlocks.map((block) => (
+                                    <div key={block.id} className="content-block">
+                                        {block.type === 'heading' && (
+                                            <h2
+                                                className="block-heading"
+                                                style={{
+                                                    fontSize: `${block.style?.fontSize || 14}px`,
+                                                    fontWeight: block.style?.fontWeight || 'bold',
+                                                    fontStyle: block.style?.fontStyle || 'normal',
+                                                    textDecoration: block.style?.textDecoration || 'underline',
+                                                    textAlign: block.style?.textAlign || 'left',
+                                                }}
+                                            >
+                                                {block.content}
+                                            </h2>
+                                        )}
+
+                                        {block.type === 'paragraph' && (
+                                            <p
+                                                className="block-paragraph"
+                                                style={{
+                                                    fontSize: `${block.style?.fontSize || 11}px`,
+                                                    fontWeight: block.style?.fontWeight || 'normal',
+                                                    fontStyle: block.style?.fontStyle || 'normal',
+                                                    textDecoration: block.style?.textDecoration || 'none',
+                                                    textAlign: block.style?.textAlign || 'left',
+                                                }}
+                                            >
+                                                {block.content}
+                                            </p>
+                                        )}
+
+                                        {block.type === 'list' && block.items && (
+                                            <ul className="block-list">
+                                                {block.items.map((item, idx) => (
+                                                    <li key={idx}>{item}</li>
+                                                ))}
+                                            </ul>
+                                        )}
+
+                                        {block.type === 'table' && block.tableData && (
+                                            <table className="block-table">
                                                 <thead>
                                                     <tr>
-                                                        {section.table.columns.map((column) => (
-                                                            <th key={column.id} style={{ width: getColumnWidth(column.name) }}>
-                                                                <div className="th-content">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={column.name}
-                                                                        onChange={(e) => updateColumnName(page.id, section.id, column.id, e.target.value)}
-                                                                        className="editable-field table-header-field"
-                                                                    />
-                                                                    {section.table!.columns.length > 1 && (
-                                                                        <button
-                                                                            className="no-print delete-column-btn"
-                                                                            onClick={() => deleteColumn(page.id, section.id, column.id)}
-                                                                        >
-                                                                            <X className="w-3 h-3" />
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            </th>
+                                                        {block.tableData.headers.map((h, i) => (
+                                                            <th key={i}>{h}</th>
                                                         ))}
-                                                        <th className="no-print" style={{ width: '30px' }}></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {section.table.rows.map((row) => (
-                                                        <tr key={row.id}>
-                                                            {section.table!.columns.map((column) => (
-                                                                <td key={column.id}>
-                                                                    <textarea
-                                                                        value={row.cells[column.id] || ''}
-                                                                        onChange={(e) => updateCell(page.id, section.id, row.id, column.id, e.target.value)}
-                                                                        className="editable-field table-cell-field"
-                                                                        rows={1}
-                                                                        style={{
-                                                                            resize: 'none',
-                                                                            overflow: 'hidden',
-                                                                            minHeight: '24px'
-                                                                        }}
-                                                                        onInput={(e) => {
-                                                                            const target = e.target as HTMLTextAreaElement;
-                                                                            target.style.height = 'auto';
-                                                                            target.style.height = target.scrollHeight + 'px';
-                                                                        }}
-                                                                    />
-                                                                </td>
+                                                    {block.tableData.rows.map((row, ri) => (
+                                                        <tr key={ri}>
+                                                            {row.map((cell, ci) => (
+                                                                <td key={ci}>{cell}</td>
                                                             ))}
-                                                            <td className="no-print" style={{ width: '40px', padding: '5px' }}>
-                                                                {section.table!.rows.length > 1 && (
-                                                                    <button
-                                                                        className="delete-row-btn"
-                                                                        onClick={() => deleteRow(page.id, section.id, row.id)}
-                                                                    >
-                                                                        <Trash2 className="w-3 h-3" />
-                                                                    </button>
-                                                                )}
-                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                             </table>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
 
-                        {/* Footer */}
-                        <div className="footer">
-                            <p><input type="text" value={footerLine1} onChange={(e) => setFooterLine1(e.target.value)} className="editable-field footer-field" /></p>
-                            <p><input type="text" value={footerLine2} onChange={(e) => setFooterLine2(e.target.value)} className="editable-field footer-field" /></p>
-                            <p><input type="text" value={footerLine3} onChange={(e) => setFooterLine3(e.target.value)} className="editable-field footer-field" /></p>
+                            {/* Signature */}
+                            <div className="signature-section">
+                                <p><strong>For {quotationData.companyName}</strong></p>
+                                <p><strong>{quotationData.signatureName}</strong></p>
+                                <p>{quotationData.signatureDesignation}</p>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="footer">
+                                <p>{quotationData.footerLine1}</p>
+                                <p>{quotationData.footerLine2}</p>
+                                <p>{quotationData.footerLine3}</p>
+                            </div>
                         </div>
                     </div>
-                ))}
+                </div>
             </div>
-
 
             {/* Print Styles */}
             <style jsx global>{`
-                .quotation-container {
-                    max-width: 210mm;
-                    margin: 0 auto;
+                /* Preview Styles */
+                .quotation-preview {
+                    font-family: 'Times New Roman', serif;
+                    color: #1a1a1a;
                 }
-
-                .page {
+                
+                .quotation-preview .page {
                     width: 210mm;
                     min-height: 297mm;
                     padding: 15mm;
-                    margin: 0 auto 20px;
+                    margin: 0 auto;
                     background: white;
                     box-shadow: 0 0 10px rgba(0,0,0,0.1);
                     position: relative;
-                    display: flex;
-                    flex-direction: column;
                 }
-
-                /* Watermark Overlay */
-                .watermark-overlay {
+                
+                .quotation-preview .watermark {
                     position: absolute;
                     top: 50%;
                     left: 50%;
-                    transform: translate(-50%, -50%);
+                    transform: translate(-50%, -50%) rotate(-30deg);
+                    font-size: 80px;
+                    font-weight: bold;
+                    color: #1a1a1a;
                     pointer-events: none;
                     user-select: none;
-                    z-index: 1;
-                }
-
-                .watermark-text {
-                    font-weight: bold;
-                    text-transform: uppercase;
                     white-space: nowrap;
-                    letter-spacing: 0.1em;
                 }
-
-                .watermark-logo {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .watermark-logo img {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: contain;
-                }
-
-                /* Force light theme INSIDE the printable quotation pages so PDFs/print view stay consistent */
-                .page, .page *:not(.watermark-overlay):not(.watermark-text):not(.watermark-logo):not(.watermark-logo img) {
-                    color: #1a1a1a !important; /* darker text for professional look */
-                }
-
-                .page {
-                    background: white !important; /* always light */
-                }
-
-                /* Inputs / editable fields inside the page should appear with light backgrounds */
-                .page input,
-                .page textarea,
-                .page .editable-field,
-                .page .table-cell-field,
-                .page .table-header-field,
-                .page .company-name-field,
-                .page .section-title,
-                .page .main-title {
-                    background: white !important;
-                    color: #1a1a1a !important;
-                    border-color: #e5e7eb !important;
-                }
-
-                /* Tables headers - dark professional look */
-                .page .data-table th {
-                    background: #ffffffff !important;
-                    color: #ffffff !important;
-                }
-
-                /* Subtle adjustments for footer / meta text */
-                .page .footer {
-                    color: #4b5563 !important;
-                }
-
-                /* Ensure interactive control areas (no-print) still follow theme, but printed pages remain light */
-                .no-print .page-controls,
-                .no-print .delete-section-btn,
-                .no-print .delete-item-btn {
-                    /* leave these to site theme; no override here */
-                }
-
-                .header {
+                
+                .quotation-preview .header {
                     display: flex;
                     justify-content: space-between;
                     align-items: flex-start;
-                    padding-bottom: 8px;
-                    border-bottom: 1px solid #1a1a1a;
-                    margin-bottom: 12px;
-                    position: relative;
-                    z-index: 2;
+                    border-bottom: 2px solid #f97316;
+                    padding-bottom: 15px;
+                    margin-bottom: 15px;
                 }
-
-                .logo-section {
+                
+                .quotation-preview .header-left {
                     display: flex;
                     align-items: center;
-                    gap: 12px;
+                    gap: 15px;
                 }
-
-                .logo-circle {
-                    width: 60px;
-                    height: 60px;
-                    border-radius: 50%;
-                    background: #2563eb;
-                    color: white;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 28px;
-                    font-weight: bold;
-                }
-
-                .logo-image {
-                    width: 70px;
-                    height: 70px;
+                
+                .quotation-preview .company-logo {
+                    width: 80px;
+                    height: 80px;
                     object-fit: contain;
                 }
-
-                .company-name-field {
-                    font-size: 16px;
-                    font-weight: bold;
-                    color: #1a1a1a;
-                }
-
-                .header-info {
-                    font-size: 10px;
-                    line-height: 1.5;
-                    color: #374151;
-                    min-width: 200px;
-                    flex-shrink: 0;
-                }
-
-                .header-info p {
-                    margin: 2px 0;
-                    text-align: right;
-                }
-
-                /* Header row - label on left, value on right */
-                .header-row {
-                    display: flex;
-                    justify-content: flex-start;
-                    align-items: flex-start;
-                    margin: 0;
-                    gap: 4px;
-                    line-height: 1.4;
-                }
-
-                .header-label {
-                    font-size: 10px;
-                    font-weight: bold;
-                    color: #1a1a1a;
-                    white-space: nowrap;
-                    min-width: 55px;
-                    text-align: left;
-                }
-
-                .header-value {
-                    font-size: 10px;
-                    text-align: left;
-                    flex: 1;
-                    color: #374151;
-                }
-
-                .header-input {
-                    font-size: 10px;
-                    color: #374151;
-                    width: auto;
-                    min-width: 150px;
-                }
-
-                /* Address textarea - auto-expand */
-                .address-textarea {
-                    font-size: 10px;
-                    color: #374151;
-                    resize: none;
-                    overflow: hidden;
-                    min-height: 32px;
-                    line-height: 1.4;
-                    width: 200px;
-                    white-space: pre-wrap;
-                    word-wrap: break-word;
-                }
-
-                .main-title {
-                    text-align: left;
-                    font-size: 14px;
-                    font-weight: bold;
-                    color: #1a1a1a;
-                    margin: 8px 0 6px 0;
-                    padding: 0;
-                    background: transparent;
-                    border-radius: 0;
-                    text-decoration: underline;
-                    position: relative;
-                    z-index: 2;
-                }
-
-                .main-title-field {
-                    text-align: left;
-                    width: 100%;
-                    font-size: 14px;
-                    font-weight: bold;
-                    color: #1a1a1a;
-                    background: transparent;
-                }
-
-                .page-content {
-                    flex: 1;
-                    overflow: visible;
-                    position: relative;
-                    z-index: 2;
-                }
-
-                .page-controls {
-                    margin-bottom: 8px;
-                    padding: 6px 10px;
-                    background: #f9fafb;
-                    border-radius: 8px;
-                }
-
-                .control-buttons {
-                    display: flex;
-                    gap: 8px;
-                    flex-wrap: wrap;
-                }
-
-                .control-btn {
-                    font-size: 11px;
-                    padding: 6px 12px;
-                }
-
-                .section-wrapper {
-                    position: relative;
-                    margin-bottom: 4px;
-                }
-
-                .section-controls {
-                    position: absolute;
-                    top: -10px;
-                    right: -10px;
-                    z-index: 10;
-                }
-
-                .delete-section-btn {
-                    background: #fee2e2;
-                    color: #dc2626;
-                    border-radius: 50%;
-                    width: 24px;
-                    height: 24px;
-                    padding: 0;
-                }
-
-                .section-title {
-                    font-size: 12px;
-                    font-weight: bold;
-                    color: #1a1a1a;
-                    margin: 6px 0 4px 0;
-                    padding: 0;
-                    background: transparent;
-                    border-left: none;
-                    text-decoration: underline;
-                }
-
-                .section-title-field {
-                    width: 100%;
-                    font-size: 12px;
-                    font-weight: bold;
-                    color: #1a1a1a;
-                    background: transparent;
-                }
-
-                .text-section {
-                    margin: 4px 0;
-                    font-size: 11px;
-                    line-height: 1.4;
-                    text-align: justify;
-                }
-
-                .text-content-field {
-                    width: 100%;
-                    white-space: pre-wrap;
-                    word-wrap: break-word;
-                    word-break: break-word;
-                    overflow-wrap: break-word;
-                    font-size: 11px;
-                    line-height: 1.4;
-                }
-
-                .list-section {
-                    margin: 4px 0;
-                }
-
-                .section-heading {
-                    font-size: 11px;
-                    font-weight: bold;
-                    margin-bottom: 3px;
-                    color: #1a1a1a;
-                }
-
-                .section-heading-field {
-                    width: 100%;
-                    font-size: 11px;
-                    font-weight: bold;
-                    color: #1a1a1a;
-                    background: transparent;
-                }
-
-                .list-section ul {
-                    margin-left: 25px;
-                    font-size: 11px;
-                    line-height: 1.4;
-                }
-
-                .list-section ul li {
-                    margin-bottom: 4px;
-                }
-
-                .list-item-wrapper {
-                    position: relative;
-                    margin: 4px 0;
-                }
-
-                .delete-item-btn {
-                    position: absolute;
-                    right: -25px;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    background: #fee2e2;
-                    color: #dc2626;
-                    border: none;
-                    border-radius: 50%;
-                    width: 20px;
-                    height: 20px;
+                
+                .quotation-preview .logo-placeholder {
+                    width: 80px;
+                    height: 80px;
+                    background: #e5e7eb;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    cursor: pointer;
+                    font-size: 12px;
+                    color: #6b7280;
+                    border-radius: 8px;
                 }
-
-                /* List item text field - textarea */
-                .list-item-field {
-                    resize: none;
-                    overflow: hidden;
-                    min-height: 20px;
-                    line-height: 1.4;
-                    padding: 2px 4px;
-                    word-wrap: break-word;
-                    white-space: pre-wrap;
+                
+                .quotation-preview .company-name {
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #1a1a1a;
                 }
-
-                .table-section {
-                    margin: 6px 0;
-                    overflow-x: auto;
-                    max-width: 100%;
+                
+                .quotation-preview .header-right {
+                    text-align: right;
+                    font-size: 10px;
                 }
-
-                .table-controls {
-                    display: flex;
-                    gap: 8px;
+                
+                .quotation-preview .header-row {
+                    margin: 2px 0;
+                }
+                
+                .quotation-preview .header-row .label {
+                    font-weight: bold;
+                    color: #1a1a1a;
+                }
+                
+                .quotation-preview .header-row .value {
+                    color: #2563eb;
+                }
+                
+                .quotation-preview .document-title {
+                    font-size: 16px;
+                    font-weight: bold;
+                    text-decoration: underline;
+                    margin: 15px 0;
+                    text-align: left;
+                }
+                
+                .quotation-preview .ref-section {
+                    font-size: 11px;
                     margin-bottom: 10px;
                 }
-
-                .data-table {
+                
+                .quotation-preview .ref-section p {
+                    margin: 2px 0;
+                }
+                
+                .quotation-preview .to-section {
+                    font-size: 11px;
+                    margin-bottom: 10px;
+                }
+                
+                .quotation-preview .to-section p {
+                    margin: 2px 0;
+                }
+                
+                .quotation-preview .subject-section {
+                    font-size: 11px;
+                    margin-bottom: 15px;
+                }
+                
+                .quotation-preview .subject-section p {
+                    margin: 4px 0;
+                }
+                
+                .quotation-preview .content-section {
+                    margin-bottom: 20px;
+                }
+                
+                .quotation-preview .content-block {
+                    margin: 8px 0;
+                }
+                
+                .quotation-preview .block-heading {
+                    margin: 10px 0 5px 0;
+                }
+                
+                .quotation-preview .block-paragraph {
+                    margin: 5px 0;
+                    text-align: justify;
+                    line-height: 1.5;
+                }
+                
+                .quotation-preview .block-list {
+                    margin: 5px 0 5px 20px;
+                    padding-left: 0;
+                }
+                
+                .quotation-preview .block-list li {
+                    margin: 3px 0;
+                    font-size: 11px;
+                }
+                
+                .quotation-preview .block-table {
                     width: 100%;
                     border-collapse: collapse;
                     font-size: 10px;
-                    margin-bottom: 6px;
-                    table-layout: auto;
+                    margin: 10px 0;
                 }
-
-                .data-table th,
-                .data-table td {
+                
+                .quotation-preview .block-table th,
+                .quotation-preview .block-table td {
                     border: 1px solid #1a1a1a;
-                    padding: 4px 6px;
-                    overflow: visible;
-                    text-align: center;
-                    vertical-align: middle;
+                    padding: 5px 8px;
+                    text-align: left;
                 }
-
-                .data-table th {
-                    background: transparent;
-                    color: #1a1a1a;
+                
+                .quotation-preview .block-table th {
+                    background: #f97316;
+                    color: white;
                     font-weight: bold;
-                    text-align: center;
-                    min-width: 30px;
-                    overflow: visible;
                 }
-
-                .data-table td {
-                    background: white;
-                    vertical-align: middle;
-                    min-width: 30px;
+                
+                .quotation-preview .signature-section {
+                    margin-top: 30px;
+                    font-size: 11px;
                 }
-
-                .th-content {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 5px;
-                    position: relative;
-                    width: 100%;
-                }
-
-                .table-header-field {
-                    flex: 1;
-                    background: transparent;
-                    color: #1a1a1a;
-                    font-weight: bold;
-                    text-align: center;
-                    min-width: 0;
-                    width: 100%;
-                    white-space: normal;
-                    word-wrap: break-word;
-                }
-
-                .delete-column-btn {
-                    background: #fee2e2;
-                    color: #dc2626;
-                    border: none;
-                    border-radius: 50%;
-                    width: 18px;
-                    height: 18px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    flex-shrink: 0;
-                }
-
-                .table-cell-field {
-                    width: 100%;
-                    background: transparent;
-                    text-align: center;
-                    white-space: pre-wrap;
-                    word-wrap: break-word;
-                    word-break: break-word;
-                    overflow-wrap: break-word;
-                    line-height: 1.3;
-                    font-family: inherit;
-                    font-size: inherit;
-                    padding: 2px !important;
-                }
-
-                .delete-row-btn {
-                    background: #fee2e2;
-                    color: #dc2626;
-                    border: none;
-                    border-radius: 4px;
-                    padding: 4px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .footer {
-                    margin-top: auto;
-                    padding-top: 8px;
-                    border-top: 1px solid #374151;
-                    font-size: 8px;
-                    text-align: center;
-                    color: #374151;
-                    position: relative;
-                    z-index: 2;
-                    line-height: 1.4;
-                }
-
-                .footer p {
+                
+                .quotation-preview .signature-section p {
                     margin: 2px 0;
                 }
-
-                .footer-field {
-                    width: 100%;
+                
+                .quotation-preview .footer {
+                    position: absolute;
+                    bottom: 15mm;
+                    left: 15mm;
+                    right: 15mm;
+                    border-top: 2px solid #f97316;
+                    padding-top: 10px;
+                    font-size: 9px;
                     text-align: center;
-                    font-size: 8px;
-                    color: #374151;
+                    color: #2563eb;
                 }
-
-                .editable-field {
-                    border: 1px solid transparent;
-                    padding: 2px 4px;
-                    border-radius: 3px;
-                    transition: all 0.2s;
-                    font-family: inherit;
-                    word-wrap: break-word;
-                    word-break: break-word;
-                    overflow-wrap: break-word;
-                    white-space: pre-wrap;
+                
+                .quotation-preview .footer p {
+                    margin: 2px 0;
                 }
-
-                .editable-field:hover {
-                    border-color: #d1d5db;
-                    background: #f9fafb;
-                }
-
-                .editable-field:focus {
-                    outline: none;
-                    border-color: #10b981;
-                    background: white;
-                }
-
-                /* Full width textareas for content fields */
-                .full-width {
-                    width: 100%;
-                    display: block;
-                    resize: none;
-                    min-height: 20px;
-                }
-
-                .overflow-warning {
-                    background: #fef3c7;
-                    color: #92400e;
-                    padding: 8px;
-                    border-radius: 4px;
-                    text-align: center;
-                    font-size: 12px;
-                    margin: 10px 0;
-                    font-weight: bold;
-                }
-
-                /* Page size for printing - exact A4 with no browser margins */
-
-                /* Page size for printing - let printer determine size (Letter/A4) */
-                @page {
-                    size: auto;
-                    margin: 0mm;
-                }
-
+                
+                /* Print Styles */
                 @media print {
-                    /* Reset everything */
-                    * {
-                        box-sizing: border-box !important;
+                    @page {
+                        size: A4;
+                        margin: 0;
+                    }
+                    
+                    body {
+                        margin: 0;
+                        padding: 0;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
-                        color-adjust: exact !important;
                     }
-
-                    html, body {
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        background: white !important;
+                    
+                    .quotation-preview .page {
+                        width: 100%;
+                        min-height: 100vh;
+                        padding: 15mm;
+                        margin: 0;
+                        box-shadow: none;
+                        page-break-after: always;
+                    }
+                    
+                    .quotation-preview .watermark {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
-                        width: 100% !important;
-                        height: auto !important;
-                        overflow: visible !important;
-                    }
-
-                    /* Hide all non-print elements */
-                    .no-print,
-                    .page-controls,
-                    .control-buttons,
-                    .section-controls,
-                    .delete-section-btn,
-                    .delete-item-btn,
-                    .delete-column-btn,
-                    .delete-row-btn,
-                    .table-controls,
-                    .overflow-warning,
-                    button,
-                    label[for="logo-upload"],
-                    label[for="watermark-logo-upload"],
-                    input[type="file"],
-                    nav,
-                    footer:not(.footer) {
-                        display: none !important;
-                        visibility: hidden !important;
-                        height: 0 !important;
-                        width: 0 !important;
-                        overflow: hidden !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        position: absolute !important;
-                        left: -9999px !important;
-                    }
-
-                    /* Container adjustments - fill paper width */
-                    .quotation-container {
-                        padding: 0 !important;
-                        margin: 0 !important;
-                        max-width: none !important;
-                        width: 100% !important;
-                        background: white !important;
-                    }
-
-                          /* Page layout - flex with slightly reduced height so footer/content
-                              fit on a single physical sheet without being pushed to the next page. */
-                          .page {
-                                width: 100% !important;
-                                /* Slightly less than full A4 to avoid browser/printer margin rounding
-                                    pushing the footer onto an extra page during print. */
-                                min-height: 230mm !important;
-                                height: 230mm !important;
-                        margin: 0 !important;
-                        padding: 15mm !important;
-                        box-shadow: none !important;
-                        page-break-after: always !important;
-                        page-break-inside: auto !important;
-                        break-after: page !important;
-                        break-inside: auto !important;
-                        background: white !important;
-                        position: relative !important;
-                        overflow: visible !important;
-                        display: flex !important;
-                        flex-direction: column !important;
                     }
                     
-                    /* Header at top */
-                    .header {
-                        flex-shrink: 0 !important;
-                    }
-                    
-                    /* Content fills available space */
-                    .page-content {
-                        flex: 1 0 auto !important;
-                        display: block !important;
-                        overflow: visible !important;
-                        page-break-inside: auto !important;
-                    }
-                    
-                    /* Footer pushed to bottom with margin-top: auto */
-                    .footer {
-                        flex-shrink: 0 !important;
-                        page-break-before: auto !important;
-                        break-inside: avoid !important;
-                        margin-top: auto !important; /* Push to bottom of min-height container */
-                    }
-
-                    .page:last-child {
-                        page-break-after: auto !important;
-                        break-after: avoid !important;
-                    }
-
-                    /* Print-only elements */
-                    .print-only {
-                        display: none !important;
-                    }
-
-
-                    /* Make all inputs look like regular text */
-                    .page input,
-                    .page textarea,
-                    .page .editable-field {
-                        border: none !important;
-                        background: transparent !important;
-                        padding: 0 !important;
-                        margin: 0 !important;
-                        outline: none !important;
-                        box-shadow: none !important;
-                        -webkit-appearance: none !important;
-                        appearance: none !important;
-                        resize: none !important;
-                        font-family: inherit !important;
-                        color: inherit !important;
-                        overflow: visible !important;
-                        white-space: pre-wrap !important;
-                        word-wrap: break-word !important;
-                        word-break: break-word !important;
-                        height: auto !important;
-                        min-height: auto !important;
-                    }
-                    
-                    /* Ensure header textarea content is visible */
-                    .header-textarea {
-                        overflow: visible !important;
-                        height: auto !important;
-                        max-width: none !important;
-                    }
-
-                    /* Hide placeholder text in print */
-                    .page input::placeholder,
-                    .page textarea::placeholder {
-                        color: transparent !important;
-                        opacity: 0 !important;
-                    }
-
-                    .page input::-webkit-input-placeholder,
-                    .page textarea::-webkit-input-placeholder {
-                        color: transparent !important;
-                        opacity: 0 !important;
-                    }
-
-                    /* Header styling */
-                    .header {
-                        border-bottom: 1px solid #1a1a1a !important;
-                        padding-bottom: 8px !important;
-                        margin-bottom: 10px !important;
-                        display: flex !important;
-                        justify-content: space-between !important;
-                        align-items: flex-start !important;
-                        gap: 10px !important;
-                    }
-
-                    .logo-image {
-                        width: 70px !important;
-                        height: 70px !important;
-                        object-fit: contain !important;
-                    }
-
-                    .company-name-field {
-                        font-size: 16px !important;
-                        font-weight: bold !important;
-                        color: #1a1a1a !important;
-                    }
-
-                    .header-info {
-                        font-size: 9px !important;
-                        line-height: 1.4 !important;
-                        color: #374151 !important;
-                        overflow: visible !important;
-                        max-width: none !important;
-                        width: auto !important;
-                        flex-shrink: 0 !important;
-                    }
-                    
-                    .header-info p {
-                        margin: 2px 0 !important;
-                        text-align: left !important;
-                    }
-                    
-                    .header-row {
-                        display: flex !important;
-                        justify-content: flex-start !important;
-                        align-items: flex-start !important;
-                        margin: 0 !important;
-                        gap: 4px !important;
-                        line-height: 1.3 !important;
-                    }
-                    
-                    .header-label {
-                        font-size: 9px !important;
-                        font-weight: bold !important;
-                        color: #1a1a1a !important;
-                        white-space: nowrap !important;
-                        min-width: 45px !important;
-                        flex-shrink: 0 !important;
-                    }
-                    
-                    .header-value-print {
-                        font-size: 9px !important;
-                        text-align: left !important;
-                        color: #374151 !important;
-                        overflow: visible !important;
-                        display: block !important;
-                        width: auto !important;
-                    }
-
-                    .header-value-print.address-print {
-                        white-space: pre-wrap !important;
-                        word-wrap: break-word !important;
-                    }
-
-                    /* Main title styling */
-                    .main-title {
-                        text-align: left !important;
-                        margin: 6px 0 4px 0 !important;
-                        padding: 0 !important;
-                        padding-left: 0 !important;
-                        background: transparent !important;
-                        border-radius: 0 !important;
-                        text-decoration: underline !important;
-                    }
-
-                    .main-title-field {
-                        /* Slightly larger in print so title fills space better */
-                        font-size: 17px !important;
-                        font-weight: bold !important;
-                        color: #1a1a1a !important;
-                        text-align: left !important;
-                        padding: 0 !important;
-                        margin: 0 !important;
-                    }
-
-                    /* Section styling - allow browser to pack sections more tightly
-                       so we don't leave large empty gaps at the bottom of a page. */
-                    .section-wrapper {
-                        margin-bottom: 3px !important;
-                        page-break-inside: auto !important;
-                        break-inside: auto !important;
-                    }
-
-                    /* Section title (heading type) - allow normal page breaks
-                       so headings like "Technical Specifications" or "Bill of Quantity"
-                       can appear near the bottom of a page instead of being forced
-                       onto the next page with a big blank area before them. */
-                    .section-title {
-                        /* Moderately larger section headings for better balance */
-                        font-size: 13px !important;
-                        font-weight: bold !important;
-                        color: #1a1a1a !important;
-                        padding: 0 !important;
-                        margin: 4px 0 3px 0 !important;
-                        background: transparent !important;
-                        border-left: none !important;
-                        text-decoration: underline !important;
-                        page-break-after: auto !important;
-                        break-after: auto !important;
-                    }
-
-                    .section-title-field {
-                        font-size: 12px !important;
-                        font-weight: bold !important;
-                    }
-
-                    /* Section heading inside list/table sections - normal breaks */
-                    .section-heading {
-                        font-size: 12px !important;
-                        font-weight: bold !important;
-                        color: #1a1a1a !important;
-                        margin-bottom: 4px !important;
-                        page-break-after: auto !important;
-                        break-after: auto !important;
-                    }
-
-                    /* Text sections - keep text with heading */
-                          .text-section {
-                                /* Increase body text & spacing so content
-                                    fills more of the space between header/footer. */
-                                font-size: 11px !important;
-                                line-height: 1.6 !important;
-                                margin: 4px 0 !important;
-                        text-align: justify !important;
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
-                    }
-
-                    /* For print, keep label (e.g. "Ref No") and its value
-                       on the same line, with a tight column between label
-                       and value so the colon sits close. */
-                    .text-section p {
-                        display: inline-block !important;
-                        margin-right: 6px !important;
-                        white-space: nowrap !important;
-                        min-width: 85px !important; /* keeps label column compact */
-                    }
-
-                    .text-section .text-content-field {
-                        display: inline-block !important;
-                        width: 68% !important;
-                        vertical-align: baseline !important;
-                    }
-
-                    .text-content-field {
-                        white-space: pre-wrap !important;
-                        word-wrap: break-word !important;
-                        word-break: break-word !important;
-                        overflow-wrap: break-word !important;
-                        overflow: visible !important;
-                    }
-
-                    /* List sections - keep list with heading */
-                    .list-section {
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
-                    }
-                    
-                    .list-section ul {
-                        margin-left: 20px !important;
-                        padding-left: 0 !important;
-                        font-size: 11px !important;
-                        line-height: 1.7 !important;
-                    }
-
-                    .list-section li {
-                        margin: 3px 0 !important;
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
-                    }
-
-                    .list-item-wrapper {
-                        margin: 3px 0 !important;
-                    }
-                    
-                    .list-item-field {
-                        overflow: visible !important;
-                        height: auto !important;
-                        white-space: pre-wrap !important;
-                        word-wrap: break-word !important;
-                    }
-
-                    /* Table styling - KEEP TABLE WITH HEADING */
-                    .table-section {
-                        margin: 4px 0 !important;
-                        overflow: visible !important;
-                        max-width: 100% !important;
-                        page-break-inside: avoid !important; /* Keep table together if possible */
-                        break-inside: avoid !important;
-                    }
-
-                    /* Data table - try to keep together, but allow break if too large */
-                    .data-table {
-                        width: 100% !important;
-                        border-collapse: collapse !important;
-                        /* Slightly larger than original, but not too big */
-                        font-size: 9px !important;
-                        margin-bottom: 6px !important;
-                        table-layout: auto !important;
-                        page-break-inside: auto !important; /* Allow breaking for very long tables */
-                    }
-
-                    .data-table th {
-                        background: white !important;
-                        background-color: white !important;
-                        color: #000000 !important;
-                        font-weight: bold !important;
-                        padding: 3px 4px !important;
-                        border: 1px solid #1a1a1a !important;
-                        text-align: center !important;
-                        font-size: 8.5px !important;
-                        white-space: normal !important;
-                        word-wrap: break-word !important;
-                        vertical-align: middle !important;
-                    }
-
-                    .data-table td {
-                        border: 1px solid #1a1a1a !important;
-                        padding: 3px 4px !important;
-                        background: white !important;
-                        vertical-align: middle !important;
-                        text-align: center !important;
-                        overflow: visible !important;
-                        font-size: 8.5px !important;
-                    }
-
-                    .data-table tr {
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
-                    }
-
-                    .data-table thead {
-                        display: table-header-group !important;
-                    }
-
-                    .data-table tbody {
-                        page-break-inside: auto !important;
-                    }
-
-                    .table-header-field {
-                        color: #000000 !important;
-                        background: transparent !important;
-                        font-weight: bold !important;
-                        text-align: center !important;
-                        white-space: normal !important;
-                        word-wrap: break-word !important;
-                    }
-
-                    .table-cell-field {
-                        font-size: 9px !important;
-                        white-space: pre-wrap !important;
-                        word-wrap: break-word !important;
-                        word-break: break-word !important;
-                        overflow-wrap: break-word !important;
-                        overflow: visible !important;
-                        padding: 1px !important;
-                        text-align: center !important;
-                    }
-
-                    /* Remove row delete column space */
-                    .data-table td:last-child:empty {
-                        display: none !important;
-                    }
-
-                    /* Footer styling */
-                    .footer {
-                        padding-top: 10px !important;
-                        border-top: 1px solid #374151 !important;
-                        font-size: 7px !important;
-                        text-align: center !important;
-                        color: #374151 !important;
-                        line-height: 1.5 !important;
-                    }
-
-                    .footer p {
-                        margin: 2px 0 !important;
-                    }
-
-                    .footer-field {
-                        font-size: 8px !important;
-                        text-align: center !important;
-                    }
-
-                    /* Watermark visibility - ensure it appears on ALL pages */
-                    .watermark-overlay {
-                        display: block !important;
-                        visibility: visible !important;
-                        position: absolute !important;
-                        top: 50% !important;
-                        left: 50% !important;
-                        transform: translate(-50%, -50%) !important;
-                        z-index: 0 !important;
-                        pointer-events: none !important;
+                    .quotation-preview .header {
+                        border-bottom-color: #f97316 !important;
                         -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                        color-adjust: exact !important;
                     }
-
-                    .watermark-text {
-                        font-weight: bold !important;
-                        text-transform: uppercase !important;
-                        letter-spacing: 0.1em !important;
-                        white-space: nowrap !important;
-                        visibility: visible !important;
-                    }
-
-                    .watermark-logo {
-                        visibility: visible !important;
+                    
+                    .quotation-preview .block-table th {
+                        background: #f97316 !important;
+                        color: white !important;
                         -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                        color-adjust: exact !important;
                     }
-
-                    .watermark-logo img {
-                        max-width: 100% !important;
-                        max-height: 100% !important;
-                        visibility: visible !important;
+                    
+                    .quotation-preview .footer {
+                        border-top-color: #f97316 !important;
                         -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                        color-adjust: exact !important;
-                    }
-
-                    /* Ensure content is above watermark */
-                    .page-content,
-                    .header,
-                    .main-title,
-                    .footer {
-                        position: relative !important;
-                        z-index: 1 !important;
                     }
                 }
             `}</style>
-        </>
-    );
+        </div>
+    )
 }
