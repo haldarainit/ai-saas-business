@@ -36,7 +36,11 @@ import {
     Type,
     FileText,
     Loader2,
-    Image as ImageIcon
+    Image as ImageIcon,
+    ChevronUp,
+    ChevronDown,
+    Copy,
+    GripVertical
 } from "lucide-react"
 import Link from "next/link"
 import { useReactToPrint } from 'react-to-print'
@@ -97,7 +101,6 @@ interface QuotationData {
     footerLine1: string
     footerLine2: string
     footerLine3: string
-
     // Signature
     signatureName: string
     signatureDesignation: string
@@ -105,6 +108,7 @@ interface QuotationData {
     // Watermark
     watermarkType: 'text' | 'image'
     watermarkText: string
+    watermarkColor: string
     watermarkImage: string
     watermarkOpacity: number
     watermarkRotation: number
@@ -149,10 +153,11 @@ const defaultQuotationData: QuotationData = {
     signatureDesignation: "Manager",
 
     watermarkType: 'text',
-    watermarkText: "CONFIDENTIAL",
+    watermarkText: "COMPANY NAME",
+    watermarkColor: '#1a1a1a',
     watermarkImage: "",
     watermarkOpacity: 0.08,
-    watermarkRotation: -30,
+    watermarkRotation: 0,
     watermarkWidth: 400,
     watermarkHeight: 200
 }
@@ -207,6 +212,7 @@ export default function QuotationPage() {
                         signatureDesignation: q.signature?.designation || defaultQuotationData.signatureDesignation,
                         watermarkType: q.watermark?.type || defaultQuotationData.watermarkType,
                         watermarkText: q.watermark?.text || defaultQuotationData.watermarkText,
+                        watermarkColor: q.watermark?.color || defaultQuotationData.watermarkColor,
                         watermarkImage: q.watermark?.image || defaultQuotationData.watermarkImage,
                         watermarkOpacity: q.watermark?.opacity ?? defaultQuotationData.watermarkOpacity,
                         watermarkRotation: q.watermark?.rotation ?? defaultQuotationData.watermarkRotation,
@@ -275,6 +281,7 @@ export default function QuotationPage() {
                     watermark: {
                         type: debouncedData.watermarkType,
                         text: debouncedData.watermarkText,
+                        color: debouncedData.watermarkColor,
                         image: debouncedData.watermarkImage,
                         opacity: debouncedData.watermarkOpacity,
                         rotation: debouncedData.watermarkRotation,
@@ -313,13 +320,20 @@ export default function QuotationPage() {
             content: type === 'heading' ? 'New Heading' : 'New paragraph text...',
             items: type === 'list' ? ['Item 1'] : undefined,
             tableData: type === 'table' ? { headers: ['Column 1', 'Column 2'], rows: [['', '']] } : undefined,
-            style: { fontSize: type === 'heading' ? 14 : 11, fontWeight: type === 'heading' ? 'bold' : 'normal', textAlign: 'left' }
+            style: {
+                fontSize: type === 'heading' ? 14 : 11,
+                fontWeight: type === 'heading' ? 'bold' : 'normal',
+                textAlign: 'left',
+                lineHeight: 1.5,
+                color: '#1a1a1a'
+            }
         }
         setQuotationData(prev => ({
             ...prev,
             contentBlocks: [...prev.contentBlocks, newBlock]
         }))
         setSelectedBlockId(newBlock.id)
+        setActiveTab('content')
     }
 
     const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
@@ -337,6 +351,38 @@ export default function QuotationPage() {
             contentBlocks: prev.contentBlocks.filter(block => block.id !== id)
         }))
         if (selectedBlockId === id) setSelectedBlockId(null)
+    }
+
+    const moveBlockUp = (id: string) => {
+        setQuotationData(prev => {
+            const idx = prev.contentBlocks.findIndex(b => b.id === id)
+            if (idx <= 0) return prev
+            const blocks = [...prev.contentBlocks]
+                ;[blocks[idx - 1], blocks[idx]] = [blocks[idx], blocks[idx - 1]]
+            return { ...prev, contentBlocks: blocks }
+        })
+    }
+
+    const moveBlockDown = (id: string) => {
+        setQuotationData(prev => {
+            const idx = prev.contentBlocks.findIndex(b => b.id === id)
+            if (idx < 0 || idx >= prev.contentBlocks.length - 1) return prev
+            const blocks = [...prev.contentBlocks]
+                ;[blocks[idx], blocks[idx + 1]] = [blocks[idx + 1], blocks[idx]]
+            return { ...prev, contentBlocks: blocks }
+        })
+    }
+
+    const duplicateBlock = (id: string) => {
+        setQuotationData(prev => {
+            const idx = prev.contentBlocks.findIndex(b => b.id === id)
+            if (idx < 0) return prev
+            const block = prev.contentBlocks[idx]
+            const newBlock = { ...block, id: Date.now().toString() }
+            const blocks = [...prev.contentBlocks]
+            blocks.splice(idx + 1, 0, newBlock)
+            return { ...prev, contentBlocks: blocks }
+        })
     }
 
     const addListItem = (blockId: string) => {
@@ -534,19 +580,46 @@ export default function QuotationPage() {
                 <div className="lg:col-span-5 space-y-4 overflow-y-auto h-[calc(100vh-140px)] pr-2 scrollbar-thin">
 
                     {/* Add Content Buttons */}
-                    <Card className="p-3">
-                        <div className="flex flex-wrap gap-2">
-                            <Button size="sm" variant="outline" onClick={() => addBlock('heading')} className="gap-1">
-                                <Type className="w-4 h-4" /> Heading
+                    <Card className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-purple-200 dark:border-purple-800">
+                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                            <Plus className="w-4 h-4" /> Add Content Block
+                        </h4>
+                        <div className="grid grid-cols-4 gap-2">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => addBlock('heading')}
+                                className="flex flex-col h-auto py-3 gap-1 hover:bg-purple-100 dark:hover:bg-purple-900/30"
+                            >
+                                <Type className="w-5 h-5" />
+                                <span className="text-xs">Heading</span>
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => addBlock('paragraph')} className="gap-1">
-                                <FileText className="w-4 h-4" /> Paragraph
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => addBlock('paragraph')}
+                                className="flex flex-col h-auto py-3 gap-1 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                            >
+                                <FileText className="w-5 h-5" />
+                                <span className="text-xs">Paragraph</span>
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => addBlock('list')} className="gap-1">
-                                <List className="w-4 h-4" /> List
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => addBlock('list')}
+                                className="flex flex-col h-auto py-3 gap-1 hover:bg-green-100 dark:hover:bg-green-900/30"
+                            >
+                                <List className="w-5 h-5" />
+                                <span className="text-xs">List</span>
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => addBlock('table')} className="gap-1">
-                                <Table className="w-4 h-4" /> Table
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => addBlock('table')}
+                                className="flex flex-col h-auto py-3 gap-1 hover:bg-orange-100 dark:hover:bg-orange-900/30"
+                            >
+                                <Table className="w-5 h-5" />
+                                <span className="text-xs">Table</span>
                             </Button>
                         </div>
                     </Card>
@@ -725,18 +798,53 @@ export default function QuotationPage() {
                                     className={`p-4 border-l-4 ${selectedBlockId === block.id ? 'border-l-purple-500 ring-2 ring-purple-200' : 'border-l-gray-300'}`}
                                     onClick={() => setSelectedBlockId(block.id)}
                                 >
-                                    <div className="flex justify-between items-start mb-3">
-                                        <span className="text-xs font-medium text-muted-foreground uppercase">
-                                            {block.type}
-                                        </span>
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-6 w-6 text-destructive"
-                                            onClick={(e) => { e.stopPropagation(); deleteBlock(block.id); }}
-                                        >
-                                            <Trash2 className="w-3 h-3" />
-                                        </Button>
+                                    <div className="flex justify-between items-center mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <GripVertical className="w-4 h-4 text-muted-foreground" />
+                                            <span className="text-xs font-medium text-muted-foreground uppercase bg-muted px-2 py-1 rounded">
+                                                {index + 1}. {block.type}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-7 w-7"
+                                                onClick={(e) => { e.stopPropagation(); moveBlockUp(block.id); }}
+                                                disabled={index === 0}
+                                                title="Move Up"
+                                            >
+                                                <ChevronUp className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-7 w-7"
+                                                onClick={(e) => { e.stopPropagation(); moveBlockDown(block.id); }}
+                                                disabled={index === quotationData.contentBlocks.length - 1}
+                                                title="Move Down"
+                                            >
+                                                <ChevronDown className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-7 w-7"
+                                                onClick={(e) => { e.stopPropagation(); duplicateBlock(block.id); }}
+                                                title="Duplicate"
+                                            >
+                                                <Copy className="w-3 h-3" />
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                                onClick={(e) => { e.stopPropagation(); deleteBlock(block.id); }}
+                                                title="Delete"
+                                            >
+                                                <Trash2 className="w-3 h-3" />
+                                            </Button>
+                                        </div>
                                     </div>
 
                                     {/* Style Controls */}
@@ -1019,46 +1127,78 @@ export default function QuotationPage() {
                                     </div>
 
                                     {quotationData.watermarkType === 'text' && (
-                                        <div>
-                                            <Label>Watermark Text</Label>
-                                            <Input
-                                                value={quotationData.watermarkText}
-                                                onChange={e => setQuotationData({ ...quotationData, watermarkText: e.target.value })}
-                                            />
+                                        <div className="space-y-3">
+                                            <div>
+                                                <Label>Watermark Text</Label>
+                                                <Input
+                                                    value={quotationData.watermarkText}
+                                                    onChange={e => setQuotationData({ ...quotationData, watermarkText: e.target.value })}
+                                                    placeholder="Enter watermark text"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label>Text Color</Label>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="color"
+                                                        value={quotationData.watermarkColor}
+                                                        onChange={e => setQuotationData({ ...quotationData, watermarkColor: e.target.value })}
+                                                        className="w-10 h-10 rounded border cursor-pointer"
+                                                    />
+                                                    <Input
+                                                        value={quotationData.watermarkColor}
+                                                        onChange={e => setQuotationData({ ...quotationData, watermarkColor: e.target.value })}
+                                                        className="w-28"
+                                                        placeholder="#000000"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
 
                                     {quotationData.watermarkType === 'image' && (
                                         <div>
-                                            <Label>Watermark Image</Label>
+                                            <Label>Watermark Image (Logo)</Label>
                                             <div className="flex items-center gap-3 mt-1">
                                                 {quotationData.watermarkImage ? (
-                                                    <img src={quotationData.watermarkImage} alt="Watermark" className="w-16 h-16 object-contain border rounded" />
+                                                    <img src={quotationData.watermarkImage} alt="Watermark" className="w-20 h-20 object-contain border rounded bg-gray-50" />
                                                 ) : (
-                                                    <div className="w-16 h-16 border rounded flex items-center justify-center bg-muted">
-                                                        <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                                                    <div className="w-20 h-20 border-2 border-dashed rounded flex items-center justify-center bg-muted">
+                                                        <ImageIcon className="w-8 h-8 text-muted-foreground" />
                                                     </div>
                                                 )}
-                                                <label className="cursor-pointer">
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        onChange={(e) => {
-                                                            const file = e.target.files?.[0]
-                                                            if (file) {
-                                                                const reader = new FileReader()
-                                                                reader.onloadend = () => {
-                                                                    setQuotationData({ ...quotationData, watermarkImage: reader.result as string })
+                                                <div className="flex flex-col gap-2">
+                                                    <label className="cursor-pointer">
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            onChange={(e) => {
+                                                                const file = e.target.files?.[0]
+                                                                if (file) {
+                                                                    const reader = new FileReader()
+                                                                    reader.onloadend = () => {
+                                                                        setQuotationData({ ...quotationData, watermarkImage: reader.result as string })
+                                                                    }
+                                                                    reader.readAsDataURL(file)
                                                                 }
-                                                                reader.readAsDataURL(file)
-                                                            }
-                                                        }}
-                                                        className="hidden"
-                                                    />
-                                                    <Button variant="outline" size="sm" asChild>
-                                                        <span><Upload className="w-4 h-4 mr-1" /> Upload</span>
-                                                    </Button>
-                                                </label>
+                                                            }}
+                                                            className="hidden"
+                                                        />
+                                                        <Button variant="outline" size="sm" asChild>
+                                                            <span><Upload className="w-4 h-4 mr-1" /> Upload Logo</span>
+                                                        </Button>
+                                                    </label>
+                                                    {quotationData.watermarkImage && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-destructive"
+                                                            onClick={() => setQuotationData({ ...quotationData, watermarkImage: '' })}
+                                                        >
+                                                            <Trash2 className="w-3 h-3 mr-1" /> Remove
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -1136,7 +1276,11 @@ export default function QuotationPage() {
                                 }}
                             >
                                 {quotationData.watermarkType === 'text' ? (
-                                    <span style={{ fontSize: `${quotationData.watermarkHeight * 0.4}px` }}>
+                                    <span style={{
+                                        fontSize: `${quotationData.watermarkHeight * 0.4}px`,
+                                        color: quotationData.watermarkColor,
+                                        fontWeight: 'bold',
+                                    }}>
                                         {quotationData.watermarkText}
                                     </span>
                                 ) : quotationData.watermarkImage ? (
