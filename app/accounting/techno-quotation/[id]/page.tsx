@@ -63,6 +63,7 @@ interface ContentBlock {
         textDecoration?: 'none' | 'underline'
         textAlign?: 'left' | 'center' | 'right'
         color?: string
+        lineHeight?: number
     }
 }
 
@@ -102,8 +103,13 @@ interface QuotationData {
     signatureDesignation: string
 
     // Watermark
+    watermarkType: 'text' | 'image'
     watermarkText: string
+    watermarkImage: string
     watermarkOpacity: number
+    watermarkRotation: number
+    watermarkWidth: number
+    watermarkHeight: number
 }
 
 const defaultQuotationData: QuotationData = {
@@ -131,7 +137,7 @@ const defaultQuotationData: QuotationData = {
             id: "1",
             type: "paragraph",
             content: "We thank you for the opportunity to submit our techno-commercial quotation.",
-            style: { fontSize: 11, fontWeight: 'normal', textAlign: 'left' }
+            style: { fontSize: 11, fontWeight: 'normal', textAlign: 'left', lineHeight: 1.5, color: '#1a1a1a' }
         }
     ],
 
@@ -142,8 +148,13 @@ const defaultQuotationData: QuotationData = {
     signatureName: "Authorized Signatory",
     signatureDesignation: "Manager",
 
+    watermarkType: 'text',
     watermarkText: "CONFIDENTIAL",
-    watermarkOpacity: 0.08
+    watermarkImage: "",
+    watermarkOpacity: 0.08,
+    watermarkRotation: -30,
+    watermarkWidth: 400,
+    watermarkHeight: 200
 }
 
 export default function QuotationPage() {
@@ -194,8 +205,13 @@ export default function QuotationPage() {
                         footerLine3: q.footer?.line3 || defaultQuotationData.footerLine3,
                         signatureName: q.signature?.name || defaultQuotationData.signatureName,
                         signatureDesignation: q.signature?.designation || defaultQuotationData.signatureDesignation,
+                        watermarkType: q.watermark?.type || defaultQuotationData.watermarkType,
                         watermarkText: q.watermark?.text || defaultQuotationData.watermarkText,
-                        watermarkOpacity: q.watermark?.opacity || defaultQuotationData.watermarkOpacity,
+                        watermarkImage: q.watermark?.image || defaultQuotationData.watermarkImage,
+                        watermarkOpacity: q.watermark?.opacity ?? defaultQuotationData.watermarkOpacity,
+                        watermarkRotation: q.watermark?.rotation ?? defaultQuotationData.watermarkRotation,
+                        watermarkWidth: q.watermark?.width ?? defaultQuotationData.watermarkWidth,
+                        watermarkHeight: q.watermark?.height ?? defaultQuotationData.watermarkHeight,
                     })
                     setLastSaved(new Date())
                 }
@@ -257,8 +273,13 @@ export default function QuotationPage() {
                         designation: debouncedData.signatureDesignation,
                     },
                     watermark: {
+                        type: debouncedData.watermarkType,
                         text: debouncedData.watermarkText,
+                        image: debouncedData.watermarkImage,
                         opacity: debouncedData.watermarkOpacity,
+                        rotation: debouncedData.watermarkRotation,
+                        width: debouncedData.watermarkWidth,
+                        height: debouncedData.watermarkHeight,
                     }
                 }
 
@@ -783,6 +804,27 @@ export default function QuotationPage() {
                                             >
                                                 <AlignRight className="w-4 h-4" />
                                             </Button>
+                                            <div className="border-l mx-1" />
+                                            <Select
+                                                value={String(block.style?.lineHeight || 1.5)}
+                                                onValueChange={(v) => updateBlock(block.id, { style: { ...block.style, lineHeight: parseFloat(v) } })}
+                                            >
+                                                <SelectTrigger className="w-16 h-8">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {[1, 1.2, 1.4, 1.5, 1.6, 1.8, 2, 2.5].map(lh => (
+                                                        <SelectItem key={lh} value={String(lh)}>{lh}x</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <input
+                                                type="color"
+                                                value={block.style?.color || '#1a1a1a'}
+                                                onChange={e => updateBlock(block.id, { style: { ...block.style, color: e.target.value } })}
+                                                className="w-8 h-8 rounded border cursor-pointer"
+                                                title="Text Color"
+                                            />
                                         </div>
                                     )}
 
@@ -961,18 +1003,112 @@ export default function QuotationPage() {
                                 <h3 className="font-semibold text-lg mb-4">Watermark</h3>
                                 <div className="space-y-3">
                                     <div>
-                                        <Label>Watermark Text</Label>
-                                        <Input
-                                            value={quotationData.watermarkText}
-                                            onChange={e => setQuotationData({ ...quotationData, watermarkText: e.target.value })}
+                                        <Label>Watermark Type</Label>
+                                        <Select
+                                            value={quotationData.watermarkType}
+                                            onValueChange={(v: 'text' | 'image') => setQuotationData({ ...quotationData, watermarkType: v })}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="text">Text</SelectItem>
+                                                <SelectItem value="image">Image</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {quotationData.watermarkType === 'text' && (
+                                        <div>
+                                            <Label>Watermark Text</Label>
+                                            <Input
+                                                value={quotationData.watermarkText}
+                                                onChange={e => setQuotationData({ ...quotationData, watermarkText: e.target.value })}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {quotationData.watermarkType === 'image' && (
+                                        <div>
+                                            <Label>Watermark Image</Label>
+                                            <div className="flex items-center gap-3 mt-1">
+                                                {quotationData.watermarkImage ? (
+                                                    <img src={quotationData.watermarkImage} alt="Watermark" className="w-16 h-16 object-contain border rounded" />
+                                                ) : (
+                                                    <div className="w-16 h-16 border rounded flex items-center justify-center bg-muted">
+                                                        <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                                                    </div>
+                                                )}
+                                                <label className="cursor-pointer">
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0]
+                                                            if (file) {
+                                                                const reader = new FileReader()
+                                                                reader.onloadend = () => {
+                                                                    setQuotationData({ ...quotationData, watermarkImage: reader.result as string })
+                                                                }
+                                                                reader.readAsDataURL(file)
+                                                            }
+                                                        }}
+                                                        className="hidden"
+                                                    />
+                                                    <Button variant="outline" size="sm" asChild>
+                                                        <span><Upload className="w-4 h-4 mr-1" /> Upload</span>
+                                                    </Button>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <Label>Width ({quotationData.watermarkWidth}px)</Label>
+                                            <input
+                                                type="range"
+                                                min="100"
+                                                max="800"
+                                                step="10"
+                                                value={quotationData.watermarkWidth}
+                                                onChange={e => setQuotationData({ ...quotationData, watermarkWidth: parseInt(e.target.value) })}
+                                                className="w-full"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label>Height ({quotationData.watermarkHeight}px)</Label>
+                                            <input
+                                                type="range"
+                                                min="50"
+                                                max="400"
+                                                step="10"
+                                                value={quotationData.watermarkHeight}
+                                                onChange={e => setQuotationData({ ...quotationData, watermarkHeight: parseInt(e.target.value) })}
+                                                className="w-full"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Label>Rotation ({quotationData.watermarkRotation}°)</Label>
+                                        <input
+                                            type="range"
+                                            min="-90"
+                                            max="90"
+                                            step="5"
+                                            value={quotationData.watermarkRotation}
+                                            onChange={e => setQuotationData({ ...quotationData, watermarkRotation: parseInt(e.target.value) })}
+                                            className="w-full"
                                         />
                                     </div>
+
                                     <div>
                                         <Label>Opacity ({Math.round(quotationData.watermarkOpacity * 100)}%)</Label>
                                         <input
                                             type="range"
                                             min="0"
-                                            max="0.3"
+                                            max="0.5"
                                             step="0.01"
                                             value={quotationData.watermarkOpacity}
                                             onChange={e => setQuotationData({ ...quotationData, watermarkOpacity: parseFloat(e.target.value) })}
@@ -992,9 +1128,24 @@ export default function QuotationPage() {
                             {/* Watermark */}
                             <div
                                 className="watermark"
-                                style={{ opacity: quotationData.watermarkOpacity }}
+                                style={{
+                                    opacity: quotationData.watermarkOpacity,
+                                    transform: `translate(-50%, -50%) rotate(${quotationData.watermarkRotation}deg)`,
+                                    width: `${quotationData.watermarkWidth}px`,
+                                    height: `${quotationData.watermarkHeight}px`,
+                                }}
                             >
-                                {quotationData.watermarkText}
+                                {quotationData.watermarkType === 'text' ? (
+                                    <span style={{ fontSize: `${quotationData.watermarkHeight * 0.4}px` }}>
+                                        {quotationData.watermarkText}
+                                    </span>
+                                ) : quotationData.watermarkImage ? (
+                                    <img
+                                        src={quotationData.watermarkImage}
+                                        alt="Watermark"
+                                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                    />
+                                ) : null}
                             </div>
 
                             {/* Header */}
@@ -1020,9 +1171,9 @@ export default function QuotationPage() {
                                         <span className="label">Email :</span>
                                         <span className="value">{quotationData.companyEmail}</span>
                                     </div>
-                                    <div className="header-row">
-                                        <span className="label">Factory :</span>
-                                        <span className="value">{quotationData.companyAddress}</span>
+                                    <div className="header-row address-row">
+                                        <span className="label">Address :</span>
+                                        <span className="value address-value">{quotationData.companyAddress}</span>
                                     </div>
                                 </div>
                             </div>
@@ -1063,6 +1214,8 @@ export default function QuotationPage() {
                                                     fontStyle: block.style?.fontStyle || 'normal',
                                                     textDecoration: block.style?.textDecoration || 'underline',
                                                     textAlign: block.style?.textAlign || 'left',
+                                                    lineHeight: block.style?.lineHeight || 1.5,
+                                                    color: block.style?.color || '#1a1a1a',
                                                 }}
                                             >
                                                 {block.content}
@@ -1078,6 +1231,8 @@ export default function QuotationPage() {
                                                     fontStyle: block.style?.fontStyle || 'normal',
                                                     textDecoration: block.style?.textDecoration || 'none',
                                                     textAlign: block.style?.textAlign || 'left',
+                                                    lineHeight: block.style?.lineHeight || 1.5,
+                                                    color: block.style?.color || '#1a1a1a',
                                                 }}
                                             >
                                                 {block.content}
@@ -1156,13 +1311,14 @@ export default function QuotationPage() {
                     position: absolute;
                     top: 50%;
                     left: 50%;
-                    transform: translate(-50%, -50%) rotate(-30deg);
-                    font-size: 80px;
                     font-weight: bold;
                     color: #1a1a1a;
                     pointer-events: none;
                     user-select: none;
-                    white-space: nowrap;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 0;
                 }
                 
                 .quotation-preview .header {
@@ -1178,6 +1334,7 @@ export default function QuotationPage() {
                     display: flex;
                     align-items: center;
                     gap: 15px;
+                    flex-shrink: 0;
                 }
                 
                 .quotation-preview .company-logo {
@@ -1207,19 +1364,35 @@ export default function QuotationPage() {
                 .quotation-preview .header-right {
                     text-align: right;
                     font-size: 10px;
+                    max-width: 55%;
                 }
                 
                 .quotation-preview .header-row {
-                    margin: 2px 0;
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 5px;
+                    margin: 3px 0;
+                    line-height: 1.4;
                 }
                 
                 .quotation-preview .header-row .label {
                     font-weight: bold;
                     color: #1a1a1a;
+                    white-space: nowrap;
                 }
                 
                 .quotation-preview .header-row .value {
                     color: #2563eb;
+                }
+                
+                .quotation-preview .header-row.address-row {
+                    flex-wrap: wrap;
+                }
+                
+                .quotation-preview .header-row .address-value {
+                    text-align: right;
+                    word-wrap: break-word;
+                    max-width: 180px;
                 }
                 
                 .quotation-preview .document-title {
