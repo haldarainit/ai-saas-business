@@ -51,6 +51,15 @@ import Navbar from "@/components/navbar"
 interface TableData {
     headers: string[]
     rows: string[][]
+    style?: {
+        headerBgColor: string
+        headerTextColor: string
+        borderColor: string
+        borderWidth: number
+        textColor: string
+        alternateRowColor: string
+        fontSize: number
+    }
 }
 
 interface ContentBlock {
@@ -83,6 +92,7 @@ interface QuotationData {
     companyPhone: string
     companyEmail: string
     companyAddress: string
+    headerValueColor: string
 
     // Client Details
     clientName: string
@@ -127,6 +137,7 @@ const defaultQuotationData: QuotationData = {
     companyPhone: "+91-8349873989",
     companyEmail: "info@company.com",
     companyAddress: "Plot No. 173, Engineering Park, Hathkhoj, Bhilai, 490026",
+    headerValueColor: "#2563eb",
 
     clientName: "",
     clientDesignation: "",
@@ -198,6 +209,7 @@ export default function QuotationPage() {
                         companyPhone: q.companyDetails?.phone || defaultQuotationData.companyPhone,
                         companyEmail: q.companyDetails?.email || defaultQuotationData.companyEmail,
                         companyAddress: q.companyDetails?.address || defaultQuotationData.companyAddress,
+                        headerValueColor: q.companyDetails?.headerValueColor || defaultQuotationData.headerValueColor,
                         clientName: q.clientDetails?.name || "",
                         clientDesignation: q.clientDetails?.designation || "",
                         clientCompany: q.clientDetails?.company || "",
@@ -259,6 +271,7 @@ export default function QuotationPage() {
                         phone: debouncedData.companyPhone,
                         email: debouncedData.companyEmail,
                         address: debouncedData.companyAddress,
+                        headerValueColor: debouncedData.headerValueColor,
                     },
                     clientDetails: {
                         name: debouncedData.clientName,
@@ -314,12 +327,26 @@ export default function QuotationPage() {
 
     // Content block handlers
     const addBlock = (type: ContentBlock['type']) => {
+        const defaultTableStyle = {
+            headerBgColor: '#f97316',
+            headerTextColor: '#ffffff',
+            borderColor: '#1a1a1a',
+            borderWidth: 1,
+            textColor: '#1a1a1a',
+            alternateRowColor: '#f9fafb',
+            fontSize: 10
+        }
+
         const newBlock: ContentBlock = {
             id: Date.now().toString(),
             type,
             content: type === 'heading' ? 'New Heading' : 'New paragraph text...',
             items: type === 'list' ? ['Item 1'] : undefined,
-            tableData: type === 'table' ? { headers: ['Column 1', 'Column 2'], rows: [['', '']] } : undefined,
+            tableData: type === 'table' ? {
+                headers: ['Column 1', 'Column 2'],
+                rows: [['', '']],
+                style: defaultTableStyle
+            } : undefined,
             style: {
                 fontSize: type === 'heading' ? 14 : 11,
                 fontWeight: type === 'heading' ? 'bold' : 'normal',
@@ -695,6 +722,24 @@ export default function QuotationPage() {
                                             rows={2}
                                         />
                                     </div>
+                                    <div>
+                                        <Label>Header Value Color</Label>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <input
+                                                type="color"
+                                                value={quotationData.headerValueColor}
+                                                onChange={e => setQuotationData({ ...quotationData, headerValueColor: e.target.value })}
+                                                className="w-10 h-10 rounded border cursor-pointer"
+                                            />
+                                            <Input
+                                                value={quotationData.headerValueColor}
+                                                onChange={e => setQuotationData({ ...quotationData, headerValueColor: e.target.value })}
+                                                className="w-28"
+                                                placeholder="#2563eb"
+                                            />
+                                            <span className="text-xs text-muted-foreground">GSTIN, Phone, Email colors</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </Card>
 
@@ -980,8 +1025,187 @@ export default function QuotationPage() {
                                     )}
 
                                     {block.type === 'table' && block.tableData && (
-                                        <div className="space-y-2">
-                                            <div className="flex gap-2 mb-2">
+                                        <div className="space-y-3">
+                                            {/* Table Style Controls */}
+                                            <div className="p-3 bg-muted/50 rounded-lg space-y-3">
+                                                <h4 className="text-xs font-semibold text-muted-foreground uppercase">Table Styling</h4>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <Label className="text-xs">Header Background</Label>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <input
+                                                                type="color"
+                                                                value={block.tableData.style?.headerBgColor || '#f97316'}
+                                                                onChange={e => updateBlock(block.id, {
+                                                                    tableData: {
+                                                                        ...block.tableData!,
+                                                                        style: { ...block.tableData!.style!, headerBgColor: e.target.value }
+                                                                    }
+                                                                })}
+                                                                className="w-8 h-8 rounded border cursor-pointer"
+                                                            />
+                                                            <Input
+                                                                value={block.tableData.style?.headerBgColor || '#f97316'}
+                                                                onChange={e => updateBlock(block.id, {
+                                                                    tableData: {
+                                                                        ...block.tableData!,
+                                                                        style: { ...block.tableData!.style!, headerBgColor: e.target.value }
+                                                                    }
+                                                                })}
+                                                                className="h-8 w-24 text-xs"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <Label className="text-xs">Header Text Color</Label>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <input
+                                                                type="color"
+                                                                value={block.tableData.style?.headerTextColor || '#ffffff'}
+                                                                onChange={e => updateBlock(block.id, {
+                                                                    tableData: {
+                                                                        ...block.tableData!,
+                                                                        style: { ...block.tableData!.style!, headerTextColor: e.target.value }
+                                                                    }
+                                                                })}
+                                                                className="w-8 h-8 rounded border cursor-pointer"
+                                                            />
+                                                            <Input
+                                                                value={block.tableData.style?.headerTextColor || '#ffffff'}
+                                                                onChange={e => updateBlock(block.id, {
+                                                                    tableData: {
+                                                                        ...block.tableData!,
+                                                                        style: { ...block.tableData!.style!, headerTextColor: e.target.value }
+                                                                    }
+                                                                })}
+                                                                className="h-8 w-24 text-xs"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <Label className="text-xs">Border Color</Label>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <input
+                                                                type="color"
+                                                                value={block.tableData.style?.borderColor || '#1a1a1a'}
+                                                                onChange={e => updateBlock(block.id, {
+                                                                    tableData: {
+                                                                        ...block.tableData!,
+                                                                        style: { ...block.tableData!.style!, borderColor: e.target.value }
+                                                                    }
+                                                                })}
+                                                                className="w-8 h-8 rounded border cursor-pointer"
+                                                            />
+                                                            <Input
+                                                                value={block.tableData.style?.borderColor || '#1a1a1a'}
+                                                                onChange={e => updateBlock(block.id, {
+                                                                    tableData: {
+                                                                        ...block.tableData!,
+                                                                        style: { ...block.tableData!.style!, borderColor: e.target.value }
+                                                                    }
+                                                                })}
+                                                                className="h-8 w-24 text-xs"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <Label className="text-xs">Text Color</Label>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <input
+                                                                type="color"
+                                                                value={block.tableData.style?.textColor || '#1a1a1a'}
+                                                                onChange={e => updateBlock(block.id, {
+                                                                    tableData: {
+                                                                        ...block.tableData!,
+                                                                        style: { ...block.tableData!.style!, textColor: e.target.value }
+                                                                    }
+                                                                })}
+                                                                className="w-8 h-8 rounded border cursor-pointer"
+                                                            />
+                                                            <Input
+                                                                value={block.tableData.style?.textColor || '#1a1a1a'}
+                                                                onChange={e => updateBlock(block.id, {
+                                                                    tableData: {
+                                                                        ...block.tableData!,
+                                                                        style: { ...block.tableData!.style!, textColor: e.target.value }
+                                                                    }
+                                                                })}
+                                                                className="h-8 w-24 text-xs"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-3 gap-3">
+                                                    <div>
+                                                        <Label className="text-xs">Alt Row Color</Label>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <input
+                                                                type="color"
+                                                                value={block.tableData.style?.alternateRowColor || '#f9fafb'}
+                                                                onChange={e => updateBlock(block.id, {
+                                                                    tableData: {
+                                                                        ...block.tableData!,
+                                                                        style: { ...block.tableData!.style!, alternateRowColor: e.target.value }
+                                                                    }
+                                                                })}
+                                                                className="w-8 h-8 rounded border cursor-pointer"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <Label className="text-xs">Border Width</Label>
+                                                        <Select
+                                                            value={String(block.tableData.style?.borderWidth || 1)}
+                                                            onValueChange={v => updateBlock(block.id, {
+                                                                tableData: {
+                                                                    ...block.tableData!,
+                                                                    style: { ...block.tableData!.style!, borderWidth: parseInt(v) }
+                                                                }
+                                                            })}
+                                                        >
+                                                            <SelectTrigger className="h-8 mt-1">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="1">1px</SelectItem>
+                                                                <SelectItem value="2">2px</SelectItem>
+                                                                <SelectItem value="3">3px</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div>
+                                                        <Label className="text-xs">Font Size</Label>
+                                                        <Select
+                                                            value={String(block.tableData.style?.fontSize || 10)}
+                                                            onValueChange={v => updateBlock(block.id, {
+                                                                tableData: {
+                                                                    ...block.tableData!,
+                                                                    style: { ...block.tableData!.style!, fontSize: parseInt(v) }
+                                                                }
+                                                            })}
+                                                        >
+                                                            <SelectTrigger className="h-8 mt-1">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="8">8px</SelectItem>
+                                                                <SelectItem value="9">9px</SelectItem>
+                                                                <SelectItem value="10">10px</SelectItem>
+                                                                <SelectItem value="11">11px</SelectItem>
+                                                                <SelectItem value="12">12px</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Add Column/Row Buttons */}
+                                            <div className="flex gap-2">
                                                 <Button size="sm" variant="outline" onClick={() => addTableColumn(block.id)}>
                                                     <Plus className="w-3 h-3 mr-1" /> Column
                                                 </Button>
@@ -989,23 +1213,33 @@ export default function QuotationPage() {
                                                     <Plus className="w-3 h-3 mr-1" /> Row
                                                 </Button>
                                             </div>
-                                            <div className="overflow-x-auto">
+
+                                            {/* Table Editor */}
+                                            <div className="overflow-x-auto border rounded-lg">
                                                 <table className="w-full border-collapse text-sm">
                                                     <thead>
                                                         <tr>
                                                             {block.tableData.headers.map((header, ci) => (
-                                                                <th key={ci} className="border p-1 bg-muted">
+                                                                <th
+                                                                    key={ci}
+                                                                    className="p-1"
+                                                                    style={{
+                                                                        backgroundColor: block.tableData!.style?.headerBgColor || '#f97316',
+                                                                        border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
+                                                                    }}
+                                                                >
                                                                     <div className="flex items-center gap-1">
                                                                         <Input
                                                                             value={header}
                                                                             onChange={e => updateTableHeader(block.id, ci, e.target.value)}
-                                                                            className="h-7 text-xs font-semibold"
+                                                                            className="h-7 text-xs font-semibold bg-transparent border-0"
+                                                                            style={{ color: block.tableData!.style?.headerTextColor || '#ffffff' }}
                                                                         />
                                                                         {block.tableData!.headers.length > 1 && (
                                                                             <Button
                                                                                 size="icon"
                                                                                 variant="ghost"
-                                                                                className="h-6 w-6 text-destructive shrink-0"
+                                                                                className="h-6 w-6 shrink-0 text-white/80 hover:text-white hover:bg-white/20"
                                                                                 onClick={() => deleteTableColumn(block.id, ci)}
                                                                             >
                                                                                 <Trash2 className="w-3 h-3" />
@@ -1014,22 +1248,37 @@ export default function QuotationPage() {
                                                                     </div>
                                                                 </th>
                                                             ))}
-                                                            <th className="w-8"></th>
+                                                            <th className="w-8 bg-muted"></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {block.tableData.rows.map((row, ri) => (
-                                                            <tr key={ri}>
+                                                            <tr
+                                                                key={ri}
+                                                                style={{
+                                                                    backgroundColor: ri % 2 === 1 ? (block.tableData!.style?.alternateRowColor || '#f9fafb') : 'transparent'
+                                                                }}
+                                                            >
                                                                 {row.map((cell, ci) => (
-                                                                    <td key={ci} className="border p-1">
+                                                                    <td
+                                                                        key={ci}
+                                                                        className="p-1"
+                                                                        style={{
+                                                                            border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
+                                                                        }}
+                                                                    >
                                                                         <Input
                                                                             value={cell}
                                                                             onChange={e => updateTableCell(block.id, ri, ci, e.target.value)}
-                                                                            className="h-7 text-xs"
+                                                                            className="h-7 text-xs border-0 bg-transparent"
+                                                                            style={{
+                                                                                color: block.tableData!.style?.textColor || '#1a1a1a',
+                                                                                fontSize: `${block.tableData!.style?.fontSize || 10}px`
+                                                                            }}
                                                                         />
                                                                     </td>
                                                                 ))}
-                                                                <td className="border p-1 w-8">
+                                                                <td className="p-1 w-8 bg-muted">
                                                                     {block.tableData!.rows.length > 1 && (
                                                                         <Button
                                                                             size="icon"
@@ -1303,21 +1552,21 @@ export default function QuotationPage() {
                                     <div className="company-name">{quotationData.companyName}</div>
                                 </div>
                                 <div className="header-right">
-                                    <div className="header-row">
-                                        <span className="label">GSTIN :</span>
-                                        <span className="value">{quotationData.companyGSTIN}</span>
+                                    <div className="header-info-row">
+                                        <span className="info-label">GSTIN :</span>
+                                        <span className="info-value" style={{ color: quotationData.headerValueColor }}>{quotationData.companyGSTIN}</span>
                                     </div>
-                                    <div className="header-row">
-                                        <span className="label">Contact :</span>
-                                        <span className="value">{quotationData.companyPhone}</span>
+                                    <div className="header-info-row">
+                                        <span className="info-label">Contact :</span>
+                                        <span className="info-value" style={{ color: quotationData.headerValueColor }}>{quotationData.companyPhone}</span>
                                     </div>
-                                    <div className="header-row">
-                                        <span className="label">Email :</span>
-                                        <span className="value">{quotationData.companyEmail}</span>
+                                    <div className="header-info-row">
+                                        <span className="info-label">Email :</span>
+                                        <span className="info-value" style={{ color: quotationData.headerValueColor, textDecoration: 'underline' }}>{quotationData.companyEmail}</span>
                                     </div>
-                                    <div className="header-row address-row">
-                                        <span className="label">Address :</span>
-                                        <span className="value address-value">{quotationData.companyAddress}</span>
+                                    <div className="header-info-row address-row">
+                                        <span className="info-label">Factory :</span>
+                                        <span className="info-value address-value">{quotationData.companyAddress}</span>
                                     </div>
                                 </div>
                             </div>
@@ -1392,19 +1641,52 @@ export default function QuotationPage() {
                                         )}
 
                                         {block.type === 'table' && block.tableData && (
-                                            <table className="block-table">
+                                            <table
+                                                className="block-table"
+                                                style={{
+                                                    borderCollapse: 'collapse',
+                                                    width: '100%',
+                                                    fontSize: `${block.tableData.style?.fontSize || 10}px`,
+                                                }}
+                                            >
                                                 <thead>
                                                     <tr>
                                                         {block.tableData.headers.map((h, i) => (
-                                                            <th key={i}>{h}</th>
+                                                            <th
+                                                                key={i}
+                                                                style={{
+                                                                    backgroundColor: block.tableData!.style?.headerBgColor || '#f97316',
+                                                                    color: block.tableData!.style?.headerTextColor || '#ffffff',
+                                                                    border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
+                                                                    padding: '6px 8px',
+                                                                    textAlign: 'left',
+                                                                    fontWeight: 'bold',
+                                                                }}
+                                                            >
+                                                                {h}
+                                                            </th>
                                                         ))}
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {block.tableData.rows.map((row, ri) => (
-                                                        <tr key={ri}>
+                                                        <tr
+                                                            key={ri}
+                                                            style={{
+                                                                backgroundColor: ri % 2 === 1 ? (block.tableData!.style?.alternateRowColor || '#f9fafb') : 'transparent',
+                                                            }}
+                                                        >
                                                             {row.map((cell, ci) => (
-                                                                <td key={ci}>{cell}</td>
+                                                                <td
+                                                                    key={ci}
+                                                                    style={{
+                                                                        border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
+                                                                        color: block.tableData!.style?.textColor || '#1a1a1a',
+                                                                        padding: '6px 8px',
+                                                                    }}
+                                                                >
+                                                                    {cell}
+                                                                </td>
                                                             ))}
                                                         </tr>
                                                     ))}
@@ -1506,37 +1788,35 @@ export default function QuotationPage() {
                 }
                 
                 .quotation-preview .header-right {
-                    text-align: right;
-                    font-size: 10px;
+                    text-align: left;
+                    font-size: 12px;
                     max-width: 55%;
                 }
                 
-                .quotation-preview .header-row {
-                    display: flex;
-                    justify-content: flex-end;
-                    gap: 5px;
-                    margin: 3px 0;
-                    line-height: 1.4;
+                .quotation-preview .header-info-row {
+                    margin: 2px 0;
+                    line-height: 1.5;
                 }
                 
-                .quotation-preview .header-row .label {
+                .quotation-preview .header-info-row .info-label {
                     font-weight: bold;
                     color: #1a1a1a;
-                    white-space: nowrap;
+                    display: inline;
                 }
                 
-                .quotation-preview .header-row .value {
-                    color: #2563eb;
+                .quotation-preview .header-info-row .info-value {
+                    display: inline;
+                    margin-left: 4px;
                 }
                 
-                .quotation-preview .header-row.address-row {
-                    flex-wrap: wrap;
+                .quotation-preview .header-info-row.address-row {
+                    display: block;
                 }
                 
-                .quotation-preview .header-row .address-value {
-                    text-align: right;
+                .quotation-preview .header-info-row.address-row .address-value {
+                    display: inline;
                     word-wrap: break-word;
-                    max-width: 180px;
+                    color: #1a1a1a;
                 }
                 
                 .quotation-preview .document-title {
@@ -1605,20 +1885,15 @@ export default function QuotationPage() {
                 .quotation-preview .block-table {
                     width: 100%;
                     border-collapse: collapse;
-                    font-size: 10px;
                     margin: 10px 0;
                 }
                 
                 .quotation-preview .block-table th,
                 .quotation-preview .block-table td {
-                    border: 1px solid #1a1a1a;
-                    padding: 5px 8px;
                     text-align: left;
                 }
                 
                 .quotation-preview .block-table th {
-                    background: #f97316;
-                    color: white;
                     font-weight: bold;
                 }
                 
