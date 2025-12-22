@@ -158,6 +158,12 @@ Generate the quotation now:`;
     // Generate AI response using the same utility as other routes
     const aiResponse = await gemini.generateAIResponse(prompt);
 
+    // Check if AI response is valid
+    if (!aiResponse || typeof aiResponse !== 'string') {
+      console.error('AI Response is null or invalid:', aiResponse);
+      throw new Error('AI failed to generate a response. Please try again.');
+    }
+
     console.log('AI Response received:', aiResponse.substring(0, 200));
 
     // Parse the JSON response
