@@ -1596,26 +1596,22 @@ export default function QuotationPage() {
                                                 </Button>
                                             </div>
 
-                                            {/* Table Editor */}
+                                            {/* Table Editor - Plain inputs, styling only in preview */}
                                             <div className="overflow-x-auto border rounded-lg">
                                                 <table className="w-full border-collapse text-sm">
                                                     <thead>
-                                                        <tr>
+                                                        <tr className="bg-muted">
                                                             {block.tableData.headers.map((header, ci) => (
                                                                 <th
                                                                     key={ci}
-                                                                    className="p-1"
-                                                                    style={{
-                                                                        backgroundColor: block.tableData!.style?.headerBgColor || 'transparent',
-                                                                        border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
-                                                                    }}
+                                                                    className="p-1 border border-border"
                                                                 >
                                                                     <div className="flex items-center gap-1">
                                                                         <Input
                                                                             value={header}
                                                                             onChange={e => updateTableHeader(block.id, ci, e.target.value)}
-                                                                            className="h-7 text-xs font-semibold bg-transparent border-0"
-                                                                            style={{ color: block.tableData!.style?.headerTextColor || '#000000' }}
+                                                                            className="h-7 text-xs font-semibold"
+                                                                            placeholder="Header"
                                                                         />
                                                                         {block.tableData!.headers.length > 1 && (
                                                                             <Button
@@ -1630,37 +1626,26 @@ export default function QuotationPage() {
                                                                     </div>
                                                                 </th>
                                                             ))}
-                                                            <th className="w-8 bg-muted"></th>
+                                                            <th className="w-8 bg-muted border border-border"></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {block.tableData.rows.map((row, ri) => (
-                                                            <tr
-                                                                key={ri}
-                                                                style={{
-                                                                    backgroundColor: ri % 2 === 1 ? (block.tableData!.style?.alternateRowColor || '#f9fafb') : 'transparent'
-                                                                }}
-                                                            >
+                                                            <tr key={ri}>
                                                                 {row.map((cell, ci) => (
                                                                     <td
                                                                         key={ci}
-                                                                        className="p-1"
-                                                                        style={{
-                                                                            border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
-                                                                        }}
+                                                                        className="p-1 border border-border"
                                                                     >
                                                                         <Input
                                                                             value={cell}
                                                                             onChange={e => updateTableCell(block.id, ri, ci, e.target.value)}
-                                                                            className="h-7 text-xs border-0 bg-transparent"
-                                                                            style={{
-                                                                                color: block.tableData!.style?.textColor || '#1a1a1a',
-                                                                                fontSize: `${block.tableData!.style?.fontSize || 10}px`
-                                                                            }}
+                                                                            className="h-7 text-xs"
+                                                                            placeholder="Enter data"
                                                                         />
                                                                     </td>
                                                                 ))}
-                                                                <td className="p-1 w-8 bg-muted">
+                                                                <td className="p-1 w-8 bg-muted border border-border">
                                                                     {block.tableData!.rows.length > 1 && (
                                                                         <Button
                                                                             size="icon"
