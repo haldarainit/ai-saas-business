@@ -40,7 +40,10 @@ import {
     ChevronUp,
     ChevronDown,
     Copy,
-    GripVertical
+    GripVertical,
+    ZoomIn,
+    ZoomOut,
+    RotateCcw
 } from "lucide-react"
 import Link from "next/link"
 import { useReactToPrint } from 'react-to-print'
@@ -196,6 +199,7 @@ export default function QuotationPage() {
     const [isSaving, setIsSaving] = useState(false)
     const [hasChanges, setHasChanges] = useState(false)
     const [lastSaved, setLastSaved] = useState<Date | null>(null)
+    const [previewZoom, setPreviewZoom] = useState(0.9)
 
     // Fetch quotation data
     useEffect(() => {
@@ -1612,206 +1616,253 @@ export default function QuotationPage() {
                 </div>
 
                 {/* Preview Panel (Right Side) */}
-                <div className="lg:col-span-7 overflow-auto h-[calc(100vh-140px)] bg-gray-100 dark:bg-gray-900 rounded-lg p-4">
-                    <div className="preview-zoom-container">
-                        <div ref={printRef} className="quotation-preview" style={{ fontFamily: `'${quotationData.defaultFontFamily}', serif` }}>
-                            <div className="page">
-                                {/* Watermark */}
-                                <div
-                                    className="watermark"
-                                    style={{
-                                        opacity: quotationData.watermarkOpacity,
-                                        transform: `translate(-50%, -50%) rotate(${quotationData.watermarkRotation}deg)`,
-                                        width: `${quotationData.watermarkWidth}px`,
-                                        height: `${quotationData.watermarkHeight}px`,
-                                    }}
-                                >
-                                    {quotationData.watermarkType === 'text' ? (
-                                        <span style={{
-                                            fontSize: `${quotationData.watermarkHeight * 0.4}px`,
-                                            color: quotationData.watermarkColor,
-                                            fontWeight: 'bold',
-                                            whiteSpace: 'nowrap',
-                                        }}>
-                                            {quotationData.watermarkText}
-                                        </span>
-                                    ) : quotationData.watermarkImage ? (
-                                        <img
-                                            src={quotationData.watermarkImage}
-                                            alt="Watermark"
-                                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                                        />
-                                    ) : null}
-                                </div>
+                <div className="lg:col-span-7 flex flex-col h-[calc(100vh-140px)] bg-gray-100 dark:bg-gray-900 rounded-lg">
+                    {/* Zoom Controls */}
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-t-lg">
+                        <span className="text-xs font-medium text-muted-foreground">Preview</span>
+                        <div className="flex items-center gap-1">
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => setPreviewZoom(prev => Math.max(0.3, prev - 0.1))}
+                                disabled={previewZoom <= 0.3}
+                            >
+                                <ZoomOut className="w-4 h-4" />
+                            </Button>
+                            <div className="w-14 text-center text-xs font-medium bg-gray-100 dark:bg-gray-700 rounded px-2 py-1">
+                                {Math.round(previewZoom * 100)}%
+                            </div>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => setPreviewZoom(prev => Math.min(1.5, prev + 0.1))}
+                                disabled={previewZoom >= 1.5}
+                            >
+                                <ZoomIn className="w-4 h-4" />
+                            </Button>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => setPreviewZoom(0.7)}
+                                title="Reset Zoom"
+                            >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                            </Button>
+                        </div>
+                    </div>
 
-                                {/* Header */}
-                                <div className="header" style={{ borderBottomColor: quotationData.headerLineColor }}>
-                                    <div className="header-left">
-                                        {quotationData.companyLogo ? (
-                                            <img src={quotationData.companyLogo} alt="Logo" className="company-logo" />
-                                        ) : (
-                                            <div className="logo-placeholder">LOGO</div>
-                                        )}
-                                        <div className="company-name">{quotationData.companyName}</div>
+                    {/* Scrollable Preview Area */}
+                    <div className="flex-1 overflow-auto preview-scrollbar p-4">
+                        <div
+                            className="preview-zoom-container"
+                            style={{
+                                transform: `scale(${previewZoom})`,
+                                width: `${100 / previewZoom}%`,
+                                marginLeft: `${-(100 / previewZoom - 100) / 2}%`
+                            }}
+                        >
+                            <div ref={printRef} className="quotation-preview" style={{ fontFamily: `'${quotationData.defaultFontFamily}', serif` }}>
+                                <div className="page">
+                                    {/* Watermark */}
+                                    <div
+                                        className="watermark"
+                                        style={{
+                                            opacity: quotationData.watermarkOpacity,
+                                            transform: `translate(-50%, -50%) rotate(${quotationData.watermarkRotation}deg)`,
+                                            width: `${quotationData.watermarkWidth}px`,
+                                            height: `${quotationData.watermarkHeight}px`,
+                                        }}
+                                    >
+                                        {quotationData.watermarkType === 'text' ? (
+                                            <span style={{
+                                                fontSize: `${quotationData.watermarkHeight * 0.4}px`,
+                                                color: quotationData.watermarkColor,
+                                                fontWeight: 'bold',
+                                                whiteSpace: 'nowrap',
+                                            }}>
+                                                {quotationData.watermarkText}
+                                            </span>
+                                        ) : quotationData.watermarkImage ? (
+                                            <img
+                                                src={quotationData.watermarkImage}
+                                                alt="Watermark"
+                                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                            />
+                                        ) : null}
                                     </div>
-                                    <div className="header-right">
-                                        <div className="header-info-row">
-                                            <span className="info-label">GSTIN :</span>
-                                            <span className="info-value" style={{ color: quotationData.headerValueColor }}>{quotationData.companyGSTIN}</span>
+
+                                    {/* Header */}
+                                    <div className="header" style={{ borderBottomColor: quotationData.headerLineColor }}>
+                                        <div className="header-left">
+                                            {quotationData.companyLogo ? (
+                                                <img src={quotationData.companyLogo} alt="Logo" className="company-logo" />
+                                            ) : (
+                                                <div className="logo-placeholder">LOGO</div>
+                                            )}
+                                            <div className="company-name">{quotationData.companyName}</div>
                                         </div>
-                                        <div className="header-info-row">
-                                            <span className="info-label">Contact :</span>
-                                            <span className="info-value" style={{ color: quotationData.headerValueColor }}>{quotationData.companyPhone}</span>
-                                        </div>
-                                        <div className="header-info-row">
-                                            <span className="info-label">Email :</span>
-                                            <span className="info-value" style={{ color: quotationData.headerValueColor, textDecoration: 'underline' }}>{quotationData.companyEmail}</span>
-                                        </div>
-                                        <div className="header-info-row address-row">
-                                            <span className="info-label">Factory :</span>
-                                            <span className="info-value address-value">{quotationData.companyAddress}</span>
+                                        <div className="header-right">
+                                            <div className="header-info-row">
+                                                <span className="info-label">GSTIN :</span>
+                                                <span className="info-value" style={{ color: quotationData.headerValueColor }}>{quotationData.companyGSTIN}</span>
+                                            </div>
+                                            <div className="header-info-row">
+                                                <span className="info-label">Contact :</span>
+                                                <span className="info-value" style={{ color: quotationData.headerValueColor }}>{quotationData.companyPhone}</span>
+                                            </div>
+                                            <div className="header-info-row">
+                                                <span className="info-label">Email :</span>
+                                                <span className="info-value" style={{ color: quotationData.headerValueColor, textDecoration: 'underline' }}>{quotationData.companyEmail}</span>
+                                            </div>
+                                            <div className="header-info-row address-row">
+                                                <span className="info-label">Factory :</span>
+                                                <span className="info-value address-value">{quotationData.companyAddress}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Title */}
-                                <h1 className="document-title">{quotationData.title}</h1>
+                                    {/* Title */}
+                                    <h1 className="document-title">{quotationData.title}</h1>
 
-                                {/* Reference & Date */}
-                                <div className="ref-section">
-                                    <p><strong>Ref No.:</strong> {quotationData.refNo}</p>
-                                    <p><strong>Date:</strong> {new Date(quotationData.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-                                </div>
+                                    {/* Reference & Date */}
+                                    <div className="ref-section">
+                                        <p><strong>Ref No.:</strong> {quotationData.refNo}</p>
+                                        <p><strong>Date:</strong> {new Date(quotationData.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                                    </div>
 
-                                {/* To Section */}
-                                <div className="to-section">
-                                    <p><strong>To</strong></p>
-                                    <p><strong>{quotationData.clientCompany}</strong></p>
-                                    {quotationData.clientName && <p>{quotationData.clientName}{quotationData.clientDesignation && `, ${quotationData.clientDesignation}`}</p>}
-                                    {quotationData.clientAddress && <p style={{ whiteSpace: 'pre-line' }}>{quotationData.clientAddress}</p>}
-                                </div>
+                                    {/* To Section */}
+                                    <div className="to-section">
+                                        <p><strong>To</strong></p>
+                                        <p><strong>{quotationData.clientCompany}</strong></p>
+                                        {quotationData.clientName && <p>{quotationData.clientName}{quotationData.clientDesignation && `, ${quotationData.clientDesignation}`}</p>}
+                                        {quotationData.clientAddress && <p style={{ whiteSpace: 'pre-line' }}>{quotationData.clientAddress}</p>}
+                                    </div>
 
-                                {/* Subject */}
-                                <div className="subject-section">
-                                    <p><strong>Sub:</strong> {quotationData.subject}</p>
-                                    <p>{quotationData.greeting}</p>
-                                </div>
+                                    {/* Subject */}
+                                    <div className="subject-section">
+                                        <p><strong>Sub:</strong> {quotationData.subject}</p>
+                                        <p>{quotationData.greeting}</p>
+                                    </div>
 
-                                {/* Content Blocks */}
-                                <div className="content-section">
-                                    {quotationData.contentBlocks.map((block) => (
-                                        <div key={block.id} className="content-block">
-                                            {block.type === 'heading' && (
-                                                <h2
-                                                    className="block-heading"
-                                                    style={{
-                                                        fontSize: `${block.style?.fontSize || 14}px`,
-                                                        fontWeight: block.style?.fontWeight || 'bold',
-                                                        fontStyle: block.style?.fontStyle || 'normal',
-                                                        textDecoration: block.style?.textDecoration || 'underline',
-                                                        textAlign: block.style?.textAlign || 'left',
-                                                        lineHeight: block.style?.lineHeight || 1.5,
-                                                        color: block.style?.color || '#1a1a1a',
-                                                    }}
-                                                >
-                                                    {block.content}
-                                                </h2>
-                                            )}
+                                    {/* Content Blocks */}
+                                    <div className="content-section">
+                                        {quotationData.contentBlocks.map((block) => (
+                                            <div key={block.id} className="content-block">
+                                                {block.type === 'heading' && (
+                                                    <h2
+                                                        className="block-heading"
+                                                        style={{
+                                                            fontSize: `${block.style?.fontSize || 14}px`,
+                                                            fontWeight: block.style?.fontWeight || 'bold',
+                                                            fontStyle: block.style?.fontStyle || 'normal',
+                                                            textDecoration: block.style?.textDecoration || 'underline',
+                                                            textAlign: block.style?.textAlign || 'left',
+                                                            lineHeight: block.style?.lineHeight || 1.5,
+                                                            color: block.style?.color || '#1a1a1a',
+                                                        }}
+                                                    >
+                                                        {block.content}
+                                                    </h2>
+                                                )}
 
-                                            {block.type === 'paragraph' && (
-                                                <p
-                                                    className="block-paragraph"
-                                                    style={{
-                                                        fontSize: `${block.style?.fontSize || 11}px`,
-                                                        fontWeight: block.style?.fontWeight || 'normal',
-                                                        fontStyle: block.style?.fontStyle || 'normal',
-                                                        textDecoration: block.style?.textDecoration || 'none',
-                                                        textAlign: block.style?.textAlign || 'left',
-                                                        lineHeight: block.style?.lineHeight || 1.5,
-                                                        color: block.style?.color || '#1a1a1a',
-                                                    }}
-                                                >
-                                                    {block.content}
-                                                </p>
-                                            )}
+                                                {block.type === 'paragraph' && (
+                                                    <p
+                                                        className="block-paragraph"
+                                                        style={{
+                                                            fontSize: `${block.style?.fontSize || 11}px`,
+                                                            fontWeight: block.style?.fontWeight || 'normal',
+                                                            fontStyle: block.style?.fontStyle || 'normal',
+                                                            textDecoration: block.style?.textDecoration || 'none',
+                                                            textAlign: block.style?.textAlign || 'left',
+                                                            lineHeight: block.style?.lineHeight || 1.5,
+                                                            color: block.style?.color || '#1a1a1a',
+                                                        }}
+                                                    >
+                                                        {block.content}
+                                                    </p>
+                                                )}
 
-                                            {block.type === 'list' && block.items && (
-                                                <ul className="block-list">
-                                                    {block.items.map((item, idx) => (
-                                                        <li key={idx}>{item}</li>
-                                                    ))}
-                                                </ul>
-                                            )}
+                                                {block.type === 'list' && block.items && (
+                                                    <ul className="block-list">
+                                                        {block.items.map((item, idx) => (
+                                                            <li key={idx}>{item}</li>
+                                                        ))}
+                                                    </ul>
+                                                )}
 
-                                            {block.type === 'table' && block.tableData && (
-                                                <table
-                                                    className="block-table"
-                                                    style={{
-                                                        borderCollapse: 'collapse',
-                                                        width: '100%',
-                                                        fontSize: `${block.tableData.style?.fontSize || 10}px`,
-                                                    }}
-                                                >
-                                                    <thead>
-                                                        <tr>
-                                                            {block.tableData.headers.map((h, i) => (
-                                                                <th
-                                                                    key={i}
-                                                                    style={{
-                                                                        backgroundColor: block.tableData!.style?.headerBgColor || 'transparent',
-                                                                        color: block.tableData!.style?.headerTextColor || '#000000',
-                                                                        border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
-                                                                        padding: '6px 8px',
-                                                                        textAlign: 'left',
-                                                                        fontWeight: 'bold',
-                                                                    }}
-                                                                >
-                                                                    {h}
-                                                                </th>
-                                                            ))}
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {block.tableData.rows.map((row, ri) => (
-                                                            <tr
-                                                                key={ri}
-                                                                style={{
-                                                                    backgroundColor: ri % 2 === 1 ? (block.tableData!.style?.alternateRowColor || '#f9fafb') : 'transparent',
-                                                                }}
-                                                            >
-                                                                {row.map((cell, ci) => (
-                                                                    <td
-                                                                        key={ci}
+                                                {block.type === 'table' && block.tableData && (
+                                                    <table
+                                                        className="block-table"
+                                                        style={{
+                                                            borderCollapse: 'collapse',
+                                                            width: '100%',
+                                                            fontSize: `${block.tableData.style?.fontSize || 10}px`,
+                                                        }}
+                                                    >
+                                                        <thead>
+                                                            <tr>
+                                                                {block.tableData.headers.map((h, i) => (
+                                                                    <th
+                                                                        key={i}
                                                                         style={{
+                                                                            backgroundColor: block.tableData!.style?.headerBgColor || 'transparent',
+                                                                            color: block.tableData!.style?.headerTextColor || '#000000',
                                                                             border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
-                                                                            color: block.tableData!.style?.textColor || '#1a1a1a',
                                                                             padding: '6px 8px',
+                                                                            textAlign: 'left',
+                                                                            fontWeight: 'bold',
                                                                         }}
                                                                     >
-                                                                        {cell}
-                                                                    </td>
+                                                                        {h}
+                                                                    </th>
                                                                 ))}
                                                             </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
+                                                        </thead>
+                                                        <tbody>
+                                                            {block.tableData.rows.map((row, ri) => (
+                                                                <tr
+                                                                    key={ri}
+                                                                    style={{
+                                                                        backgroundColor: ri % 2 === 1 ? (block.tableData!.style?.alternateRowColor || '#f9fafb') : 'transparent',
+                                                                    }}
+                                                                >
+                                                                    {row.map((cell, ci) => (
+                                                                        <td
+                                                                            key={ci}
+                                                                            style={{
+                                                                                border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
+                                                                                color: block.tableData!.style?.textColor || '#1a1a1a',
+                                                                                padding: '6px 8px',
+                                                                            }}
+                                                                        >
+                                                                            {cell}
+                                                                        </td>
+                                                                    ))}
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
 
-                                {/* Signature */}
-                                <div className="signature-section">
-                                    <p><strong>For {quotationData.companyName}</strong></p>
-                                    <p><strong>{quotationData.signatureName}</strong></p>
-                                    <p>{quotationData.signatureDesignation}</p>
-                                </div>
+                                    {/* Signature */}
+                                    <div className="signature-section">
+                                        <p><strong>For {quotationData.companyName}</strong></p>
+                                        <p><strong>{quotationData.signatureName}</strong></p>
+                                        <p>{quotationData.signatureDesignation}</p>
+                                    </div>
 
-                                {/* Footer */}
-                                <div className="footer" style={{ borderTopColor: quotationData.footerLineColor, color: quotationData.footerTextColor }}>
-                                    <p>{quotationData.footerLine1}</p>
-                                    <p>{quotationData.footerLine2}</p>
-                                    <p>{quotationData.footerLine3}</p>
+                                    {/* Footer */}
+                                    <div className="footer" style={{ borderTopColor: quotationData.footerLineColor, color: quotationData.footerTextColor }}>
+                                        <p>{quotationData.footerLine1}</p>
+                                        <p>{quotationData.footerLine2}</p>
+                                        <p>{quotationData.footerLine3}</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1821,12 +1872,43 @@ export default function QuotationPage() {
 
             {/* Print Styles */}
             <style jsx global>{`
+                /* Custom Compact Scrollbar */
+                .preview-scrollbar {
+                    scrollbar-width: thin;
+                    scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
+                }
+                
+                .preview-scrollbar::-webkit-scrollbar {
+                    width: 8px;
+                    height: 8px;
+                }
+                
+                .preview-scrollbar::-webkit-scrollbar-track {
+                    background: transparent;
+                    border-radius: 10px;
+                }
+                
+                .preview-scrollbar::-webkit-scrollbar-thumb {
+                    background: rgba(155, 155, 155, 0.5);
+                    border-radius: 10px;
+                    border: 2px solid transparent;
+                    background-clip: content-box;
+                }
+                
+                .preview-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: rgba(155, 155, 155, 0.8);
+                    border: 2px solid transparent;
+                    background-clip: content-box;
+                }
+                
+                .preview-scrollbar::-webkit-scrollbar-corner {
+                    background: transparent;
+                }
+                
                 /* Zoom Container for Preview */
                 .preview-zoom-container {
-                    transform: scale(0.95);
                     transform-origin: top center;
-                    width: 154%;
-                    margin-left: -27%;
+                    transition: transform 0.2s ease-out;
                 }
                 
                 /* Preview Styles */
