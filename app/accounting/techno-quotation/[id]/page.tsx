@@ -93,6 +93,7 @@ interface QuotationData {
     companyEmail: string
     companyAddress: string
     headerValueColor: string
+    headerLineColor: string
 
     // Client Details
     clientName: string
@@ -111,6 +112,8 @@ interface QuotationData {
     footerLine1: string
     footerLine2: string
     footerLine3: string
+    footerLineColor: string
+    footerTextColor: string
     // Signature
     signatureName: string
     signatureDesignation: string
@@ -124,6 +127,9 @@ interface QuotationData {
     watermarkRotation: number
     watermarkWidth: number
     watermarkHeight: number
+
+    // Default Font
+    defaultFontFamily: string
 }
 
 const defaultQuotationData: QuotationData = {
@@ -137,7 +143,8 @@ const defaultQuotationData: QuotationData = {
     companyPhone: "+91-8349873989",
     companyEmail: "info@company.com",
     companyAddress: "Plot No. 173, Engineering Park, Hathkhoj, Bhilai, 490026",
-    headerValueColor: "#2563eb",
+    headerValueColor: "#000000",
+    headerLineColor: "#000000",
 
     clientName: "",
     clientDesignation: "",
@@ -159,6 +166,8 @@ const defaultQuotationData: QuotationData = {
     footerLine1: "Your Products | Your Services | Your Solutions",
     footerLine2: "Additional Services | Customized Solutions",
     footerLine3: "Authorized Signatory: Your Name - Your Position",
+    footerLineColor: "#000000",
+    footerTextColor: "#000000",
 
     signatureName: "Authorized Signatory",
     signatureDesignation: "Manager",
@@ -170,7 +179,9 @@ const defaultQuotationData: QuotationData = {
     watermarkOpacity: 0.08,
     watermarkRotation: 0,
     watermarkWidth: 400,
-    watermarkHeight: 200
+    watermarkHeight: 200,
+
+    defaultFontFamily: "Times New Roman"
 }
 
 export default function QuotationPage() {
@@ -210,6 +221,7 @@ export default function QuotationPage() {
                         companyEmail: q.companyDetails?.email || defaultQuotationData.companyEmail,
                         companyAddress: q.companyDetails?.address || defaultQuotationData.companyAddress,
                         headerValueColor: q.companyDetails?.headerValueColor || defaultQuotationData.headerValueColor,
+                        headerLineColor: q.companyDetails?.headerLineColor || defaultQuotationData.headerLineColor,
                         clientName: q.clientDetails?.name || "",
                         clientDesignation: q.clientDetails?.designation || "",
                         clientCompany: q.clientDetails?.company || "",
@@ -220,6 +232,8 @@ export default function QuotationPage() {
                         footerLine1: q.footer?.line1 || defaultQuotationData.footerLine1,
                         footerLine2: q.footer?.line2 || defaultQuotationData.footerLine2,
                         footerLine3: q.footer?.line3 || defaultQuotationData.footerLine3,
+                        footerLineColor: q.footer?.lineColor || defaultQuotationData.footerLineColor,
+                        footerTextColor: q.footer?.textColor || defaultQuotationData.footerTextColor,
                         signatureName: q.signature?.name || defaultQuotationData.signatureName,
                         signatureDesignation: q.signature?.designation || defaultQuotationData.signatureDesignation,
                         watermarkType: q.watermark?.type || defaultQuotationData.watermarkType,
@@ -230,6 +244,7 @@ export default function QuotationPage() {
                         watermarkRotation: q.watermark?.rotation ?? defaultQuotationData.watermarkRotation,
                         watermarkWidth: q.watermark?.width ?? defaultQuotationData.watermarkWidth,
                         watermarkHeight: q.watermark?.height ?? defaultQuotationData.watermarkHeight,
+                        defaultFontFamily: q.defaultFontFamily || defaultQuotationData.defaultFontFamily,
                     })
                     setLastSaved(new Date())
                 }
@@ -272,6 +287,7 @@ export default function QuotationPage() {
                         email: debouncedData.companyEmail,
                         address: debouncedData.companyAddress,
                         headerValueColor: debouncedData.headerValueColor,
+                        headerLineColor: debouncedData.headerLineColor,
                     },
                     clientDetails: {
                         name: debouncedData.clientName,
@@ -286,6 +302,8 @@ export default function QuotationPage() {
                         line1: debouncedData.footerLine1,
                         line2: debouncedData.footerLine2,
                         line3: debouncedData.footerLine3,
+                        lineColor: debouncedData.footerLineColor,
+                        textColor: debouncedData.footerTextColor,
                     },
                     signature: {
                         name: debouncedData.signatureName,
@@ -300,7 +318,8 @@ export default function QuotationPage() {
                         rotation: debouncedData.watermarkRotation,
                         width: debouncedData.watermarkWidth,
                         height: debouncedData.watermarkHeight,
-                    }
+                    },
+                    defaultFontFamily: debouncedData.defaultFontFamily,
                 }
 
                 await fetch(`/api/techno-quotation/${params.id}`, {
@@ -328,8 +347,8 @@ export default function QuotationPage() {
     // Content block handlers
     const addBlock = (type: ContentBlock['type']) => {
         const defaultTableStyle = {
-            headerBgColor: '#f97316',
-            headerTextColor: '#ffffff',
+            headerBgColor: 'transparent',
+            headerTextColor: '#000000',
             borderColor: '#1a1a1a',
             borderWidth: 1,
             textColor: '#1a1a1a',
@@ -735,9 +754,27 @@ export default function QuotationPage() {
                                                 value={quotationData.headerValueColor}
                                                 onChange={e => setQuotationData({ ...quotationData, headerValueColor: e.target.value })}
                                                 className="w-28"
-                                                placeholder="#2563eb"
+                                                placeholder="#000000"
                                             />
                                             <span className="text-xs text-muted-foreground">GSTIN, Phone, Email colors</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Label>Header Line Color</Label>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <input
+                                                type="color"
+                                                value={quotationData.headerLineColor}
+                                                onChange={e => setQuotationData({ ...quotationData, headerLineColor: e.target.value })}
+                                                className="w-10 h-10 rounded border cursor-pointer"
+                                            />
+                                            <Input
+                                                value={quotationData.headerLineColor}
+                                                onChange={e => setQuotationData({ ...quotationData, headerLineColor: e.target.value })}
+                                                className="w-28"
+                                                placeholder="#000000"
+                                            />
+                                            <span className="text-xs text-muted-foreground">Header bottom border</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1224,7 +1261,7 @@ export default function QuotationPage() {
                                                                     key={ci}
                                                                     className="p-1"
                                                                     style={{
-                                                                        backgroundColor: block.tableData!.style?.headerBgColor || '#f97316',
+                                                                        backgroundColor: block.tableData!.style?.headerBgColor || 'transparent',
                                                                         border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
                                                                     }}
                                                                 >
@@ -1233,13 +1270,13 @@ export default function QuotationPage() {
                                                                             value={header}
                                                                             onChange={e => updateTableHeader(block.id, ci, e.target.value)}
                                                                             className="h-7 text-xs font-semibold bg-transparent border-0"
-                                                                            style={{ color: block.tableData!.style?.headerTextColor || '#ffffff' }}
+                                                                            style={{ color: block.tableData!.style?.headerTextColor || '#000000' }}
                                                                         />
                                                                         {block.tableData!.headers.length > 1 && (
                                                                             <Button
                                                                                 size="icon"
                                                                                 variant="ghost"
-                                                                                className="h-6 w-6 shrink-0 text-white/80 hover:text-white hover:bg-white/20"
+                                                                                className="h-6 w-6 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                                                                                 onClick={() => deleteTableColumn(block.id, ci)}
                                                                             >
                                                                                 <Trash2 className="w-3 h-3" />
@@ -1332,6 +1369,70 @@ export default function QuotationPage() {
                                             value={quotationData.footerLine3}
                                             onChange={e => setQuotationData({ ...quotationData, footerLine3: e.target.value })}
                                         />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                                        <div>
+                                            <Label>Footer Line Color</Label>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <input
+                                                    type="color"
+                                                    value={quotationData.footerLineColor}
+                                                    onChange={e => setQuotationData({ ...quotationData, footerLineColor: e.target.value })}
+                                                    className="w-10 h-10 rounded border cursor-pointer"
+                                                />
+                                                <Input
+                                                    value={quotationData.footerLineColor}
+                                                    onChange={e => setQuotationData({ ...quotationData, footerLineColor: e.target.value })}
+                                                    className="w-24"
+                                                    placeholder="#000000"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <Label>Footer Text Color</Label>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <input
+                                                    type="color"
+                                                    value={quotationData.footerTextColor}
+                                                    onChange={e => setQuotationData({ ...quotationData, footerTextColor: e.target.value })}
+                                                    className="w-10 h-10 rounded border cursor-pointer"
+                                                />
+                                                <Input
+                                                    value={quotationData.footerTextColor}
+                                                    onChange={e => setQuotationData({ ...quotationData, footerTextColor: e.target.value })}
+                                                    className="w-24"
+                                                    placeholder="#000000"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Card>
+
+                            <Card className="p-4 border-l-4 border-l-emerald-500">
+                                <h3 className="font-semibold text-lg mb-4">Default Font Style</h3>
+                                <div className="space-y-3">
+                                    <div>
+                                        <Label>Font Family</Label>
+                                        <Select
+                                            value={quotationData.defaultFontFamily}
+                                            onValueChange={(v) => setQuotationData({ ...quotationData, defaultFontFamily: v })}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Times New Roman">Times New Roman</SelectItem>
+                                                <SelectItem value="Arial">Arial</SelectItem>
+                                                <SelectItem value="Georgia">Georgia</SelectItem>
+                                                <SelectItem value="Verdana">Verdana</SelectItem>
+                                                <SelectItem value="Tahoma">Tahoma</SelectItem>
+                                                <SelectItem value="Courier New">Courier New</SelectItem>
+                                                <SelectItem value="Trebuchet MS">Trebuchet MS</SelectItem>
+                                                <SelectItem value="Calibri">Calibri</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <span className="text-xs text-muted-foreground mt-1 block">Applied to entire document</span>
                                     </div>
                                 </div>
                             </Card>
@@ -1512,7 +1613,7 @@ export default function QuotationPage() {
 
                 {/* Preview Panel (Right Side) */}
                 <div className="lg:col-span-7 overflow-y-auto h-[calc(100vh-140px)] bg-gray-100 dark:bg-gray-900 rounded-lg p-4">
-                    <div ref={printRef} className="quotation-preview">
+                    <div ref={printRef} className="quotation-preview" style={{ fontFamily: `'${quotationData.defaultFontFamily}', serif` }}>
                         <div className="page">
                             {/* Watermark */}
                             <div
@@ -1543,7 +1644,7 @@ export default function QuotationPage() {
                             </div>
 
                             {/* Header */}
-                            <div className="header">
+                            <div className="header" style={{ borderBottomColor: quotationData.headerLineColor }}>
                                 <div className="header-left">
                                     {quotationData.companyLogo ? (
                                         <img src={quotationData.companyLogo} alt="Logo" className="company-logo" />
@@ -1656,8 +1757,8 @@ export default function QuotationPage() {
                                                             <th
                                                                 key={i}
                                                                 style={{
-                                                                    backgroundColor: block.tableData!.style?.headerBgColor || '#f97316',
-                                                                    color: block.tableData!.style?.headerTextColor || '#ffffff',
+                                                                    backgroundColor: block.tableData!.style?.headerBgColor || 'transparent',
+                                                                    color: block.tableData!.style?.headerTextColor || '#000000',
                                                                     border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
                                                                     padding: '6px 8px',
                                                                     textAlign: 'left',
@@ -1706,7 +1807,7 @@ export default function QuotationPage() {
                             </div>
 
                             {/* Footer */}
-                            <div className="footer">
+                            <div className="footer" style={{ borderTopColor: quotationData.footerLineColor, color: quotationData.footerTextColor }}>
                                 <p>{quotationData.footerLine1}</p>
                                 <p>{quotationData.footerLine2}</p>
                                 <p>{quotationData.footerLine3}</p>
@@ -1752,7 +1853,7 @@ export default function QuotationPage() {
                     display: flex;
                     justify-content: space-between;
                     align-items: flex-start;
-                    border-bottom: 2px solid #f97316;
+                    border-bottom: 2px solid #000000;
                     padding-bottom: 15px;
                     margin-bottom: 15px;
                 }
@@ -1915,11 +2016,11 @@ export default function QuotationPage() {
                     bottom: 15mm;
                     left: 15mm;
                     right: 15mm;
-                    border-top: 2px solid #f97316;
+                    border-top: 2px solid #000000;
                     padding-top: 10px;
                     font-size: 9px;
                     text-align: center;
-                    color: #2563eb;
+                    color: #000000;
                 }
                 
                 .quotation-preview .footer p {
@@ -1959,19 +2060,18 @@ export default function QuotationPage() {
                     }
                     
                     .quotation-preview .header {
-                        border-bottom-color: #f97316 !important;
                         -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
                     
                     .quotation-preview .block-table th {
-                        background: #f97316 !important;
-                        color: white !important;
                         -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
                     
                     .quotation-preview .footer {
-                        border-top-color: #f97316 !important;
                         -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
                 }
             `}</style>
