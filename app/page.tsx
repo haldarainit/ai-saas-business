@@ -24,7 +24,7 @@ export default function Home() {
           <FramerSpotlight />
           <div className="container px-4 md:px-6 py-16 md:py-20">
             <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
-              <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm mb-6">Enterprise AI Solution</div>
+              <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm mb-6">Haldar AI & IT</div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter mb-6">
                 AI That Drives Real Business Results
               </h1>

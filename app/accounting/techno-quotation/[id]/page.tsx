@@ -358,6 +358,8 @@ interface QuotationData {
     companyName: string
     companyNameStyle: RichTextStyle
     companyLogo: string
+    companyLogoWidth: number
+    companyLogoHeight: number
     companyGSTIN: string
     companyGSTINStyle: RichTextStyle
     companyPhone: string
@@ -428,6 +430,8 @@ const defaultQuotationData: QuotationData = {
     companyName: "Your Company Name",
     companyNameStyle: { fontSize: 20, fontWeight: 'bold', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
     companyLogo: "",
+    companyLogoWidth: 80,
+    companyLogoHeight: 80,
     companyGSTIN: "22AAJCP7742A1ZP",
     companyGSTINStyle: { fontSize: 12, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#000000' },
     companyPhone: "+91-8349873989",
@@ -525,6 +529,8 @@ export default function QuotationPage() {
                         companyName: q.companyDetails?.name || defaultQuotationData.companyName,
                         companyNameStyle: q.companyDetails?.nameStyle || defaultQuotationData.companyNameStyle,
                         companyLogo: q.companyDetails?.logo || "",
+                        companyLogoWidth: q.companyDetails?.logoWidth || defaultQuotationData.companyLogoWidth,
+                        companyLogoHeight: q.companyDetails?.logoHeight || defaultQuotationData.companyLogoHeight,
                         companyGSTIN: q.companyDetails?.gstin || defaultQuotationData.companyGSTIN,
                         companyGSTINStyle: q.companyDetails?.gstinStyle || defaultQuotationData.companyGSTINStyle,
                         companyPhone: q.companyDetails?.phone || defaultQuotationData.companyPhone,
@@ -610,6 +616,8 @@ export default function QuotationPage() {
                         name: debouncedData.companyName,
                         nameStyle: debouncedData.companyNameStyle,
                         logo: debouncedData.companyLogo,
+                        logoWidth: debouncedData.companyLogoWidth,
+                        logoHeight: debouncedData.companyLogoHeight,
                         gstin: debouncedData.companyGSTIN,
                         gstinStyle: debouncedData.companyGSTINStyle,
                         phone: debouncedData.companyPhone,
@@ -1044,7 +1052,42 @@ export default function QuotationPage() {
                                                     <span><Upload className="w-4 h-4 mr-1" /> Upload</span>
                                                 </Button>
                                             </label>
+                                            {quotationData.companyLogo && (
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="sm" 
+                                                    onClick={() => setQuotationData({ ...quotationData, companyLogo: '' })}
+                                                >
+                                                    <Trash2 className="w-4 h-4 mr-1" /> Remove
+                                                </Button>
+                                            )}
                                         </div>
+                                        {quotationData.companyLogo && (
+                                            <div className="grid grid-cols-2 gap-3 mt-3">
+                                                <div>
+                                                    <Label className="text-xs">Logo Width (px)</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={20}
+                                                        max={200}
+                                                        value={quotationData.companyLogoWidth}
+                                                        onChange={e => setQuotationData({ ...quotationData, companyLogoWidth: parseInt(e.target.value) || 80 })}
+                                                        className="mt-1"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label className="text-xs">Logo Height (px)</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={20}
+                                                        max={200}
+                                                        value={quotationData.companyLogoHeight}
+                                                        onChange={e => setQuotationData({ ...quotationData, companyLogoHeight: parseInt(e.target.value) || 80 })}
+                                                        className="mt-1"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <RichTextFieldEditor
                                         label="Company Name"
@@ -1091,12 +1134,30 @@ export default function QuotationPage() {
                                             <input
                                                 type="color"
                                                 value={quotationData.headerValueColor}
-                                                onChange={e => setQuotationData({ ...quotationData, headerValueColor: e.target.value })}
+                                                onChange={e => {
+                                                    const newColor = e.target.value;
+                                                    setQuotationData({ 
+                                                        ...quotationData, 
+                                                        headerValueColor: newColor,
+                                                        companyGSTINStyle: { ...quotationData.companyGSTINStyle, color: newColor },
+                                                        companyPhoneStyle: { ...quotationData.companyPhoneStyle, color: newColor },
+                                                        companyEmailStyle: { ...quotationData.companyEmailStyle, color: newColor },
+                                                    });
+                                                }}
                                                 className="w-10 h-10 rounded border cursor-pointer"
                                             />
                                             <Input
                                                 value={quotationData.headerValueColor}
-                                                onChange={e => setQuotationData({ ...quotationData, headerValueColor: e.target.value })}
+                                                onChange={e => {
+                                                    const newColor = e.target.value;
+                                                    setQuotationData({ 
+                                                        ...quotationData, 
+                                                        headerValueColor: newColor,
+                                                        companyGSTINStyle: { ...quotationData.companyGSTINStyle, color: newColor },
+                                                        companyPhoneStyle: { ...quotationData.companyPhoneStyle, color: newColor },
+                                                        companyEmailStyle: { ...quotationData.companyEmailStyle, color: newColor },
+                                                    });
+                                                }}
                                                 className="w-28"
                                                 placeholder="#000000"
                                             />
@@ -1719,17 +1780,35 @@ export default function QuotationPage() {
                                             </div>
                                         </div>
                                         <div>
-                                            <Label>Footer Text Color (Legacy)</Label>
+                                            <Label>Footer Text Color</Label>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <input
                                                     type="color"
                                                     value={quotationData.footerTextColor}
-                                                    onChange={e => setQuotationData({ ...quotationData, footerTextColor: e.target.value })}
+                                                    onChange={e => {
+                                                        const newColor = e.target.value;
+                                                        setQuotationData({ 
+                                                            ...quotationData, 
+                                                            footerTextColor: newColor,
+                                                            footerLine1Style: { ...quotationData.footerLine1Style, color: newColor },
+                                                            footerLine2Style: { ...quotationData.footerLine2Style, color: newColor },
+                                                            footerLine3Style: { ...quotationData.footerLine3Style, color: newColor },
+                                                        });
+                                                    }}
                                                     className="w-10 h-10 rounded border cursor-pointer"
                                                 />
                                                 <Input
                                                     value={quotationData.footerTextColor}
-                                                    onChange={e => setQuotationData({ ...quotationData, footerTextColor: e.target.value })}
+                                                    onChange={e => {
+                                                        const newColor = e.target.value;
+                                                        setQuotationData({ 
+                                                            ...quotationData, 
+                                                            footerTextColor: newColor,
+                                                            footerLine1Style: { ...quotationData.footerLine1Style, color: newColor },
+                                                            footerLine2Style: { ...quotationData.footerLine2Style, color: newColor },
+                                                            footerLine3Style: { ...quotationData.footerLine3Style, color: newColor },
+                                                        });
+                                                    }}
                                                     className="w-24"
                                                     placeholder="#000000"
                                                 />
@@ -1996,26 +2075,41 @@ export default function QuotationPage() {
                                     <div
                                         className="watermark"
                                         style={{
-                                            opacity: quotationData.watermarkOpacity,
                                             transform: `translate(-50%, -50%) rotate(${quotationData.watermarkRotation}deg)`,
                                             width: `${quotationData.watermarkWidth}px`,
                                             height: `${quotationData.watermarkHeight}px`,
                                         }}
                                     >
                                         {quotationData.watermarkType === 'text' ? (
-                                            <span style={{
-                                                fontSize: `${quotationData.watermarkHeight * 0.4}px`,
-                                                color: quotationData.watermarkColor,
-                                                fontWeight: 'bold',
-                                                whiteSpace: 'nowrap',
-                                            }}>
-                                                {quotationData.watermarkText}
-                                            </span>
+                                            (() => {
+                                                // Convert hex color to rgba with opacity for print compatibility
+                                                const hexToRgba = (hex: string, opacity: number) => {
+                                                    const r = parseInt(hex.slice(1, 3), 16);
+                                                    const g = parseInt(hex.slice(3, 5), 16);
+                                                    const b = parseInt(hex.slice(5, 7), 16);
+                                                    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                                                };
+                                                return (
+                                                    <span style={{
+                                                        fontSize: `${quotationData.watermarkHeight * 0.4}px`,
+                                                        color: hexToRgba(quotationData.watermarkColor, quotationData.watermarkOpacity),
+                                                        fontWeight: 'bold',
+                                                        whiteSpace: 'nowrap',
+                                                    }}>
+                                                        {quotationData.watermarkText}
+                                                    </span>
+                                                );
+                                            })()
                                         ) : quotationData.watermarkImage ? (
                                             <img
                                                 src={quotationData.watermarkImage}
                                                 alt="Watermark"
-                                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                                style={{ 
+                                                    width: '100%', 
+                                                    height: '100%', 
+                                                    objectFit: 'contain',
+                                                    opacity: quotationData.watermarkOpacity,
+                                                }}
                                             />
                                         ) : null}
                                     </div>
@@ -2024,7 +2118,15 @@ export default function QuotationPage() {
                                     <div className="header" style={{ borderBottomColor: quotationData.headerLineColor }}>
                                         <div className="header-left">
                                             {quotationData.companyLogo ? (
-                                                <img src={quotationData.companyLogo} alt="Logo" className="company-logo" />
+                                                <img 
+                                                    src={quotationData.companyLogo} 
+                                                    alt="Logo" 
+                                                    className="company-logo" 
+                                                    style={{
+                                                        width: `${quotationData.companyLogoWidth}px`,
+                                                        height: `${quotationData.companyLogoHeight}px`,
+                                                    }}
+                                                />
                                             ) : (
                                                 <div className="logo-placeholder">LOGO</div>
                                             )}
@@ -2652,12 +2754,24 @@ export default function QuotationPage() {
                     }
                     
                     .quotation-preview .watermark {
-                        position: fixed !important;
+                        position: absolute !important;
                         top: 50% !important;
                         left: 50% !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
-                        z-index: -1;
+                        color-adjust: exact !important;
+                        z-index: 0 !important;
+                        display: flex !important;
+                        visibility: visible !important;
+                        opacity: inherit !important;
+                    }
+                    
+                    .quotation-preview .watermark span,
+                    .quotation-preview .watermark img {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        color-adjust: exact !important;
+                        visibility: visible !important;
                     }
                     
                     .quotation-preview .header {
