@@ -43,12 +43,275 @@ import {
     GripVertical,
     ZoomIn,
     ZoomOut,
-    RotateCcw
+    RotateCcw,
+    X
 } from "lucide-react"
 import Link from "next/link"
 import { useReactToPrint } from 'react-to-print'
 import { useDebounce } from "@/hooks/use-debounce"
 import Navbar from "@/components/navbar"
+
+// Rich Text Style Interface
+interface RichTextStyle {
+    fontSize?: number
+    fontWeight?: 'normal' | 'bold'
+    fontStyle?: 'normal' | 'italic'
+    textDecoration?: 'none' | 'underline'
+    textAlign?: 'left' | 'center' | 'right'
+    color?: string
+}
+
+const defaultRichTextStyle: RichTextStyle = {
+    fontSize: 11,
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'left',
+    color: '#1a1a1a'
+}
+
+// Rich Text Field Editor Component
+interface RichTextFieldEditorProps {
+    label: string
+    value: string
+    onChange: (value: string) => void
+    style?: RichTextStyle
+    onStyleChange: (style: RichTextStyle) => void
+    multiline?: boolean
+    rows?: number
+    placeholder?: string
+    type?: 'text' | 'date'
+}
+
+function RichTextFieldEditor({
+    label,
+    value,
+    onChange,
+    style = defaultRichTextStyle,
+    onStyleChange,
+    multiline = false,
+    rows = 2,
+    placeholder,
+    type = 'text'
+}: RichTextFieldEditorProps) {
+    const [isExpanded, setIsExpanded] = useState(false)
+    const containerRef = useRef<HTMLDivElement>(null)
+
+    // Close toolbar when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement
+            // Check if click is inside container
+            if (containerRef.current && containerRef.current.contains(target)) {
+                return
+            }
+            // Check if click is inside a Radix UI portal (Select dropdown, Popover, etc.)
+            // Radix portals have data-radix-* attributes
+            if (target.closest('[data-radix-popper-content-wrapper]') ||
+                target.closest('[role="listbox"]') ||
+                target.closest('[data-radix-select-viewport]')) {
+                return
+            }
+            setIsExpanded(false)
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
+
+    const updateStyle = (updates: Partial<RichTextStyle>) => {
+        onStyleChange({ ...style, ...updates })
+    }
+
+    return (
+        <div ref={containerRef} className="space-y-1">
+            <div className="flex items-center justify-between">
+                <Label className="text-sm">{label}</Label>
+                <div className="flex items-center gap-1">
+                    {/* Active style indicators */}
+                    <div className="flex items-center gap-0.5">
+                        {style.fontWeight === 'bold' && (
+                            <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded">B</span>
+                        )}
+                        {style.fontStyle === 'italic' && (
+                            <span className="inline-flex items-center justify-center w-5 h-5 text-xs italic bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">I</span>
+                        )}
+                        {style.textDecoration === 'underline' && (
+                            <span className="inline-flex items-center justify-center w-5 h-5 text-xs underline bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded">U</span>
+                        )}
+                        {style.fontSize && style.fontSize !== 11 && (
+                            <span className="inline-flex items-center justify-center h-5 px-1 text-[10px] bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 rounded">{style.fontSize}px</span>
+                        )}
+                        {style.color && style.color !== '#1a1a1a' && (
+                            <span
+                                className="inline-flex items-center justify-center w-5 h-5 rounded border"
+                                style={{ backgroundColor: style.color }}
+                                title={`Color: ${style.color}`}
+                            />
+                        )}
+                    </div>
+                    <Button
+                        size="sm"
+                        variant={isExpanded ? "default" : "ghost"}
+                        className="h-6 px-2 text-xs"
+                        onClick={() => setIsExpanded(!isExpanded)}
+                    >
+                        <Type className="w-3 h-3 mr-1" />
+                        Format
+                    </Button>
+                </div>
+            </div>
+
+            {/* Rich Text Toolbar */}
+            {isExpanded && (
+                <div className="flex flex-wrap gap-1 p-2 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 rounded-lg border border-purple-200 dark:border-purple-800 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Font Size */}
+                    <Select
+                        value={String(style.fontSize || 11)}
+                        onValueChange={(v) => updateStyle({ fontSize: parseInt(v) })}
+                    >
+                        <SelectTrigger className="w-16 h-7 text-xs">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {[8, 9, 10, 11, 12, 14, 16, 18, 20, 24].map(size => (
+                                <SelectItem key={size} value={String(size)}>{size}px</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <div className="w-px h-7 bg-gray-300 dark:bg-gray-600" />
+
+                    {/* Bold */}
+                    <Button
+                        size="icon"
+                        variant={style.fontWeight === 'bold' ? 'default' : 'outline'}
+                        className="h-7 w-7"
+                        onClick={() => updateStyle({ fontWeight: style.fontWeight === 'bold' ? 'normal' : 'bold' })}
+                        title="Bold"
+                    >
+                        <Bold className="w-3.5 h-3.5" />
+                    </Button>
+
+                    {/* Italic */}
+                    <Button
+                        size="icon"
+                        variant={style.fontStyle === 'italic' ? 'default' : 'outline'}
+                        className="h-7 w-7"
+                        onClick={() => updateStyle({ fontStyle: style.fontStyle === 'italic' ? 'normal' : 'italic' })}
+                        title="Italic"
+                    >
+                        <Italic className="w-3.5 h-3.5" />
+                    </Button>
+
+                    {/* Underline */}
+                    <Button
+                        size="icon"
+                        variant={style.textDecoration === 'underline' ? 'default' : 'outline'}
+                        className="h-7 w-7"
+                        onClick={() => updateStyle({ textDecoration: style.textDecoration === 'underline' ? 'none' : 'underline' })}
+                        title="Underline"
+                    >
+                        <Underline className="w-3.5 h-3.5" />
+                    </Button>
+
+                    <div className="w-px h-7 bg-gray-300 dark:bg-gray-600" />
+
+                    {/* Align Left */}
+                    <Button
+                        size="icon"
+                        variant={style.textAlign === 'left' ? 'default' : 'outline'}
+                        className="h-7 w-7"
+                        onClick={() => updateStyle({ textAlign: 'left' })}
+                        title="Align Left"
+                    >
+                        <AlignLeft className="w-3.5 h-3.5" />
+                    </Button>
+
+                    {/* Align Center */}
+                    <Button
+                        size="icon"
+                        variant={style.textAlign === 'center' ? 'default' : 'outline'}
+                        className="h-7 w-7"
+                        onClick={() => updateStyle({ textAlign: 'center' })}
+                        title="Align Center"
+                    >
+                        <AlignCenter className="w-3.5 h-3.5" />
+                    </Button>
+
+                    {/* Align Right */}
+                    <Button
+                        size="icon"
+                        variant={style.textAlign === 'right' ? 'default' : 'outline'}
+                        className="h-7 w-7"
+                        onClick={() => updateStyle({ textAlign: 'right' })}
+                        title="Align Right"
+                    >
+                        <AlignRight className="w-3.5 h-3.5" />
+                    </Button>
+
+                    <div className="w-px h-7 bg-gray-300 dark:bg-gray-600" />
+
+                    {/* Color Picker */}
+                    <div className="flex items-center gap-1">
+                        <label className="relative w-8 h-7 rounded border cursor-pointer overflow-hidden" title="Text Color">
+                            <input
+                                type="color"
+                                value={style.color || '#1a1a1a'}
+                                onChange={e => updateStyle({ color: e.target.value })}
+                                className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
+                            />
+                            <div
+                                className="w-full h-full rounded"
+                                style={{ backgroundColor: style.color || '#1a1a1a' }}
+                            />
+                        </label>
+                        <span className="text-[10px] text-muted-foreground">Color</span>
+                    </div>
+
+                    {/* Close Button */}
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 ml-auto"
+                        onClick={() => setIsExpanded(false)}
+                        title="Close Toolbar"
+                    >
+                        <X className="w-3.5 h-3.5" />
+                    </Button>
+                </div>
+            )}
+
+            {/* Input Field - Normal appearance, formatting only shows in preview */}
+            <div className="rich-text-input-wrapper">
+                {multiline ? (
+                    <textarea
+                        value={value}
+                        onChange={e => onChange(e.target.value)}
+                        rows={rows}
+                        placeholder={placeholder}
+                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
+                    />
+                ) : type === 'date' ? (
+                    <input
+                        type="date"
+                        value={value}
+                        onChange={e => onChange(e.target.value)}
+                        placeholder={placeholder}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
+                    />
+                ) : (
+                    <input
+                        type="text"
+                        value={value}
+                        onChange={e => onChange(e.target.value)}
+                        placeholder={placeholder}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
+                    />
+                )}
+            </div>
+        </div>
+    )
+}
 
 // Types
 interface TableData {
@@ -85,41 +348,60 @@ interface ContentBlock {
 
 interface QuotationData {
     title: string
+    titleStyle: RichTextStyle
     refNo: string
+    refNoStyle: RichTextStyle
     date: string
+    dateStyle: RichTextStyle
 
     // Company Details
     companyName: string
+    companyNameStyle: RichTextStyle
     companyLogo: string
     companyGSTIN: string
+    companyGSTINStyle: RichTextStyle
     companyPhone: string
+    companyPhoneStyle: RichTextStyle
     companyEmail: string
+    companyEmailStyle: RichTextStyle
     companyAddress: string
+    companyAddressStyle: RichTextStyle
     headerValueColor: string
     headerLineColor: string
 
     // Client Details
     clientName: string
+    clientNameStyle: RichTextStyle
     clientDesignation: string
+    clientDesignationStyle: RichTextStyle
     clientCompany: string
+    clientCompanyStyle: RichTextStyle
     clientAddress: string
+    clientAddressStyle: RichTextStyle
 
     // Subject
     subject: string
+    subjectStyle: RichTextStyle
     greeting: string
+    greetingStyle: RichTextStyle
 
     // Content blocks
     contentBlocks: ContentBlock[]
 
     // Footer
     footerLine1: string
+    footerLine1Style: RichTextStyle
     footerLine2: string
+    footerLine2Style: RichTextStyle
     footerLine3: string
+    footerLine3Style: RichTextStyle
     footerLineColor: string
     footerTextColor: string
     // Signature
     signatureName: string
+    signatureNameStyle: RichTextStyle
     signatureDesignation: string
+    signatureDesignationStyle: RichTextStyle
 
     // Watermark
     watermarkType: 'text' | 'image'
@@ -137,25 +419,39 @@ interface QuotationData {
 
 const defaultQuotationData: QuotationData = {
     title: "TECHNO-COMMERCIAL QUOTATION",
+    titleStyle: { fontSize: 16, fontWeight: 'bold', fontStyle: 'normal', textDecoration: 'underline', textAlign: 'left', color: '#1a1a1a' },
     refNo: "QT/2025/001",
+    refNoStyle: { fontSize: 11, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
     date: new Date().toISOString().split('T')[0],
+    dateStyle: { fontSize: 11, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
 
     companyName: "Your Company Name",
+    companyNameStyle: { fontSize: 20, fontWeight: 'bold', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
     companyLogo: "",
     companyGSTIN: "22AAJCP7742A1ZP",
+    companyGSTINStyle: { fontSize: 12, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#000000' },
     companyPhone: "+91-8349873989",
+    companyPhoneStyle: { fontSize: 12, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#000000' },
     companyEmail: "info@company.com",
+    companyEmailStyle: { fontSize: 12, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'underline', textAlign: 'left', color: '#000000' },
     companyAddress: "Plot No. 173, Engineering Park, Hathkhoj, Bhilai, 490026",
+    companyAddressStyle: { fontSize: 12, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
     headerValueColor: "#000000",
     headerLineColor: "#000000",
 
     clientName: "",
+    clientNameStyle: { fontSize: 11, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
     clientDesignation: "",
+    clientDesignationStyle: { fontSize: 11, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
     clientCompany: "",
+    clientCompanyStyle: { fontSize: 11, fontWeight: 'bold', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
     clientAddress: "",
+    clientAddressStyle: { fontSize: 11, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
 
     subject: "Offer for Supply of Equipment",
+    subjectStyle: { fontSize: 11, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
     greeting: "Dear Sir,",
+    greetingStyle: { fontSize: 11, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
 
     contentBlocks: [
         {
@@ -167,13 +463,18 @@ const defaultQuotationData: QuotationData = {
     ],
 
     footerLine1: "Your Products | Your Services | Your Solutions",
+    footerLine1Style: { fontSize: 9, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'center', color: '#000000' },
     footerLine2: "Additional Services | Customized Solutions",
+    footerLine2Style: { fontSize: 9, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'center', color: '#000000' },
     footerLine3: "Authorized Signatory: Your Name - Your Position",
+    footerLine3Style: { fontSize: 9, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'center', color: '#000000' },
     footerLineColor: "#000000",
     footerTextColor: "#000000",
 
     signatureName: "Authorized Signatory",
+    signatureNameStyle: { fontSize: 11, fontWeight: 'bold', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
     signatureDesignation: "Manager",
+    signatureDesignationStyle: { fontSize: 11, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', color: '#1a1a1a' },
 
     watermarkType: 'text',
     watermarkText: "COMPANY NAME",
@@ -216,30 +517,49 @@ export default function QuotationPage() {
                     setQuotationData({
                         ...defaultQuotationData,
                         title: q.title || defaultQuotationData.title,
+                        titleStyle: q.titleStyle || defaultQuotationData.titleStyle,
                         refNo: q.refNo || defaultQuotationData.refNo,
+                        refNoStyle: q.refNoStyle || defaultQuotationData.refNoStyle,
                         date: q.date || defaultQuotationData.date,
+                        dateStyle: q.dateStyle || defaultQuotationData.dateStyle,
                         companyName: q.companyDetails?.name || defaultQuotationData.companyName,
+                        companyNameStyle: q.companyDetails?.nameStyle || defaultQuotationData.companyNameStyle,
                         companyLogo: q.companyDetails?.logo || "",
                         companyGSTIN: q.companyDetails?.gstin || defaultQuotationData.companyGSTIN,
+                        companyGSTINStyle: q.companyDetails?.gstinStyle || defaultQuotationData.companyGSTINStyle,
                         companyPhone: q.companyDetails?.phone || defaultQuotationData.companyPhone,
+                        companyPhoneStyle: q.companyDetails?.phoneStyle || defaultQuotationData.companyPhoneStyle,
                         companyEmail: q.companyDetails?.email || defaultQuotationData.companyEmail,
+                        companyEmailStyle: q.companyDetails?.emailStyle || defaultQuotationData.companyEmailStyle,
                         companyAddress: q.companyDetails?.address || defaultQuotationData.companyAddress,
+                        companyAddressStyle: q.companyDetails?.addressStyle || defaultQuotationData.companyAddressStyle,
                         headerValueColor: q.companyDetails?.headerValueColor || defaultQuotationData.headerValueColor,
                         headerLineColor: q.companyDetails?.headerLineColor || defaultQuotationData.headerLineColor,
                         clientName: q.clientDetails?.name || "",
+                        clientNameStyle: q.clientDetails?.nameStyle || defaultQuotationData.clientNameStyle,
                         clientDesignation: q.clientDetails?.designation || "",
+                        clientDesignationStyle: q.clientDetails?.designationStyle || defaultQuotationData.clientDesignationStyle,
                         clientCompany: q.clientDetails?.company || "",
+                        clientCompanyStyle: q.clientDetails?.companyStyle || defaultQuotationData.clientCompanyStyle,
                         clientAddress: q.clientDetails?.address || "",
+                        clientAddressStyle: q.clientDetails?.addressStyle || defaultQuotationData.clientAddressStyle,
                         subject: q.subject || defaultQuotationData.subject,
+                        subjectStyle: q.subjectStyle || defaultQuotationData.subjectStyle,
                         greeting: q.greeting || defaultQuotationData.greeting,
+                        greetingStyle: q.greetingStyle || defaultQuotationData.greetingStyle,
                         contentBlocks: q.contentBlocks || defaultQuotationData.contentBlocks,
                         footerLine1: q.footer?.line1 || defaultQuotationData.footerLine1,
+                        footerLine1Style: q.footer?.line1Style || defaultQuotationData.footerLine1Style,
                         footerLine2: q.footer?.line2 || defaultQuotationData.footerLine2,
+                        footerLine2Style: q.footer?.line2Style || defaultQuotationData.footerLine2Style,
                         footerLine3: q.footer?.line3 || defaultQuotationData.footerLine3,
+                        footerLine3Style: q.footer?.line3Style || defaultQuotationData.footerLine3Style,
                         footerLineColor: q.footer?.lineColor || defaultQuotationData.footerLineColor,
                         footerTextColor: q.footer?.textColor || defaultQuotationData.footerTextColor,
                         signatureName: q.signature?.name || defaultQuotationData.signatureName,
+                        signatureNameStyle: q.signature?.nameStyle || defaultQuotationData.signatureNameStyle,
                         signatureDesignation: q.signature?.designation || defaultQuotationData.signatureDesignation,
+                        signatureDesignationStyle: q.signature?.designationStyle || defaultQuotationData.signatureDesignationStyle,
                         watermarkType: q.watermark?.type || defaultQuotationData.watermarkType,
                         watermarkText: q.watermark?.text || defaultQuotationData.watermarkText,
                         watermarkColor: q.watermark?.color || defaultQuotationData.watermarkColor,
@@ -281,37 +601,56 @@ export default function QuotationPage() {
             try {
                 const payload = {
                     title: debouncedData.title,
+                    titleStyle: debouncedData.titleStyle,
                     refNo: debouncedData.refNo,
+                    refNoStyle: debouncedData.refNoStyle,
                     date: debouncedData.date,
+                    dateStyle: debouncedData.dateStyle,
                     companyDetails: {
                         name: debouncedData.companyName,
+                        nameStyle: debouncedData.companyNameStyle,
                         logo: debouncedData.companyLogo,
                         gstin: debouncedData.companyGSTIN,
+                        gstinStyle: debouncedData.companyGSTINStyle,
                         phone: debouncedData.companyPhone,
+                        phoneStyle: debouncedData.companyPhoneStyle,
                         email: debouncedData.companyEmail,
+                        emailStyle: debouncedData.companyEmailStyle,
                         address: debouncedData.companyAddress,
+                        addressStyle: debouncedData.companyAddressStyle,
                         headerValueColor: debouncedData.headerValueColor,
                         headerLineColor: debouncedData.headerLineColor,
                     },
                     clientDetails: {
                         name: debouncedData.clientName,
+                        nameStyle: debouncedData.clientNameStyle,
                         designation: debouncedData.clientDesignation,
+                        designationStyle: debouncedData.clientDesignationStyle,
                         company: debouncedData.clientCompany,
+                        companyStyle: debouncedData.clientCompanyStyle,
                         address: debouncedData.clientAddress,
+                        addressStyle: debouncedData.clientAddressStyle,
                     },
                     subject: debouncedData.subject,
+                    subjectStyle: debouncedData.subjectStyle,
                     greeting: debouncedData.greeting,
+                    greetingStyle: debouncedData.greetingStyle,
                     contentBlocks: debouncedData.contentBlocks,
                     footer: {
                         line1: debouncedData.footerLine1,
+                        line1Style: debouncedData.footerLine1Style,
                         line2: debouncedData.footerLine2,
+                        line2Style: debouncedData.footerLine2Style,
                         line3: debouncedData.footerLine3,
+                        line3Style: debouncedData.footerLine3Style,
                         lineColor: debouncedData.footerLineColor,
                         textColor: debouncedData.footerTextColor,
                     },
                     signature: {
                         name: debouncedData.signatureName,
+                        nameStyle: debouncedData.signatureNameStyle,
                         designation: debouncedData.signatureDesignation,
+                        designationStyle: debouncedData.signatureDesignationStyle,
                     },
                     watermark: {
                         type: debouncedData.watermarkType,
@@ -707,44 +1046,45 @@ export default function QuotationPage() {
                                             </label>
                                         </div>
                                     </div>
-                                    <div>
-                                        <Label>Company Name</Label>
-                                        <Input
-                                            value={quotationData.companyName}
-                                            onChange={e => setQuotationData({ ...quotationData, companyName: e.target.value })}
-                                        />
-                                    </div>
+                                    <RichTextFieldEditor
+                                        label="Company Name"
+                                        value={quotationData.companyName}
+                                        onChange={v => setQuotationData({ ...quotationData, companyName: v })}
+                                        style={quotationData.companyNameStyle}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, companyNameStyle: s })}
+                                    />
                                     <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <Label>GSTIN</Label>
-                                            <Input
-                                                value={quotationData.companyGSTIN}
-                                                onChange={e => setQuotationData({ ...quotationData, companyGSTIN: e.target.value })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <Label>Phone</Label>
-                                            <Input
-                                                value={quotationData.companyPhone}
-                                                onChange={e => setQuotationData({ ...quotationData, companyPhone: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <Label>Email</Label>
-                                        <Input
-                                            value={quotationData.companyEmail}
-                                            onChange={e => setQuotationData({ ...quotationData, companyEmail: e.target.value })}
+                                        <RichTextFieldEditor
+                                            label="GSTIN"
+                                            value={quotationData.companyGSTIN}
+                                            onChange={v => setQuotationData({ ...quotationData, companyGSTIN: v })}
+                                            style={quotationData.companyGSTINStyle}
+                                            onStyleChange={s => setQuotationData({ ...quotationData, companyGSTINStyle: s })}
+                                        />
+                                        <RichTextFieldEditor
+                                            label="Phone"
+                                            value={quotationData.companyPhone}
+                                            onChange={v => setQuotationData({ ...quotationData, companyPhone: v })}
+                                            style={quotationData.companyPhoneStyle}
+                                            onStyleChange={s => setQuotationData({ ...quotationData, companyPhoneStyle: s })}
                                         />
                                     </div>
-                                    <div>
-                                        <Label>Address</Label>
-                                        <Textarea
-                                            value={quotationData.companyAddress}
-                                            onChange={e => setQuotationData({ ...quotationData, companyAddress: e.target.value })}
-                                            rows={2}
-                                        />
-                                    </div>
+                                    <RichTextFieldEditor
+                                        label="Email"
+                                        value={quotationData.companyEmail}
+                                        onChange={v => setQuotationData({ ...quotationData, companyEmail: v })}
+                                        style={quotationData.companyEmailStyle}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, companyEmailStyle: s })}
+                                    />
+                                    <RichTextFieldEditor
+                                        label="Address"
+                                        value={quotationData.companyAddress}
+                                        onChange={v => setQuotationData({ ...quotationData, companyAddress: v })}
+                                        style={quotationData.companyAddressStyle}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, companyAddressStyle: s })}
+                                        multiline
+                                        rows={2}
+                                    />
                                     <div>
                                         <Label>Header Value Color</Label>
                                         <div className="flex items-center gap-2 mt-1">
@@ -787,29 +1127,29 @@ export default function QuotationPage() {
                             <Card className="p-4 border-l-4 border-l-orange-500">
                                 <h3 className="font-semibold text-lg mb-4">Document Info</h3>
                                 <div className="space-y-3">
-                                    <div>
-                                        <Label>Document Title</Label>
-                                        <Input
-                                            value={quotationData.title}
-                                            onChange={e => setQuotationData({ ...quotationData, title: e.target.value })}
-                                        />
-                                    </div>
+                                    <RichTextFieldEditor
+                                        label="Document Title"
+                                        value={quotationData.title}
+                                        onChange={v => setQuotationData({ ...quotationData, title: v })}
+                                        style={quotationData.titleStyle}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, titleStyle: s })}
+                                    />
                                     <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <Label>Reference No.</Label>
-                                            <Input
-                                                value={quotationData.refNo}
-                                                onChange={e => setQuotationData({ ...quotationData, refNo: e.target.value })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <Label>Date</Label>
-                                            <Input
-                                                type="date"
-                                                value={quotationData.date}
-                                                onChange={e => setQuotationData({ ...quotationData, date: e.target.value })}
-                                            />
-                                        </div>
+                                        <RichTextFieldEditor
+                                            label="Reference No."
+                                            value={quotationData.refNo}
+                                            onChange={v => setQuotationData({ ...quotationData, refNo: v })}
+                                            style={quotationData.refNoStyle}
+                                            onStyleChange={s => setQuotationData({ ...quotationData, refNoStyle: s })}
+                                        />
+                                        <RichTextFieldEditor
+                                            label="Date"
+                                            value={quotationData.date}
+                                            onChange={v => setQuotationData({ ...quotationData, date: v })}
+                                            style={quotationData.dateStyle}
+                                            onStyleChange={s => setQuotationData({ ...quotationData, dateStyle: s })}
+                                            type="date"
+                                        />
                                     </div>
                                 </div>
                             </Card>
@@ -820,58 +1160,59 @@ export default function QuotationPage() {
                             <Card className="p-4 border-l-4 border-l-blue-500">
                                 <h3 className="font-semibold text-lg mb-4">Client Details</h3>
                                 <div className="space-y-3">
-                                    <div>
-                                        <Label>To (Company/Organization)</Label>
-                                        <Input
-                                            value={quotationData.clientCompany}
-                                            onChange={e => setQuotationData({ ...quotationData, clientCompany: e.target.value })}
-                                            placeholder="Client Company Name"
-                                        />
-                                    </div>
+                                    <RichTextFieldEditor
+                                        label="To (Company/Organization)"
+                                        value={quotationData.clientCompany}
+                                        onChange={v => setQuotationData({ ...quotationData, clientCompany: v })}
+                                        style={quotationData.clientCompanyStyle}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, clientCompanyStyle: s })}
+                                        placeholder="Client Company Name"
+                                    />
                                     <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <Label>Contact Person</Label>
-                                            <Input
-                                                value={quotationData.clientName}
-                                                onChange={e => setQuotationData({ ...quotationData, clientName: e.target.value })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <Label>Designation</Label>
-                                            <Input
-                                                value={quotationData.clientDesignation}
-                                                onChange={e => setQuotationData({ ...quotationData, clientDesignation: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <Label>Address</Label>
-                                        <Textarea
-                                            value={quotationData.clientAddress}
-                                            onChange={e => setQuotationData({ ...quotationData, clientAddress: e.target.value })}
-                                            rows={3}
+                                        <RichTextFieldEditor
+                                            label="Contact Person"
+                                            value={quotationData.clientName}
+                                            onChange={v => setQuotationData({ ...quotationData, clientName: v })}
+                                            style={quotationData.clientNameStyle}
+                                            onStyleChange={s => setQuotationData({ ...quotationData, clientNameStyle: s })}
+                                        />
+                                        <RichTextFieldEditor
+                                            label="Designation"
+                                            value={quotationData.clientDesignation}
+                                            onChange={v => setQuotationData({ ...quotationData, clientDesignation: v })}
+                                            style={quotationData.clientDesignationStyle}
+                                            onStyleChange={s => setQuotationData({ ...quotationData, clientDesignationStyle: s })}
                                         />
                                     </div>
+                                    <RichTextFieldEditor
+                                        label="Address"
+                                        value={quotationData.clientAddress}
+                                        onChange={v => setQuotationData({ ...quotationData, clientAddress: v })}
+                                        style={quotationData.clientAddressStyle}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, clientAddressStyle: s })}
+                                        multiline
+                                        rows={3}
+                                    />
                                 </div>
                             </Card>
 
                             <Card className="p-4 border-l-4 border-l-green-500">
                                 <h3 className="font-semibold text-lg mb-4">Subject & Greeting</h3>
                                 <div className="space-y-3">
-                                    <div>
-                                        <Label>Subject Line</Label>
-                                        <Input
-                                            value={quotationData.subject}
-                                            onChange={e => setQuotationData({ ...quotationData, subject: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Greeting</Label>
-                                        <Input
-                                            value={quotationData.greeting}
-                                            onChange={e => setQuotationData({ ...quotationData, greeting: e.target.value })}
-                                        />
-                                    </div>
+                                    <RichTextFieldEditor
+                                        label="Subject Line"
+                                        value={quotationData.subject}
+                                        onChange={v => setQuotationData({ ...quotationData, subject: v })}
+                                        style={quotationData.subjectStyle}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, subjectStyle: s })}
+                                    />
+                                    <RichTextFieldEditor
+                                        label="Greeting"
+                                        value={quotationData.greeting}
+                                        onChange={v => setQuotationData({ ...quotationData, greeting: v })}
+                                        style={quotationData.greetingStyle}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, greetingStyle: s })}
+                                    />
                                 </div>
                             </Card>
                         </TabsContent>
@@ -1353,27 +1694,27 @@ export default function QuotationPage() {
                             <Card className="p-4 border-l-4 border-l-indigo-500">
                                 <h3 className="font-semibold text-lg mb-4">Footer Lines</h3>
                                 <div className="space-y-3">
-                                    <div>
-                                        <Label>Line 1</Label>
-                                        <Input
-                                            value={quotationData.footerLine1}
-                                            onChange={e => setQuotationData({ ...quotationData, footerLine1: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Line 2</Label>
-                                        <Input
-                                            value={quotationData.footerLine2}
-                                            onChange={e => setQuotationData({ ...quotationData, footerLine2: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Line 3</Label>
-                                        <Input
-                                            value={quotationData.footerLine3}
-                                            onChange={e => setQuotationData({ ...quotationData, footerLine3: e.target.value })}
-                                        />
-                                    </div>
+                                    <RichTextFieldEditor
+                                        label="Line 1"
+                                        value={quotationData.footerLine1}
+                                        onChange={v => setQuotationData({ ...quotationData, footerLine1: v })}
+                                        style={quotationData.footerLine1Style}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, footerLine1Style: s })}
+                                    />
+                                    <RichTextFieldEditor
+                                        label="Line 2"
+                                        value={quotationData.footerLine2}
+                                        onChange={v => setQuotationData({ ...quotationData, footerLine2: v })}
+                                        style={quotationData.footerLine2Style}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, footerLine2Style: s })}
+                                    />
+                                    <RichTextFieldEditor
+                                        label="Line 3"
+                                        value={quotationData.footerLine3}
+                                        onChange={v => setQuotationData({ ...quotationData, footerLine3: v })}
+                                        style={quotationData.footerLine3Style}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, footerLine3Style: s })}
+                                    />
                                     <div className="grid grid-cols-2 gap-3 pt-2 border-t">
                                         <div>
                                             <Label>Footer Line Color</Label>
@@ -1393,7 +1734,7 @@ export default function QuotationPage() {
                                             </div>
                                         </div>
                                         <div>
-                                            <Label>Footer Text Color</Label>
+                                            <Label>Footer Text Color (Legacy)</Label>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <input
                                                     type="color"
@@ -1444,20 +1785,20 @@ export default function QuotationPage() {
                             <Card className="p-4 border-l-4 border-l-pink-500">
                                 <h3 className="font-semibold text-lg mb-4">Signature</h3>
                                 <div className="space-y-3">
-                                    <div>
-                                        <Label>Signatory Name</Label>
-                                        <Input
-                                            value={quotationData.signatureName}
-                                            onChange={e => setQuotationData({ ...quotationData, signatureName: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Designation</Label>
-                                        <Input
-                                            value={quotationData.signatureDesignation}
-                                            onChange={e => setQuotationData({ ...quotationData, signatureDesignation: e.target.value })}
-                                        />
-                                    </div>
+                                    <RichTextFieldEditor
+                                        label="Signatory Name"
+                                        value={quotationData.signatureName}
+                                        onChange={v => setQuotationData({ ...quotationData, signatureName: v })}
+                                        style={quotationData.signatureNameStyle}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, signatureNameStyle: s })}
+                                    />
+                                    <RichTextFieldEditor
+                                        label="Designation"
+                                        value={quotationData.signatureDesignation}
+                                        onChange={v => setQuotationData({ ...quotationData, signatureDesignation: v })}
+                                        style={quotationData.signatureDesignationStyle}
+                                        onStyleChange={s => setQuotationData({ ...quotationData, signatureDesignationStyle: s })}
+                                    />
                                 </div>
                             </Card>
 
@@ -1702,49 +2043,189 @@ export default function QuotationPage() {
                                             ) : (
                                                 <div className="logo-placeholder">LOGO</div>
                                             )}
-                                            <div className="company-name">{quotationData.companyName}</div>
+                                            <div
+                                                className="company-name"
+                                                style={{
+                                                    fontSize: `${quotationData.companyNameStyle?.fontSize || 20}px`,
+                                                    fontWeight: quotationData.companyNameStyle?.fontWeight || 'bold',
+                                                    fontStyle: quotationData.companyNameStyle?.fontStyle || 'normal',
+                                                    textDecoration: quotationData.companyNameStyle?.textDecoration || 'none',
+                                                    textAlign: quotationData.companyNameStyle?.textAlign || 'left',
+                                                    color: quotationData.companyNameStyle?.color || '#1a1a1a',
+                                                }}
+                                            >
+                                                {quotationData.companyName}
+                                            </div>
                                         </div>
                                         <div className="header-right">
                                             <div className="header-info-row">
                                                 <span className="info-label">GSTIN :</span>
-                                                <span className="info-value" style={{ color: quotationData.headerValueColor }}>{quotationData.companyGSTIN}</span>
+                                                <span
+                                                    className="info-value"
+                                                    style={{
+                                                        fontSize: `${quotationData.companyGSTINStyle?.fontSize || 12}px`,
+                                                        fontWeight: quotationData.companyGSTINStyle?.fontWeight || 'normal',
+                                                        fontStyle: quotationData.companyGSTINStyle?.fontStyle || 'normal',
+                                                        textDecoration: quotationData.companyGSTINStyle?.textDecoration || 'none',
+                                                        color: quotationData.companyGSTINStyle?.color || quotationData.headerValueColor
+                                                    }}
+                                                >
+                                                    {quotationData.companyGSTIN}
+                                                </span>
                                             </div>
                                             <div className="header-info-row">
                                                 <span className="info-label">Contact :</span>
-                                                <span className="info-value" style={{ color: quotationData.headerValueColor }}>{quotationData.companyPhone}</span>
+                                                <span
+                                                    className="info-value"
+                                                    style={{
+                                                        fontSize: `${quotationData.companyPhoneStyle?.fontSize || 12}px`,
+                                                        fontWeight: quotationData.companyPhoneStyle?.fontWeight || 'normal',
+                                                        fontStyle: quotationData.companyPhoneStyle?.fontStyle || 'normal',
+                                                        textDecoration: quotationData.companyPhoneStyle?.textDecoration || 'none',
+                                                        color: quotationData.companyPhoneStyle?.color || quotationData.headerValueColor
+                                                    }}
+                                                >
+                                                    {quotationData.companyPhone}
+                                                </span>
                                             </div>
                                             <div className="header-info-row">
                                                 <span className="info-label">Email :</span>
-                                                <span className="info-value" style={{ color: quotationData.headerValueColor, textDecoration: 'underline' }}>{quotationData.companyEmail}</span>
+                                                <span
+                                                    className="info-value"
+                                                    style={{
+                                                        fontSize: `${quotationData.companyEmailStyle?.fontSize || 12}px`,
+                                                        fontWeight: quotationData.companyEmailStyle?.fontWeight || 'normal',
+                                                        fontStyle: quotationData.companyEmailStyle?.fontStyle || 'normal',
+                                                        textDecoration: quotationData.companyEmailStyle?.textDecoration || 'underline',
+                                                        color: quotationData.companyEmailStyle?.color || quotationData.headerValueColor
+                                                    }}
+                                                >
+                                                    {quotationData.companyEmail}
+                                                </span>
                                             </div>
                                             <div className="header-info-row address-row">
-                                                <span className="info-label">Factory :</span>
-                                                <span className="info-value address-value">{quotationData.companyAddress}</span>
+                                                <span className="info-label">Address :</span>
+                                                <span
+                                                    className="info-value address-value"
+                                                    style={{
+                                                        fontSize: `${quotationData.companyAddressStyle?.fontSize || 12}px`,
+                                                        fontWeight: quotationData.companyAddressStyle?.fontWeight || 'normal',
+                                                        fontStyle: quotationData.companyAddressStyle?.fontStyle || 'normal',
+                                                        textDecoration: quotationData.companyAddressStyle?.textDecoration || 'none',
+                                                        color: quotationData.companyAddressStyle?.color || '#1a1a1a',
+                                                    }}
+                                                >
+                                                    {quotationData.companyAddress}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Title */}
-                                    <h1 className="document-title">{quotationData.title}</h1>
+                                    <h1
+                                        className="document-title"
+                                        style={{
+                                            fontSize: `${quotationData.titleStyle?.fontSize || 16}px`,
+                                            fontWeight: quotationData.titleStyle?.fontWeight || 'bold',
+                                            fontStyle: quotationData.titleStyle?.fontStyle || 'normal',
+                                            textDecoration: quotationData.titleStyle?.textDecoration || 'underline',
+                                            textAlign: quotationData.titleStyle?.textAlign || 'left',
+                                            color: quotationData.titleStyle?.color || '#1a1a1a',
+                                        }}
+                                    >
+                                        {quotationData.title}
+                                    </h1>
 
                                     {/* Reference & Date */}
                                     <div className="ref-section">
-                                        <p><strong>Ref No.:</strong> {quotationData.refNo}</p>
-                                        <p><strong>Date:</strong> {new Date(quotationData.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                                        <p style={{
+                                            fontSize: `${quotationData.refNoStyle?.fontSize || 11}px`,
+                                            fontWeight: quotationData.refNoStyle?.fontWeight || 'normal',
+                                            fontStyle: quotationData.refNoStyle?.fontStyle || 'normal',
+                                            textDecoration: quotationData.refNoStyle?.textDecoration || 'none',
+                                            color: quotationData.refNoStyle?.color || '#1a1a1a',
+                                        }}>
+                                            <strong>Ref No.:</strong> {quotationData.refNo}
+                                        </p>
+                                        <p style={{
+                                            fontSize: `${quotationData.dateStyle?.fontSize || 11}px`,
+                                            fontWeight: quotationData.dateStyle?.fontWeight || 'normal',
+                                            fontStyle: quotationData.dateStyle?.fontStyle || 'normal',
+                                            textDecoration: quotationData.dateStyle?.textDecoration || 'none',
+                                            color: quotationData.dateStyle?.color || '#1a1a1a',
+                                        }}>
+                                            <strong>Date:</strong> {new Date(quotationData.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                        </p>
                                     </div>
 
                                     {/* To Section */}
                                     <div className="to-section">
                                         <p><strong>To</strong></p>
-                                        <p><strong>{quotationData.clientCompany}</strong></p>
-                                        {quotationData.clientName && <p>{quotationData.clientName}{quotationData.clientDesignation && `, ${quotationData.clientDesignation}`}</p>}
-                                        {quotationData.clientAddress && <p style={{ whiteSpace: 'pre-line' }}>{quotationData.clientAddress}</p>}
+                                        <p style={{
+                                            fontSize: `${quotationData.clientCompanyStyle?.fontSize || 11}px`,
+                                            fontWeight: quotationData.clientCompanyStyle?.fontWeight || 'bold',
+                                            fontStyle: quotationData.clientCompanyStyle?.fontStyle || 'normal',
+                                            textDecoration: quotationData.clientCompanyStyle?.textDecoration || 'none',
+                                            color: quotationData.clientCompanyStyle?.color || '#1a1a1a',
+                                        }}>
+                                            {quotationData.clientCompany}
+                                        </p>
+                                        {quotationData.clientName && (
+                                            <p style={{
+                                                fontSize: `${quotationData.clientNameStyle?.fontSize || 11}px`,
+                                                fontWeight: quotationData.clientNameStyle?.fontWeight || 'normal',
+                                                fontStyle: quotationData.clientNameStyle?.fontStyle || 'normal',
+                                                textDecoration: quotationData.clientNameStyle?.textDecoration || 'none',
+                                                color: quotationData.clientNameStyle?.color || '#1a1a1a',
+                                            }}>
+                                                {quotationData.clientName}
+                                                {quotationData.clientDesignation && (
+                                                    <span style={{
+                                                        fontSize: `${quotationData.clientDesignationStyle?.fontSize || 11}px`,
+                                                        fontWeight: quotationData.clientDesignationStyle?.fontWeight || 'normal',
+                                                        fontStyle: quotationData.clientDesignationStyle?.fontStyle || 'normal',
+                                                        textDecoration: quotationData.clientDesignationStyle?.textDecoration || 'none',
+                                                        color: quotationData.clientDesignationStyle?.color || '#1a1a1a',
+                                                    }}>
+                                                        , {quotationData.clientDesignation}
+                                                    </span>
+                                                )}
+                                            </p>
+                                        )}
+                                        {quotationData.clientAddress && (
+                                            <p style={{
+                                                whiteSpace: 'pre-line',
+                                                fontSize: `${quotationData.clientAddressStyle?.fontSize || 11}px`,
+                                                fontWeight: quotationData.clientAddressStyle?.fontWeight || 'normal',
+                                                fontStyle: quotationData.clientAddressStyle?.fontStyle || 'normal',
+                                                textDecoration: quotationData.clientAddressStyle?.textDecoration || 'none',
+                                                color: quotationData.clientAddressStyle?.color || '#1a1a1a',
+                                            }}>
+                                                {quotationData.clientAddress}
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Subject */}
                                     <div className="subject-section">
-                                        <p><strong>Sub:</strong> {quotationData.subject}</p>
-                                        <p>{quotationData.greeting}</p>
+                                        <p style={{
+                                            fontSize: `${quotationData.subjectStyle?.fontSize || 11}px`,
+                                            fontWeight: quotationData.subjectStyle?.fontWeight || 'normal',
+                                            fontStyle: quotationData.subjectStyle?.fontStyle || 'normal',
+                                            textDecoration: quotationData.subjectStyle?.textDecoration || 'none',
+                                            color: quotationData.subjectStyle?.color || '#1a1a1a',
+                                        }}>
+                                            <strong>Sub:</strong> {quotationData.subject}
+                                        </p>
+                                        <p style={{
+                                            fontSize: `${quotationData.greetingStyle?.fontSize || 11}px`,
+                                            fontWeight: quotationData.greetingStyle?.fontWeight || 'normal',
+                                            fontStyle: quotationData.greetingStyle?.fontStyle || 'normal',
+                                            textDecoration: quotationData.greetingStyle?.textDecoration || 'none',
+                                            color: quotationData.greetingStyle?.color || '#1a1a1a',
+                                        }}>
+                                            {quotationData.greeting}
+                                        </p>
                                     </div>
 
                                     {/* Content Blocks */}
@@ -1853,15 +2334,58 @@ export default function QuotationPage() {
                                     {/* Signature */}
                                     <div className="signature-section">
                                         <p><strong>For {quotationData.companyName}</strong></p>
-                                        <p><strong>{quotationData.signatureName}</strong></p>
-                                        <p>{quotationData.signatureDesignation}</p>
+                                        <p style={{
+                                            fontSize: `${quotationData.signatureNameStyle?.fontSize || 11}px`,
+                                            fontWeight: quotationData.signatureNameStyle?.fontWeight || 'bold',
+                                            fontStyle: quotationData.signatureNameStyle?.fontStyle || 'normal',
+                                            textDecoration: quotationData.signatureNameStyle?.textDecoration || 'none',
+                                            color: quotationData.signatureNameStyle?.color || '#1a1a1a',
+                                        }}>
+                                            {quotationData.signatureName}
+                                        </p>
+                                        <p style={{
+                                            fontSize: `${quotationData.signatureDesignationStyle?.fontSize || 11}px`,
+                                            fontWeight: quotationData.signatureDesignationStyle?.fontWeight || 'normal',
+                                            fontStyle: quotationData.signatureDesignationStyle?.fontStyle || 'normal',
+                                            textDecoration: quotationData.signatureDesignationStyle?.textDecoration || 'none',
+                                            color: quotationData.signatureDesignationStyle?.color || '#1a1a1a',
+                                        }}>
+                                            {quotationData.signatureDesignation}
+                                        </p>
                                     </div>
 
                                     {/* Footer */}
-                                    <div className="footer" style={{ borderTopColor: quotationData.footerLineColor, color: quotationData.footerTextColor }}>
-                                        <p>{quotationData.footerLine1}</p>
-                                        <p>{quotationData.footerLine2}</p>
-                                        <p>{quotationData.footerLine3}</p>
+                                    <div className="footer" style={{ borderTopColor: quotationData.footerLineColor }}>
+                                        <p style={{
+                                            fontSize: `${quotationData.footerLine1Style?.fontSize || 9}px`,
+                                            fontWeight: quotationData.footerLine1Style?.fontWeight || 'normal',
+                                            fontStyle: quotationData.footerLine1Style?.fontStyle || 'normal',
+                                            textDecoration: quotationData.footerLine1Style?.textDecoration || 'none',
+                                            textAlign: quotationData.footerLine1Style?.textAlign || 'center',
+                                            color: quotationData.footerLine1Style?.color || quotationData.footerTextColor,
+                                        }}>
+                                            {quotationData.footerLine1}
+                                        </p>
+                                        <p style={{
+                                            fontSize: `${quotationData.footerLine2Style?.fontSize || 9}px`,
+                                            fontWeight: quotationData.footerLine2Style?.fontWeight || 'normal',
+                                            fontStyle: quotationData.footerLine2Style?.fontStyle || 'normal',
+                                            textDecoration: quotationData.footerLine2Style?.textDecoration || 'none',
+                                            textAlign: quotationData.footerLine2Style?.textAlign || 'center',
+                                            color: quotationData.footerLine2Style?.color || quotationData.footerTextColor,
+                                        }}>
+                                            {quotationData.footerLine2}
+                                        </p>
+                                        <p style={{
+                                            fontSize: `${quotationData.footerLine3Style?.fontSize || 9}px`,
+                                            fontWeight: quotationData.footerLine3Style?.fontWeight || 'normal',
+                                            fontStyle: quotationData.footerLine3Style?.fontStyle || 'normal',
+                                            textDecoration: quotationData.footerLine3Style?.textDecoration || 'none',
+                                            textAlign: quotationData.footerLine3Style?.textAlign || 'center',
+                                            color: quotationData.footerLine3Style?.color || quotationData.footerTextColor,
+                                        }}>
+                                            {quotationData.footerLine3}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -1976,14 +2500,12 @@ export default function QuotationPage() {
                 }
                 
                 .quotation-preview .company-name {
-                    font-size: 20px;
-                    font-weight: bold;
-                    color: #1a1a1a;
+                    /* Font size, weight, color controlled by inline styles */
                 }
                 
                 .quotation-preview .header-right {
                     text-align: left;
-                    font-size: 12px;
+                    /* font-size controlled by inline styles */
                     max-width: 30%;
                 }
                 
@@ -2017,15 +2539,12 @@ export default function QuotationPage() {
                 }
                 
                 .quotation-preview .document-title {
-                    font-size: 16px;
-                    font-weight: bold;
-                    text-decoration: underline;
+                    /* Font size, weight, decoration, align controlled by inline styles */
                     margin: 15px 0;
-                    text-align: left;
                 }
                 
                 .quotation-preview .ref-section {
-                    font-size: 11px;
+                    /* font-size controlled by inline styles */
                     margin-bottom: 10px;
                 }
                 
@@ -2034,7 +2553,7 @@ export default function QuotationPage() {
                 }
                 
                 .quotation-preview .to-section {
-                    font-size: 11px;
+                    /* font-size controlled by inline styles */
                     margin-bottom: 10px;
                 }
                 
@@ -2043,7 +2562,7 @@ export default function QuotationPage() {
                 }
                 
                 .quotation-preview .subject-section {
-                    font-size: 11px;
+                    /* font-size controlled by inline styles */
                     margin-bottom: 15px;
                 }
                 
@@ -2061,12 +2580,13 @@ export default function QuotationPage() {
                 
                 .quotation-preview .block-heading {
                     margin: 10px 0 5px 0;
+                    /* Font size, weight, decoration, align controlled by inline styles */
                 }
                 
                 .quotation-preview .block-paragraph {
                     margin: 5px 0;
-                    text-align: justify;
-                    line-height: 1.5;
+                    /* text-align controlled by inline styles */
+                    /* line-height controlled by inline styles */
                 }
                 
                 .quotation-preview .block-list {
@@ -2076,7 +2596,7 @@ export default function QuotationPage() {
                 
                 .quotation-preview .block-list li {
                     margin: 3px 0;
-                    font-size: 11px;
+                    /* font-size controlled by inline styles */
                 }
                 
                 .quotation-preview .block-table {
@@ -2096,7 +2616,7 @@ export default function QuotationPage() {
                 
                 .quotation-preview .signature-section {
                     margin-top: 30px;
-                    font-size: 11px;
+                    /* font-size controlled by inline styles */
                 }
                 
                 .quotation-preview .signature-section p {
@@ -2110,9 +2630,7 @@ export default function QuotationPage() {
                     right: 15mm;
                     border-top: 2px solid #000000;
                     padding-top: 10px;
-                    font-size: 9px;
-                    text-align: center;
-                    color: #000000;
+                    /* font-size, text-align, color controlled by inline styles */
                 }
                 
                 .quotation-preview .footer p {
@@ -2142,7 +2660,7 @@ export default function QuotationPage() {
                     .quotation-preview .page {
                         width: 100%;
                         min-height: 100vh;
-                        padding: 15mm;
+                        padding: 10mm 8mm; /* Reduced: 10mm top/bottom, 8mm left/right */
                         margin: 0;
                         box-shadow: none;
                         page-break-after: always;
@@ -2158,8 +2676,38 @@ export default function QuotationPage() {
                     }
                     
                     .quotation-preview .header {
+                        display: flex !important;
+                        justify-content: space-between !important;
+                        align-items: flex-start !important;
+                        flex-wrap: nowrap !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                    }
+                    
+                    .quotation-preview .header-left {
+                        display: flex !important;
+                        align-items: center !important;
+                        gap: 15px !important;
+                        flex-shrink: 0 !important;
+                    }
+                    
+                    .quotation-preview .header-right {
+                        max-width: 35% !important;
+                        min-width: 180px !important;
+                        flex-shrink: 0 !important;
+                    }
+                    
+                    .quotation-preview .header-info-row {
+                        white-space: nowrap !important;
+                    }
+                    
+                    .quotation-preview .header-info-row.address-row {
+                        white-space: normal !important;
+                    }
+                    
+                    .quotation-preview .header-info-row.address-row .address-value {
+                        display: inline !important;
+                        white-space: normal !important;
                     }
                     
                     .quotation-preview .block-table th {
@@ -2168,6 +2716,9 @@ export default function QuotationPage() {
                     }
                     
                     .quotation-preview .footer {
+                        left: 8mm;  /* Match reduced padding */
+                        right: 8mm; /* Match reduced padding */
+                        bottom: 10mm;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
