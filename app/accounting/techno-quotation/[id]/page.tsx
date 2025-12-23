@@ -119,7 +119,11 @@ function RichTextFieldEditor({
     }, [])
 
     const updateStyle = (updates: Partial<RichTextStyle>) => {
-        onStyleChange({ ...style, ...updates })
+        const newStyle = { ...style, ...updates }
+        console.log('updateStyle called for:', label)
+        console.log('Updates:', updates)
+        console.log('New merged style:', newStyle)
+        onStyleChange(newStyle)
     }
 
     return (
@@ -167,7 +171,14 @@ function RichTextFieldEditor({
                     {/* Font Size */}
                     <Select
                         value={String(style.fontSize || 11)}
-                        onValueChange={(v) => updateStyle({ fontSize: parseInt(v) })}
+                        onValueChange={(v) => {
+                            console.log('=== FONT SIZE CHANGE ===')
+                            console.log('Label:', label)
+                            console.log('Selected value:', v)
+                            console.log('Parsed int:', parseInt(v))
+                            console.log('Current style:', style)
+                            updateStyle({ fontSize: parseInt(v) })
+                        }}
                     >
                         <SelectTrigger className="w-16 h-7 text-xs">
                             <SelectValue />
