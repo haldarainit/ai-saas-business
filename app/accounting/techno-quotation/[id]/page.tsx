@@ -552,9 +552,11 @@ export default function QuotationPage() {
 
                     console.log('--- Content Blocks ---')
                     console.log('Content Blocks Count:', q.contentBlocks?.length || 0)
+                    console.log('Content Blocks Order:', q.contentBlocks?.map((b: ContentBlock) => `${b.id}:${b.type}`) || 'NONE')
 
                     console.log('--- Footer ---')
                     console.log('Footer Line1:', q.footer?.line1 || 'NOT SET')
+                    console.log('Footer Line1 Style:', q.footer?.line1Style || 'NOT SET')
                     console.log('Footer Text Color:', q.footer?.textColor || 'NOT SET')
 
                     console.log('=== END QUOTATION DATA ===')
@@ -676,6 +678,8 @@ export default function QuotationPage() {
             console.log('Saving logo URL:', debouncedData.companyLogo || 'EMPTY')
             console.log('Saving title:', debouncedData.title)
             console.log('Saving headerValueColor:', debouncedData.headerValueColor)
+            console.log('Content Blocks order:', debouncedData.contentBlocks.map(b => `${b.id}:${b.type}`))
+            console.log('Footer Line1 Style:', debouncedData.footerLine1Style)
 
             try {
                 const payload = {
@@ -1669,7 +1673,7 @@ export default function QuotationPage() {
                                     </div>
 
                                     {/* Style Controls */}
-                                    {selectedBlockId === block.id && (block.type === 'heading' || block.type === 'paragraph') && (
+                                    {selectedBlockId === block.id && (block.type === 'heading' || block.type === 'paragraph' || block.type === 'list') && (
                                         <div className="flex flex-wrap gap-2 mb-3 p-2 bg-muted/50 rounded">
                                             <Select
                                                 value={String(block.style?.fontSize || 11)}
@@ -2687,7 +2691,17 @@ export default function QuotationPage() {
                                                 )}
 
                                                 {block.type === 'list' && block.items && (
-                                                    <ul className="block-list">
+                                                    <ul
+                                                        className="block-list"
+                                                        style={{
+                                                            fontSize: `${block.style?.fontSize || 11}px`,
+                                                            fontWeight: block.style?.fontWeight || 'normal',
+                                                            fontStyle: block.style?.fontStyle || 'normal',
+                                                            textDecoration: block.style?.textDecoration || 'none',
+                                                            color: block.style?.color || '#1a1a1a',
+                                                            lineHeight: block.style?.lineHeight || 1.5,
+                                                        }}
+                                                    >
                                                         {block.items.map((item, idx) => (
                                                             <li key={idx}>{item}</li>
                                                         ))}
