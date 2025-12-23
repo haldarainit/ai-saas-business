@@ -561,7 +561,7 @@ export default function QuotationPage() {
 
                     console.log('=== END QUOTATION DATA ===')
 
-                    setQuotationData({
+                    const loadedData: QuotationData = {
                         ...defaultQuotationData,
                         title: q.title || defaultQuotationData.title,
                         titleStyle: q.titleStyle || defaultQuotationData.titleStyle,
@@ -569,6 +569,8 @@ export default function QuotationPage() {
                         refNoStyle: q.refNoStyle || defaultQuotationData.refNoStyle,
                         date: q.date || defaultQuotationData.date,
                         dateStyle: q.dateStyle || defaultQuotationData.dateStyle,
+
+
                         companyName: q.companyDetails?.name || defaultQuotationData.companyName,
                         companyNameStyle: q.companyDetails?.nameStyle || defaultQuotationData.companyNameStyle,
                         companyLogo: q.companyDetails?.logo || "",
@@ -584,6 +586,7 @@ export default function QuotationPage() {
                         companyAddressStyle: q.companyDetails?.addressStyle || defaultQuotationData.companyAddressStyle,
                         headerValueColor: q.companyDetails?.headerValueColor || defaultQuotationData.headerValueColor,
                         headerLineColor: q.companyDetails?.headerLineColor || defaultQuotationData.headerLineColor,
+
                         clientName: q.clientDetails?.name || "",
                         clientNameStyle: q.clientDetails?.nameStyle || defaultQuotationData.clientNameStyle,
                         clientDesignation: q.clientDetails?.designation || "",
@@ -592,11 +595,14 @@ export default function QuotationPage() {
                         clientCompanyStyle: q.clientDetails?.companyStyle || defaultQuotationData.clientCompanyStyle,
                         clientAddress: q.clientDetails?.address || "",
                         clientAddressStyle: q.clientDetails?.addressStyle || defaultQuotationData.clientAddressStyle,
+
                         subject: q.subject || defaultQuotationData.subject,
                         subjectStyle: q.subjectStyle || defaultQuotationData.subjectStyle,
                         greeting: q.greeting || defaultQuotationData.greeting,
                         greetingStyle: q.greetingStyle || defaultQuotationData.greetingStyle,
+
                         contentBlocks: q.contentBlocks || defaultQuotationData.contentBlocks,
+
                         footerLine1: q.footer?.line1 || defaultQuotationData.footerLine1,
                         footerLine1Style: q.footer?.line1Style || defaultQuotationData.footerLine1Style,
                         footerLine2: q.footer?.line2 || defaultQuotationData.footerLine2,
@@ -605,10 +611,12 @@ export default function QuotationPage() {
                         footerLine3Style: q.footer?.line3Style || defaultQuotationData.footerLine3Style,
                         footerLineColor: q.footer?.lineColor || defaultQuotationData.footerLineColor,
                         footerTextColor: q.footer?.textColor || defaultQuotationData.footerTextColor,
+
                         signatureName: q.signature?.name || defaultQuotationData.signatureName,
                         signatureNameStyle: q.signature?.nameStyle || defaultQuotationData.signatureNameStyle,
                         signatureDesignation: q.signature?.designation || defaultQuotationData.signatureDesignation,
                         signatureDesignationStyle: q.signature?.designationStyle || defaultQuotationData.signatureDesignationStyle,
+
                         watermarkType: q.watermark?.type || defaultQuotationData.watermarkType,
                         watermarkText: q.watermark?.text || defaultQuotationData.watermarkText,
                         watermarkColor: q.watermark?.color || defaultQuotationData.watermarkColor,
@@ -617,8 +625,15 @@ export default function QuotationPage() {
                         watermarkRotation: q.watermark?.rotation ?? defaultQuotationData.watermarkRotation,
                         watermarkWidth: q.watermark?.width ?? defaultQuotationData.watermarkWidth,
                         watermarkHeight: q.watermark?.height ?? defaultQuotationData.watermarkHeight,
+
                         defaultFontFamily: q.defaultFontFamily || defaultQuotationData.defaultFontFamily,
-                    })
+                    }
+
+                    // CRITICAL FIX: Update the reference to the loaded data to prevent initial diff/autosave
+                    previousDataRef.current = JSON.stringify(loadedData)
+
+                    setQuotationData(loadedData)
+                    setHasChanges(false) // Explicitly set changes to false after load
                     setLastSaved(new Date())
                 }
             } catch (error) {

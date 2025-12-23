@@ -24,8 +24,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         }
 
         // Debug: Log what's being loaded
-        console.log('GET /api/techno-quotation - Loading companyDetails.logo:', quotation.companyDetails?.logo ? 'URL present' : 'NO LOGO');
-        console.log('GET /api/techno-quotation - companyDetails:', quotation.companyDetails ? JSON.stringify(Object.keys(quotation.companyDetails)) : 'none');
+        console.log('=== GET /api/techno-quotation ===');
+        console.log('Loading companyDetails.logo:', quotation.companyDetails?.logo ? 'URL present' : 'NO LOGO');
+        console.log('Loading contentBlocks count:', quotation.contentBlocks?.length || 0);
+        console.log('Loading contentBlocks order:', quotation.contentBlocks?.map((b: any) => `${b.id}:${b.type}`) || 'NONE');
+        console.log('Loading footer.line1Style:', JSON.stringify(quotation.footer?.line1Style || 'NOT SET'));
+        console.log('Loading companyDetails.nameStyle.fontSize:', quotation.companyDetails?.nameStyle?.fontSize || 'NOT SET');
 
         return NextResponse.json({ quotation });
     } catch (error) {
@@ -48,21 +52,28 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const body = await req.json();
 
         // Debug: Log what's being saved
-        console.log('PUT /api/techno-quotation - Saving companyDetails.logo:', body.companyDetails?.logo ? 'URL present' : 'NO LOGO');
-        console.log('PUT /api/techno-quotation - companyDetails keys:', body.companyDetails ? Object.keys(body.companyDetails) : 'none');
+        console.log('=== PUT /api/techno-quotation ===');
+        console.log('Saving companyDetails.logo:', body.companyDetails?.logo ? 'URL present' : 'NO LOGO');
+        console.log('Saving contentBlocks count:', body.contentBlocks?.length || 0);
+        console.log('Saving contentBlocks order:', body.contentBlocks?.map((b: any) => `${b.id}:${b.type}`) || 'NONE');
+        console.log('Saving footer.line1Style:', JSON.stringify(body.footer?.line1Style || 'NOT SET'));
+        console.log('Saving companyDetails.nameStyle:', JSON.stringify(body.companyDetails?.nameStyle || 'NOT SET'));
 
         const quotation = await TechnoQuotation.findOneAndUpdate(
             { _id: id, userId: userId },
             { $set: body },
-            { new: true }
+            { new: true, runValidators: false }
         );
 
         if (!quotation) {
             return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
         }
 
-        // Debug: Log what was saved
-        console.log('PUT /api/techno-quotation - Saved companyDetails.logo:', quotation.companyDetails?.logo ? 'URL present' : 'NO LOGO');
+        // Debug: Log what was saved (from DB)
+        console.log('=== SAVED TO DB ===');
+        console.log('Saved contentBlocks count:', quotation.contentBlocks?.length || 0);
+        console.log('Saved companyDetails.logo:', quotation.companyDetails?.logo ? 'URL present' : 'NO LOGO');
+        console.log('Saved companyDetails.nameStyle.fontSize:', quotation.companyDetails?.nameStyle?.fontSize || 'NOT SET');
 
         return NextResponse.json({ quotation });
     } catch (error) {
