@@ -505,6 +505,7 @@ export default function QuotationPage() {
     const [hasChanges, setHasChanges] = useState(false)
     const [lastSaved, setLastSaved] = useState<Date | null>(null)
     const [previewZoom, setPreviewZoom] = useState(0.9)
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false)
 
     // Fetch quotation data
     useEffect(() => {
@@ -516,8 +517,37 @@ export default function QuotationPage() {
                     return
                 }
                 const data = await res.json()
+
+                // DEBUG: Log the raw response
+                console.log('=== QUOTATION DATA LOADED ===')
+                console.log('Raw API response:', data)
+
                 if (data.quotation) {
                     const q = data.quotation
+
+                    // DEBUG: Log specific fields
+                    console.log('--- Company Details ---')
+                    console.log('Logo URL:', q.companyDetails?.logo || 'NOT SET')
+                    console.log('Logo Width:', q.companyDetails?.logoWidth || 'NOT SET')
+                    console.log('Logo Height:', q.companyDetails?.logoHeight || 'NOT SET')
+                    console.log('Company Name:', q.companyDetails?.name || 'NOT SET')
+                    console.log('Name Style:', q.companyDetails?.nameStyle || 'NOT SET')
+                    console.log('GSTIN:', q.companyDetails?.gstin || 'NOT SET')
+                    console.log('Header Value Color:', q.companyDetails?.headerValueColor || 'NOT SET')
+
+                    console.log('--- Title & Styles ---')
+                    console.log('Title:', q.title || 'NOT SET')
+                    console.log('Title Style:', q.titleStyle || 'NOT SET')
+
+                    console.log('--- Content Blocks ---')
+                    console.log('Content Blocks Count:', q.contentBlocks?.length || 0)
+
+                    console.log('--- Footer ---')
+                    console.log('Footer Line1:', q.footer?.line1 || 'NOT SET')
+                    console.log('Footer Text Color:', q.footer?.textColor || 'NOT SET')
+
+                    console.log('=== END QUOTATION DATA ===')
+
                     setQuotationData({
                         ...defaultQuotationData,
                         title: q.title || defaultQuotationData.title,
@@ -590,20 +620,52 @@ export default function QuotationPage() {
         }
     }, [params.id, router])
 
-    // Auto-save
-    const debouncedData = useDebounce(quotationData, 2000)
+    // Auto-save with enhanced tracking
+    const debouncedData = useDebounce(quotationData, 1000) // Reduced to 1 second for faster saves
+    const previousDataRef = useRef<string>('')
+    const lastManualSaveTimeRef = useRef<number>(0) // Track manual save time to prevent autosave conflicts
+    const [saveError, setSaveError] = useState<string | null>(null)
 
+    // Track changes by comparing with previous data
     useEffect(() => {
         if (!isLoading && lastSaved) {
-            setHasChanges(true)
+            const currentDataString = JSON.stringify(quotationData)
+            if (currentDataString !== previousDataRef.current) {
+                setHasChanges(true)
+                setSaveError(null)
+            }
         }
-    }, [quotationData, isLoading])
+    }, [quotationData, isLoading, lastSaved])
 
+    // Auto-save effect
     useEffect(() => {
         if (isLoading || !hasChanges) return
 
+        // SKIP autosave if a manual save happened recently (within 2 seconds)
+        // This prevents stale debounced data from overwriting fresh manual saves (like logo upload)
+        if (Date.now() - lastManualSaveTimeRef.current < 2000) {
+            console.log('Skipping autosave due to recent manual save')
+            return
+        }
+
         const saveQuotation = async () => {
+            const currentDataString = JSON.stringify(debouncedData)
+
+            // Skip if data hasn't actually changed
+            if (currentDataString === previousDataRef.current) {
+                setHasChanges(false)
+                return
+            }
+
             setIsSaving(true)
+            setSaveError(null)
+
+            // DEBUG: Log what we're about to save
+            console.log('=== AUTOSAVE TRIGGERED ===')
+            console.log('Saving logo URL:', debouncedData.companyLogo || 'EMPTY')
+            console.log('Saving title:', debouncedData.title)
+            console.log('Saving headerValueColor:', debouncedData.headerValueColor)
+
             try {
                 const payload = {
                     title: debouncedData.title,
@@ -673,15 +735,24 @@ export default function QuotationPage() {
                     defaultFontFamily: debouncedData.defaultFontFamily,
                 }
 
-                await fetch(`/api/techno-quotation/${params.id}`, {
+                const response = await fetch(`/api/techno-quotation/${params.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 })
+
+                if (!response.ok) {
+                    throw new Error('Failed to save')
+                }
+
+                // Update the reference after successful save
+                previousDataRef.current = currentDataString
                 setLastSaved(new Date())
                 setHasChanges(false)
             } catch (error) {
                 console.error("Error saving:", error)
+                setSaveError('Failed to save. Will retry...')
+                // Keep hasChanges true so it retries on next debounce
             } finally {
                 setIsSaving(false)
             }
@@ -921,14 +992,142 @@ export default function QuotationPage() {
         }))
     }
 
-    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Upload logo to Cloudinary via API
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
-            const reader = new FileReader()
-            reader.onloadend = () => {
-                setQuotationData(prev => ({ ...prev, companyLogo: reader.result as string }))
+            // Show upload animation
+            setIsUploadingLogo(true)
+
+            try {
+                // Create form data for upload API
+                const formData = new FormData()
+                formData.append('file', file)
+
+                // Upload via our API endpoint (uses Cloudinary on server-side)
+                const response = await fetch('/api/upload-file', {
+                    method: 'POST',
+                    body: formData
+                })
+
+                if (response.ok) {
+                    const data = await response.json()
+                    if (data.success && data.file?.url) {
+                        const newLogoUrl = data.file.url
+                        console.log('Logo uploaded successfully:', newLogoUrl)
+
+                        // Update state
+                        const updatedData = {
+                            ...quotationData,
+                            companyLogo: newLogoUrl
+                        }
+                        setQuotationData(updatedData)
+
+                        // IMMEDIATELY save to database (bypass debounce)
+                        // This prevents the debounced autosave from overwriting with empty logo
+                        console.log('Immediately saving logo to database...')
+                        const savePayload = {
+                            title: updatedData.title,
+                            titleStyle: updatedData.titleStyle,
+                            refNo: updatedData.refNo,
+                            refNoStyle: updatedData.refNoStyle,
+                            date: updatedData.date,
+                            dateStyle: updatedData.dateStyle,
+                            companyDetails: {
+                                name: updatedData.companyName,
+                                nameStyle: updatedData.companyNameStyle,
+                                logo: newLogoUrl, // Use the new logo URL directly
+                                logoWidth: updatedData.companyLogoWidth,
+                                logoHeight: updatedData.companyLogoHeight,
+                                gstin: updatedData.companyGSTIN,
+                                gstinStyle: updatedData.companyGSTINStyle,
+                                phone: updatedData.companyPhone,
+                                phoneStyle: updatedData.companyPhoneStyle,
+                                email: updatedData.companyEmail,
+                                emailStyle: updatedData.companyEmailStyle,
+                                address: updatedData.companyAddress,
+                                addressStyle: updatedData.companyAddressStyle,
+                                headerValueColor: updatedData.headerValueColor,
+                                headerLineColor: updatedData.headerLineColor,
+                            },
+                            clientDetails: {
+                                name: updatedData.clientName,
+                                nameStyle: updatedData.clientNameStyle,
+                                designation: updatedData.clientDesignation,
+                                designationStyle: updatedData.clientDesignationStyle,
+                                company: updatedData.clientCompany,
+                                companyStyle: updatedData.clientCompanyStyle,
+                                address: updatedData.clientAddress,
+                                addressStyle: updatedData.clientAddressStyle,
+                            },
+                            subject: updatedData.subject,
+                            subjectStyle: updatedData.subjectStyle,
+                            greeting: updatedData.greeting,
+                            greetingStyle: updatedData.greetingStyle,
+                            contentBlocks: updatedData.contentBlocks,
+                            footer: {
+                                line1: updatedData.footerLine1,
+                                line1Style: updatedData.footerLine1Style,
+                                line2: updatedData.footerLine2,
+                                line2Style: updatedData.footerLine2Style,
+                                line3: updatedData.footerLine3,
+                                line3Style: updatedData.footerLine3Style,
+                                lineColor: updatedData.footerLineColor,
+                                textColor: updatedData.footerTextColor,
+                            },
+                            signature: {
+                                name: updatedData.signatureName,
+                                nameStyle: updatedData.signatureNameStyle,
+                                designation: updatedData.signatureDesignation,
+                                designationStyle: updatedData.signatureDesignationStyle,
+                            },
+                            watermark: {
+                                type: updatedData.watermarkType,
+                                text: updatedData.watermarkText,
+                                color: updatedData.watermarkColor,
+                                image: updatedData.watermarkImage,
+                                opacity: updatedData.watermarkOpacity,
+                                rotation: updatedData.watermarkRotation,
+                                width: updatedData.watermarkWidth,
+                                height: updatedData.watermarkHeight,
+                            },
+                            defaultFontFamily: updatedData.defaultFontFamily,
+                        }
+
+                        const saveResponse = await fetch(`/api/techno-quotation/${params.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(savePayload)
+                        })
+
+                        if (saveResponse.ok) {
+                            console.log('Logo saved to database successfully!')
+                            // Update the previousDataRef so autosave doesn't overwrite
+                            previousDataRef.current = JSON.stringify(updatedData)
+                            lastManualSaveTimeRef.current = Date.now() // PROTECT against immediate autosave overwrite
+                            setLastSaved(new Date())
+                            setHasChanges(false)
+                        } else {
+                            console.error('Failed to save logo to database')
+                        }
+                    } else {
+                        throw new Error('Upload response invalid')
+                    }
+                } else {
+                    throw new Error('Upload failed')
+                }
+            } catch (error) {
+                // Fallback to base64 if API upload fails
+                console.warn('Using base64 fallback for logo:', error)
+                const reader = new FileReader()
+                reader.onloadend = () => {
+                    setQuotationData(prev => ({ ...prev, companyLogo: reader.result as string }))
+                    setIsUploadingLogo(false)
+                }
+                reader.readAsDataURL(file)
+                return // Don't set isUploadingLogo to false here, let reader.onloadend do it
             }
-            reader.readAsDataURL(file)
+            setIsUploadingLogo(false)
         }
     }
 
@@ -950,17 +1149,129 @@ export default function QuotationPage() {
                         </h1>
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                             {isSaving ? (
-                                <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</>
+                                <><Loader2 className="w-3 h-3 animate-spin text-blue-500" /> Saving changes...</>
+                            ) : saveError ? (
+                                <span className="text-red-500 flex items-center gap-1">
+                                    <CloudOff className="w-3 h-3" /> {saveError}
+                                </span>
                             ) : hasChanges ? (
-                                <><CloudOff className="w-3 h-3" /> Unsaved changes...</>
+                                <><CloudOff className="w-3 h-3 text-yellow-500" /> Unsaved changes...</>
                             ) : (
-                                <><Cloud className="w-3 h-3" /> Saved</>
+                                <>
+                                    <Cloud className="w-3 h-3 text-green-500" />
+                                    All changes saved
+                                    {lastSaved && (
+                                        <span className="text-muted-foreground ml-1">
+                                            · {lastSaved.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    )}
+                                </>
                             )}
                         </span>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* Manual Save Button - saves immediately */}
+                    {hasChanges && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                                setIsSaving(true)
+                                try {
+                                    const payload = {
+                                        title: quotationData.title,
+                                        titleStyle: quotationData.titleStyle,
+                                        refNo: quotationData.refNo,
+                                        refNoStyle: quotationData.refNoStyle,
+                                        date: quotationData.date,
+                                        dateStyle: quotationData.dateStyle,
+                                        companyDetails: {
+                                            name: quotationData.companyName,
+                                            nameStyle: quotationData.companyNameStyle,
+                                            logo: quotationData.companyLogo,
+                                            logoWidth: quotationData.companyLogoWidth,
+                                            logoHeight: quotationData.companyLogoHeight,
+                                            gstin: quotationData.companyGSTIN,
+                                            gstinStyle: quotationData.companyGSTINStyle,
+                                            phone: quotationData.companyPhone,
+                                            phoneStyle: quotationData.companyPhoneStyle,
+                                            email: quotationData.companyEmail,
+                                            emailStyle: quotationData.companyEmailStyle,
+                                            address: quotationData.companyAddress,
+                                            addressStyle: quotationData.companyAddressStyle,
+                                            headerValueColor: quotationData.headerValueColor,
+                                            headerLineColor: quotationData.headerLineColor,
+                                        },
+                                        clientDetails: {
+                                            name: quotationData.clientName,
+                                            nameStyle: quotationData.clientNameStyle,
+                                            designation: quotationData.clientDesignation,
+                                            designationStyle: quotationData.clientDesignationStyle,
+                                            company: quotationData.clientCompany,
+                                            companyStyle: quotationData.clientCompanyStyle,
+                                            address: quotationData.clientAddress,
+                                            addressStyle: quotationData.clientAddressStyle,
+                                        },
+                                        subject: quotationData.subject,
+                                        subjectStyle: quotationData.subjectStyle,
+                                        greeting: quotationData.greeting,
+                                        greetingStyle: quotationData.greetingStyle,
+                                        contentBlocks: quotationData.contentBlocks,
+                                        footer: {
+                                            line1: quotationData.footerLine1,
+                                            line1Style: quotationData.footerLine1Style,
+                                            line2: quotationData.footerLine2,
+                                            line2Style: quotationData.footerLine2Style,
+                                            line3: quotationData.footerLine3,
+                                            line3Style: quotationData.footerLine3Style,
+                                            lineColor: quotationData.footerLineColor,
+                                            textColor: quotationData.footerTextColor,
+                                        },
+                                        signature: {
+                                            name: quotationData.signatureName,
+                                            nameStyle: quotationData.signatureNameStyle,
+                                            designation: quotationData.signatureDesignation,
+                                            designationStyle: quotationData.signatureDesignationStyle,
+                                        },
+                                        watermark: {
+                                            type: quotationData.watermarkType,
+                                            text: quotationData.watermarkText,
+                                            color: quotationData.watermarkColor,
+                                            image: quotationData.watermarkImage,
+                                            opacity: quotationData.watermarkOpacity,
+                                            rotation: quotationData.watermarkRotation,
+                                            width: quotationData.watermarkWidth,
+                                            height: quotationData.watermarkHeight,
+                                        },
+                                        defaultFontFamily: quotationData.defaultFontFamily,
+                                    }
+                                    const response = await fetch(`/api/techno-quotation/${params.id}`, {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(payload)
+                                    })
+                                    if (response.ok) {
+                                        previousDataRef.current = JSON.stringify(quotationData)
+                                        lastManualSaveTimeRef.current = Date.now() // PROTECT against immediate autosave overwrite
+                                        setLastSaved(new Date())
+                                        setHasChanges(false)
+                                        setSaveError(null)
+                                    }
+                                } catch (error) {
+                                    console.error("Error saving:", error)
+                                } finally {
+                                    setIsSaving(false)
+                                }
+                            }}
+                            disabled={isSaving}
+                            className="gap-1"
+                        >
+                            {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Cloud className="w-3 h-3" />}
+                            Save Now
+                        </Button>
+                    )}
                     <Button
                         onClick={() => handlePrint()}
                         className="bg-cyan-600 hover:bg-cyan-700 text-white gap-2"
@@ -1039,23 +1350,34 @@ export default function QuotationPage() {
                                     <div>
                                         <Label>Company Logo</Label>
                                         <div className="flex items-center gap-3 mt-1">
-                                            {quotationData.companyLogo ? (
+                                            {isUploadingLogo ? (
+                                                <div className="w-16 h-16 border rounded flex flex-col items-center justify-center bg-muted animate-pulse">
+                                                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                                                    <span className="text-[10px] text-muted-foreground mt-1">Uploading...</span>
+                                                </div>
+                                            ) : quotationData.companyLogo ? (
                                                 <img src={quotationData.companyLogo} alt="Logo" className="w-16 h-16 object-contain border rounded" />
                                             ) : (
                                                 <div className="w-16 h-16 border rounded flex items-center justify-center bg-muted">
                                                     <ImageIcon className="w-6 h-6 text-muted-foreground" />
                                                 </div>
                                             )}
-                                            <label className="cursor-pointer">
-                                                <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                                                <Button variant="outline" size="sm" asChild>
-                                                    <span><Upload className="w-4 h-4 mr-1" /> Upload</span>
+                                            <label className={`cursor-pointer ${isUploadingLogo ? 'pointer-events-none opacity-50' : ''}`}>
+                                                <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" disabled={isUploadingLogo} />
+                                                <Button variant="outline" size="sm" asChild disabled={isUploadingLogo}>
+                                                    <span>
+                                                        {isUploadingLogo ? (
+                                                            <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Uploading...</>
+                                                        ) : (
+                                                            <><Upload className="w-4 h-4 mr-1" /> Upload</>
+                                                        )}
+                                                    </span>
                                                 </Button>
                                             </label>
-                                            {quotationData.companyLogo && (
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="sm" 
+                                            {quotationData.companyLogo && !isUploadingLogo && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
                                                     onClick={() => setQuotationData({ ...quotationData, companyLogo: '' })}
                                                 >
                                                     <Trash2 className="w-4 h-4 mr-1" /> Remove
@@ -1136,8 +1458,8 @@ export default function QuotationPage() {
                                                 value={quotationData.headerValueColor}
                                                 onChange={e => {
                                                     const newColor = e.target.value;
-                                                    setQuotationData({ 
-                                                        ...quotationData, 
+                                                    setQuotationData({
+                                                        ...quotationData,
                                                         headerValueColor: newColor,
                                                         companyGSTINStyle: { ...quotationData.companyGSTINStyle, color: newColor },
                                                         companyPhoneStyle: { ...quotationData.companyPhoneStyle, color: newColor },
@@ -1150,8 +1472,8 @@ export default function QuotationPage() {
                                                 value={quotationData.headerValueColor}
                                                 onChange={e => {
                                                     const newColor = e.target.value;
-                                                    setQuotationData({ 
-                                                        ...quotationData, 
+                                                    setQuotationData({
+                                                        ...quotationData,
                                                         headerValueColor: newColor,
                                                         companyGSTINStyle: { ...quotationData.companyGSTINStyle, color: newColor },
                                                         companyPhoneStyle: { ...quotationData.companyPhoneStyle, color: newColor },
@@ -1787,8 +2109,8 @@ export default function QuotationPage() {
                                                     value={quotationData.footerTextColor}
                                                     onChange={e => {
                                                         const newColor = e.target.value;
-                                                        setQuotationData({ 
-                                                            ...quotationData, 
+                                                        setQuotationData({
+                                                            ...quotationData,
                                                             footerTextColor: newColor,
                                                             footerLine1Style: { ...quotationData.footerLine1Style, color: newColor },
                                                             footerLine2Style: { ...quotationData.footerLine2Style, color: newColor },
@@ -1801,8 +2123,8 @@ export default function QuotationPage() {
                                                     value={quotationData.footerTextColor}
                                                     onChange={e => {
                                                         const newColor = e.target.value;
-                                                        setQuotationData({ 
-                                                            ...quotationData, 
+                                                        setQuotationData({
+                                                            ...quotationData,
                                                             footerTextColor: newColor,
                                                             footerLine1Style: { ...quotationData.footerLine1Style, color: newColor },
                                                             footerLine2Style: { ...quotationData.footerLine2Style, color: newColor },
@@ -2104,9 +2426,9 @@ export default function QuotationPage() {
                                             <img
                                                 src={quotationData.watermarkImage}
                                                 alt="Watermark"
-                                                style={{ 
-                                                    width: '100%', 
-                                                    height: '100%', 
+                                                style={{
+                                                    width: '100%',
+                                                    height: '100%',
                                                     objectFit: 'contain',
                                                     opacity: quotationData.watermarkOpacity,
                                                 }}
@@ -2118,10 +2440,10 @@ export default function QuotationPage() {
                                     <div className="header" style={{ borderBottomColor: quotationData.headerLineColor }}>
                                         <div className="header-left">
                                             {quotationData.companyLogo ? (
-                                                <img 
-                                                    src={quotationData.companyLogo} 
-                                                    alt="Logo" 
-                                                    className="company-logo" 
+                                                <img
+                                                    src={quotationData.companyLogo}
+                                                    alt="Logo"
+                                                    className="company-logo"
                                                     style={{
                                                         width: `${quotationData.companyLogoWidth}px`,
                                                         height: `${quotationData.companyLogoHeight}px`,

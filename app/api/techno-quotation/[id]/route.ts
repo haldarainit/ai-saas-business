@@ -23,6 +23,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
         }
 
+        // Debug: Log what's being loaded
+        console.log('GET /api/techno-quotation - Loading companyDetails.logo:', quotation.companyDetails?.logo ? 'URL present' : 'NO LOGO');
+        console.log('GET /api/techno-quotation - companyDetails:', quotation.companyDetails ? JSON.stringify(Object.keys(quotation.companyDetails)) : 'none');
+
         return NextResponse.json({ quotation });
     } catch (error) {
         console.error('Error fetching quotation:', error);
@@ -43,6 +47,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         await dbConnect();
         const body = await req.json();
 
+        // Debug: Log what's being saved
+        console.log('PUT /api/techno-quotation - Saving companyDetails.logo:', body.companyDetails?.logo ? 'URL present' : 'NO LOGO');
+        console.log('PUT /api/techno-quotation - companyDetails keys:', body.companyDetails ? Object.keys(body.companyDetails) : 'none');
+
         const quotation = await TechnoQuotation.findOneAndUpdate(
             { _id: id, userId: userId },
             { $set: body },
@@ -52,6 +60,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         if (!quotation) {
             return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
         }
+
+        // Debug: Log what was saved
+        console.log('PUT /api/techno-quotation - Saved companyDetails.logo:', quotation.companyDetails?.logo ? 'URL present' : 'NO LOGO');
 
         return NextResponse.json({ quotation });
     } catch (error) {
