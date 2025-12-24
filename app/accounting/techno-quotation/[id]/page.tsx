@@ -44,7 +44,8 @@ import {
     ZoomIn,
     ZoomOut,
     RotateCcw,
-    X
+    X,
+    AlignJustify
 } from "lucide-react"
 import Link from "next/link"
 import { useReactToPrint } from 'react-to-print'
@@ -57,7 +58,7 @@ interface RichTextStyle {
     fontWeight?: 'normal' | 'bold'
     fontStyle?: 'normal' | 'italic'
     textDecoration?: 'none' | 'underline'
-    textAlign?: 'left' | 'center' | 'right'
+    textAlign?: 'left' | 'center' | 'right' | 'justify'
     color?: string
 }
 
@@ -81,6 +82,7 @@ interface RichTextFieldEditorProps {
     rows?: number
     placeholder?: string
     type?: 'text' | 'date'
+    disableAlignment?: boolean
 }
 
 function RichTextFieldEditor({
@@ -92,7 +94,8 @@ function RichTextFieldEditor({
     multiline = false,
     rows = 2,
     placeholder,
-    type = 'text'
+    type = 'text',
+    disableAlignment = false
 }: RichTextFieldEditorProps) {
     const [isExpanded, setIsExpanded] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -225,40 +228,44 @@ function RichTextFieldEditor({
                         <Underline className="w-3.5 h-3.5" />
                     </Button>
 
-                    <div className="w-px h-7 bg-gray-300 dark:bg-gray-600" />
+                    {!disableAlignment && (
+                        <>
+                            <div className="w-px h-7 bg-gray-300 dark:bg-gray-600" />
 
-                    {/* Align Left */}
-                    <Button
-                        size="icon"
-                        variant={style.textAlign === 'left' ? 'default' : 'outline'}
-                        className="h-7 w-7"
-                        onClick={() => updateStyle({ textAlign: 'left' })}
-                        title="Align Left"
-                    >
-                        <AlignLeft className="w-3.5 h-3.5" />
-                    </Button>
+                            {/* Align Left */}
+                            <Button
+                                size="icon"
+                                variant={style.textAlign === 'left' ? 'default' : 'outline'}
+                                className="h-7 w-7"
+                                onClick={() => updateStyle({ textAlign: 'left' })}
+                                title="Align Left"
+                            >
+                                <AlignLeft className="w-3.5 h-3.5" />
+                            </Button>
 
-                    {/* Align Center */}
-                    <Button
-                        size="icon"
-                        variant={style.textAlign === 'center' ? 'default' : 'outline'}
-                        className="h-7 w-7"
-                        onClick={() => updateStyle({ textAlign: 'center' })}
-                        title="Align Center"
-                    >
-                        <AlignCenter className="w-3.5 h-3.5" />
-                    </Button>
+                            {/* Align Center */}
+                            <Button
+                                size="icon"
+                                variant={style.textAlign === 'center' ? 'default' : 'outline'}
+                                className="h-7 w-7"
+                                onClick={() => updateStyle({ textAlign: 'center' })}
+                                title="Align Center"
+                            >
+                                <AlignCenter className="w-3.5 h-3.5" />
+                            </Button>
 
-                    {/* Align Right */}
-                    <Button
-                        size="icon"
-                        variant={style.textAlign === 'right' ? 'default' : 'outline'}
-                        className="h-7 w-7"
-                        onClick={() => updateStyle({ textAlign: 'right' })}
-                        title="Align Right"
-                    >
-                        <AlignRight className="w-3.5 h-3.5" />
-                    </Button>
+                            {/* Align Right */}
+                            <Button
+                                size="icon"
+                                variant={style.textAlign === 'right' ? 'default' : 'outline'}
+                                className="h-7 w-7"
+                                onClick={() => updateStyle({ textAlign: 'right' })}
+                                title="Align Right"
+                            >
+                                <AlignRight className="w-3.5 h-3.5" />
+                            </Button>
+                        </>
+                    )}
 
                     <div className="w-px h-7 bg-gray-300 dark:bg-gray-600" />
 
@@ -351,7 +358,7 @@ interface ContentBlock {
         fontWeight?: 'normal' | 'bold'
         fontStyle?: 'normal' | 'italic'
         textDecoration?: 'none' | 'underline'
-        textAlign?: 'left' | 'center' | 'right'
+        textAlign?: 'left' | 'center' | 'right' | 'justify'
         color?: string
         lineHeight?: number
     }
@@ -821,7 +828,7 @@ export default function QuotationPage() {
             style: {
                 fontSize: type === 'heading' ? 14 : 11,
                 fontWeight: type === 'heading' ? 'bold' : 'normal',
-                textAlign: 'left',
+                textAlign: type === 'paragraph' ? 'justify' : 'left',
                 lineHeight: 1.5,
                 color: '#1a1a1a'
             }
@@ -1443,6 +1450,7 @@ export default function QuotationPage() {
                                     </div>
                                     <RichTextFieldEditor
                                         label="Company Name"
+                                        disableAlignment={true}
                                         value={quotationData.companyName}
                                         onChange={v => setQuotationData({ ...quotationData, companyName: v })}
                                         style={quotationData.companyNameStyle}
@@ -1451,6 +1459,7 @@ export default function QuotationPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <RichTextFieldEditor
                                             label="GSTIN"
+                                            disableAlignment={true}
                                             value={quotationData.companyGSTIN}
                                             onChange={v => setQuotationData({ ...quotationData, companyGSTIN: v })}
                                             style={quotationData.companyGSTINStyle}
@@ -1466,6 +1475,7 @@ export default function QuotationPage() {
                                     </div>
                                     <RichTextFieldEditor
                                         label="Email"
+                                        disableAlignment={true}
                                         value={quotationData.companyEmail}
                                         onChange={v => setQuotationData({ ...quotationData, companyEmail: v })}
                                         style={quotationData.companyEmailStyle}
@@ -1473,6 +1483,7 @@ export default function QuotationPage() {
                                     />
                                     <RichTextFieldEditor
                                         label="Address"
+                                        disableAlignment={true}
                                         value={quotationData.companyAddress}
                                         onChange={v => setQuotationData({ ...quotationData, companyAddress: v })}
                                         style={quotationData.companyAddressStyle}
@@ -1550,6 +1561,7 @@ export default function QuotationPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <RichTextFieldEditor
                                             label="Reference No."
+                                            disableAlignment={true}
                                             value={quotationData.refNo}
                                             onChange={v => setQuotationData({ ...quotationData, refNo: v })}
                                             style={quotationData.refNoStyle}
@@ -1575,6 +1587,7 @@ export default function QuotationPage() {
                                 <div className="space-y-3">
                                     <RichTextFieldEditor
                                         label="To (Company/Organization)"
+                                        disableAlignment={true}
                                         value={quotationData.clientCompany}
                                         onChange={v => setQuotationData({ ...quotationData, clientCompany: v })}
                                         style={quotationData.clientCompanyStyle}
@@ -1584,6 +1597,7 @@ export default function QuotationPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <RichTextFieldEditor
                                             label="Contact Person"
+                                            disableAlignment={true}
                                             value={quotationData.clientName}
                                             onChange={v => setQuotationData({ ...quotationData, clientName: v })}
                                             style={quotationData.clientNameStyle}
@@ -1591,6 +1605,7 @@ export default function QuotationPage() {
                                         />
                                         <RichTextFieldEditor
                                             label="Designation"
+                                            disableAlignment={true}
                                             value={quotationData.clientDesignation}
                                             onChange={v => setQuotationData({ ...quotationData, clientDesignation: v })}
                                             style={quotationData.clientDesignationStyle}
@@ -1751,6 +1766,15 @@ export default function QuotationPage() {
                                                 onClick={() => updateBlock(block.id, { style: { ...block.style, textAlign: 'right' } })}
                                             >
                                                 <AlignRight className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                variant={block.style?.textAlign === 'justify' ? 'default' : 'outline'}
+                                                className="h-8 w-8"
+                                                onClick={() => updateBlock(block.id, { style: { ...block.style, textAlign: 'justify' } })}
+                                                title="Justify"
+                                            >
+                                                <AlignJustify className="w-4 h-4" />
                                             </Button>
                                             <div className="border-l mx-1" />
                                             <Select
@@ -2446,7 +2470,7 @@ export default function QuotationPage() {
                                                         fontSize: `${quotationData.watermarkHeight * 0.4}px`,
                                                         color: hexToRgba(quotationData.watermarkColor, quotationData.watermarkOpacity),
                                                         fontWeight: 'bold',
-                                                        whiteSpace: 'nowrap',
+                                                        whiteSpace: 'normal',
                                                     }}>
                                                         {quotationData.watermarkText}
                                                     </span>
@@ -3040,7 +3064,8 @@ export default function QuotationPage() {
                 
                 .quotation-preview .block-list {
                     margin: 5px 0 5px 20px;
-                    padding-left: 0;
+                    padding-left: 20px;
+                    list-style-type: disc;
                 }
                 
                 .quotation-preview .block-list li {
@@ -3126,6 +3151,7 @@ export default function QuotationPage() {
                         display: flex !important;
                         visibility: visible !important;
                         opacity: inherit !important;
+                        position: fixed !important;
                     }
                     
                     .quotation-preview .watermark span,
