@@ -37,7 +37,14 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, address1, address2, phone, email, logo, isDefault } = body;
+        const {
+            name, address1, address2, phone, email, logo, isDefault,
+            gstin, pan, website,
+            bankName, bankAccountNo, bankIFSC, bankBranch,
+            authorizedSignatory, signatoryDesignation,
+            footerLine1, footerLine2, footerLine3,
+            headerLineColor, headerValueColor, footerLineColor, footerTextColor
+        } = body;
 
         if (!name || !name.trim()) {
             return NextResponse.json({ error: 'Company name is required' }, { status: 400 });
@@ -61,6 +68,22 @@ export async function POST(request: NextRequest) {
             phone,
             email,
             logo,
+            gstin,
+            pan,
+            website,
+            bankName,
+            bankAccountNo,
+            bankIFSC,
+            bankBranch,
+            authorizedSignatory,
+            signatoryDesignation,
+            footerLine1,
+            footerLine2,
+            footerLine3,
+            headerLineColor: headerLineColor || '#000000',
+            headerValueColor: headerValueColor || '#1a1a1a',
+            footerLineColor: footerLineColor || '#000000',
+            footerTextColor: footerTextColor || '#1a1a1a',
             isDefault: isDefault || false
         });
 
@@ -76,3 +99,4 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to create profile' }, { status: 500 });
     }
 }
+

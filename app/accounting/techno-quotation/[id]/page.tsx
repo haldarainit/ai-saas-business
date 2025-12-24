@@ -556,6 +556,146 @@ export default function QuotationPage() {
         additionalNotes: ''
     })
 
+    // Company Profile State
+    interface CompanyProfile {
+        _id: string
+        name: string
+        address1?: string
+        address2?: string
+        phone?: string
+        email?: string
+        logo?: string
+        gstin?: string
+        pan?: string
+        website?: string
+        authorizedSignatory?: string
+        signatoryDesignation?: string
+        footerLine1?: string
+        footerLine2?: string
+        footerLine3?: string
+        headerLineColor?: string
+        headerValueColor?: string
+        footerLineColor?: string
+        footerTextColor?: string
+        isDefault?: boolean
+    }
+    const [companyProfiles, setCompanyProfiles] = useState<CompanyProfile[]>([])
+    const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
+    const [isLoadingProfiles, setIsLoadingProfiles] = useState(false)
+    const [showSaveCompanyDialog, setShowSaveCompanyDialog] = useState(false)
+    const [isSavingCompany, setIsSavingCompany] = useState(false)
+
+    // Fetch company profiles
+    useEffect(() => {
+        const fetchProfiles = async () => {
+            setIsLoadingProfiles(true)
+            try {
+                const res = await fetch('/api/company-profile')
+                if (res.ok) {
+                    const data = await res.json()
+                    setCompanyProfiles(data.profiles || [])
+                    // Auto-select default company
+                    const defaultCompany = data.profiles?.find((p: CompanyProfile) => p.isDefault)
+                    if (defaultCompany) {
+                        setSelectedCompanyId(defaultCompany._id)
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching company profiles:', error)
+            } finally {
+                setIsLoadingProfiles(false)
+            }
+        }
+        fetchProfiles()
+    }, [])
+
+    // Apply selected company to quotation (toggle select/deselect)
+    const applyCompanyProfile = (profileId: string) => {
+        // If already selected, deselect and clear to blank fields
+        if (selectedCompanyId === profileId) {
+            setSelectedCompanyId('')
+            setQuotationData(prev => ({
+                ...prev,
+                companyName: '',
+                companyAddress: '',
+                companyPhone: '',
+                companyEmail: '',
+                companyGSTIN: '',
+                companyLogo: '',
+            }))
+            return
+        }
+
+        const profile = companyProfiles.find(p => p._id === profileId)
+        if (!profile) return
+
+        setQuotationData(prev => ({
+            ...prev,
+            companyName: profile.name,
+            companyAddress: `${profile.address1 || ''}${profile.address2 ? '\n' + profile.address2 : ''}`,
+            companyPhone: profile.phone || '',
+            companyEmail: profile.email || '',
+            companyGSTIN: profile.gstin || '',
+            companyLogo: profile.logo || '',
+            signatureName: profile.authorizedSignatory || prev.signatureName,
+            signatureDesignation: profile.signatoryDesignation || prev.signatureDesignation,
+            footerLine1: profile.footerLine1 || prev.footerLine1,
+            footerLine2: profile.footerLine2 || prev.footerLine2,
+            footerLine3: profile.footerLine3 || prev.footerLine3,
+            headerLineColor: profile.headerLineColor || prev.headerLineColor,
+            headerValueColor: profile.headerValueColor || prev.headerValueColor,
+            footerLineColor: profile.footerLineColor || prev.footerLineColor,
+            footerTextColor: profile.footerTextColor || prev.footerTextColor,
+        }))
+        setSelectedCompanyId(profileId)
+    }
+
+    // Save current company as new profile
+    const saveAsCompanyProfile = async () => {
+        setIsSavingCompany(true)
+        try {
+            const res = await fetch('/api/company-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: quotationData.companyName,
+                    address1: quotationData.companyAddress?.split('\n')[0] || '',
+                    address2: quotationData.companyAddress?.split('\n').slice(1).join('\n') || '',
+                    phone: quotationData.companyPhone,
+                    email: quotationData.companyEmail,
+                    gstin: quotationData.companyGSTIN,
+                    logo: quotationData.companyLogo,
+                    authorizedSignatory: quotationData.signatureName,
+                    signatoryDesignation: quotationData.signatureDesignation,
+                    footerLine1: quotationData.footerLine1,
+                    footerLine2: quotationData.footerLine2,
+                    footerLine3: quotationData.footerLine3,
+                    headerLineColor: quotationData.headerLineColor,
+                    headerValueColor: quotationData.headerValueColor,
+                    footerLineColor: quotationData.footerLineColor,
+                    footerTextColor: quotationData.footerTextColor,
+                    isDefault: companyProfiles.length === 0
+                })
+            })
+
+            if (res.ok) {
+                const data = await res.json()
+                setCompanyProfiles(prev => [...prev, data.profile])
+                setSelectedCompanyId(data.profile._id)
+                setShowSaveCompanyDialog(false)
+                alert('Company saved successfully!')
+            } else {
+                const error = await res.json()
+                alert(error.error || 'Failed to save company')
+            }
+        } catch (error) {
+            console.error('Error saving company:', error)
+            alert('Failed to save company')
+        } finally {
+            setIsSavingCompany(false)
+        }
+    }
+
     // AI Generation Handler
     const handleAIGenerate = async () => {
         if (!aiFormData.subjectTitle.trim()) {
@@ -1614,6 +1754,65 @@ Return the response as JSON with this structure:
                 </DialogContent>
             </Dialog>
 
+            {/* Save Company Profile Dialog */}
+            <Dialog open={showSaveCompanyDialog} onOpenChange={setShowSaveCompanyDialog}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Building2 className="w-5 h-5 text-cyan-600" />
+                            Save Company Profile
+                        </DialogTitle>
+                        <DialogDescription>
+                            Save current company details for quick access in future quotations.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-3">
+                        <div className="p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800">
+                            <p className="font-medium text-sm">{quotationData.companyName}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{quotationData.companyAddress}</p>
+                            {quotationData.companyPhone && (
+                                <p className="text-xs text-muted-foreground">Ph: {quotationData.companyPhone}</p>
+                            )}
+                            {quotationData.companyEmail && (
+                                <p className="text-xs text-muted-foreground">Email: {quotationData.companyEmail}</p>
+                            )}
+                            {quotationData.companyGSTIN && (
+                                <p className="text-xs text-muted-foreground">GSTIN: {quotationData.companyGSTIN}</p>
+                            )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            This will save all company details including logo, footer, and signature information.
+                        </p>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowSaveCompanyDialog(false)}
+                            disabled={isSavingCompany}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={saveAsCompanyProfile}
+                            disabled={isSavingCompany}
+                            className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                        >
+                            {isSavingCompany ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Save Company
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <div className="flex-1 container mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
                 {/* Editor Panel (Left Side) */}
@@ -1674,6 +1873,76 @@ Return the response as JSON with this structure:
 
                         {/* Company Tab */}
                         <TabsContent value="company" className="space-y-4">
+                            {/* Company Selector */}
+                            <Card className="p-4 bg-gradient-to-r from-cyan-50 to-teal-50 dark:from-cyan-900/20 dark:to-teal-900/20 border-cyan-200 dark:border-cyan-800">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-sm font-semibold flex items-center gap-2 text-cyan-700 dark:text-cyan-300">
+                                        <Building2 className="w-4 h-4" /> Select Company Profile
+                                    </h4>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setShowSaveCompanyDialog(true)}
+                                        className="gap-1 text-xs"
+                                        disabled={!quotationData.companyName?.trim()}
+                                    >
+                                        <Plus className="w-3 h-3" /> Save Current
+                                    </Button>
+                                </div>
+                                <Select
+                                    value={selectedCompanyId}
+                                    onValueChange={(value) => {
+                                        if (value === 'new') {
+                                            setSelectedCompanyId('')
+                                            // Clear company fields for manual entry
+                                            setQuotationData(prev => ({
+                                                ...prev,
+                                                companyName: '',
+                                                companyAddress: '',
+                                                companyPhone: '',
+                                                companyEmail: '',
+                                                companyGSTIN: '',
+                                                companyLogo: '',
+                                            }))
+                                        } else {
+                                            applyCompanyProfile(value)
+                                        }
+                                    }}
+                                >
+                                    <SelectTrigger className="bg-background">
+                                        <SelectValue placeholder={isLoadingProfiles ? "Loading..." : "Select a company or enter new"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="new">
+                                            <span className="flex items-center gap-2">
+                                                <Plus className="w-4 h-4 text-muted-foreground" />
+                                                Enter New Company Details
+                                            </span>
+                                        </SelectItem>
+                                        {companyProfiles.map((profile) => (
+                                            <SelectItem key={profile._id} value={profile._id}>
+                                                <span className="flex items-center gap-2">
+                                                    {profile.logo ? (
+                                                        <img src={profile.logo} alt="" className="w-5 h-5 object-contain rounded" />
+                                                    ) : (
+                                                        <Building2 className="w-4 h-4 text-muted-foreground" />
+                                                    )}
+                                                    {profile.name}
+                                                    {profile.isDefault && (
+                                                        <span className="text-xs bg-cyan-100 dark:bg-cyan-900 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded">Default</span>
+                                                    )}
+                                                </span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {companyProfiles.length === 0 && !isLoadingProfiles && (
+                                    <p className="text-xs text-muted-foreground mt-2">
+                                        No saved companies. Fill in details below and click "Save Current" to save.
+                                    </p>
+                                )}
+                            </Card>
+
                             <Card className="p-4 border-l-4 border-l-cyan-500">
                                 <h3 className="font-semibold text-lg mb-4 flex items-center">
                                     <Building2 className="w-4 h-4 mr-2" /> Company Details

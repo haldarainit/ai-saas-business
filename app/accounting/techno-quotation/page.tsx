@@ -38,6 +38,70 @@ export default function TechnoQuotationDashboard() {
     const [currentStep, setCurrentStep] = useState(0);
     const [aiAnswers, setAiAnswers] = useState<Record<string, string>>({});
 
+    // Company Profiles for AI Wizard
+    interface CompanyProfile {
+        _id: string;
+        name: string;
+        address1?: string;
+        address2?: string;
+        phone?: string;
+        email?: string;
+        logo?: string;
+        gstin?: string;
+        authorizedSignatory?: string;
+        signatoryDesignation?: string;
+        isDefault?: boolean;
+    }
+    const [companyProfiles, setCompanyProfiles] = useState<CompanyProfile[]>([]);
+    const [selectedCompanyForWizard, setSelectedCompanyForWizard] = useState<string>('');
+    const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+
+    // Fetch company profiles on mount
+    useEffect(() => {
+        const fetchProfiles = async () => {
+            setIsLoadingProfiles(true);
+            try {
+                const res = await fetch('/api/company-profile');
+                if (res.ok) {
+                    const data = await res.json();
+                    setCompanyProfiles(data.profiles || []);
+                }
+            } catch (error) {
+                console.error('Error fetching company profiles:', error);
+            } finally {
+                setIsLoadingProfiles(false);
+            }
+        };
+        fetchProfiles();
+    }, []);
+
+    // Apply selected company to wizard answers (toggle select/deselect)
+    const applyCompanyToWizard = (profileId: string) => {
+        // If already selected, deselect and clear fields
+        if (selectedCompanyForWizard === profileId) {
+            setSelectedCompanyForWizard('');
+            setAiAnswers(prev => ({
+                ...prev,
+                company_name: '',
+                company_address: '',
+                company_contact: ''
+            }));
+            return;
+        }
+
+        const profile = companyProfiles.find(p => p._id === profileId);
+        if (!profile) return;
+
+        setSelectedCompanyForWizard(profileId);
+        setAiAnswers(prev => ({
+            ...prev,
+            company_name: profile.name,
+            company_address: `${profile.address1 || ''}${profile.address2 ? '\n' + profile.address2 : ''}`,
+            company_contact: `${profile.phone || ''}${profile.email ? ', ' + profile.email : ''}`
+        }));
+    };
+
+
     // 12 AI Questions for Quotation Generation
     const aiQuestions = [
         {
@@ -540,6 +604,38 @@ export default function TechnoQuotationDashboard() {
                                             {aiQuestions[currentStep].question}
                                         </h3>
 
+                                        {/* Company selector on first step */}
+                                        {aiQuestions[currentStep].id === 'company_name' && companyProfiles.length > 0 && (
+                                            <div className="mb-4 p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-800">
+                                                <p className="text-sm font-medium text-teal-700 dark:text-teal-300 mb-2">
+                                                    Select from saved companies (click again to deselect):
+                                                </p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {companyProfiles.map((profile) => (
+                                                        <button
+                                                            key={profile._id}
+                                                            onClick={() => applyCompanyToWizard(profile._id)}
+                                                            className={`px-3 py-1.5 text-sm rounded-lg border transition-all flex items-center gap-1.5 ${selectedCompanyForWizard === profile._id
+                                                                ? 'bg-teal-600 text-white border-teal-600'
+                                                                : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-teal-500'
+                                                                }`}
+                                                        >
+                                                            {selectedCompanyForWizard === profile._id && (
+                                                                <Check className="w-3.5 h-3.5" />
+                                                            )}
+                                                            {profile.name}
+                                                            {profile.isDefault && (
+                                                                <span className="ml-1 text-xs opacity-75">(Default)</span>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-2">
+                                                    {selectedCompanyForWizard ? 'Company selected! Click again to deselect and enter manually.' : 'Or enter new company details below:'}
+                                                </p>
+                                            </div>
+                                        )}
+
                                         {aiQuestions[currentStep].type === 'textarea' ? (
                                             <textarea
                                                 value={aiAnswers[aiQuestions[currentStep].id] || ''}
@@ -580,10 +676,10 @@ export default function TechnoQuotationDashboard() {
                                             key={idx}
                                             onClick={() => setCurrentStep(idx)}
                                             className={`w-2.5 h-2.5 rounded-full transition-all ${idx === currentStep
-                                                    ? 'bg-teal-500 scale-125'
-                                                    : idx < currentStep
-                                                        ? 'bg-teal-300 dark:bg-teal-700'
-                                                        : 'bg-gray-200 dark:bg-gray-700'
+                                                ? 'bg-teal-500 scale-125'
+                                                : idx < currentStep
+                                                    ? 'bg-teal-300 dark:bg-teal-700'
+                                                    : 'bg-gray-200 dark:bg-gray-700'
                                                 }`}
                                         />
                                     ))}
