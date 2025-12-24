@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
+import { Slider } from "@/components/ui/slider"
 import {
     Select,
     SelectContent,
@@ -45,7 +46,10 @@ import {
     ZoomOut,
     RotateCcw,
     X,
-    AlignJustify
+    AlignJustify,
+    Link2,
+    Unlink2,
+    RefreshCw
 } from "lucide-react"
 import Link from "next/link"
 import { useReactToPrint } from 'react-to-print'
@@ -522,6 +526,7 @@ export default function QuotationPage() {
     const [isSaving, setIsSaving] = useState(false)
     const [hasChanges, setHasChanges] = useState(false)
     const [lastSaved, setLastSaved] = useState<Date | null>(null)
+    const [logoAspectRatio, setLogoAspectRatio] = useState<number | null>(null)
     const [previewZoom, setPreviewZoom] = useState(0.9)
     const [isUploadingLogo, setIsUploadingLogo] = useState(false)
 
@@ -1422,28 +1427,80 @@ export default function QuotationPage() {
                                             )}
                                         </div>
                                         {quotationData.companyLogo && (
-                                            <div className="grid grid-cols-2 gap-3 mt-3">
-                                                <div>
-                                                    <Label className="text-xs">Logo Width (px)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        min={20}
-                                                        max={200}
-                                                        value={quotationData.companyLogoWidth}
-                                                        onChange={e => setQuotationData({ ...quotationData, companyLogoWidth: parseInt(e.target.value) || 80 })}
-                                                        className="mt-1"
-                                                    />
+                                            <div className="mt-3">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <Label className="text-xs font-semibold text-muted-foreground">Dimensions</Label>
+                                                    <div className="flex items-center gap-1">
+                                                        <Button
+                                                            size="sm"
+                                                            variant={logoAspectRatio ? "default" : "outline"}
+                                                            className="h-6 px-2 text-xs"
+                                                            onClick={() => {
+                                                                if (logoAspectRatio) {
+                                                                    setLogoAspectRatio(null)
+                                                                } else {
+                                                                    setLogoAspectRatio(quotationData.companyLogoWidth / quotationData.companyLogoHeight)
+                                                                }
+                                                            }}
+                                                            title={logoAspectRatio ? "Unlock Aspect Ratio" : "Lock Aspect Ratio"}
+                                                        >
+                                                            {logoAspectRatio ? <Link2 className="w-3 h-3" /> : <Unlink2 className="w-3 h-3" />}
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="h-6 px-2 text-xs"
+                                                            onClick={() => {
+                                                                setQuotationData({ ...quotationData, companyLogoWidth: 80, companyLogoHeight: 80 })
+                                                                if (logoAspectRatio) setLogoAspectRatio(1)
+                                                            }}
+                                                            title="Reset to Default (80x80)"
+                                                        >
+                                                            <RefreshCw className="w-3 h-3" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <Label className="text-xs">Logo Height (px)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        min={20}
-                                                        max={200}
-                                                        value={quotationData.companyLogoHeight}
-                                                        onChange={e => setQuotationData({ ...quotationData, companyLogoHeight: parseInt(e.target.value) || 80 })}
-                                                        className="mt-1"
-                                                    />
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <Label className="text-xs mb-1 block">Width ({quotationData.companyLogoWidth}px)</Label>
+                                                        <Slider
+                                                            value={[quotationData.companyLogoWidth]}
+                                                            min={20}
+                                                            max={300}
+                                                            step={1}
+                                                            onValueChange={([val]) => {
+                                                                if (logoAspectRatio) {
+                                                                    setQuotationData({
+                                                                        ...quotationData,
+                                                                        companyLogoWidth: val,
+                                                                        companyLogoHeight: Math.round(val / logoAspectRatio)
+                                                                    })
+                                                                } else {
+                                                                    setQuotationData({ ...quotationData, companyLogoWidth: val })
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label className="text-xs mb-1 block">Height ({quotationData.companyLogoHeight}px)</Label>
+                                                        <Slider
+                                                            value={[quotationData.companyLogoHeight]}
+                                                            min={20}
+                                                            max={300}
+                                                            step={1}
+                                                            onValueChange={([val]) => {
+                                                                if (logoAspectRatio) {
+                                                                    setQuotationData({
+                                                                        ...quotationData,
+                                                                        companyLogoHeight: val,
+                                                                        companyLogoWidth: Math.round(val * logoAspectRatio)
+                                                                    })
+                                                                } else {
+                                                                    setQuotationData({ ...quotationData, companyLogoHeight: val })
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
@@ -2955,9 +3012,7 @@ export default function QuotationPage() {
                 }
                 
                 .quotation-preview .company-logo {
-                    width: 80px;
-                    height: 80px;
-                    object-fit: contain;
+                    /* Dimensions handled by inline styles */
                 }
                 
                 .quotation-preview .logo-placeholder {
