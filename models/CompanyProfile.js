@@ -54,8 +54,8 @@ const CompanyProfileSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Compound index for faster lookups
-CompanyProfileSchema.index({ userId: 1, name: 1 }, { unique: true });
+// Index for faster lookups by userId (NOT unique on name)
+CompanyProfileSchema.index({ userId: 1, createdAt: -1 });
 
 // Prevent model overwrite error in development
 if (mongoose.models.CompanyProfile) {
@@ -63,4 +63,5 @@ if (mongoose.models.CompanyProfile) {
 }
 
 export default mongoose.models.CompanyProfile || mongoose.model('CompanyProfile', CompanyProfileSchema);
+
 

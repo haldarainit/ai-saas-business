@@ -67,6 +67,8 @@ import {
 import Link from "next/link"
 import { useReactToPrint } from 'react-to-print'
 import { useDebounce } from "@/hooks/use-debounce"
+import { useToast } from "@/hooks/use-toast"
+import { Toaster } from "@/components/ui/toaster"
 import Navbar from "@/components/navbar"
 
 // Rich Text Style Interface
@@ -530,6 +532,7 @@ const defaultQuotationData: QuotationData = {
 export default function QuotationPage() {
     const params = useParams()
     const router = useRouter()
+    const { toast } = useToast()
     const printRef = useRef<HTMLDivElement>(null)
 
     const [quotationData, setQuotationData] = useState<QuotationData>(defaultQuotationData)
@@ -683,14 +686,25 @@ export default function QuotationPage() {
                 setCompanyProfiles(prev => [...prev, data.profile])
                 setSelectedCompanyId(data.profile._id)
                 setShowSaveCompanyDialog(false)
-                alert('Company saved successfully!')
+                toast({
+                    title: "✅ Company Saved!",
+                    description: `"${quotationData.companyName}" has been saved to your company profiles.`,
+                })
             } else {
                 const error = await res.json()
-                alert(error.error || 'Failed to save company')
+                toast({
+                    title: "❌ Failed to Save",
+                    description: error.error || 'Failed to save company',
+                    variant: "destructive"
+                })
             }
         } catch (error) {
             console.error('Error saving company:', error)
-            alert('Failed to save company')
+            toast({
+                title: "❌ Error",
+                description: 'Failed to save company. Please try again.',
+                variant: "destructive"
+            })
         } finally {
             setIsSavingCompany(false)
         }
@@ -3901,6 +3915,7 @@ Return the response as JSON with this structure:
                     }
                 }
             `}</style>
+            <Toaster />
         </div>
     )
 }
