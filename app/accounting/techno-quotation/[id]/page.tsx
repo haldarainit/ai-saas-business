@@ -49,8 +49,21 @@ import {
     AlignJustify,
     Link2,
     Unlink2,
-    RefreshCw
+    RefreshCw,
+    Sparkles,
+    Wand2,
+    Eraser,
+    FileCheck
 } from "lucide-react"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogFooter,
+} from "@/components/ui/dialog"
 import Link from "next/link"
 import { useReactToPrint } from 'react-to-print'
 import { useDebounce } from "@/hooks/use-debounce"
@@ -529,6 +542,142 @@ export default function QuotationPage() {
     const [logoAspectRatio, setLogoAspectRatio] = useState<number | null>(null)
     const [previewZoom, setPreviewZoom] = useState(0.9)
     const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+
+    // AI Generation State
+    const [isAIDialogOpen, setIsAIDialogOpen] = useState(false)
+    const [isGenerating, setIsGenerating] = useState(false)
+    const [aiFormData, setAiFormData] = useState({
+        subjectTitle: '',
+        projectType: '',
+        scopeOfWork: '',
+        itemsQuantities: '',
+        technicalSpecs: '',
+        termsConditions: '',
+        additionalNotes: ''
+    })
+
+    // AI Generation Handler
+    const handleAIGenerate = async () => {
+        if (!aiFormData.subjectTitle.trim()) {
+            alert('Please provide at least a Subject/Title')
+            return
+        }
+
+        setIsGenerating(true)
+        try {
+            const prompt = `Generate a professional techno-commercial quotation based on the following information:
+
+**Subject/Title:** ${aiFormData.subjectTitle}
+${aiFormData.projectType ? `**Project Type/Description:** ${aiFormData.projectType}` : ''}
+${aiFormData.scopeOfWork ? `**Scope of Work:** ${aiFormData.scopeOfWork}` : ''}
+${aiFormData.itemsQuantities ? `**Items/Bill of Quantities:** ${aiFormData.itemsQuantities}` : ''}
+${aiFormData.technicalSpecs ? `**Technical Specifications:** ${aiFormData.technicalSpecs}` : ''}
+${aiFormData.termsConditions ? `**Terms & Conditions:** ${aiFormData.termsConditions}` : ''}
+${aiFormData.additionalNotes ? `**Additional Notes:** ${aiFormData.additionalNotes}` : ''}
+
+Please generate a structured quotation with:
+1. A professional greeting paragraph
+2. Introduction about the quotation
+3. Scope of Work/Services section
+4. If items are provided, create a detailed table with columns: S.No, Description, Unit, Quantity, Rate, Amount
+5. Technical specifications section if applicable
+6. Terms and conditions section
+7. Validity and payment terms
+8. Professional closing paragraph
+
+Return the response as JSON with this structure:
+{
+    "subject": "Subject line for the quotation",
+    "greeting": "Professional greeting",
+    "contentBlocks": [
+        { "type": "paragraph|heading|list|table", "content": "...", "items": [], "tableData": { "headers": [], "rows": [] } }
+    ]
+}`
+
+            const response = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, type: 'quotation' })
+            })
+
+            if (!response.ok) {
+                throw new Error('AI generation failed')
+            }
+
+            const result = await response.json()
+
+            if (result.success && result.data) {
+                const aiData = result.data
+
+                // Update quotation data with AI-generated content
+                setQuotationData(prev => ({
+                    ...prev,
+                    subject: aiData.subject || aiFormData.subjectTitle,
+                    greeting: aiData.greeting || prev.greeting,
+                    contentBlocks: aiData.contentBlocks?.map((block: any, index: number) => ({
+                        id: `ai-${Date.now()}-${index}`,
+                        type: block.type || 'paragraph',
+                        content: block.content || '',
+                        items: block.items || undefined,
+                        tableData: block.tableData ? {
+                            headers: block.tableData.headers || ['Column 1', 'Column 2'],
+                            rows: block.tableData.rows || [['', '']],
+                            style: {
+                                headerBgColor: '#f97316',
+                                headerTextColor: '#ffffff',
+                                borderColor: '#1a1a1a',
+                                borderWidth: 1,
+                                textColor: '#1a1a1a',
+                                alternateRowColor: '#f9fafb',
+                                fontSize: 10
+                            }
+                        } : undefined,
+                        style: {
+                            fontSize: block.type === 'heading' ? 14 : 11,
+                            fontWeight: block.type === 'heading' ? 'bold' : 'normal',
+                            textAlign: block.type === 'paragraph' ? 'justify' : 'left',
+                            lineHeight: 1.5,
+                            color: '#1a1a1a'
+                        }
+                    })) || prev.contentBlocks
+                }))
+
+                setIsAIDialogOpen(false)
+                setAiFormData({
+                    subjectTitle: '',
+                    projectType: '',
+                    scopeOfWork: '',
+                    itemsQuantities: '',
+                    technicalSpecs: '',
+                    termsConditions: '',
+                    additionalNotes: ''
+                })
+                setActiveTab('content')
+            }
+        } catch (error) {
+            console.error('AI generation error:', error)
+            alert('Failed to generate quotation. Please try again.')
+        } finally {
+            setIsGenerating(false)
+        }
+    }
+
+    // Clear all content blocks (Blank Template)
+    const handleClearContent = () => {
+        if (confirm('Are you sure you want to clear all content? This will create a blank template with only header and footer.')) {
+            setQuotationData(prev => ({
+                ...prev,
+                clientName: '',
+                clientDesignation: '',
+                clientCompany: '',
+                clientAddress: '',
+                subject: 'Offer for Supply of Equipment',
+                greeting: 'Dear Sir,',
+                contentBlocks: []
+            }))
+            setSelectedBlockId(null)
+        }
+    }
 
     // Fetch quotation data
     useEffect(() => {
@@ -1314,15 +1463,156 @@ export default function QuotationPage() {
                             Save Now
                         </Button>
                     )}
+                    {/* AI Generate Button */}
+                    <Button
+                        variant="outline"
+                        onClick={() => setIsAIDialogOpen(true)}
+                        className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/30"
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        AI Generate
+                    </Button>
+                    {/* Blank Template Button */}
+                    <Button
+                        variant="outline"
+                        onClick={handleClearContent}
+                        className="gap-2"
+                        title="Create blank template with only header and footer"
+                    >
+                        <Eraser className="w-4 h-4" />
+                        Blank
+                    </Button>
                     <Button
                         onClick={() => handlePrint()}
                         className="bg-cyan-600 hover:bg-cyan-700 text-white gap-2"
                     >
                         <Printer className="w-4 h-4" />
-                        Print / Download PDF
+                        Print / PDF
                     </Button>
                 </div>
             </div>
+
+            {/* AI Generation Dialog */}
+            <Dialog open={isAIDialogOpen} onOpenChange={setIsAIDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
+                            <Wand2 className="w-5 h-5" />
+                            AI Quotation Generator
+                        </DialogTitle>
+                        <DialogDescription>
+                            Fill in the details below and let AI generate a professional quotation for you.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        {/* Subject / Title - Required */}
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-1">
+                                Subject / Title <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                                value={aiFormData.subjectTitle}
+                                onChange={e => setAiFormData({ ...aiFormData, subjectTitle: e.target.value })}
+                                placeholder="e.g., Supply and Installation of Industrial Equipment"
+                            />
+                        </div>
+
+                        {/* Project Type / Description */}
+                        <div className="space-y-2">
+                            <Label>Project Type / Description</Label>
+                            <Textarea
+                                value={aiFormData.projectType}
+                                onChange={e => setAiFormData({ ...aiFormData, projectType: e.target.value })}
+                                placeholder="Describe the project type, industry, and overall description..."
+                                rows={2}
+                            />
+                        </div>
+
+                        {/* Scope of Work */}
+                        <div className="space-y-2">
+                            <Label>Scope of Work</Label>
+                            <Textarea
+                                value={aiFormData.scopeOfWork}
+                                onChange={e => setAiFormData({ ...aiFormData, scopeOfWork: e.target.value })}
+                                placeholder="List the work/services to be provided..."
+                                rows={3}
+                            />
+                        </div>
+
+                        {/* Items / Bill of Quantities */}
+                        <div className="space-y-2">
+                            <Label>Items / Bill of Quantities</Label>
+                            <Textarea
+                                value={aiFormData.itemsQuantities}
+                                onChange={e => setAiFormData({ ...aiFormData, itemsQuantities: e.target.value })}
+                                placeholder="List items with quantities, e.g.:&#10;- Control Panel 500KVA - 2 Nos&#10;- Cable Tray 100mm - 50 Meters&#10;- Installation Charges - 1 Lot"
+                                rows={4}
+                            />
+                        </div>
+
+                        {/* Technical Specifications */}
+                        <div className="space-y-2">
+                            <Label>Technical Specifications</Label>
+                            <Textarea
+                                value={aiFormData.technicalSpecs}
+                                onChange={e => setAiFormData({ ...aiFormData, technicalSpecs: e.target.value })}
+                                placeholder="Any technical specifications or standards to follow..."
+                                rows={2}
+                            />
+                        </div>
+
+                        {/* Terms & Conditions */}
+                        <div className="space-y-2">
+                            <Label>Terms & Conditions</Label>
+                            <Textarea
+                                value={aiFormData.termsConditions}
+                                onChange={e => setAiFormData({ ...aiFormData, termsConditions: e.target.value })}
+                                placeholder="Payment terms, delivery timeline, warranty period, etc..."
+                                rows={2}
+                            />
+                        </div>
+
+                        {/* Additional Notes */}
+                        <div className="space-y-2">
+                            <Label>Additional Notes</Label>
+                            <Textarea
+                                value={aiFormData.additionalNotes}
+                                onChange={e => setAiFormData({ ...aiFormData, additionalNotes: e.target.value })}
+                                placeholder="Any other details you want to include..."
+                                rows={2}
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsAIDialogOpen(false)}
+                            disabled={isGenerating}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleAIGenerate}
+                            disabled={isGenerating || !aiFormData.subjectTitle.trim()}
+                            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white gap-2"
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4" />
+                                    Generate Quotation
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <div className="flex-1 container mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
@@ -3173,6 +3463,10 @@ export default function QuotationPage() {
                         margin: 0;
                     }
                     
+                    @page:first {
+                        margin-top: 0;
+                    }
+                    
                     body {
                         margin: 0;
                         padding: 0;
@@ -3188,15 +3482,51 @@ export default function QuotationPage() {
                     
                     .quotation-preview .page {
                         width: 100%;
-                        min-height: 100vh;
-                        padding: 10mm 8mm; /* Reduced: 10mm top/bottom, 8mm left/right */
+                        min-height: auto;
+                        padding: 12mm 10mm 60mm 10mm; /* Extra bottom padding for footer */
                         margin: 0;
                         box-shadow: none;
-                        page-break-after: always;
+                        position: relative;
+                    }
+                    
+                    /* Content section proper flow */
+                    .quotation-preview .content-section {
+                        margin-bottom: 30px;
+                        page-break-inside: auto;
+                    }
+                    
+                    /* Allow content blocks to break across pages */
+                    .quotation-preview .content-block {
+                        page-break-inside: avoid;
+                        margin: 8px 0;
+                    }
+                    
+                    /* Tables can break but try to keep rows together */
+                    .quotation-preview .block-table {
+                        page-break-inside: auto;
+                    }
+                    
+                    .quotation-preview .block-table tr {
+                        page-break-inside: avoid;
+                    }
+                    
+                    .quotation-preview .block-table thead {
+                        display: table-header-group;
+                    }
+                    
+                    .quotation-preview .block-table tbody {
+                        page-break-inside: auto;
+                    }
+                    
+                    /* Signature section - try to keep together */
+                    .quotation-preview .signature-section {
+                        page-break-inside: avoid;
+                        margin-top: 25px;
+                        margin-bottom: 50px; /* Space before footer */
                     }
                     
                     .quotation-preview .watermark {
-                        position: absolute !important;
+                        position: fixed !important;
                         top: 50% !important;
                         left: 50% !important;
                         -webkit-print-color-adjust: exact !important;
@@ -3205,8 +3535,6 @@ export default function QuotationPage() {
                         z-index: 0 !important;
                         display: flex !important;
                         visibility: visible !important;
-                        opacity: inherit !important;
-                        position: fixed !important;
                     }
                     
                     .quotation-preview .watermark span,
@@ -3224,6 +3552,7 @@ export default function QuotationPage() {
                         flex-wrap: nowrap !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                        page-break-after: avoid;
                     }
                     
                     .quotation-preview .header-left {
@@ -3257,12 +3586,49 @@ export default function QuotationPage() {
                         print-color-adjust: exact !important;
                     }
                     
-                    .quotation-preview .footer {
-                        left: 8mm;  /* Match reduced padding */
-                        right: 8mm; /* Match reduced padding */
-                        bottom: 10mm;
+                    .quotation-preview .block-table td {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                    }
+                    
+                    /* Footer fixed at bottom of each page */
+                    .quotation-preview .footer {
+                        position: fixed !important;
+                        bottom: 10mm !important;
+                        left: 10mm !important;
+                        right: 10mm !important;
+                        background: white;
+                        padding-top: 8px;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    
+                    /* Headings should not be orphaned */
+                    .quotation-preview .block-heading {
+                        page-break-after: avoid;
+                    }
+                    
+                    /* Lists should stay together if possible */
+                    .quotation-preview .block-list {
+                        page-break-inside: avoid;
+                    }
+                    
+                    /* Title and ref section stay together */
+                    .quotation-preview .document-title {
+                        page-break-after: avoid;
+                    }
+                    
+                    .quotation-preview .ref-section {
+                        page-break-after: avoid;
+                    }
+                    
+                    .quotation-preview .to-section {
+                        page-break-inside: avoid;
+                        page-break-after: avoid;
+                    }
+                    
+                    .quotation-preview .subject-section {
+                        page-break-inside: avoid;
                     }
                 }
             `}</style>
