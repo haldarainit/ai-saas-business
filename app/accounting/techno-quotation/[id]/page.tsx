@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
+import { Slider } from "@/components/ui/slider"
 import {
     Select,
     SelectContent,
@@ -44,11 +45,30 @@ import {
     ZoomIn,
     ZoomOut,
     RotateCcw,
-    X
+    X,
+    AlignJustify,
+    Link2,
+    Unlink2,
+    RefreshCw,
+    Sparkles,
+    Wand2,
+    Eraser,
+    FileCheck
 } from "lucide-react"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogFooter,
+} from "@/components/ui/dialog"
 import Link from "next/link"
 import { useReactToPrint } from 'react-to-print'
 import { useDebounce } from "@/hooks/use-debounce"
+import { useToast } from "@/hooks/use-toast"
+import { Toaster } from "@/components/ui/toaster"
 import Navbar from "@/components/navbar"
 
 // Rich Text Style Interface
@@ -57,7 +77,7 @@ interface RichTextStyle {
     fontWeight?: 'normal' | 'bold'
     fontStyle?: 'normal' | 'italic'
     textDecoration?: 'none' | 'underline'
-    textAlign?: 'left' | 'center' | 'right'
+    textAlign?: 'left' | 'center' | 'right' | 'justify'
     color?: string
 }
 
@@ -81,6 +101,7 @@ interface RichTextFieldEditorProps {
     rows?: number
     placeholder?: string
     type?: 'text' | 'date'
+    disableAlignment?: boolean
 }
 
 function RichTextFieldEditor({
@@ -92,7 +113,8 @@ function RichTextFieldEditor({
     multiline = false,
     rows = 2,
     placeholder,
-    type = 'text'
+    type = 'text',
+    disableAlignment = false
 }: RichTextFieldEditorProps) {
     const [isExpanded, setIsExpanded] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -225,40 +247,44 @@ function RichTextFieldEditor({
                         <Underline className="w-3.5 h-3.5" />
                     </Button>
 
-                    <div className="w-px h-7 bg-gray-300 dark:bg-gray-600" />
+                    {!disableAlignment && (
+                        <>
+                            <div className="w-px h-7 bg-gray-300 dark:bg-gray-600" />
 
-                    {/* Align Left */}
-                    <Button
-                        size="icon"
-                        variant={style.textAlign === 'left' ? 'default' : 'outline'}
-                        className="h-7 w-7"
-                        onClick={() => updateStyle({ textAlign: 'left' })}
-                        title="Align Left"
-                    >
-                        <AlignLeft className="w-3.5 h-3.5" />
-                    </Button>
+                            {/* Align Left */}
+                            <Button
+                                size="icon"
+                                variant={style.textAlign === 'left' ? 'default' : 'outline'}
+                                className="h-7 w-7"
+                                onClick={() => updateStyle({ textAlign: 'left' })}
+                                title="Align Left"
+                            >
+                                <AlignLeft className="w-3.5 h-3.5" />
+                            </Button>
 
-                    {/* Align Center */}
-                    <Button
-                        size="icon"
-                        variant={style.textAlign === 'center' ? 'default' : 'outline'}
-                        className="h-7 w-7"
-                        onClick={() => updateStyle({ textAlign: 'center' })}
-                        title="Align Center"
-                    >
-                        <AlignCenter className="w-3.5 h-3.5" />
-                    </Button>
+                            {/* Align Center */}
+                            <Button
+                                size="icon"
+                                variant={style.textAlign === 'center' ? 'default' : 'outline'}
+                                className="h-7 w-7"
+                                onClick={() => updateStyle({ textAlign: 'center' })}
+                                title="Align Center"
+                            >
+                                <AlignCenter className="w-3.5 h-3.5" />
+                            </Button>
 
-                    {/* Align Right */}
-                    <Button
-                        size="icon"
-                        variant={style.textAlign === 'right' ? 'default' : 'outline'}
-                        className="h-7 w-7"
-                        onClick={() => updateStyle({ textAlign: 'right' })}
-                        title="Align Right"
-                    >
-                        <AlignRight className="w-3.5 h-3.5" />
-                    </Button>
+                            {/* Align Right */}
+                            <Button
+                                size="icon"
+                                variant={style.textAlign === 'right' ? 'default' : 'outline'}
+                                className="h-7 w-7"
+                                onClick={() => updateStyle({ textAlign: 'right' })}
+                                title="Align Right"
+                            >
+                                <AlignRight className="w-3.5 h-3.5" />
+                            </Button>
+                        </>
+                    )}
 
                     <div className="w-px h-7 bg-gray-300 dark:bg-gray-600" />
 
@@ -351,7 +377,7 @@ interface ContentBlock {
         fontWeight?: 'normal' | 'bold'
         fontStyle?: 'normal' | 'italic'
         textDecoration?: 'none' | 'underline'
-        textAlign?: 'left' | 'center' | 'right'
+        textAlign?: 'left' | 'center' | 'right' | 'justify'
         color?: string
         lineHeight?: number
     }
@@ -506,6 +532,7 @@ const defaultQuotationData: QuotationData = {
 export default function QuotationPage() {
     const params = useParams()
     const router = useRouter()
+    const { toast } = useToast()
     const printRef = useRef<HTMLDivElement>(null)
 
     const [quotationData, setQuotationData] = useState<QuotationData>(defaultQuotationData)
@@ -515,8 +542,296 @@ export default function QuotationPage() {
     const [isSaving, setIsSaving] = useState(false)
     const [hasChanges, setHasChanges] = useState(false)
     const [lastSaved, setLastSaved] = useState<Date | null>(null)
+    const [logoAspectRatio, setLogoAspectRatio] = useState<number | null>(null)
     const [previewZoom, setPreviewZoom] = useState(0.9)
     const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+
+    // AI Generation State
+    const [isAIDialogOpen, setIsAIDialogOpen] = useState(false)
+    const [isGenerating, setIsGenerating] = useState(false)
+    const [aiFormData, setAiFormData] = useState({
+        subjectTitle: '',
+        projectType: '',
+        scopeOfWork: '',
+        itemsQuantities: '',
+        technicalSpecs: '',
+        termsConditions: '',
+        additionalNotes: ''
+    })
+
+    // Company Profile State
+    interface CompanyProfile {
+        _id: string
+        name: string
+        address1?: string
+        address2?: string
+        phone?: string
+        email?: string
+        logo?: string
+        gstin?: string
+        pan?: string
+        website?: string
+        authorizedSignatory?: string
+        signatoryDesignation?: string
+        footerLine1?: string
+        footerLine2?: string
+        footerLine3?: string
+        headerLineColor?: string
+        headerValueColor?: string
+        footerLineColor?: string
+        footerTextColor?: string
+        isDefault?: boolean
+    }
+    const [companyProfiles, setCompanyProfiles] = useState<CompanyProfile[]>([])
+    const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
+    const [isLoadingProfiles, setIsLoadingProfiles] = useState(false)
+    const [showSaveCompanyDialog, setShowSaveCompanyDialog] = useState(false)
+    const [isSavingCompany, setIsSavingCompany] = useState(false)
+
+    // Fetch company profiles
+    useEffect(() => {
+        const fetchProfiles = async () => {
+            setIsLoadingProfiles(true)
+            try {
+                const res = await fetch('/api/company-profile')
+                if (res.ok) {
+                    const data = await res.json()
+                    setCompanyProfiles(data.profiles || [])
+                    // Auto-select default company
+                    const defaultCompany = data.profiles?.find((p: CompanyProfile) => p.isDefault)
+                    if (defaultCompany) {
+                        setSelectedCompanyId(defaultCompany._id)
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching company profiles:', error)
+            } finally {
+                setIsLoadingProfiles(false)
+            }
+        }
+        fetchProfiles()
+    }, [])
+
+    // Apply selected company to quotation (toggle select/deselect)
+    const applyCompanyProfile = (profileId: string) => {
+        // If already selected, deselect and clear to blank fields
+        if (selectedCompanyId === profileId) {
+            setSelectedCompanyId('')
+            setQuotationData(prev => ({
+                ...prev,
+                companyName: '',
+                companyAddress: '',
+                companyPhone: '',
+                companyEmail: '',
+                companyGSTIN: '',
+                companyLogo: '',
+            }))
+            return
+        }
+
+        const profile = companyProfiles.find(p => p._id === profileId)
+        if (!profile) return
+
+        setQuotationData(prev => ({
+            ...prev,
+            companyName: profile.name,
+            companyAddress: `${profile.address1 || ''}${profile.address2 ? '\n' + profile.address2 : ''}`,
+            companyPhone: profile.phone || '',
+            companyEmail: profile.email || '',
+            companyGSTIN: profile.gstin || '',
+            companyLogo: profile.logo || '',
+            signatureName: profile.authorizedSignatory || prev.signatureName,
+            signatureDesignation: profile.signatoryDesignation || prev.signatureDesignation,
+            footerLine1: profile.footerLine1 || prev.footerLine1,
+            footerLine2: profile.footerLine2 || prev.footerLine2,
+            footerLine3: profile.footerLine3 || prev.footerLine3,
+            headerLineColor: profile.headerLineColor || prev.headerLineColor,
+            headerValueColor: profile.headerValueColor || prev.headerValueColor,
+            footerLineColor: profile.footerLineColor || prev.footerLineColor,
+            footerTextColor: profile.footerTextColor || prev.footerTextColor,
+        }))
+        setSelectedCompanyId(profileId)
+    }
+
+    // Save current company as new profile
+    const saveAsCompanyProfile = async () => {
+        setIsSavingCompany(true)
+        try {
+            const res = await fetch('/api/company-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: quotationData.companyName,
+                    address1: quotationData.companyAddress?.split('\n')[0] || '',
+                    address2: quotationData.companyAddress?.split('\n').slice(1).join('\n') || '',
+                    phone: quotationData.companyPhone,
+                    email: quotationData.companyEmail,
+                    gstin: quotationData.companyGSTIN,
+                    logo: quotationData.companyLogo,
+                    authorizedSignatory: quotationData.signatureName,
+                    signatoryDesignation: quotationData.signatureDesignation,
+                    footerLine1: quotationData.footerLine1,
+                    footerLine2: quotationData.footerLine2,
+                    footerLine3: quotationData.footerLine3,
+                    headerLineColor: quotationData.headerLineColor,
+                    headerValueColor: quotationData.headerValueColor,
+                    footerLineColor: quotationData.footerLineColor,
+                    footerTextColor: quotationData.footerTextColor,
+                    isDefault: companyProfiles.length === 0
+                })
+            })
+
+            if (res.ok) {
+                const data = await res.json()
+                setCompanyProfiles(prev => [...prev, data.profile])
+                setSelectedCompanyId(data.profile._id)
+                setShowSaveCompanyDialog(false)
+                toast({
+                    title: "✅ Company Saved!",
+                    description: `"${quotationData.companyName}" has been saved to your company profiles.`,
+                })
+            } else {
+                const error = await res.json()
+                toast({
+                    title: "❌ Failed to Save",
+                    description: error.error || 'Failed to save company',
+                    variant: "destructive"
+                })
+            }
+        } catch (error) {
+            console.error('Error saving company:', error)
+            toast({
+                title: "❌ Error",
+                description: 'Failed to save company. Please try again.',
+                variant: "destructive"
+            })
+        } finally {
+            setIsSavingCompany(false)
+        }
+    }
+
+    // AI Generation Handler
+    const handleAIGenerate = async () => {
+        if (!aiFormData.subjectTitle.trim()) {
+            alert('Please provide at least a Subject/Title')
+            return
+        }
+
+        setIsGenerating(true)
+        try {
+            const prompt = `Generate a professional techno-commercial quotation based on the following information:
+
+**Subject/Title:** ${aiFormData.subjectTitle}
+${aiFormData.projectType ? `**Project Type/Description:** ${aiFormData.projectType}` : ''}
+${aiFormData.scopeOfWork ? `**Scope of Work:** ${aiFormData.scopeOfWork}` : ''}
+${aiFormData.itemsQuantities ? `**Items/Bill of Quantities:** ${aiFormData.itemsQuantities}` : ''}
+${aiFormData.technicalSpecs ? `**Technical Specifications:** ${aiFormData.technicalSpecs}` : ''}
+${aiFormData.termsConditions ? `**Terms & Conditions:** ${aiFormData.termsConditions}` : ''}
+${aiFormData.additionalNotes ? `**Additional Notes:** ${aiFormData.additionalNotes}` : ''}
+
+Please generate a structured quotation with:
+1. A professional greeting paragraph
+2. Introduction about the quotation
+3. Scope of Work/Services section
+4. If items are provided, create a detailed table with columns: S.No, Description, Unit, Quantity, Rate, Amount
+5. Technical specifications section if applicable
+6. Terms and conditions section
+7. Validity and payment terms
+8. Professional closing paragraph
+
+Return the response as JSON with this structure:
+{
+    "subject": "Subject line for the quotation",
+    "greeting": "Professional greeting",
+    "contentBlocks": [
+        { "type": "paragraph|heading|list|table", "content": "...", "items": [], "tableData": { "headers": [], "rows": [] } }
+    ]
+}`
+
+            const response = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, type: 'quotation' })
+            })
+
+            if (!response.ok) {
+                throw new Error('AI generation failed')
+            }
+
+            const result = await response.json()
+
+            if (result.success && result.data) {
+                const aiData = result.data
+
+                // Update quotation data with AI-generated content
+                setQuotationData(prev => ({
+                    ...prev,
+                    subject: aiData.subject || aiFormData.subjectTitle,
+                    greeting: aiData.greeting || prev.greeting,
+                    contentBlocks: aiData.contentBlocks?.map((block: any, index: number) => ({
+                        id: `ai-${Date.now()}-${index}`,
+                        type: block.type || 'paragraph',
+                        content: block.content || '',
+                        items: block.items || undefined,
+                        tableData: block.tableData ? {
+                            headers: block.tableData.headers || ['Column 1', 'Column 2'],
+                            rows: block.tableData.rows || [['', '']],
+                            style: {
+                                headerBgColor: '#f97316',
+                                headerTextColor: '#ffffff',
+                                borderColor: '#1a1a1a',
+                                borderWidth: 1,
+                                textColor: '#1a1a1a',
+                                alternateRowColor: '#f9fafb',
+                                fontSize: 10
+                            }
+                        } : undefined,
+                        style: {
+                            fontSize: block.type === 'heading' ? 14 : 11,
+                            fontWeight: block.type === 'heading' ? 'bold' : 'normal',
+                            textAlign: block.type === 'paragraph' ? 'justify' : 'left',
+                            lineHeight: 1.5,
+                            color: '#1a1a1a'
+                        }
+                    })) || prev.contentBlocks
+                }))
+
+                setIsAIDialogOpen(false)
+                setAiFormData({
+                    subjectTitle: '',
+                    projectType: '',
+                    scopeOfWork: '',
+                    itemsQuantities: '',
+                    technicalSpecs: '',
+                    termsConditions: '',
+                    additionalNotes: ''
+                })
+                setActiveTab('content')
+            }
+        } catch (error) {
+            console.error('AI generation error:', error)
+            alert('Failed to generate quotation. Please try again.')
+        } finally {
+            setIsGenerating(false)
+        }
+    }
+
+    // Clear all content blocks (Blank Template)
+    const handleClearContent = () => {
+        if (confirm('Are you sure you want to clear all content? This will create a blank template with only header and footer.')) {
+            setQuotationData(prev => ({
+                ...prev,
+                clientName: '',
+                clientDesignation: '',
+                clientCompany: '',
+                clientAddress: '',
+                subject: 'Offer for Supply of Equipment',
+                greeting: 'Dear Sir,',
+                contentBlocks: []
+            }))
+            setSelectedBlockId(null)
+        }
+    }
 
     // Fetch quotation data
     useEffect(() => {
@@ -821,7 +1136,7 @@ export default function QuotationPage() {
             style: {
                 fontSize: type === 'heading' ? 14 : 11,
                 fontWeight: type === 'heading' ? 'bold' : 'normal',
-                textAlign: 'left',
+                textAlign: type === 'paragraph' ? 'justify' : 'left',
                 lineHeight: 1.5,
                 color: '#1a1a1a'
             }
@@ -1302,15 +1617,215 @@ export default function QuotationPage() {
                             Save Now
                         </Button>
                     )}
+                    {/* AI Generate Button */}
+                    <Button
+                        variant="outline"
+                        onClick={() => setIsAIDialogOpen(true)}
+                        className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/30"
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        AI Generate
+                    </Button>
+                    {/* Blank Template Button */}
+                    <Button
+                        variant="outline"
+                        onClick={handleClearContent}
+                        className="gap-2"
+                        title="Create blank template with only header and footer"
+                    >
+                        <Eraser className="w-4 h-4" />
+                        Blank
+                    </Button>
                     <Button
                         onClick={() => handlePrint()}
                         className="bg-cyan-600 hover:bg-cyan-700 text-white gap-2"
                     >
                         <Printer className="w-4 h-4" />
-                        Print / Download PDF
+                        Print / PDF
                     </Button>
                 </div>
             </div>
+
+            {/* AI Generation Dialog */}
+            <Dialog open={isAIDialogOpen} onOpenChange={setIsAIDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
+                            <Wand2 className="w-5 h-5" />
+                            AI Quotation Generator
+                        </DialogTitle>
+                        <DialogDescription>
+                            Fill in the details below and let AI generate a professional quotation for you.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        {/* Subject / Title - Required */}
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-1">
+                                Subject / Title <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                                value={aiFormData.subjectTitle}
+                                onChange={e => setAiFormData({ ...aiFormData, subjectTitle: e.target.value })}
+                                placeholder="e.g., Supply and Installation of Industrial Equipment"
+                            />
+                        </div>
+
+                        {/* Project Type / Description */}
+                        <div className="space-y-2">
+                            <Label>Project Type / Description</Label>
+                            <Textarea
+                                value={aiFormData.projectType}
+                                onChange={e => setAiFormData({ ...aiFormData, projectType: e.target.value })}
+                                placeholder="Describe the project type, industry, and overall description..."
+                                rows={2}
+                            />
+                        </div>
+
+                        {/* Scope of Work */}
+                        <div className="space-y-2">
+                            <Label>Scope of Work</Label>
+                            <Textarea
+                                value={aiFormData.scopeOfWork}
+                                onChange={e => setAiFormData({ ...aiFormData, scopeOfWork: e.target.value })}
+                                placeholder="List the work/services to be provided..."
+                                rows={3}
+                            />
+                        </div>
+
+                        {/* Items / Bill of Quantities */}
+                        <div className="space-y-2">
+                            <Label>Items / Bill of Quantities</Label>
+                            <Textarea
+                                value={aiFormData.itemsQuantities}
+                                onChange={e => setAiFormData({ ...aiFormData, itemsQuantities: e.target.value })}
+                                placeholder="List items with quantities, e.g.:&#10;- Control Panel 500KVA - 2 Nos&#10;- Cable Tray 100mm - 50 Meters&#10;- Installation Charges - 1 Lot"
+                                rows={4}
+                            />
+                        </div>
+
+                        {/* Technical Specifications */}
+                        <div className="space-y-2">
+                            <Label>Technical Specifications</Label>
+                            <Textarea
+                                value={aiFormData.technicalSpecs}
+                                onChange={e => setAiFormData({ ...aiFormData, technicalSpecs: e.target.value })}
+                                placeholder="Any technical specifications or standards to follow..."
+                                rows={2}
+                            />
+                        </div>
+
+                        {/* Terms & Conditions */}
+                        <div className="space-y-2">
+                            <Label>Terms & Conditions</Label>
+                            <Textarea
+                                value={aiFormData.termsConditions}
+                                onChange={e => setAiFormData({ ...aiFormData, termsConditions: e.target.value })}
+                                placeholder="Payment terms, delivery timeline, warranty period, etc..."
+                                rows={2}
+                            />
+                        </div>
+
+                        {/* Additional Notes */}
+                        <div className="space-y-2">
+                            <Label>Additional Notes</Label>
+                            <Textarea
+                                value={aiFormData.additionalNotes}
+                                onChange={e => setAiFormData({ ...aiFormData, additionalNotes: e.target.value })}
+                                placeholder="Any other details you want to include..."
+                                rows={2}
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsAIDialogOpen(false)}
+                            disabled={isGenerating}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleAIGenerate}
+                            disabled={isGenerating || !aiFormData.subjectTitle.trim()}
+                            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white gap-2"
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4" />
+                                    Generate Quotation
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Save Company Profile Dialog */}
+            <Dialog open={showSaveCompanyDialog} onOpenChange={setShowSaveCompanyDialog}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Building2 className="w-5 h-5 text-cyan-600" />
+                            Save Company Profile
+                        </DialogTitle>
+                        <DialogDescription>
+                            Save current company details for quick access in future quotations.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-3">
+                        <div className="p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800">
+                            <p className="font-medium text-sm">{quotationData.companyName}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{quotationData.companyAddress}</p>
+                            {quotationData.companyPhone && (
+                                <p className="text-xs text-muted-foreground">Ph: {quotationData.companyPhone}</p>
+                            )}
+                            {quotationData.companyEmail && (
+                                <p className="text-xs text-muted-foreground">Email: {quotationData.companyEmail}</p>
+                            )}
+                            {quotationData.companyGSTIN && (
+                                <p className="text-xs text-muted-foreground">GSTIN: {quotationData.companyGSTIN}</p>
+                            )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            This will save all company details including logo, footer, and signature information.
+                        </p>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowSaveCompanyDialog(false)}
+                            disabled={isSavingCompany}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={saveAsCompanyProfile}
+                            disabled={isSavingCompany}
+                            className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                        >
+                            {isSavingCompany ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Save Company
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <div className="flex-1 container mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
@@ -1372,6 +1887,76 @@ export default function QuotationPage() {
 
                         {/* Company Tab */}
                         <TabsContent value="company" className="space-y-4">
+                            {/* Company Selector */}
+                            <Card className="p-4 bg-gradient-to-r from-cyan-50 to-teal-50 dark:from-cyan-900/20 dark:to-teal-900/20 border-cyan-200 dark:border-cyan-800">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-sm font-semibold flex items-center gap-2 text-cyan-700 dark:text-cyan-300">
+                                        <Building2 className="w-4 h-4" /> Select Company Profile
+                                    </h4>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setShowSaveCompanyDialog(true)}
+                                        className="gap-1 text-xs"
+                                        disabled={!quotationData.companyName?.trim()}
+                                    >
+                                        <Plus className="w-3 h-3" /> Save Current
+                                    </Button>
+                                </div>
+                                <Select
+                                    value={selectedCompanyId}
+                                    onValueChange={(value) => {
+                                        if (value === 'new') {
+                                            setSelectedCompanyId('')
+                                            // Clear company fields for manual entry
+                                            setQuotationData(prev => ({
+                                                ...prev,
+                                                companyName: '',
+                                                companyAddress: '',
+                                                companyPhone: '',
+                                                companyEmail: '',
+                                                companyGSTIN: '',
+                                                companyLogo: '',
+                                            }))
+                                        } else {
+                                            applyCompanyProfile(value)
+                                        }
+                                    }}
+                                >
+                                    <SelectTrigger className="bg-background">
+                                        <SelectValue placeholder={isLoadingProfiles ? "Loading..." : "Select a company or enter new"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="new">
+                                            <span className="flex items-center gap-2">
+                                                <Plus className="w-4 h-4 text-muted-foreground" />
+                                                Enter New Company Details
+                                            </span>
+                                        </SelectItem>
+                                        {companyProfiles.map((profile) => (
+                                            <SelectItem key={profile._id} value={profile._id}>
+                                                <span className="flex items-center gap-2">
+                                                    {profile.logo ? (
+                                                        <img src={profile.logo} alt="" className="w-5 h-5 object-contain rounded" />
+                                                    ) : (
+                                                        <Building2 className="w-4 h-4 text-muted-foreground" />
+                                                    )}
+                                                    {profile.name}
+                                                    {profile.isDefault && (
+                                                        <span className="text-xs bg-cyan-100 dark:bg-cyan-900 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded">Default</span>
+                                                    )}
+                                                </span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {companyProfiles.length === 0 && !isLoadingProfiles && (
+                                    <p className="text-xs text-muted-foreground mt-2">
+                                        No saved companies. Fill in details below and click "Save Current" to save.
+                                    </p>
+                                )}
+                            </Card>
+
                             <Card className="p-4 border-l-4 border-l-cyan-500">
                                 <h3 className="font-semibold text-lg mb-4 flex items-center">
                                     <Building2 className="w-4 h-4 mr-2" /> Company Details
@@ -1415,34 +2000,87 @@ export default function QuotationPage() {
                                             )}
                                         </div>
                                         {quotationData.companyLogo && (
-                                            <div className="grid grid-cols-2 gap-3 mt-3">
-                                                <div>
-                                                    <Label className="text-xs">Logo Width (px)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        min={20}
-                                                        max={200}
-                                                        value={quotationData.companyLogoWidth}
-                                                        onChange={e => setQuotationData({ ...quotationData, companyLogoWidth: parseInt(e.target.value) || 80 })}
-                                                        className="mt-1"
-                                                    />
+                                            <div className="mt-3">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <Label className="text-xs font-semibold text-muted-foreground">Dimensions</Label>
+                                                    <div className="flex items-center gap-1">
+                                                        <Button
+                                                            size="sm"
+                                                            variant={logoAspectRatio ? "default" : "outline"}
+                                                            className="h-6 px-2 text-xs"
+                                                            onClick={() => {
+                                                                if (logoAspectRatio) {
+                                                                    setLogoAspectRatio(null)
+                                                                } else {
+                                                                    setLogoAspectRatio(quotationData.companyLogoWidth / quotationData.companyLogoHeight)
+                                                                }
+                                                            }}
+                                                            title={logoAspectRatio ? "Unlock Aspect Ratio" : "Lock Aspect Ratio"}
+                                                        >
+                                                            {logoAspectRatio ? <Link2 className="w-3 h-3" /> : <Unlink2 className="w-3 h-3" />}
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="h-6 px-2 text-xs"
+                                                            onClick={() => {
+                                                                setQuotationData({ ...quotationData, companyLogoWidth: 80, companyLogoHeight: 80 })
+                                                                if (logoAspectRatio) setLogoAspectRatio(1)
+                                                            }}
+                                                            title="Reset to Default (80x80)"
+                                                        >
+                                                            <RefreshCw className="w-3 h-3" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <Label className="text-xs">Logo Height (px)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        min={20}
-                                                        max={200}
-                                                        value={quotationData.companyLogoHeight}
-                                                        onChange={e => setQuotationData({ ...quotationData, companyLogoHeight: parseInt(e.target.value) || 80 })}
-                                                        className="mt-1"
-                                                    />
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <Label className="text-xs mb-1 block">Width ({quotationData.companyLogoWidth}px)</Label>
+                                                        <Slider
+                                                            value={[quotationData.companyLogoWidth]}
+                                                            min={20}
+                                                            max={300}
+                                                            step={1}
+                                                            onValueChange={([val]) => {
+                                                                if (logoAspectRatio) {
+                                                                    setQuotationData({
+                                                                        ...quotationData,
+                                                                        companyLogoWidth: val,
+                                                                        companyLogoHeight: Math.round(val / logoAspectRatio)
+                                                                    })
+                                                                } else {
+                                                                    setQuotationData({ ...quotationData, companyLogoWidth: val })
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label className="text-xs mb-1 block">Height ({quotationData.companyLogoHeight}px)</Label>
+                                                        <Slider
+                                                            value={[quotationData.companyLogoHeight]}
+                                                            min={20}
+                                                            max={300}
+                                                            step={1}
+                                                            onValueChange={([val]) => {
+                                                                if (logoAspectRatio) {
+                                                                    setQuotationData({
+                                                                        ...quotationData,
+                                                                        companyLogoHeight: val,
+                                                                        companyLogoWidth: Math.round(val * logoAspectRatio)
+                                                                    })
+                                                                } else {
+                                                                    setQuotationData({ ...quotationData, companyLogoHeight: val })
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
                                     </div>
                                     <RichTextFieldEditor
                                         label="Company Name"
+                                        disableAlignment={true}
                                         value={quotationData.companyName}
                                         onChange={v => setQuotationData({ ...quotationData, companyName: v })}
                                         style={quotationData.companyNameStyle}
@@ -1451,6 +2089,7 @@ export default function QuotationPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <RichTextFieldEditor
                                             label="GSTIN"
+                                            disableAlignment={true}
                                             value={quotationData.companyGSTIN}
                                             onChange={v => setQuotationData({ ...quotationData, companyGSTIN: v })}
                                             style={quotationData.companyGSTINStyle}
@@ -1466,6 +2105,7 @@ export default function QuotationPage() {
                                     </div>
                                     <RichTextFieldEditor
                                         label="Email"
+                                        disableAlignment={true}
                                         value={quotationData.companyEmail}
                                         onChange={v => setQuotationData({ ...quotationData, companyEmail: v })}
                                         style={quotationData.companyEmailStyle}
@@ -1473,6 +2113,7 @@ export default function QuotationPage() {
                                     />
                                     <RichTextFieldEditor
                                         label="Address"
+                                        disableAlignment={true}
                                         value={quotationData.companyAddress}
                                         onChange={v => setQuotationData({ ...quotationData, companyAddress: v })}
                                         style={quotationData.companyAddressStyle}
@@ -1550,6 +2191,7 @@ export default function QuotationPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <RichTextFieldEditor
                                             label="Reference No."
+                                            disableAlignment={true}
                                             value={quotationData.refNo}
                                             onChange={v => setQuotationData({ ...quotationData, refNo: v })}
                                             style={quotationData.refNoStyle}
@@ -1575,6 +2217,7 @@ export default function QuotationPage() {
                                 <div className="space-y-3">
                                     <RichTextFieldEditor
                                         label="To (Company/Organization)"
+                                        disableAlignment={true}
                                         value={quotationData.clientCompany}
                                         onChange={v => setQuotationData({ ...quotationData, clientCompany: v })}
                                         style={quotationData.clientCompanyStyle}
@@ -1584,6 +2227,7 @@ export default function QuotationPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <RichTextFieldEditor
                                             label="Contact Person"
+                                            disableAlignment={true}
                                             value={quotationData.clientName}
                                             onChange={v => setQuotationData({ ...quotationData, clientName: v })}
                                             style={quotationData.clientNameStyle}
@@ -1591,6 +2235,7 @@ export default function QuotationPage() {
                                         />
                                         <RichTextFieldEditor
                                             label="Designation"
+                                            disableAlignment={true}
                                             value={quotationData.clientDesignation}
                                             onChange={v => setQuotationData({ ...quotationData, clientDesignation: v })}
                                             style={quotationData.clientDesignationStyle}
@@ -1751,6 +2396,15 @@ export default function QuotationPage() {
                                                 onClick={() => updateBlock(block.id, { style: { ...block.style, textAlign: 'right' } })}
                                             >
                                                 <AlignRight className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                variant={block.style?.textAlign === 'justify' ? 'default' : 'outline'}
+                                                className="h-8 w-8"
+                                                onClick={() => updateBlock(block.id, { style: { ...block.style, textAlign: 'justify' } })}
+                                                title="Justify"
+                                            >
+                                                <AlignJustify className="w-4 h-4" />
                                             </Button>
                                             <div className="border-l mx-1" />
                                             <Select
@@ -2446,7 +3100,7 @@ export default function QuotationPage() {
                                                         fontSize: `${quotationData.watermarkHeight * 0.4}px`,
                                                         color: hexToRgba(quotationData.watermarkColor, quotationData.watermarkOpacity),
                                                         fontWeight: 'bold',
-                                                        whiteSpace: 'nowrap',
+                                                        whiteSpace: 'normal',
                                                     }}>
                                                         {quotationData.watermarkText}
                                                     </span>
@@ -2931,9 +3585,7 @@ export default function QuotationPage() {
                 }
                 
                 .quotation-preview .company-logo {
-                    width: 80px;
-                    height: 80px;
-                    object-fit: contain;
+                    /* Dimensions handled by inline styles */
                 }
                 
                 .quotation-preview .logo-placeholder {
@@ -3040,7 +3692,8 @@ export default function QuotationPage() {
                 
                 .quotation-preview .block-list {
                     margin: 5px 0 5px 20px;
-                    padding-left: 0;
+                    padding-left: 20px;
+                    list-style-type: disc;
                 }
                 
                 .quotation-preview .block-list li {
@@ -3093,6 +3746,10 @@ export default function QuotationPage() {
                         margin: 0;
                     }
                     
+                    @page:first {
+                        margin-top: 0;
+                    }
+                    
                     body {
                         margin: 0;
                         padding: 0;
@@ -3108,15 +3765,51 @@ export default function QuotationPage() {
                     
                     .quotation-preview .page {
                         width: 100%;
-                        min-height: 100vh;
-                        padding: 10mm 8mm; /* Reduced: 10mm top/bottom, 8mm left/right */
+                        min-height: auto;
+                        padding: 12mm 10mm 60mm 10mm; /* Extra bottom padding for footer */
                         margin: 0;
                         box-shadow: none;
-                        page-break-after: always;
+                        position: relative;
+                    }
+                    
+                    /* Content section proper flow */
+                    .quotation-preview .content-section {
+                        margin-bottom: 30px;
+                        page-break-inside: auto;
+                    }
+                    
+                    /* Allow content blocks to break across pages */
+                    .quotation-preview .content-block {
+                        page-break-inside: avoid;
+                        margin: 8px 0;
+                    }
+                    
+                    /* Tables can break but try to keep rows together */
+                    .quotation-preview .block-table {
+                        page-break-inside: auto;
+                    }
+                    
+                    .quotation-preview .block-table tr {
+                        page-break-inside: avoid;
+                    }
+                    
+                    .quotation-preview .block-table thead {
+                        display: table-header-group;
+                    }
+                    
+                    .quotation-preview .block-table tbody {
+                        page-break-inside: auto;
+                    }
+                    
+                    /* Signature section - try to keep together */
+                    .quotation-preview .signature-section {
+                        page-break-inside: avoid;
+                        margin-top: 25px;
+                        margin-bottom: 50px; /* Space before footer */
                     }
                     
                     .quotation-preview .watermark {
-                        position: absolute !important;
+                        position: fixed !important;
                         top: 50% !important;
                         left: 50% !important;
                         -webkit-print-color-adjust: exact !important;
@@ -3125,7 +3818,6 @@ export default function QuotationPage() {
                         z-index: 0 !important;
                         display: flex !important;
                         visibility: visible !important;
-                        opacity: inherit !important;
                     }
                     
                     .quotation-preview .watermark span,
@@ -3143,6 +3835,7 @@ export default function QuotationPage() {
                         flex-wrap: nowrap !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                        page-break-after: avoid;
                     }
                     
                     .quotation-preview .header-left {
@@ -3176,15 +3869,53 @@ export default function QuotationPage() {
                         print-color-adjust: exact !important;
                     }
                     
-                    .quotation-preview .footer {
-                        left: 8mm;  /* Match reduced padding */
-                        right: 8mm; /* Match reduced padding */
-                        bottom: 10mm;
+                    .quotation-preview .block-table td {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
+                    
+                    /* Footer fixed at bottom of each page */
+                    .quotation-preview .footer {
+                        position: fixed !important;
+                        bottom: 10mm !important;
+                        left: 10mm !important;
+                        right: 10mm !important;
+                        background: white;
+                        padding-top: 8px;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    
+                    /* Headings should not be orphaned */
+                    .quotation-preview .block-heading {
+                        page-break-after: avoid;
+                    }
+                    
+                    /* Lists should stay together if possible */
+                    .quotation-preview .block-list {
+                        page-break-inside: avoid;
+                    }
+                    
+                    /* Title and ref section stay together */
+                    .quotation-preview .document-title {
+                        page-break-after: avoid;
+                    }
+                    
+                    .quotation-preview .ref-section {
+                        page-break-after: avoid;
+                    }
+                    
+                    .quotation-preview .to-section {
+                        page-break-inside: avoid;
+                        page-break-after: avoid;
+                    }
+                    
+                    .quotation-preview .subject-section {
+                        page-break-inside: avoid;
+                    }
                 }
             `}</style>
+            <Toaster />
         </div>
     )
 }

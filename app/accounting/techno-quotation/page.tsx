@@ -33,6 +33,163 @@ export default function TechnoQuotationDashboard() {
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // AI Wizard State
+    const [showAIWizard, setShowAIWizard] = useState(false);
+    const [currentStep, setCurrentStep] = useState(0);
+    const [aiAnswers, setAiAnswers] = useState<Record<string, string>>({});
+
+    // Company Profiles for AI Wizard
+    interface CompanyProfile {
+        _id: string;
+        name: string;
+        address1?: string;
+        address2?: string;
+        phone?: string;
+        email?: string;
+        logo?: string;
+        gstin?: string;
+        authorizedSignatory?: string;
+        signatoryDesignation?: string;
+        isDefault?: boolean;
+    }
+    const [companyProfiles, setCompanyProfiles] = useState<CompanyProfile[]>([]);
+    const [selectedCompanyForWizard, setSelectedCompanyForWizard] = useState<string>('');
+    const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+
+    // Fetch company profiles on mount
+    useEffect(() => {
+        const fetchProfiles = async () => {
+            setIsLoadingProfiles(true);
+            try {
+                const res = await fetch('/api/company-profile');
+                if (res.ok) {
+                    const data = await res.json();
+                    setCompanyProfiles(data.profiles || []);
+                }
+            } catch (error) {
+                console.error('Error fetching company profiles:', error);
+            } finally {
+                setIsLoadingProfiles(false);
+            }
+        };
+        fetchProfiles();
+    }, []);
+
+    // Apply selected company to wizard answers (toggle select/deselect)
+    const applyCompanyToWizard = (profileId: string) => {
+        // If already selected, deselect and clear fields
+        if (selectedCompanyForWizard === profileId) {
+            setSelectedCompanyForWizard('');
+            setAiAnswers(prev => ({
+                ...prev,
+                company_name: '',
+                company_address: '',
+                company_contact: ''
+            }));
+            return;
+        }
+
+        const profile = companyProfiles.find(p => p._id === profileId);
+        if (!profile) return;
+
+        setSelectedCompanyForWizard(profileId);
+        setAiAnswers(prev => ({
+            ...prev,
+            company_name: profile.name,
+            company_address: `${profile.address1 || ''}${profile.address2 ? '\n' + profile.address2 : ''}`,
+            company_contact: `${profile.phone || ''}${profile.email ? ', ' + profile.email : ''}`
+        }));
+    };
+
+
+    // 12 AI Questions for Quotation Generation
+    const aiQuestions = [
+        {
+            id: 'company_name',
+            question: 'What is your Company Name?',
+            placeholder: 'e.g., XYZ Engineering Pvt Ltd',
+            type: 'text',
+            required: true
+        },
+        {
+            id: 'company_address',
+            question: 'What is your Company Address?',
+            placeholder: 'e.g., Plot No. 123, Industrial Area, City, State - 560001',
+            type: 'textarea',
+            required: false
+        },
+        {
+            id: 'company_contact',
+            question: 'Company Contact Details (Phone & Email)?',
+            placeholder: 'e.g., +91-9876543210, info@company.com',
+            type: 'textarea',
+            required: false
+        },
+        {
+            id: 'client_name',
+            question: 'Who is the Client / Customer?',
+            placeholder: 'e.g., ABC Industries Ltd',
+            type: 'text',
+            required: true
+        },
+        {
+            id: 'client_contact',
+            question: 'Client Contact Person & Designation?',
+            placeholder: 'e.g., Mr. Sharma, Purchase Manager',
+            type: 'text',
+            required: false
+        },
+        {
+            id: 'client_address',
+            question: 'Client Address?',
+            placeholder: 'e.g., 456 Business Park, Mumbai - 400001',
+            type: 'textarea',
+            required: false
+        },
+        {
+            id: 'project_subject',
+            question: 'Subject / Title of the Quotation?',
+            placeholder: 'e.g., Supply and Installation of 500KVA Control Panel',
+            type: 'text',
+            required: true
+        },
+        {
+            id: 'project_description',
+            question: 'Describe the Project / Work',
+            placeholder: 'e.g., This project involves supply, installation and commissioning of electrical control panels for the new manufacturing unit...',
+            type: 'textarea',
+            required: true
+        },
+        {
+            id: 'scope_of_work',
+            question: 'What is the Scope of Work / Services?',
+            placeholder: 'e.g., 1. Design and engineering\n2. Manufacturing of panels\n3. Transportation\n4. Installation and commissioning\n5. Testing and documentation',
+            type: 'textarea',
+            required: true
+        },
+        {
+            id: 'items_boq',
+            question: 'List the Items / Bill of Quantities',
+            placeholder: 'e.g.:\n- Main Control Panel 500KVA - 2 Nos\n- Motor Control Center - 5 Nos\n- Cable Tray 100mm - 200 Meters\n- Installation Charges - 1 Lot',
+            type: 'textarea',
+            required: true
+        },
+        {
+            id: 'technical_specs',
+            question: 'Any Technical Specifications?',
+            placeholder: 'e.g., All equipment shall conform to IS standards. IP65 protection rating required. Operating voltage: 415V, 50Hz...',
+            type: 'textarea',
+            required: false
+        },
+        {
+            id: 'terms_conditions',
+            question: 'Terms & Conditions (Payment, Delivery, Warranty)?',
+            placeholder: 'e.g.:\n- Payment: 50% advance, 50% on delivery\n- Delivery: 6-8 weeks from PO\n- Warranty: 12 months\n- Validity: 30 days\n- GST: As applicable',
+            type: 'textarea',
+            required: false
+        }
+    ];
+
     // AI Processing Progress State
     const [showProgress, setShowProgress] = useState(false);
     const [progressPercent, setProgressPercent] = useState(0);
@@ -57,10 +214,112 @@ export default function TechnoQuotationDashboard() {
     }, []);
 
     const handleCreateClick = (type: 'manual' | 'automated') => {
-        setPendingType(type);
-        setNewQuotationName('');
-        setShowNameDialog(true);
+        if (type === 'automated') {
+            // Open AI Wizard for automated quotation
+            setShowAIWizard(true);
+            setCurrentStep(0);
+            setAiAnswers({});
+        } else {
+            // Manual quotation - show name dialog
+            setPendingType(type);
+            setNewQuotationName('');
+            setShowNameDialog(true);
+        }
     };
+
+    // AI Wizard Navigation
+    const handleNextStep = () => {
+        if (currentStep < aiQuestions.length - 1) {
+            setCurrentStep(currentStep + 1);
+        }
+    };
+
+    const handlePrevStep = () => {
+        if (currentStep > 0) {
+            setCurrentStep(currentStep - 1);
+        }
+    };
+
+    const handleAnswerChange = (value: string) => {
+        setAiAnswers(prev => ({
+            ...prev,
+            [aiQuestions[currentStep].id]: value
+        }));
+    };
+
+    const canProceed = () => {
+        const currentQ = aiQuestions[currentStep];
+        if (currentQ.required) {
+            return (aiAnswers[currentQ.id] || '').trim().length > 0;
+        }
+        return true;
+    };
+
+    const handleGenerateWithAI = async () => {
+        // Validate required fields
+        const missingRequired = aiQuestions.filter(q => q.required && !(aiAnswers[q.id] || '').trim());
+        if (missingRequired.length > 0) {
+            alert(`Please fill in required fields: ${missingRequired.map(q => q.question).join(', ')}`);
+            return;
+        }
+
+        setShowAIWizard(false);
+        setIsCreating(true);
+        setShowProgress(true);
+        setProgressPercent(0);
+        setProgressStatus('Initializing AI...');
+
+        try {
+            const progressPromise = new Promise<void>((resolve) => {
+                animateProgress(resolve);
+            });
+
+            // Generate quotation with AI using the answers
+            const apiPromise = fetch('/api/generate-quotation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answers: aiAnswers })
+            });
+
+            const [_, response] = await Promise.all([progressPromise, apiPromise]);
+
+            if (response.ok) {
+                const result = await response.json();
+
+                if (result.success) {
+                    // Create the quotation with AI-generated content
+                    const createResponse = await fetch('/api/techno-quotation', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: 'automated',
+                            title: aiAnswers.project_subject || 'AI Generated Quotation',
+                            aiData: result.quotation,
+                            answers: aiAnswers
+                        })
+                    });
+
+                    if (createResponse.ok) {
+                        const data = await createResponse.json();
+                        setShowProgress(false);
+                        router.push(`/accounting/techno-quotation/${data.quotation._id}`);
+                    } else {
+                        throw new Error('Failed to create quotation');
+                    }
+                } else {
+                    throw new Error(result.error || 'AI generation failed');
+                }
+            } else {
+                throw new Error('API request failed');
+            }
+        } catch (error) {
+            console.error('Error generating quotation:', error);
+            alert('Failed to generate quotation. Please try again.');
+            setShowProgress(false);
+            setIsCreating(false);
+        }
+    };
+
 
     // Simulate progress animation for automated quotation
     const animateProgress = (onComplete: () => void) => {
@@ -264,6 +523,187 @@ export default function TechnoQuotationDashboard() {
                             {/* Decorative elements */}
                             <div className="absolute top-4 right-4 w-20 h-20 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-full blur-2xl" />
                             <div className="absolute bottom-4 left-4 w-16 h-16 bg-gradient-to-br from-teal-500/20 to-transparent rounded-full blur-2xl" />
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* AI Wizard Overlay */}
+            <AnimatePresence>
+                {showAIWizard && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-background border border-teal-500/30 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden"
+                        >
+                            {/* Wizard Header */}
+                            <div className="bg-gradient-to-r from-teal-600 to-cyan-600 p-6 text-white">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+                                            <Sparkles className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-bold">AI Quotation Generator</h2>
+                                            <p className="text-sm text-teal-100">Answer questions to generate your quotation</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowAIWizard(false)}
+                                        className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                {/* Progress Bar */}
+                                <div className="mt-6">
+                                    <div className="flex justify-between text-xs text-teal-100 mb-2">
+                                        <span>Question {currentStep + 1} of {aiQuestions.length}</span>
+                                        <span>{Math.round(((currentStep + 1) / aiQuestions.length) * 100)}% Complete</span>
+                                    </div>
+                                    <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                                        <motion.div
+                                            className="h-full bg-white rounded-full"
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${((currentStep + 1) / aiQuestions.length) * 100}%` }}
+                                            transition={{ duration: 0.3, ease: "easeOut" }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Question Content */}
+                            <div className="p-8">
+                                <AnimatePresence mode="wait">
+                                    <motion.div
+                                        key={currentStep}
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -20 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        <div className="mb-2 flex items-center gap-2">
+                                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
+                                                Step {currentStep + 1}
+                                            </span>
+                                            {aiQuestions[currentStep].required && (
+                                                <span className="text-xs text-red-500">* Required</span>
+                                            )}
+                                        </div>
+                                        <h3 className="text-xl font-semibold mb-4 text-foreground">
+                                            {aiQuestions[currentStep].question}
+                                        </h3>
+
+                                        {/* Company selector on first step */}
+                                        {aiQuestions[currentStep].id === 'company_name' && companyProfiles.length > 0 && (
+                                            <div className="mb-4 p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-800">
+                                                <p className="text-sm font-medium text-teal-700 dark:text-teal-300 mb-2">
+                                                    Select from saved companies (click again to deselect):
+                                                </p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {companyProfiles.map((profile) => (
+                                                        <button
+                                                            key={profile._id}
+                                                            onClick={() => applyCompanyToWizard(profile._id)}
+                                                            className={`px-3 py-1.5 text-sm rounded-lg border transition-all flex items-center gap-1.5 ${selectedCompanyForWizard === profile._id
+                                                                ? 'bg-teal-600 text-white border-teal-600'
+                                                                : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-teal-500'
+                                                                }`}
+                                                        >
+                                                            {selectedCompanyForWizard === profile._id && (
+                                                                <Check className="w-3.5 h-3.5" />
+                                                            )}
+                                                            {profile.name}
+                                                            {profile.isDefault && (
+                                                                <span className="ml-1 text-xs opacity-75">(Default)</span>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-2">
+                                                    {selectedCompanyForWizard ? 'Company selected! Click again to deselect and enter manually.' : 'Or enter new company details below:'}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {aiQuestions[currentStep].type === 'textarea' ? (
+                                            <textarea
+                                                value={aiAnswers[aiQuestions[currentStep].id] || ''}
+                                                onChange={(e) => handleAnswerChange(e.target.value)}
+                                                placeholder={aiQuestions[currentStep].placeholder}
+                                                className="w-full h-40 p-4 border rounded-xl bg-background focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none transition-all"
+                                                autoFocus
+                                            />
+                                        ) : (
+                                            <Input
+                                                value={aiAnswers[aiQuestions[currentStep].id] || ''}
+                                                onChange={(e) => handleAnswerChange(e.target.value)}
+                                                placeholder={aiQuestions[currentStep].placeholder}
+                                                className="w-full p-4 h-14 text-lg border rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                                autoFocus
+                                            />
+                                        )}
+                                    </motion.div>
+                                </AnimatePresence>
+                            </div>
+
+                            {/* Navigation Footer */}
+                            <div className="px-8 pb-8 flex items-center justify-between">
+                                <Button
+                                    variant="outline"
+                                    onClick={handlePrevStep}
+                                    disabled={currentStep === 0}
+                                    className="gap-2"
+                                >
+                                    <ArrowLeft className="w-4 h-4" />
+                                    Previous
+                                </Button>
+
+                                {/* Step Indicators */}
+                                <div className="flex gap-1.5">
+                                    {aiQuestions.map((_, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setCurrentStep(idx)}
+                                            className={`w-2.5 h-2.5 rounded-full transition-all ${idx === currentStep
+                                                ? 'bg-teal-500 scale-125'
+                                                : idx < currentStep
+                                                    ? 'bg-teal-300 dark:bg-teal-700'
+                                                    : 'bg-gray-200 dark:bg-gray-700'
+                                                }`}
+                                        />
+                                    ))}
+                                </div>
+
+                                {currentStep === aiQuestions.length - 1 ? (
+                                    <Button
+                                        onClick={handleGenerateWithAI}
+                                        className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white gap-2"
+                                    >
+                                        <Sparkles className="w-4 h-4" />
+                                        Generate Quotation
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        onClick={handleNextStep}
+                                        disabled={!canProceed()}
+                                        className="bg-teal-600 hover:bg-teal-700 text-white gap-2"
+                                    >
+                                        Next
+                                        <ArrowLeft className="w-4 h-4 rotate-180" />
+                                    </Button>
+                                )}
+                            </div>
                         </motion.div>
                     </motion.div>
                 )}
