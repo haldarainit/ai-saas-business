@@ -3214,250 +3214,7 @@ Return the response as JSON with this structure:
                                         </div>
                                     </div>
 
-                                    {/* Title */}
-                                    <h1
-                                        className="document-title"
-                                        style={{
-                                            fontSize: `${quotationData.titleStyle?.fontSize || 16}px`,
-                                            fontWeight: quotationData.titleStyle?.fontWeight || 'bold',
-                                            fontStyle: quotationData.titleStyle?.fontStyle || 'normal',
-                                            textDecoration: quotationData.titleStyle?.textDecoration || 'underline',
-                                            textAlign: quotationData.titleStyle?.textAlign || 'left',
-                                            color: quotationData.titleStyle?.color || '#1a1a1a',
-                                        }}
-                                    >
-                                        {quotationData.title}
-                                    </h1>
-
-                                    {/* Reference & Date */}
-                                    <div className="ref-section">
-                                        <p style={{
-                                            fontSize: `${quotationData.refNoStyle?.fontSize || 11}px`,
-                                            fontWeight: quotationData.refNoStyle?.fontWeight || 'normal',
-                                            fontStyle: quotationData.refNoStyle?.fontStyle || 'normal',
-                                            textDecoration: quotationData.refNoStyle?.textDecoration || 'none',
-                                            color: quotationData.refNoStyle?.color || '#1a1a1a',
-                                        }}>
-                                            <strong>Ref No.:</strong> {quotationData.refNo}
-                                        </p>
-                                        <p style={{
-                                            fontSize: `${quotationData.dateStyle?.fontSize || 11}px`,
-                                            fontWeight: quotationData.dateStyle?.fontWeight || 'normal',
-                                            fontStyle: quotationData.dateStyle?.fontStyle || 'normal',
-                                            textDecoration: quotationData.dateStyle?.textDecoration || 'none',
-                                            color: quotationData.dateStyle?.color || '#1a1a1a',
-                                        }}>
-                                            <strong>Date:</strong> {new Date(quotationData.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                        </p>
-                                    </div>
-
-                                    {/* To Section */}
-                                    <div className="to-section">
-                                        <p><strong>To</strong></p>
-                                        <p style={{
-                                            fontSize: `${quotationData.clientCompanyStyle?.fontSize || 11}px`,
-                                            fontWeight: quotationData.clientCompanyStyle?.fontWeight || 'bold',
-                                            fontStyle: quotationData.clientCompanyStyle?.fontStyle || 'normal',
-                                            textDecoration: quotationData.clientCompanyStyle?.textDecoration || 'none',
-                                            color: quotationData.clientCompanyStyle?.color || '#1a1a1a',
-                                        }}>
-                                            {quotationData.clientCompany}
-                                        </p>
-                                        {quotationData.clientName && (
-                                            <p style={{
-                                                fontSize: `${quotationData.clientNameStyle?.fontSize || 11}px`,
-                                                fontWeight: quotationData.clientNameStyle?.fontWeight || 'normal',
-                                                fontStyle: quotationData.clientNameStyle?.fontStyle || 'normal',
-                                                textDecoration: quotationData.clientNameStyle?.textDecoration || 'none',
-                                                color: quotationData.clientNameStyle?.color || '#1a1a1a',
-                                            }}>
-                                                {quotationData.clientName}
-                                                {quotationData.clientDesignation && (
-                                                    <span style={{
-                                                        fontSize: `${quotationData.clientDesignationStyle?.fontSize || 11}px`,
-                                                        fontWeight: quotationData.clientDesignationStyle?.fontWeight || 'normal',
-                                                        fontStyle: quotationData.clientDesignationStyle?.fontStyle || 'normal',
-                                                        textDecoration: quotationData.clientDesignationStyle?.textDecoration || 'none',
-                                                        color: quotationData.clientDesignationStyle?.color || '#1a1a1a',
-                                                    }}>
-                                                        , {quotationData.clientDesignation}
-                                                    </span>
-                                                )}
-                                            </p>
-                                        )}
-                                        {quotationData.clientAddress && (
-                                            <p style={{
-                                                whiteSpace: 'pre-line',
-                                                fontSize: `${quotationData.clientAddressStyle?.fontSize || 11}px`,
-                                                fontWeight: quotationData.clientAddressStyle?.fontWeight || 'normal',
-                                                fontStyle: quotationData.clientAddressStyle?.fontStyle || 'normal',
-                                                textDecoration: quotationData.clientAddressStyle?.textDecoration || 'none',
-                                                color: quotationData.clientAddressStyle?.color || '#1a1a1a',
-                                            }}>
-                                                {quotationData.clientAddress}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* Subject */}
-                                    <div className="subject-section">
-                                        <p style={{
-                                            fontSize: `${quotationData.subjectStyle?.fontSize || 11}px`,
-                                            fontWeight: quotationData.subjectStyle?.fontWeight || 'normal',
-                                            fontStyle: quotationData.subjectStyle?.fontStyle || 'normal',
-                                            textDecoration: quotationData.subjectStyle?.textDecoration || 'none',
-                                            color: quotationData.subjectStyle?.color || '#1a1a1a',
-                                        }}>
-                                            <strong>Sub:</strong> {quotationData.subject}
-                                        </p>
-                                        <p style={{
-                                            fontSize: `${quotationData.greetingStyle?.fontSize || 11}px`,
-                                            fontWeight: quotationData.greetingStyle?.fontWeight || 'normal',
-                                            fontStyle: quotationData.greetingStyle?.fontStyle || 'normal',
-                                            textDecoration: quotationData.greetingStyle?.textDecoration || 'none',
-                                            color: quotationData.greetingStyle?.color || '#1a1a1a',
-                                        }}>
-                                            {quotationData.greeting}
-                                        </p>
-                                    </div>
-
-                                    {/* Content Blocks */}
-                                    <div className="content-section">
-                                        {quotationData.contentBlocks.map((block) => (
-                                            <div key={block.id} className="content-block">
-                                                {block.type === 'heading' && (
-                                                    <h2
-                                                        className="block-heading"
-                                                        style={{
-                                                            fontSize: `${block.style?.fontSize || 14}px`,
-                                                            fontWeight: block.style?.fontWeight || 'bold',
-                                                            fontStyle: block.style?.fontStyle || 'normal',
-                                                            textDecoration: block.style?.textDecoration || 'underline',
-                                                            textAlign: block.style?.textAlign || 'left',
-                                                            lineHeight: block.style?.lineHeight || 1.5,
-                                                            color: block.style?.color || '#1a1a1a',
-                                                        }}
-                                                    >
-                                                        {block.content}
-                                                    </h2>
-                                                )}
-
-                                                {block.type === 'paragraph' && (
-                                                    <p
-                                                        className="block-paragraph"
-                                                        style={{
-                                                            fontSize: `${block.style?.fontSize || 11}px`,
-                                                            fontWeight: block.style?.fontWeight || 'normal',
-                                                            fontStyle: block.style?.fontStyle || 'normal',
-                                                            textDecoration: block.style?.textDecoration || 'none',
-                                                            textAlign: block.style?.textAlign || 'left',
-                                                            lineHeight: block.style?.lineHeight || 1.5,
-                                                            color: block.style?.color || '#1a1a1a',
-                                                        }}
-                                                    >
-                                                        {block.content}
-                                                    </p>
-                                                )}
-
-                                                {block.type === 'list' && block.items && (
-                                                    <ul
-                                                        className="block-list"
-                                                        style={{
-                                                            fontSize: `${block.style?.fontSize || 11}px`,
-                                                            fontWeight: block.style?.fontWeight || 'normal',
-                                                            fontStyle: block.style?.fontStyle || 'normal',
-                                                            textDecoration: block.style?.textDecoration || 'none',
-                                                            color: block.style?.color || '#1a1a1a',
-                                                            lineHeight: block.style?.lineHeight || 1.5,
-                                                        }}
-                                                    >
-                                                        {block.items.map((item, idx) => (
-                                                            <li key={idx}>{item}</li>
-                                                        ))}
-                                                    </ul>
-                                                )}
-
-                                                {block.type === 'table' && block.tableData && (
-                                                    <table
-                                                        className="block-table"
-                                                        style={{
-                                                            borderCollapse: 'collapse',
-                                                            width: '100%',
-                                                            fontSize: `${block.tableData.style?.fontSize || 10}px`,
-                                                        }}
-                                                    >
-                                                        <thead>
-                                                            <tr>
-                                                                {block.tableData.headers.map((h, i) => (
-                                                                    <th
-                                                                        key={i}
-                                                                        style={{
-                                                                            backgroundColor: block.tableData!.style?.headerBgColor || 'transparent',
-                                                                            color: block.tableData!.style?.headerTextColor || '#000000',
-                                                                            border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
-                                                                            padding: '6px 8px',
-                                                                            textAlign: 'left',
-                                                                            fontWeight: 'bold',
-                                                                        }}
-                                                                    >
-                                                                        {h}
-                                                                    </th>
-                                                                ))}
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {block.tableData.rows.map((row, ri) => (
-                                                                <tr
-                                                                    key={ri}
-                                                                    style={{
-                                                                        backgroundColor: ri % 2 === 1 ? (block.tableData!.style?.alternateRowColor || '#f9fafb') : 'transparent',
-                                                                    }}
-                                                                >
-                                                                    {row.map((cell, ci) => (
-                                                                        <td
-                                                                            key={ci}
-                                                                            style={{
-                                                                                border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
-                                                                                color: block.tableData!.style?.textColor || '#1a1a1a',
-                                                                                padding: '6px 8px',
-                                                                            }}
-                                                                        >
-                                                                            {cell}
-                                                                        </td>
-                                                                    ))}
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Signature */}
-                                    <div className="signature-section">
-                                        <p><strong>For {quotationData.companyName}</strong></p>
-                                        <p style={{
-                                            fontSize: `${quotationData.signatureNameStyle?.fontSize || 11}px`,
-                                            fontWeight: quotationData.signatureNameStyle?.fontWeight || 'bold',
-                                            fontStyle: quotationData.signatureNameStyle?.fontStyle || 'normal',
-                                            textDecoration: quotationData.signatureNameStyle?.textDecoration || 'none',
-                                            color: quotationData.signatureNameStyle?.color || '#1a1a1a',
-                                        }}>
-                                            {quotationData.signatureName}
-                                        </p>
-                                        <p style={{
-                                            fontSize: `${quotationData.signatureDesignationStyle?.fontSize || 11}px`,
-                                            fontWeight: quotationData.signatureDesignationStyle?.fontWeight || 'normal',
-                                            fontStyle: quotationData.signatureDesignationStyle?.fontStyle || 'normal',
-                                            textDecoration: quotationData.signatureDesignationStyle?.textDecoration || 'none',
-                                            color: quotationData.signatureDesignationStyle?.color || '#1a1a1a',
-                                        }}>
-                                            {quotationData.signatureDesignation}
-                                        </p>
-                                    </div>
-
-                                    {/* Footer */}
+                                    {/* Footer (Fixed) */}
                                     <div className="footer" style={{ borderTopColor: quotationData.footerLineColor }}>
                                         <p style={{
                                             fontSize: `${quotationData.footerLine1Style?.fontSize || 9}px`,
@@ -3490,6 +3247,268 @@ Return the response as JSON with this structure:
                                             {quotationData.footerLine3}
                                         </p>
                                     </div>
+
+                                    {/* Content Wrapper Table for Print Spacing */}
+                                    <table className="print-wrapper-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                        <thead>
+                                            <tr>
+                                                <td style={{ height: '40mm' }}>&nbsp;</td>
+                                            </tr>
+                                        </thead>
+                                        <tfoot>
+                                            <tr>
+                                                <td style={{ height: '30mm' }}>&nbsp;</td>
+                                            </tr>
+                                        </tfoot>
+                                        <tbody>
+                                            <tr>
+                                                <td style={{ verticalAlign: 'top' }}>
+                                                    {/* Title */}
+                                                    <h1
+                                                        className="document-title"
+                                                        style={{
+                                                            fontSize: `${quotationData.titleStyle?.fontSize || 16}px`,
+                                                            fontWeight: quotationData.titleStyle?.fontWeight || 'bold',
+                                                            fontStyle: quotationData.titleStyle?.fontStyle || 'normal',
+                                                            textDecoration: quotationData.titleStyle?.textDecoration || 'underline',
+                                                            textAlign: quotationData.titleStyle?.textAlign || 'left',
+                                                            color: quotationData.titleStyle?.color || '#1a1a1a',
+                                                        }}
+                                                    >
+                                                        {quotationData.title}
+                                                    </h1>
+
+                                                    {/* Reference & Date */}
+                                                    <div className="ref-section">
+                                                        <p style={{
+                                                            fontSize: `${quotationData.refNoStyle?.fontSize || 11}px`,
+                                                            fontWeight: quotationData.refNoStyle?.fontWeight || 'normal',
+                                                            fontStyle: quotationData.refNoStyle?.fontStyle || 'normal',
+                                                            textDecoration: quotationData.refNoStyle?.textDecoration || 'none',
+                                                            color: quotationData.refNoStyle?.color || '#1a1a1a',
+                                                        }}>
+                                                            <strong>Ref No.:</strong> {quotationData.refNo}
+                                                        </p>
+                                                        <p style={{
+                                                            fontSize: `${quotationData.dateStyle?.fontSize || 11}px`,
+                                                            fontWeight: quotationData.dateStyle?.fontWeight || 'normal',
+                                                            fontStyle: quotationData.dateStyle?.fontStyle || 'normal',
+                                                            textDecoration: quotationData.dateStyle?.textDecoration || 'none',
+                                                            color: quotationData.dateStyle?.color || '#1a1a1a',
+                                                        }}>
+                                                            <strong>Date:</strong> {new Date(quotationData.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* To Section */}
+                                                    <div className="to-section">
+                                                        <p><strong>To</strong></p>
+                                                        <p style={{
+                                                            fontSize: `${quotationData.clientCompanyStyle?.fontSize || 11}px`,
+                                                            fontWeight: quotationData.clientCompanyStyle?.fontWeight || 'bold',
+                                                            fontStyle: quotationData.clientCompanyStyle?.fontStyle || 'normal',
+                                                            textDecoration: quotationData.clientCompanyStyle?.textDecoration || 'none',
+                                                            color: quotationData.clientCompanyStyle?.color || '#1a1a1a',
+                                                        }}>
+                                                            {quotationData.clientCompany}
+                                                        </p>
+                                                        {quotationData.clientName && (
+                                                            <p style={{
+                                                                fontSize: `${quotationData.clientNameStyle?.fontSize || 11}px`,
+                                                                fontWeight: quotationData.clientNameStyle?.fontWeight || 'normal',
+                                                                fontStyle: quotationData.clientNameStyle?.fontStyle || 'normal',
+                                                                textDecoration: quotationData.clientNameStyle?.textDecoration || 'none',
+                                                                color: quotationData.clientNameStyle?.color || '#1a1a1a',
+                                                            }}>
+                                                                {quotationData.clientName}
+                                                                {quotationData.clientDesignation && (
+                                                                    <span style={{
+                                                                        fontSize: `${quotationData.clientDesignationStyle?.fontSize || 11}px`,
+                                                                        fontWeight: quotationData.clientDesignationStyle?.fontWeight || 'normal',
+                                                                        fontStyle: quotationData.clientDesignationStyle?.fontStyle || 'normal',
+                                                                        textDecoration: quotationData.clientDesignationStyle?.textDecoration || 'none',
+                                                                        color: quotationData.clientDesignationStyle?.color || '#1a1a1a',
+                                                                    }}>
+                                                                        , {quotationData.clientDesignation}
+                                                                    </span>
+                                                                )}
+                                                            </p>
+                                                        )}
+                                                        {quotationData.clientAddress && (
+                                                            <p style={{
+                                                                whiteSpace: 'pre-line',
+                                                                fontSize: `${quotationData.clientAddressStyle?.fontSize || 11}px`,
+                                                                fontWeight: quotationData.clientAddressStyle?.fontWeight || 'normal',
+                                                                fontStyle: quotationData.clientAddressStyle?.fontStyle || 'normal',
+                                                                textDecoration: quotationData.clientAddressStyle?.textDecoration || 'none',
+                                                                color: quotationData.clientAddressStyle?.color || '#1a1a1a',
+                                                            }}>
+                                                                {quotationData.clientAddress}
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Subject */}
+                                                    <div className="subject-section">
+                                                        <p style={{
+                                                            fontSize: `${quotationData.subjectStyle?.fontSize || 11}px`,
+                                                            fontWeight: quotationData.subjectStyle?.fontWeight || 'normal',
+                                                            fontStyle: quotationData.subjectStyle?.fontStyle || 'normal',
+                                                            textDecoration: quotationData.subjectStyle?.textDecoration || 'none',
+                                                            color: quotationData.subjectStyle?.color || '#1a1a1a',
+                                                        }}>
+                                                            <strong>Sub:</strong> {quotationData.subject}
+                                                        </p>
+                                                        <p style={{
+                                                            fontSize: `${quotationData.greetingStyle?.fontSize || 11}px`,
+                                                            fontWeight: quotationData.greetingStyle?.fontWeight || 'normal',
+                                                            fontStyle: quotationData.greetingStyle?.fontStyle || 'normal',
+                                                            textDecoration: quotationData.greetingStyle?.textDecoration || 'none',
+                                                            color: quotationData.greetingStyle?.color || '#1a1a1a',
+                                                        }}>
+                                                            {quotationData.greeting}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Content Blocks */}
+                                                    <div className="content-section">
+                                                        {quotationData.contentBlocks.map((block) => (
+                                                            <div key={block.id} className="content-block">
+                                                                {block.type === 'heading' && (
+                                                                    <h2
+                                                                        className="block-heading"
+                                                                        style={{
+                                                                            fontSize: `${block.style?.fontSize || 14}px`,
+                                                                            fontWeight: block.style?.fontWeight || 'bold',
+                                                                            fontStyle: block.style?.fontStyle || 'normal',
+                                                                            textDecoration: block.style?.textDecoration || 'underline',
+                                                                            textAlign: block.style?.textAlign || 'left',
+                                                                            lineHeight: block.style?.lineHeight || 1.5,
+                                                                            color: block.style?.color || '#1a1a1a',
+                                                                        }}
+                                                                    >
+                                                                        {block.content}
+                                                                    </h2>
+                                                                )}
+
+                                                                {block.type === 'paragraph' && (
+                                                                    <p
+                                                                        className="block-paragraph"
+                                                                        style={{
+                                                                            fontSize: `${block.style?.fontSize || 11}px`,
+                                                                            fontWeight: block.style?.fontWeight || 'normal',
+                                                                            fontStyle: block.style?.fontStyle || 'normal',
+                                                                            textDecoration: block.style?.textDecoration || 'none',
+                                                                            textAlign: block.style?.textAlign || 'left',
+                                                                            lineHeight: block.style?.lineHeight || 1.5,
+                                                                            color: block.style?.color || '#1a1a1a',
+                                                                        }}
+                                                                    >
+                                                                        {block.content}
+                                                                    </p>
+                                                                )}
+
+                                                                {block.type === 'list' && block.items && (
+                                                                    <ul
+                                                                        className="block-list"
+                                                                        style={{
+                                                                            fontSize: `${block.style?.fontSize || 11}px`,
+                                                                            fontWeight: block.style?.fontWeight || 'normal',
+                                                                            fontStyle: block.style?.fontStyle || 'normal',
+                                                                            textDecoration: block.style?.textDecoration || 'none',
+                                                                            color: block.style?.color || '#1a1a1a',
+                                                                            lineHeight: block.style?.lineHeight || 1.5,
+                                                                        }}
+                                                                    >
+                                                                        {block.items.map((item, idx) => (
+                                                                            <li key={idx}>{item}</li>
+                                                                        ))}
+                                                                    </ul>
+                                                                )}
+
+                                                                {block.type === 'table' && block.tableData && (
+                                                                    <table
+                                                                        className="block-table"
+                                                                        style={{
+                                                                            borderCollapse: 'collapse',
+                                                                            width: '100%',
+                                                                            fontSize: `${block.tableData.style?.fontSize || 10}px`,
+                                                                        }}
+                                                                    >
+                                                                        <thead>
+                                                                            <tr>
+                                                                                {block.tableData.headers.map((h, i) => (
+                                                                                    <th
+                                                                                        key={i}
+                                                                                        style={{
+                                                                                            backgroundColor: block.tableData!.style?.headerBgColor || 'transparent',
+                                                                                            color: block.tableData!.style?.headerTextColor || '#000000',
+                                                                                            border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
+                                                                                            padding: '6px 8px',
+                                                                                            textAlign: 'left',
+                                                                                            fontWeight: 'bold',
+                                                                                        }}
+                                                                                    >
+                                                                                        {h}
+                                                                                    </th>
+                                                                                ))}
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {block.tableData.rows.map((row, ri) => (
+                                                                                <tr
+                                                                                    key={ri}
+                                                                                    style={{
+                                                                                        backgroundColor: ri % 2 === 1 ? (block.tableData!.style?.alternateRowColor || '#f9fafb') : 'transparent',
+                                                                                    }}
+                                                                                >
+                                                                                    {row.map((cell, ci) => (
+                                                                                        <td
+                                                                                            key={ci}
+                                                                                            style={{
+                                                                                                border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
+                                                                                                color: block.tableData!.style?.textColor || '#1a1a1a',
+                                                                                                padding: '6px 8px',
+                                                                                            }}
+                                                                                        >
+                                                                                            {cell}
+                                                                                        </td>
+                                                                                    ))}
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    {/* Signature */}
+                                                    <div className="signature-section">
+                                                        <p><strong>For {quotationData.companyName}</strong></p>
+                                                        <p style={{
+                                                            fontSize: `${quotationData.signatureNameStyle?.fontSize || 11}px`,
+                                                            fontWeight: quotationData.signatureNameStyle?.fontWeight || 'bold',
+                                                            fontStyle: quotationData.signatureNameStyle?.fontStyle || 'normal',
+                                                            textDecoration: quotationData.signatureNameStyle?.textDecoration || 'none',
+                                                            color: quotationData.signatureNameStyle?.color || '#1a1a1a',
+                                                        }}>
+                                                            {quotationData.signatureName}
+                                                        </p>
+                                                        <p style={{
+                                                            fontSize: `${quotationData.signatureDesignationStyle?.fontSize || 11}px`,
+                                                            fontWeight: quotationData.signatureDesignationStyle?.fontWeight || 'normal',
+                                                            fontStyle: quotationData.signatureDesignationStyle?.fontStyle || 'normal',
+                                                            textDecoration: quotationData.signatureDesignationStyle?.textDecoration || 'none',
+                                                            color: quotationData.signatureDesignationStyle?.color || '#1a1a1a',
+                                                        }}>
+                                                            {quotationData.signatureDesignation}
+                                                        </p>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -3743,7 +3762,7 @@ Return the response as JSON with this structure:
                 @media print {
                     @page {
                         size: A4;
-                        margin: 0 0 20mm 0; /* Reserve bottom space for footer */
+                        margin: 0; /* Hide browser headers/footers */
                     }
                     
                     @page:first {
@@ -3772,7 +3791,7 @@ Return the response as JSON with this structure:
                         min-height: auto;
                         height: auto !important;
                         overflow: visible !important;
-                        padding: 12mm 10mm 5mm 10mm; /* Reduced bottom padding */
+                        padding: 0 10mm 0 10mm; /* Margins/Padding handled by Table Spacers now */
                         margin: 0;
                         box-shadow: none;
                         position: relative;
@@ -3842,6 +3861,14 @@ Return the response as JSON with this structure:
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                         page-break-after: avoid;
+                        position: fixed !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        right: 0 !important;
+                        height: 40mm;
+                        padding: 5mm 10mm 0 10mm;
+                        background: white;
+                        z-index: 1000;
                     }
                     
                     .quotation-preview .header-left {
@@ -3886,7 +3913,7 @@ Return the response as JSON with this structure:
                         bottom: 0 !important;
                         left: 0 !important;
                         right: 0 !important;
-                        height: 20mm; /* Fits in the @page bottom margin */
+                        height: 30mm; /* Fits in the @page bottom margin */ /* Fits in the @page bottom margin */
                         padding: 0 10mm;
                         display: flex;
                         flex-direction: column;
@@ -3923,6 +3950,14 @@ Return the response as JSON with this structure:
                     
                     .quotation-preview .subject-section {
                         page-break-inside: avoid;
+                    }
+
+                    .print-wrapper-table thead {
+                        display: table-header-group !important;
+                    }
+                    
+                    .print-wrapper-table tfoot {
+                        display: table-footer-group !important;
                     }
                 }
             `}</style>
