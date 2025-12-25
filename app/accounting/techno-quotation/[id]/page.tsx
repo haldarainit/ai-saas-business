@@ -3252,12 +3252,12 @@ Return the response as JSON with this structure:
                                     <table className="print-wrapper-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                                         <thead>
                                             <tr>
-                                                <td style={{ height: '40mm' }}>&nbsp;</td>
+                                                <td style={{ height: '45mm' }}>&nbsp;</td>
                                             </tr>
                                         </thead>
                                         <tfoot>
                                             <tr>
-                                                <td style={{ height: '30mm' }}>&nbsp;</td>
+                                                <td style={{ height: '35mm' }}>&nbsp;</td>
                                             </tr>
                                         </tfoot>
                                         <tbody>
