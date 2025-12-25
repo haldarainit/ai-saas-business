@@ -3097,7 +3097,7 @@ Return the response as JSON with this structure:
                                                 };
                                                 return (
                                                     <span style={{
-                                                        fontSize: `${quotationData.watermarkHeight * 0.4}px`,
+                                                        fontSize: `${quotationData.watermarkWidth * 0.15}px`,
                                                         color: hexToRgba(quotationData.watermarkColor, quotationData.watermarkOpacity),
                                                         fontWeight: 'bold',
                                                         whiteSpace: 'normal',
@@ -3743,14 +3743,16 @@ Return the response as JSON with this structure:
                 @media print {
                     @page {
                         size: A4;
-                        margin: 0;
+                        margin: 0 0 20mm 0; /* Reserve bottom space for footer */
                     }
                     
                     @page:first {
                         margin-top: 0;
                     }
                     
-                    body {
+                    html, body {
+                        height: auto !important;
+                        overflow: visible !important;
                         margin: 0;
                         padding: 0;
                         -webkit-print-color-adjust: exact !important;
@@ -3761,12 +3763,16 @@ Return the response as JSON with this structure:
                         transform: none !important;
                         width: 100% !important;
                         margin-left: 0 !important;
+                        height: auto !important;
+                        overflow: visible !important;
                     }
                     
                     .quotation-preview .page {
                         width: 100%;
                         min-height: auto;
-                        padding: 12mm 10mm 60mm 10mm; /* Extra bottom padding for footer */
+                        height: auto !important;
+                        overflow: visible !important;
+                        padding: 12mm 10mm 5mm 10mm; /* Reduced bottom padding */
                         margin: 0;
                         box-shadow: none;
                         position: relative;
@@ -3780,7 +3786,7 @@ Return the response as JSON with this structure:
                     
                     /* Allow content blocks to break across pages */
                     .quotation-preview .content-block {
-                        page-break-inside: avoid;
+                        page-break-inside: auto;
                         margin: 8px 0;
                     }
                     
@@ -3805,7 +3811,7 @@ Return the response as JSON with this structure:
                     .quotation-preview .signature-section {
                         page-break-inside: avoid;
                         margin-top: 25px;
-                        margin-bottom: 50px; /* Space before footer */
+                        margin-bottom: 20px;
                     }
                     
                     .quotation-preview .watermark {
@@ -3874,16 +3880,21 @@ Return the response as JSON with this structure:
                         print-color-adjust: exact !important;
                     }
                     
-                    /* Footer fixed at bottom of each page */
+                    /* Footer fixed at bottom of each page in the margin area */
                     .quotation-preview .footer {
                         position: fixed !important;
-                        bottom: 10mm !important;
-                        left: 10mm !important;
-                        right: 10mm !important;
+                        bottom: 0 !important;
+                        left: 0 !important;
+                        right: 0 !important;
+                        height: 20mm; /* Fits in the @page bottom margin */
+                        padding: 0 10mm;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
                         background: white;
-                        padding-top: 8px;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                        z-index: 1000;
                     }
                     
                     /* Headings should not be orphaned */
