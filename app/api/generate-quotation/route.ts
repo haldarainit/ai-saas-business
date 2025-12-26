@@ -10,148 +10,153 @@ export async function POST(request: NextRequest) {
     const geminiModule = await import('../../../utils/gemini.js');
     const gemini = geminiModule.default || geminiModule;
 
-    const prompt = `You are a professional quotation generator. Based on the following information provided by the user, generate a detailed techno-commercial quotation in JSON format.
-
-User's Answers:
-${Object.entries(answers).map(([key, value]) => `${key}: ${value}`).join('\n')}
-
-Generate a quotation with the following structure:
-{
-  "companyName": "extracted from answers",
-  "companyAddress1": "first line of address",
-  "companyAddress2": "second line of address",
-  "companyPhone": "phone number",
-  "pages": [
+    const prompt = `You are a professional quotation generator. User has provided details for a techno-commercial quotation.
+    
+    User's Data (Answers):
+    ${Object.entries(answers).map(([key, value]) => `${key}: ${value}`).join('\n')}
+    
+    OBJECTIVE:
+    Generate a highly detailed, professional techno-commercial quotation in JSON format that matches the structure of a real industrial quotation.
+    The output must strictly follow the structure below, using TABLES for technical compliance and BOQ data.
+    
+    REQUIRED JSON STRUCTURE:
     {
-      "id": "page-1",
-      "sections": [
+      "companyName": "extracted from answers.company_name",
+      "companyGstin": "extracted or generated GSTIN",
+      "companyContact": "extracted from answers.company_contact",
+      "quotationTitle": "TECHNO-COMMERCIAL QUOTATION",
+      "refNo": "QT/${new Date().getFullYear()}/AUTO/${Math.floor(Math.random() * 1000)}",
+      "date": "${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}",
+      "clientName": "extracted from answers.client_name",
+      "clientContact": "extracted from answers.client_contact",
+      "clientAddress": "extracted from answers.client_address",
+      "subject": "extracted from answers.project_subject",
+      "introduction": "We thank you for the opportunity to submit our techno-commercial quotation for the mentioned project. We confirm full compliance to technical requirements, scope & standards mentioned in the specifications.",
+      "scopeOfWork": "extracted and formatted from answers.scope_of_work",
+      "pages": [
         {
-          "id": "section-1",
-          "type": "heading",
-          "heading": "Reference Information"
-        },
-        {
-          "id": "section-2",
-          "type": "text",
-          "heading": "Ref No",
-          "content": "Generate a reference number like QT/2025/PROJECT/001"
-        },
-        {
-          "id": "section-3",
-          "type": "text",
-          "heading": "Date",
-          "content": "${new Date().toLocaleDateString()}"
-        },
-        {
-          "id": "section-4",
-          "type": "heading",
-          "heading": "Customer Details"
-        },
-        {
-          "id": "section-5",
-          "type": "text",
-          "heading": "Customer Name",
-          "content": "extracted from client_name answer"
-        },
-        {
-          "id": "section-6",
-          "type": "text",
-          "heading": "Address",
-          "content": "client address from client_details answer"
-        },
-        {
-          "id": "section-7",
-          "type": "heading",
-          "heading": "Project Details"
-        },
-        {
-          "id": "section-8",
-          "type": "text",
-          "heading": "Project Type",
-          "content": "from project_type answer"
-        },
-        {
-          "id": "section-9",
-          "type": "heading",
-          "heading": "Scope of Work"
-        },
-        {
-          "id": "section-10",
-          "type": "list",
-          "heading": "Project Scope",
-          "items": ["extract key points from project_scope answer as array items"]
-        },
-        {
-          "id": "section-11",
-          "type": "heading",
-          "heading": "Technical Specifications"
-        },
-        {
-          "id": "section-12",
-          "type": "table",
-          "heading": "Technical Compliance",
-          "table": {
-            "id": "table-1",
-            "name": "Technical Specifications",
-            "columns": [
-              {"id": "col-1", "name": "Parameter"},
-              {"id": "col-2", "name": "Specification"},
-              {"id": "col-3", "name": "Compliance"}
-            ],
-            "rows": [
-              {"id": "row-1", "cells": {"col-1": "extract from technical_specs", "col-2": "value", "col-3": "Yes/No"}}
-            ]
-          }
-        },
-        {
-          "id": "section-13",
-          "type": "heading",
-          "heading": "Bill of Quantity"
-        },
-        {
-          "id": "section-14",
-          "type": "table",
-          "heading": "Items & Services",
-          "table": {
-            "id": "table-2",
-            "name": "Bill of Quantity",
-            "columns": [
-              {"id": "col-1", "name": "S.No"},
-              {"id": "col-2", "name": "Description"},
-              {"id": "col-3", "name": "Quantity"}
-            ],
-            "rows": [
-              {"id": "row-1", "cells": {"col-1": "1", "col-2": "extract from items_services", "col-3": "TBD"}}
-            ]
-          }
-        },
-        {
-          "id": "section-15",
-          "type": "heading",
-          "heading": "Terms & Conditions"
-        },
-        {
-          "id": "section-16",
-          "type": "list",
-          "heading": "General Terms",
-          "items": ["extract from terms_conditions answer as array items"]
+          "id": "page-1",
+          "sections": [
+            {
+              "id": "sec-header",
+              "type": "heading",
+              "heading": "${answers.company_name || 'COMPANY NAME'}"
+            },
+            {
+              "id": "sec-ref-info",
+              "type": "text",
+              "heading": "Reference Information",
+              "content": "Ref No.: QT/${new Date().getFullYear()}/AUTO/${Math.floor(Math.random() * 1000)} | Date: ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}"
+            },
+            {
+              "id": "sec-client",
+              "type": "text",
+              "heading": "To",
+              "content": "M/s ${answers.client_name || '[Client Name]'}\\n${answers.client_contact || '[Contact Person]'}\\n${answers.client_address || '[Client Address]'}"
+            },
+            {
+              "id": "sec-subject",
+              "type": "text",
+              "heading": "Sub",
+              "content": "${answers.project_subject || '[Project Subject]'}"
+            },
+            {
+              "id": "sec-intro",
+              "type": "text",
+              "heading": "Introduction",
+              "content": "Dear Sir, We thank you for the opportunity to submit our techno-commercial quotation for the mentioned project. We confirm full compliance to technical requirements, scope & standards mentioned in the specifications."
+            },
+            {
+              "id": "sec-scope",
+              "type": "text",
+              "heading": "Scope of Supply",
+              "content": "Supply, engineering, wiring, testing, documentation & FAT of:"
+            },
+            {
+              "id": "sec-scope-table",
+              "type": "table",
+              "heading": "Scope Details",
+              "table": {
+                "id": "table-scope",
+                "name": "Scope of Work",
+                "columns": [
+                  {"id": "col-item", "name": "Item/Service"},
+                  {"id": "col-qty", "name": "Qty"},
+                  {"id": "col-remarks", "name": "Remarks/Specifications"}
+                ],
+                "rows": [
+                  // Generate rows from answers.scope_of_work and answers.items_boq
+                  {"id": "row-scope-1", "cells": {"col-item": "Main Equipment", "col-qty": "1 Set", "col-remarks": "As per specifications"}}
+                ]
+              }
+            },
+            {
+              "id": "sec-tech-compliance",
+              "type": "table",
+              "heading": "Technical Compliance",
+              "table": {
+                "id": "table-tech",
+                "name": "Technical Compliance Matrix",
+                "columns": [
+                  {"id": "col-param", "name": "Parameter"},
+                  {"id": "col-req", "name": "Requirement"},
+                  {"id": "col-offered", "name": "Offered"}
+                ],
+                "rows": [
+                  // Generate rows from answers.technical_specs
+                  {"id": "row-tech-1", "cells": {"col-param": "System Voltage", "col-req": "415V AC", "col-offered": "Complied"}},
+                  {"id": "row-tech-2", "cells": {"col-param": "Control Voltage", "col-req": "24V DC", "col-offered": "Complied"}},
+                  {"id": "row-tech-3", "cells": {"col-param": "Standards", "col-req": "IS/IEC", "col-offered": "Complied"}}
+                ]
+              }
+            },
+            {
+              "id": "sec-boq",
+              "type": "table",
+              "heading": "Bill of Quantities",
+              "table": {
+                "id": "table-boq",
+                "name": "Bill of Quantities Summary",
+                "columns": [
+                  {"id": "col-sno", "name": "S.No"},
+                  {"id": "col-desc", "name": "Description"},
+                  {"id": "col-qty", "name": "Qty"},
+                  {"id": "col-unit", "name": "Unit"}
+                ],
+                "rows": [
+                  // Generate rows from answers.items_boq with proper formatting
+                  {"id": "row-boq-1", "cells": {"col-sno": "1", "col-desc": "Control Panel", "col-qty": "2", "col-unit": "Nos"}}
+                ]
+              }
+            },
+            {
+              "id": "sec-terms",
+              "type": "list",
+              "heading": "Terms & Conditions",
+              "items": [
+                // Generate list from answers.terms_conditions
+                "Payment Terms: 50% advance, 50% on delivery",
+                "Delivery: 4-6 weeks from order confirmation",
+                "Warranty: 12 months from date of commissioning",
+                "Validity: 30 days from quotation date"
+              ]
+            }
+          ]
         }
       ]
     }
-  ]
-}
-
-Important:
-1. Extract company name, address, and phone from company_details
-2. Extract client name and address from client_details
-3. Generate a professional reference number (e.g., "QT/2025/PROJECT/001")
-4. Break down the project_scope into bullet points for the list
-5. Create table rows from technical_specs and items_services
-6. Break down terms_conditions into bullet points
-7. Make sure all IDs are unique
-8. Return ONLY valid JSON, no markdown formatting or explanations
-
-Generate the quotation now:`;
+    
+    IMPORTANT RULES:
+    1. EXTRACT DATA: Intelligently extract and map user answers to the relevant sections.
+    2. PROFESSIONAL FORMAT: Generate a real industrial quotation format with proper sections
+    3. TECHNICAL COMPLIANCE: Must be a TABLE with Parameter, Requirement, Offered columns
+    4. BOQ: Must be a TABLE with S.No, Description, Qty, Unit columns
+    5. SCOPE: Must be a TABLE with Item/Service, Qty, Remarks columns
+    6. TERMS: Must be a LIST (array of strings) for terms and conditions
+    7. USE REAL DATA: Extract actual data from answers, don't use placeholders
+    8. JSON ONLY: Return strictly valid JSON code. No markdown formatting.
+    
+    Generate the JSON now:`;
 
     console.log('Sending prompt to Gemini AI...');
 
