@@ -95,31 +95,66 @@ export async function POST(req: Request) {
             ]
         }];
 
-        // Use AI data if available, otherwise use defaults
-        const pagesData = aiData?.pages || body.pages || defaultPages;
+        // Helper to convert AI sections to Content Blocks
+        const convertToContentBlocks = (sections: any[]) => {
+            return sections
+                .filter(section => !['sec-ref', 'sec-ref-content', 'sec-customer', 'sec-customer-content', 'sec-project', 'sec-project-desc'].includes(section.id))
+                .map(section => {
+                    const block: any = {
+                        id: section.id,
+                        type: section.type === 'text' ? 'paragraph' : section.type,
+                        content: section.heading || '', // For headings, use the heading text. For paragraphs, we might need content.
+                        style: { fontSize: 11, fontWeight: 'normal', textAlign: 'left', lineHeight: 1.5, color: '#1a1a1a' }
+                    };
 
-        // Extract company details from answers or use defaults
-        const companyDetails = isAutomated && answers.company_name ? {
-            name: answers.company_name || 'Your Company Name',
-            address1: answers.company_address?.split('\n')[0] || 'Address Line 1',
-            address2: answers.company_address?.split('\n').slice(1).join(', ') || 'City, State, Country',
-            phone: answers.company_contact?.split(',')[0]?.trim() || '+91 XXXXX XXXXX',
-            email: answers.company_contact?.split(',')[1]?.trim() || '',
-            logo: aiData?.companyLogo || ''
-        } : {
-            name: aiData?.companyName || 'Your Company Name',
-            address1: aiData?.companyAddress1 || 'Address Line 1',
-            address2: aiData?.companyAddress2 || 'City, State, Country',
-            phone: aiData?.companyPhone || '+91 XXXXX XXXXX'
+                    if (section.type === 'text') {
+                        block.content = section.content;
+                    } else if (section.type === 'list') {
+                        block.items = section.items;
+                    } else if (section.type === 'table' && section.table) {
+                        const colIds = section.table.columns.map((c: any) => c.id);
+                        block.tableData = {
+                            headers: section.table.columns.map((c: any) => c.name),
+                            rows: section.table.rows.map((r: any) => colIds.map((cid: string) => r.cells[cid] || '')),
+                            style: {
+                                headerBgColor: 'transparent',
+                                headerTextColor: '#000000',
+                                borderColor: '#1a1a1a',
+                                borderWidth: 1,
+                                textColor: '#1a1a1a',
+                                alternateRowColor: '#f9fafb',
+                                fontSize: 10
+                            }
+                        };
+                    } else if (section.type === 'heading') {
+                        block.content = section.heading;
+                        block.style.fontSize = 14;
+                        block.style.fontWeight = 'bold';
+                        block.style.textDecoration = 'underline';
+                    }
+
+                    return block;
+                });
         };
 
-        // Extract client details from answers for automated quotations
-        const clientDetails = isAutomated && answers.client_name ? {
-            name: answers.client_name || '',
-            company: answers.client_name || '',
-            contact: answers.client_contact || '',
-            address: answers.client_address || ''
-        } : {};
+        let contentBlocks = [];
+        if (aiData && aiData.pages && aiData.pages[0] && aiData.pages[0].sections) {
+            contentBlocks = convertToContentBlocks(aiData.pages[0].sections);
+        } else if (body.contentBlocks) {
+            contentBlocks = body.contentBlocks;
+        } else {
+            // Fallback default content
+            contentBlocks = [{
+                id: "1",
+                type: "paragraph",
+                content: "We thank you for the opportunity to submit our techno-commercial quotation.",
+                style: { fontSize: 11, fontWeight: 'normal', textAlign: 'left', lineHeight: 1.5, color: '#1a1a1a' }
+            }];
+        }
+
+        // Ensure consistent reference number
+        const refNo = isAutomated && aiData?.pages?.[0]?.sections?.find((s: any) => s.id === 'sec-ref-content')?.content?.match(/Ref: (.*?) \|/)?.[1] ||
+            'REF-' + Date.now().toString().slice(-6);
 
         const quotation = await TechnoQuotation.create({
             userId: userId,
@@ -128,10 +163,9 @@ export async function POST(req: Request) {
             mainTitle: userTitle.toUpperCase(),
             companyDate: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: '2-digit' }),
             logoLetter: userTitle.charAt(0).toUpperCase() || 'Q',
-            pages: pagesData,
+            refNo: refNo, // Save the parsed Ref No
+            contentBlocks: contentBlocks, // SAVE CONTENT BLOCKS
             answers: answers,
-            companyDetails: companyDetails,
-            clientDetails: clientDetails,
             subject: answers.project_subject || userTitle,
             projectDescription: answers.project_description || '',
             scopeOfWork: answers.scope_of_work || '',
