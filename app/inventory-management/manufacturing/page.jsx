@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
     Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign,
-    TrendingUp, Activity, Factory, Boxes, Cog, ArrowRight,
-    ClipboardList, RefreshCcw
+    TrendingUp, Activity, Factory, Boxes, Cog, ArrowRight, ArrowLeft,
+    ClipboardList, RefreshCcw, ShoppingCart
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -480,12 +480,20 @@ export default function ManufacturingInventory() {
                         </div>
                     </div>
                 </div>
-                <Link href="/inventory-management">
-                    <Button variant="outline" className="gap-2">
-                        <ArrowRight className="h-4 w-4" />
-                        Trading Mode
-                    </Button>
-                </Link>
+                <div className="flex items-center gap-3">
+                    <Link href="/inventory-management">
+                        <Button variant="outline" className="gap-2">
+                            <ArrowLeft className="h-4 w-4" />
+                            Back
+                        </Button>
+                    </Link>
+                    <Link href="/inventory-management/trading">
+                        <Button variant="outline" className="gap-2 border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20">
+                            <ShoppingCart className="h-4 w-4" />
+                            Trading Mode
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             {/* Dashboard Cards */}
