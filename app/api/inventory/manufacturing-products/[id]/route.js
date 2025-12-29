@@ -150,7 +150,7 @@ export async function DELETE(request, { params }) {
             );
         }
 
-        const { id } = params;
+        const { id } = await params;
 
         await dbConnect();
 
