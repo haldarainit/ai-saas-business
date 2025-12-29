@@ -462,94 +462,103 @@ export default function ManufacturingInventory() {
     const filteredProducts = filterItems(manufacturingProducts, searchTerm);
 
     return (
-        <div className="container mx-auto px-4 py-8 space-y-8">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-8">
-                <div className="space-y-2">
+        <div className="container mx-auto px-4 py-8 space-y-6">
+            {/* Header - Compact */}
+            <div className="flex justify-between items-center">
+                <div className="space-y-1">
                     <div className="flex items-center gap-3">
-                        <div className="p-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl">
-                            <Factory className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                                Manufacturing Inventory
-                            </h1>
-                            <p className="text-muted-foreground">
-                                Manage raw materials, products & production
-                            </p>
+                        <Link href="/inventory-management">
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <ArrowLeft className="h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <div className="flex items-center gap-2">
+                            <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
+                                <Factory className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                                    Manufacturing Inventory
+                                </h1>
+                                <p className="text-sm text-muted-foreground">
+                                    Raw materials, products & production
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Link href="/inventory-management">
-                        <Button variant="outline" className="gap-2">
-                            <ArrowLeft className="h-4 w-4" />
-                            Back
-                        </Button>
-                    </Link>
-                    <Link href="/inventory-management/trading">
-                        <Button variant="outline" className="gap-2 border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20">
-                            <ShoppingCart className="h-4 w-4" />
-                            Trading Mode
-                        </Button>
-                    </Link>
-                </div>
+                <Link href="/inventory-management/trading">
+                    <Button variant="outline" size="sm" className="gap-2 border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20">
+                        <ShoppingCart className="h-4 w-4" />
+                        Trading
+                    </Button>
+                </Link>
             </div>
 
-            {/* Dashboard Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Raw Materials</CardTitle>
-                        <Boxes className="h-4 w-4 text-amber-600" />
+            {/* Dashboard Cards - Compact */}
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+                <Card className="relative overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
+                        <CardTitle className="text-xs font-medium">Raw Materials</CardTitle>
+                        <div className="p-1.5 bg-amber-100 dark:bg-amber-900 rounded-md">
+                            <Boxes className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{rawMaterials.length}</div>
-                        <p className="text-xs text-muted-foreground">₹{totalRawMaterialValue.toFixed(2)} value</p>
+                    <CardContent className="pb-3 px-4">
+                        <div className="text-xl font-bold">{rawMaterials.length}</div>
+                        <p className="text-xs text-muted-foreground">₹{totalRawMaterialValue.toFixed(0)} value</p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border-red-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Low Stock Alert</CardTitle>
-                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                <Card className="relative overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
+                        <CardTitle className="text-xs font-medium">Low Stock</CardTitle>
+                        <div className="p-1.5 bg-red-100 dark:bg-red-900 rounded-md">
+                            <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-600">{lowStockMaterials}</div>
-                        <p className="text-xs text-muted-foreground">Materials need restocking</p>
+                    <CardContent className="pb-3 px-4">
+                        <div className="text-xl font-bold text-red-600 dark:text-red-400">{lowStockMaterials}</div>
+                        <p className="text-xs text-muted-foreground">Need restocking</p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Products</CardTitle>
-                        <Cog className="h-4 w-4 text-blue-600" />
+                <Card className="relative overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
+                        <CardTitle className="text-xs font-medium">Products</CardTitle>
+                        <div className="p-1.5 bg-blue-100 dark:bg-blue-900 rounded-md">
+                            <Cog className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{manufacturingProducts.length}</div>
-                        <p className="text-xs text-muted-foreground">{totalFinishedProducts} finished units</p>
+                    <CardContent className="pb-3 px-4">
+                        <div className="text-xl font-bold">{manufacturingProducts.length}</div>
+                        <p className="text-xs text-muted-foreground">{totalFinishedProducts} units</p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Finished Value</CardTitle>
-                        <DollarSign className="h-4 w-4 text-green-600" />
+                <Card className="relative overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
+                        <CardTitle className="text-xs font-medium">Finished Value</CardTitle>
+                        <div className="p-1.5 bg-green-100 dark:bg-green-900 rounded-md">
+                            <DollarSign className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">₹{totalFinishedValue.toFixed(2)}</div>
+                    <CardContent className="pb-3 px-4">
+                        <div className="text-xl font-bold">₹{totalFinishedValue.toFixed(0)}</div>
                         <p className="text-xs text-muted-foreground">Selling value</p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 border-purple-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Potential Profit</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-purple-600" />
+                <Card className="relative overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
+                        <CardTitle className="text-xs font-medium">Profit</CardTitle>
+                        <div className="p-1.5 bg-purple-100 dark:bg-purple-900 rounded-md">
+                            <TrendingUp className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className={`text-2xl font-bold ${totalPotentialProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            ₹{totalPotentialProfit.toFixed(2)}
+                    <CardContent className="pb-3 px-4">
+                        <div className={`text-xl font-bold ${totalPotentialProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            ₹{totalPotentialProfit.toFixed(0)}
                         </div>
                         <p className="text-xs text-muted-foreground">On current stock</p>
                     </CardContent>

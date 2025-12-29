@@ -13,7 +13,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Analytics from '../components/Analytics';
 import CSVUpload from '../components/CSVUpload';
 
@@ -80,7 +79,6 @@ export default function TradingInventory() {
 
     // Handle CSV upload success
     const handleCSVUploadSuccess = (result) => {
-        // Refresh products list
         const fetchProducts = async () => {
             try {
                 setLoading(true);
@@ -382,7 +380,11 @@ export default function TradingInventory() {
             );
         }
 
-        return null;
+        return (
+            <span className="text-xs text-muted-foreground">
+                Expires {expiry.toLocaleDateString()}
+            </span>
+        );
     };
 
     // Calculate inventory metrics
@@ -436,7 +438,6 @@ export default function TradingInventory() {
         const method = editingProduct ? 'PUT' : 'POST';
 
         try {
-            // Basic validation
             const validationErrors = [];
 
             if (!formData.name?.trim()) validationErrors.push('Name is required');
@@ -449,7 +450,6 @@ export default function TradingInventory() {
                 throw new Error(validationErrors.join('\n'));
             }
 
-            // Prepare the request body
             const requestBody = {
                 ...formData,
                 name: String(formData.name).trim(),
@@ -495,7 +495,6 @@ export default function TradingInventory() {
                 throw new Error(errorMessage);
             }
 
-            // Update local state
             if (editingProduct) {
                 setProducts(products.map(p => p._id === editingProduct._id ? responseData : p));
                 toast({
@@ -510,7 +509,6 @@ export default function TradingInventory() {
                 });
             }
 
-            // Reset form and close modal
             resetForm();
             setIsModalOpen(false);
         } catch (error) {
@@ -558,7 +556,6 @@ export default function TradingInventory() {
                 throw new Error(data.message || 'Failed to delete product');
             }
 
-            // Update local state
             setProducts(products.filter(p => p._id !== productId));
 
             toast({
@@ -583,23 +580,19 @@ export default function TradingInventory() {
             let aValue = a[sortConfig.key];
             let bValue = b[sortConfig.key];
 
-            // Handle profit calculation
             if (sortConfig.key === 'profit') {
                 aValue = (a.price - a.cost) * a.quantity;
                 bValue = (b.price - b.cost) * b.quantity;
             }
 
-            // Handle nested properties if needed
             if (sortConfig.key === 'expiryDate' && aValue && bValue) {
                 aValue = new Date(aValue);
                 bValue = new Date(bValue);
             }
 
-            // Handle undefined/null values
             if (aValue === null || aValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
             if (bValue === null || bValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
 
-            // Compare values
             if (aValue < bValue) {
                 return sortConfig.direction === 'asc' ? -1 : 1;
             }
@@ -631,318 +624,483 @@ export default function TradingInventory() {
 
     return (
         <div className="container mx-auto px-4 py-8 space-y-8">
+            {/* Header */}
             <div className="flex justify-between items-center mb-8">
                 <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                        <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl">
-                            <ShoppingCart className="h-6 w-6 text-white" />
-                        </div>
+                        <Link href="/inventory-management">
+                            <Button variant="ghost" size="icon" className="h-10 w-10">
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                        </Link>
                         <div>
-                            <div className="flex items-center gap-2">
-                                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                                    Trading Inventory
-                                </h1>
-                                <span className="px-3 py-1 text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
-                                    Trading Mode
-                                </span>
-                            </div>
+                            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                                Trading Inventory
+                            </h1>
                             <p className="text-muted-foreground text-lg">
-                                Buy products and sell at higher prices • Simple buy/sell tracking
+                                Manage your products and track inventory levels with ease
                             </p>
                         </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Link href="/inventory-management">
-                        <Button variant="outline" className="gap-2">
-                            <ArrowLeft className="h-4 w-4" />
-                            Back
-                        </Button>
-                    </Link>
                     <Link href="/inventory-management/manufacturing">
                         <Button variant="outline" className="gap-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20">
                             <Factory className="h-4 w-4" />
-                            Manufacturing Mode
+                            Manufacturing
                         </Button>
                     </Link>
+                    <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                        <DialogTrigger asChild>
+                            <Button
+                                onClick={() => {
+                                    resetForm();
+                                    setIsModalOpen(true);
+                                }}
+                                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Product
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+                            <DialogHeader className="flex-shrink-0">
+                                <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+                            </DialogHeader>
+                            <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-2 -mr-4">
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="name" className="text-right">
+                                            Name <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Input
+                                            id="name"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            className="col-span-3"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="description" className="text-right">
+                                            Description
+                                        </Label>
+                                        <Textarea
+                                            id="description"
+                                            value={formData.description}
+                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                            className="col-span-3"
+                                            rows={3}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="sku" className="text-right">
+                                            SKU <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Input
+                                            id="sku"
+                                            value={formData.sku}
+                                            onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                                            className="col-span-3"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="category" className="text-right">
+                                            Category
+                                        </Label>
+                                        <Input
+                                            id="category"
+                                            value={formData.category}
+                                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                            className="col-span-3"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="price" className="text-right">
+                                            Price <span className="text-red-500">*</span>
+                                        </Label>
+                                        <div className="col-span-3 relative">
+                                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
+                                            <Input
+                                                id="price"
+                                                type="number"
+                                                step="0.01"
+                                                value={formData.price}
+                                                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                                                className="pl-8"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="cost" className="text-right">
+                                            Cost <span className="text-red-500">*</span>
+                                        </Label>
+                                        <div className="col-span-3 relative">
+                                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
+                                            <Input
+                                                id="cost"
+                                                type="number"
+                                                step="0.01"
+                                                value={formData.cost}
+                                                onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                                                className="pl-8"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="quantity" className="text-right">
+                                            Quantity <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Input
+                                            id="quantity"
+                                            type="number"
+                                            value={formData.quantity}
+                                            onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                                            className="col-span-3"
+                                            min="0"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="shelf" className="text-right">
+                                            Shelf <span className="text-red-500">*</span>
+                                        </Label>
+                                        <div className="flex gap-2 col-span-3">
+                                            <select
+                                                id="shelf"
+                                                value={formData.shelf}
+                                                onChange={(e) => setFormData({ ...formData, shelf: e.target.value })}
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                required
+                                            >
+                                                {shelves.map((shelf) => (
+                                                    <option key={shelf} value={shelf}>
+                                                        {shelf}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    type="text"
+                                                    placeholder="New shelf"
+                                                    value={newShelf}
+                                                    onChange={(e) => setNewShelf(e.target.value)}
+                                                    className="w-32"
+                                                />
+                                                <Button type="button" size="sm" onClick={addShelf}>
+                                                    <Plus className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="expiryDate" className="text-right">
+                                            Expiry Date
+                                        </Label>
+                                        <Input
+                                            id="expiryDate"
+                                            type="date"
+                                            value={formData.expiryDate}
+                                            onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                                            className="col-span-3"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="supplier" className="text-right">
+                                            Supplier
+                                        </Label>
+                                        <Input
+                                            id="supplier"
+                                            value={formData.supplier}
+                                            onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                                            className="col-span-3"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex justify-end space-x-4 pt-4 flex-shrink-0">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            resetForm();
+                                            setIsModalOpen(false);
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={loading}>
+                                        {loading ? 'Saving...' : editingProduct ? 'Update Product' : 'Add Product'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-                        <Package2 className="h-4 w-4 text-blue-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{totalProducts}</div>
-                        <p className="text-xs text-muted-foreground">Items in inventory</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border-green-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-                        <DollarSign className="h-4 w-4 text-green-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">₹{totalValue.toFixed(2)}</div>
-                        <p className="text-xs text-muted-foreground">Inventory worth</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border-purple-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Profit</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-purple-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            ₹{totalProfit.toFixed(2)}
-                        </div>
-                        <p className="text-xs text-muted-foreground">Potential profit</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 border-amber-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
-                        <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-amber-600">{aboutToExpire}</div>
-                        <p className="text-xs text-muted-foreground">Within 15 days</p>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList>
-                    <TabsTrigger value="inventory" className="gap-2">
+            {/* Tab Navigation */}
+            <div className="bg-card/50 backdrop-blur-sm rounded-xl border p-1 shadow-sm">
+                <div className="flex space-x-1">
+                    <Button
+                        variant={activeTab === 'inventory' ? 'default' : 'ghost'}
+                        onClick={() => setActiveTab('inventory')}
+                        className={`flex items-center gap-2 transition-all duration-200 ${activeTab === 'inventory'
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                            : 'hover:bg-muted'
+                            }`}
+                    >
                         <Package2 className="h-4 w-4" />
                         Inventory
-                    </TabsTrigger>
-                    <TabsTrigger value="analytics" className="gap-2">
+                    </Button>
+                    <Button
+                        variant={activeTab === 'analytics' ? 'default' : 'ghost'}
+                        onClick={() => setActiveTab('analytics')}
+                        className={`flex items-center gap-2 transition-all duration-200 ${activeTab === 'analytics'
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                            : 'hover:bg-muted'
+                            }`}
+                    >
                         <Activity className="h-4 w-4" />
                         Analytics
-                    </TabsTrigger>
-                    <TabsTrigger value="upload" className="gap-2">
+                    </Button>
+                    <Button
+                        variant={activeTab === 'csv-upload' ? 'default' : 'ghost'}
+                        onClick={() => setActiveTab('csv-upload')}
+                        className={`flex items-center gap-2 transition-all duration-200 ${activeTab === 'csv-upload'
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                            : 'hover:bg-muted'
+                            }`}
+                    >
                         <Upload className="h-4 w-4" />
                         CSV Upload
-                    </TabsTrigger>
-                </TabsList>
+                    </Button>
+                </div>
+            </div>
 
-                <TabsContent value="inventory" className="space-y-6">
-                    {/* Search and Add */}
-                    <div className="flex flex-col sm:flex-row justify-between gap-4">
-                        <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search by name, SKU, or category..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10"
-                            />
+            {/* Tab Content */}
+            {activeTab === 'inventory' ? (
+                <div className="space-y-8">
+                    {/* Dashboard Cards */}
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+                        <Card className="relative overflow-hidden">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+                                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                                    <Package2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{totalProducts}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    {totalProducts === 0 ? 'No products yet' : 'Active items in inventory'}
+                                </p>
+                                <div className="mt-2 h-1 w-full bg-muted rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-blue-500 transition-all duration-500"
+                                        style={{ width: `${Math.min((totalProducts / 100) * 100, 100)}%` }}
+                                    />
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="relative overflow-hidden">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+                                <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                                    <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">₹{totalValue.toFixed(2)}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    Total inventory worth
+                                </p>
+                                <div className="mt-2 flex items-center text-xs">
+                                    <span className="text-green-600 dark:text-green-400">
+                                        ₹{totalProducts > 0 ? (totalValue / totalProducts).toFixed(2) : '0.00'} avg/item
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="relative overflow-hidden">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Total Profit</CardTitle>
+                                <div className="p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg">
+                                    <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                    ₹{totalProfit.toFixed(2)}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Potential profit on all stock
+                                </p>
+                                <div className="mt-2 flex items-center text-xs">
+                                    {totalProfit >= 0 ? (
+                                        <span className="text-emerald-600 dark:text-emerald-400">
+                                            ↑ {totalValue > 0 ? ((totalProfit / totalValue) * 100).toFixed(1) : '0.0'}% margin
+                                        </span>
+                                    ) : (
+                                        <span className="text-red-600 dark:text-red-400">
+                                            Loss on inventory
+                                        </span>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="relative overflow-hidden">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
+                                <div className="p-2 bg-amber-100 dark:bg-amber-900 rounded-lg">
+                                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{aboutToExpire}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    Items expiring in 15 days
+                                </p>
+                                {aboutToExpire > 0 && (
+                                    <div className="mt-2 h-1 w-full bg-amber-200 dark:bg-amber-800 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-amber-500 transition-all duration-500"
+                                            style={{ width: `${Math.min((aboutToExpire / totalProducts) * 100, 100)}%` }}
+                                        />
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Additional Dashboard Cards */}
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+                        <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-lg font-semibold text-purple-900 dark:text-purple-100">
+                                    Low Stock Alert
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                                            {products.filter(p => p.quantity <= 10).length}
+                                        </div>
+                                        <p className="text-sm text-purple-700 dark:text-purple-300">
+                                            Items need restocking
+                                        </p>
+                                    </div>
+                                    <div className="p-3 bg-purple-100 dark:bg-purple-800 rounded-full">
+                                        <Package2 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-blue-200 dark:border-blue-800">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                                    Categories
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                                            {[...new Set(products.map(p => p.category))].length}
+                                        </div>
+                                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                                            Product categories
+                                        </p>
+                                    </div>
+                                    <div className="p-3 bg-blue-100 dark:bg-blue-800 rounded-full">
+                                        <div className="grid grid-cols-2 gap-1">
+                                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                            <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                            <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                                            <div className="w-2 h-2 bg-blue-300 rounded-full"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-lg font-semibold text-green-900 dark:text-green-100">
+                                    Total Stock
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="text-2xl font-bold text-green-900 dark:text-green-100">
+                                            {products.reduce((sum, p) => sum + p.quantity, 0)}
+                                        </div>
+                                        <p className="text-sm text-green-700 dark:text-green-300">
+                                            Units across all products
+                                        </p>
+                                    </div>
+                                    <div className="p-3 bg-green-100 dark:bg-green-800 rounded-full">
+                                        <div className="w-6 h-6 border-2 border-green-600 dark:border-green-400 rounded-full flex items-center justify-center">
+                                            <div className="w-2 h-2 bg-green-600 dark:bg-green-400 rounded-full"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Search and filter */}
+                    <div className="bg-card/50 backdrop-blur-sm rounded-xl border p-6 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <div className="flex-1 max-w-md">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="search"
+                                        placeholder="Search products by name, SKU, or category..."
+                                        className="w-full pl-10 h-11 bg-background border-muted focus:border-primary transition-colors"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 ml-4">
+                                <span className="text-sm text-muted-foreground">
+                                    {sortedAndFilteredProducts.length} of {totalProducts} products
+                                </span>
+                            </div>
                         </div>
-                        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                            <DialogTrigger asChild>
-                                <Button
-                                    onClick={() => {
-                                        resetForm();
-                                        setIsModalOpen(true);
-                                    }}
-                                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-                                >
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Add Product
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
-                                <DialogHeader className="flex-shrink-0">
-                                    <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
-                                    <DialogDescription>
-                                        {editingProduct ? 'Update the product details below.' : 'Fill in the details to add a new product to your trading inventory.'}
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-2 -mr-4">
-                                    <div className="grid gap-4 py-4">
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="name" className="text-right">
-                                                Name <span className="text-red-500">*</span>
-                                            </Label>
-                                            <Input
-                                                id="name"
-                                                value={formData.name}
-                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                                className="col-span-3"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="description" className="text-right">
-                                                Description
-                                            </Label>
-                                            <Textarea
-                                                id="description"
-                                                value={formData.description}
-                                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                                className="col-span-3"
-                                                rows={3}
-                                            />
-                                        </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="sku" className="text-right">
-                                                SKU <span className="text-red-500">*</span>
-                                            </Label>
-                                            <Input
-                                                id="sku"
-                                                value={formData.sku}
-                                                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                                                className="col-span-3"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="category" className="text-right">
-                                                Category
-                                            </Label>
-                                            <Input
-                                                id="category"
-                                                value={formData.category}
-                                                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                                className="col-span-3"
-                                            />
-                                        </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="cost" className="text-right">
-                                                Cost <span className="text-red-500">*</span>
-                                            </Label>
-                                            <div className="col-span-3 relative">
-                                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
-                                                <Input
-                                                    id="cost"
-                                                    type="number"
-                                                    step="0.01"
-                                                    value={formData.cost}
-                                                    onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                                                    className="pl-8"
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="price" className="text-right">
-                                                Selling Price <span className="text-red-500">*</span>
-                                            </Label>
-                                            <div className="col-span-3 relative">
-                                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
-                                                <Input
-                                                    id="price"
-                                                    type="number"
-                                                    step="0.01"
-                                                    value={formData.price}
-                                                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                                    className="pl-8"
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="quantity" className="text-right">
-                                                Quantity <span className="text-red-500">*</span>
-                                            </Label>
-                                            <Input
-                                                id="quantity"
-                                                type="number"
-                                                value={formData.quantity}
-                                                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                                                className="col-span-3"
-                                                min="0"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="shelf" className="text-right">
-                                                Shelf
-                                            </Label>
-                                            <div className="flex gap-2 col-span-3">
-                                                <select
-                                                    id="shelf"
-                                                    value={formData.shelf}
-                                                    onChange={(e) => setFormData({ ...formData, shelf: e.target.value })}
-                                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    {shelves.map((shelf) => (
-                                                        <option key={shelf} value={shelf}>
-                                                            {shelf}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                <div className="flex gap-2">
-                                                    <Input
-                                                        type="text"
-                                                        placeholder="New shelf"
-                                                        value={newShelf}
-                                                        onChange={(e) => setNewShelf(e.target.value)}
-                                                        className="w-24"
-                                                    />
-                                                    <Button type="button" variant="outline" size="sm" onClick={addShelf}>
-                                                        +
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="expiryDate" className="text-right">
-                                                Expiry Date
-                                            </Label>
-                                            <Input
-                                                id="expiryDate"
-                                                type="date"
-                                                value={formData.expiryDate}
-                                                onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                                                className="col-span-3"
-                                            />
-                                        </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="supplier" className="text-right">
-                                                Supplier
-                                            </Label>
-                                            <Input
-                                                id="supplier"
-                                                value={formData.supplier}
-                                                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                                                className="col-span-3"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end gap-4 pt-4 border-t">
-                                        <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-                                            Cancel
-                                        </Button>
-                                        <Button type="submit" disabled={loading}>
-                                            {loading ? 'Saving...' : editingProduct ? 'Update Product' : 'Add Product'}
-                                        </Button>
-                                    </div>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
                     </div>
 
                     {/* Products Table */}
                     {renderContent()}
-                </TabsContent>
 
-                <TabsContent value="analytics">
-                    <Analytics products={products} />
-                </TabsContent>
-
-                <TabsContent value="upload">
+                    {/* Expiration Alert */}
+                    {!loading && aboutToExpire > 0 && (
+                        <Alert variant="destructive" className="mt-6">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Expiry Alert</AlertTitle>
+                            <AlertDescription>
+                                You have {aboutToExpire} product(s) expiring within the next 15 days. Consider taking action to avoid losses.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                </div>
+            ) : activeTab === 'csv-upload' ? (
+                <div className="space-y-8">
                     <CSVUpload onUploadSuccess={handleCSVUploadSuccess} />
-                </TabsContent>
-            </Tabs>
+                </div>
+            ) : (
+                <Analytics products={products} />
+            )}
         </div>
     );
 }
