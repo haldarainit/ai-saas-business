@@ -461,142 +461,332 @@ export default function ManufacturingInventory() {
     const filteredRawMaterials = filterItems(rawMaterials, searchTerm);
     const filteredProducts = filterItems(manufacturingProducts, searchTerm);
 
+    // Additional metrics
+    const rawMaterialCategories = [...new Set(rawMaterials.map(m => m.category))].length;
+    const productCategories = [...new Set(manufacturingProducts.map(p => p.category))].length;
+    const todayProductions = productionLogs.filter(log => {
+        const logDate = new Date(log.productionDate);
+        const today = new Date();
+        return logDate.toDateString() === today.toDateString();
+    }).length;
+    const avgCostPerProduct = manufacturingProducts.length > 0
+        ? manufacturingProducts.reduce((sum, p) => sum + (p.totalCost || 0), 0) / manufacturingProducts.length
+        : 0;
+
     return (
-        <div className="container mx-auto px-4 py-8 space-y-6">
-            {/* Header - Compact */}
-            <div className="flex justify-between items-center">
-                <div className="space-y-1">
+        <div className="container mx-auto px-4 py-8 space-y-8">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-8">
+                <div className="space-y-2">
                     <div className="flex items-center gap-3">
                         <Link href="/inventory-management">
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <ArrowLeft className="h-4 w-4" />
+                            <Button variant="ghost" size="icon" className="h-10 w-10">
+                                <ArrowLeft className="h-5 w-5" />
                             </Button>
                         </Link>
-                        <div className="flex items-center gap-2">
-                            <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
-                                <Factory className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                            </div>
-                            <div>
-                                <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                                    Manufacturing Inventory
-                                </h1>
-                                <p className="text-sm text-muted-foreground">
-                                    Raw materials, products & production
-                                </p>
-                            </div>
+                        <div>
+                            <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                                Manufacturing Inventory
+                            </h1>
+                            <p className="text-muted-foreground text-lg">
+                                Manage raw materials, products & production with ease
+                            </p>
                         </div>
                     </div>
                 </div>
                 <Link href="/inventory-management/trading">
-                    <Button variant="outline" size="sm" className="gap-2 border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20">
+                    <Button variant="outline" className="gap-2 border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20">
                         <ShoppingCart className="h-4 w-4" />
-                        Trading
+                        Trading Mode
                     </Button>
                 </Link>
             </div>
 
-            {/* Dashboard Cards - Compact */}
-            <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+            {/* Dashboard Cards - Row 1 */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
                 <Card className="relative overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
-                        <CardTitle className="text-xs font-medium">Raw Materials</CardTitle>
-                        <div className="p-1.5 bg-amber-100 dark:bg-amber-900 rounded-md">
-                            <Boxes className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Raw Materials</CardTitle>
+                        <div className="p-2 bg-amber-100 dark:bg-amber-900 rounded-lg">
+                            <Boxes className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                         </div>
                     </CardHeader>
-                    <CardContent className="pb-3 px-4">
-                        <div className="text-xl font-bold">{rawMaterials.length}</div>
-                        <p className="text-xs text-muted-foreground">₹{totalRawMaterialValue.toFixed(0)} value</p>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{rawMaterials.length}</div>
+                        <p className="text-xs text-muted-foreground">
+                            {rawMaterials.length === 0 ? 'No materials yet' : 'Active raw materials'}
+                        </p>
+                        <div className="mt-2 flex items-center text-xs">
+                            <span className="text-amber-600 dark:text-amber-400">
+                                ₹{totalRawMaterialValue.toFixed(2)} total value
+                            </span>
+                        </div>
+                        <div className="mt-2 h-1 w-full bg-muted rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-amber-500 transition-all duration-500"
+                                style={{ width: `${Math.min((rawMaterials.length / 50) * 100, 100)}%` }}
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 
                 <Card className="relative overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
-                        <CardTitle className="text-xs font-medium">Low Stock</CardTitle>
-                        <div className="p-1.5 bg-red-100 dark:bg-red-900 rounded-md">
-                            <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Products</CardTitle>
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                            <Cog className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </div>
                     </CardHeader>
-                    <CardContent className="pb-3 px-4">
-                        <div className="text-xl font-bold text-red-600 dark:text-red-400">{lowStockMaterials}</div>
-                        <p className="text-xs text-muted-foreground">Need restocking</p>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{manufacturingProducts.length}</div>
+                        <p className="text-xs text-muted-foreground">
+                            {totalFinishedProducts} finished units
+                        </p>
+                        <div className="mt-2 flex items-center text-xs">
+                            <span className="text-blue-600 dark:text-blue-400">
+                                ₹{avgCostPerProduct.toFixed(2)} avg cost/product
+                            </span>
+                        </div>
+                        <div className="mt-2 h-1 w-full bg-muted rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-blue-500 transition-all duration-500"
+                                style={{ width: `${Math.min((manufacturingProducts.length / 50) * 100, 100)}%` }}
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 
                 <Card className="relative overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
-                        <CardTitle className="text-xs font-medium">Products</CardTitle>
-                        <div className="p-1.5 bg-blue-100 dark:bg-blue-900 rounded-md">
-                            <Cog className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Finished Value</CardTitle>
+                        <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                            <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
                         </div>
                     </CardHeader>
-                    <CardContent className="pb-3 px-4">
-                        <div className="text-xl font-bold">{manufacturingProducts.length}</div>
-                        <p className="text-xs text-muted-foreground">{totalFinishedProducts} units</p>
+                    <CardContent>
+                        <div className="text-2xl font-bold">₹{totalFinishedValue.toFixed(2)}</div>
+                        <p className="text-xs text-muted-foreground">
+                            Total selling value
+                        </p>
+                        <div className="mt-2 flex items-center text-xs">
+                            <span className="text-green-600 dark:text-green-400">
+                                ₹{totalFinishedProducts > 0 ? (totalFinishedValue / totalFinishedProducts).toFixed(2) : '0.00'} avg/unit
+                            </span>
+                        </div>
                     </CardContent>
                 </Card>
 
                 <Card className="relative overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
-                        <CardTitle className="text-xs font-medium">Finished Value</CardTitle>
-                        <div className="p-1.5 bg-green-100 dark:bg-green-900 rounded-md">
-                            <DollarSign className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Potential Profit</CardTitle>
+                        <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                            <TrendingUp className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                         </div>
                     </CardHeader>
-                    <CardContent className="pb-3 px-4">
-                        <div className="text-xl font-bold">₹{totalFinishedValue.toFixed(0)}</div>
-                        <p className="text-xs text-muted-foreground">Selling value</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="relative overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
-                        <CardTitle className="text-xs font-medium">Profit</CardTitle>
-                        <div className="p-1.5 bg-purple-100 dark:bg-purple-900 rounded-md">
-                            <TrendingUp className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                    <CardContent>
+                        <div className={`text-2xl font-bold ${totalPotentialProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                            ₹{totalPotentialProfit.toFixed(2)}
                         </div>
-                    </CardHeader>
-                    <CardContent className="pb-3 px-4">
-                        <div className={`text-xl font-bold ${totalPotentialProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                            ₹{totalPotentialProfit.toFixed(0)}
+                        <p className="text-xs text-muted-foreground">
+                            On all finished goods
+                        </p>
+                        <div className="mt-2 flex items-center text-xs">
+                            {totalPotentialProfit >= 0 ? (
+                                <span className="text-emerald-600 dark:text-emerald-400">
+                                    ↑ {totalFinishedValue > 0 ? ((totalPotentialProfit / totalFinishedValue) * 100).toFixed(1) : '0.0'}% margin
+                                </span>
+                            ) : (
+                                <span className="text-red-600 dark:text-red-400">
+                                    Loss on production
+                                </span>
+                            )}
                         </div>
-                        <p className="text-xs text-muted-foreground">On current stock</p>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
-                    <TabsTrigger value="raw-materials" className="gap-2">
+            {/* Dashboard Cards - Row 2 */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+                <Card className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border-red-200 dark:border-red-800">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-lg font-semibold text-red-900 dark:text-red-100">
+                            Low Stock Alert
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <div className="text-2xl font-bold text-red-900 dark:text-red-100">
+                                    {lowStockMaterials}
+                                </div>
+                                <p className="text-sm text-red-700 dark:text-red-300">
+                                    Materials need restocking
+                                </p>
+                            </div>
+                            <div className="p-3 bg-red-100 dark:bg-red-800 rounded-full">
+                                <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                            </div>
+                        </div>
+                        {lowStockMaterials > 0 && (
+                            <div className="mt-3 h-1 w-full bg-red-200 dark:bg-red-800 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-red-500 transition-all duration-500"
+                                    style={{ width: `${Math.min((lowStockMaterials / rawMaterials.length) * 100, 100)}%` }}
+                                />
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-lg font-semibold text-amber-900 dark:text-amber-100">
+                            Categories
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <div className="text-2xl font-bold text-amber-900 dark:text-amber-100">
+                                    {rawMaterialCategories + productCategories}
+                                </div>
+                                <p className="text-sm text-amber-700 dark:text-amber-300">
+                                    {rawMaterialCategories} materials, {productCategories} products
+                                </p>
+                            </div>
+                            <div className="p-3 bg-amber-100 dark:bg-amber-800 rounded-full">
+                                <div className="grid grid-cols-2 gap-1">
+                                    <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                                    <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                                    <div className="w-2 h-2 bg-amber-600 rounded-full"></div>
+                                    <div className="w-2 h-2 bg-orange-300 rounded-full"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border-indigo-200 dark:border-indigo-800">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-lg font-semibold text-indigo-900 dark:text-indigo-100">
+                            Today's Production
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <div className="text-2xl font-bold text-indigo-900 dark:text-indigo-100">
+                                    {todayProductions}
+                                </div>
+                                <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                                    Production batches today
+                                </p>
+                            </div>
+                            <div className="p-3 bg-indigo-100 dark:bg-indigo-800 rounded-full">
+                                <Factory className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border-emerald-200 dark:border-emerald-800">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-lg font-semibold text-emerald-900 dark:text-emerald-100">
+                            Total Stock Units
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
+                                    {rawMaterials.reduce((sum, m) => sum + m.quantity, 0)}
+                                </div>
+                                <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                    Raw material units in stock
+                                </p>
+                            </div>
+                            <div className="p-3 bg-emerald-100 dark:bg-emerald-800 rounded-full">
+                                <div className="w-6 h-6 border-2 border-emerald-600 dark:border-emerald-400 rounded-full flex items-center justify-center">
+                                    <div className="w-2 h-2 bg-emerald-600 dark:bg-emerald-400 rounded-full"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="bg-card/50 backdrop-blur-sm rounded-xl border p-1 shadow-sm">
+                <div className="flex space-x-1">
+                    <Button
+                        variant={activeTab === 'raw-materials' ? 'default' : 'ghost'}
+                        onClick={() => setActiveTab('raw-materials')}
+                        className={`flex items-center gap-2 transition-all duration-200 ${activeTab === 'raw-materials'
+                            ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                            : 'hover:bg-muted'
+                            }`}
+                    >
                         <Boxes className="h-4 w-4" />
                         Raw Materials
-                    </TabsTrigger>
-                    <TabsTrigger value="products" className="gap-2">
+                    </Button>
+                    <Button
+                        variant={activeTab === 'products' ? 'default' : 'ghost'}
+                        onClick={() => setActiveTab('products')}
+                        className={`flex items-center gap-2 transition-all duration-200 ${activeTab === 'products'
+                            ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                            : 'hover:bg-muted'
+                            }`}
+                    >
                         <Package2 className="h-4 w-4" />
                         Products
-                    </TabsTrigger>
-                    <TabsTrigger value="production" className="gap-2">
+                    </Button>
+                    <Button
+                        variant={activeTab === 'production' ? 'default' : 'ghost'}
+                        onClick={() => setActiveTab('production')}
+                        className={`flex items-center gap-2 transition-all duration-200 ${activeTab === 'production'
+                            ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                            : 'hover:bg-muted'
+                            }`}
+                    >
                         <Activity className="h-4 w-4" />
                         Production Log
-                    </TabsTrigger>
-                </TabsList>
-
-                {/* Search Bar */}
-                <div className="flex items-center gap-4">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search by name, SKU, or category..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10"
-                        />
-                    </div>
-                    <Button variant="outline" size="icon" onClick={() => { fetchRawMaterials(); fetchManufacturingProducts(); }}>
-                        <RefreshCcw className="h-4 w-4" />
                     </Button>
                 </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="bg-card/50 backdrop-blur-sm rounded-xl border p-6 shadow-sm">
+                <div className="flex items-center justify-between">
+                    <div className="flex-1 max-w-md">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Search by name, SKU, or category..."
+                                className="w-full pl-10 h-11 bg-background border-muted focus:border-primary transition-colors"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 ml-4">
+                        <span className="text-sm text-muted-foreground">
+                            {activeTab === 'raw-materials'
+                                ? `${filteredRawMaterials.length} of ${rawMaterials.length} materials`
+                                : activeTab === 'products'
+                                    ? `${filteredProducts.length} of ${manufacturingProducts.length} products`
+                                    : `${productionLogs.length} production logs`
+                            }
+                        </span>
+                        <Button variant="outline" size="icon" onClick={() => { fetchRawMaterials(); fetchManufacturingProducts(); fetchProductionLogs(); }}>
+                            <RefreshCcw className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Tab Content wrapped in Tabs component */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
 
                 {/* Raw Materials Tab */}
                 <TabsContent value="raw-materials" className="space-y-6">
