@@ -978,7 +978,15 @@ export default function ManufacturingInventory() {
 
                 {/* Production Log Tab */}
                 <TabsContent value="production" className="space-y-6">
-                    <h2 className="text-xl font-semibold">Recent Production</h2>
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-xl font-semibold">Recent Production</h2>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span>Total batches: {productionLogs.length}</span>
+                            <span>•</span>
+                            <span>Total produced: {productionLogs.reduce((sum, log) => sum + (log.quantityProduced || 0), 0)} units</span>
+                        </div>
+                    </div>
+
                     {productionLogs.length === 0 ? (
                         <div className="text-center py-12">
                             <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -987,42 +995,126 @@ export default function ManufacturingInventory() {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {productionLogs.map((log) => (
-                                <Card key={log._id}>
-                                    <CardContent className="pt-6">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <h3 className="font-semibold">{log.productName}</h3>
-                                                <p className="text-sm text-muted-foreground">Batch: {log.batchNumber}</p>
+                            {productionLogs.map((log) => {
+                                // Calculate profit for this batch
+                                const product = manufacturingProducts.find(p => p._id === log.productId);
+                                const batchRevenue = (product?.sellingPrice || 0) * (log.quantityProduced || 0);
+                                const batchProfit = batchRevenue - (log.totalProductionCost || 0);
+                                const profitMargin = batchRevenue > 0 ? (batchProfit / batchRevenue) * 100 : 0;
+
+                                return (
+                                    <Card key={log._id} className="overflow-hidden">
+                                        <CardHeader className="pb-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <CardTitle className="text-lg flex items-center gap-2">
+                                                        <Factory className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                                                        {log.productName}
+                                                    </CardTitle>
+                                                    <CardDescription className="flex items-center gap-2 mt-1">
+                                                        <span>Batch: {log.batchNumber}</span>
+                                                        <span>•</span>
+                                                        <span>{new Date(log.productionDate).toLocaleDateString()}</span>
+                                                        <span>•</span>
+                                                        <span>{new Date(log.productionDate).toLocaleTimeString()}</span>
+                                                    </CardDescription>
+                                                </div>
+                                                <Badge variant={log.status === 'completed' ? 'default' : 'destructive'} className="text-sm">
+                                                    {log.status === 'completed' ? '✓ Completed' : log.status}
+                                                </Badge>
                                             </div>
-                                            <Badge variant={log.status === 'completed' ? 'default' : 'destructive'}>
-                                                {log.status}
-                                            </Badge>
-                                        </div>
-                                        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                            <div>
-                                                <div className="text-muted-foreground">Quantity</div>
-                                                <div className="font-medium">{log.quantityProduced} units</div>
+                                        </CardHeader>
+                                        <CardContent className="pt-4">
+                                            {/* Production Summary */}
+                                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                                                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
+                                                    <div className="text-xs text-muted-foreground">Qty Produced</div>
+                                                    <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{log.quantityProduced}</div>
+                                                    <div className="text-xs text-muted-foreground">units</div>
+                                                </div>
+                                                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-center">
+                                                    <div className="text-xs text-muted-foreground">Raw Material</div>
+                                                    <div className="text-lg font-bold text-amber-600 dark:text-amber-400">₹{(log.totalRawMaterialCost || 0).toFixed(2)}</div>
+                                                    <div className="text-xs text-muted-foreground">total cost</div>
+                                                </div>
+                                                <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-center">
+                                                    <div className="text-xs text-muted-foreground">Mfg. Cost</div>
+                                                    <div className="text-lg font-bold text-purple-600 dark:text-purple-400">₹{((log.manufacturingCost || 0) * log.quantityProduced).toFixed(2)}</div>
+                                                    <div className="text-xs text-muted-foreground">labor/overhead</div>
+                                                </div>
+                                                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-center">
+                                                    <div className="text-xs text-muted-foreground">Total Cost</div>
+                                                    <div className="text-lg font-bold text-red-600 dark:text-red-400">₹{(log.totalProductionCost || 0).toFixed(2)}</div>
+                                                    <div className="text-xs text-muted-foreground">₹{(log.costPerUnit || 0).toFixed(2)}/unit</div>
+                                                </div>
+                                                <div className={`p-3 rounded-lg text-center ${batchProfit >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
+                                                    <div className="text-xs text-muted-foreground">Est. Profit</div>
+                                                    <div className={`text-lg font-bold ${batchProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                        ₹{batchProfit.toFixed(2)}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {profitMargin >= 0 ? '↑' : '↓'} {Math.abs(profitMargin).toFixed(1)}% margin
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <div className="text-muted-foreground">Raw Material Cost</div>
-                                                <div className="font-medium">₹{log.totalRawMaterialCost?.toFixed(2)}</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-muted-foreground">Total Cost</div>
-                                                <div className="font-medium">₹{log.totalProductionCost?.toFixed(2)}</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-muted-foreground">Cost/Unit</div>
-                                                <div className="font-medium">₹{log.costPerUnit?.toFixed(2)}</div>
-                                            </div>
-                                        </div>
-                                        <div className="mt-3 text-xs text-muted-foreground">
-                                            {new Date(log.productionDate).toLocaleString()}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
+
+                                            {/* Raw Materials Consumed */}
+                                            {log.materialsConsumed && log.materialsConsumed.length > 0 && (
+                                                <div className="mt-4 border rounded-lg overflow-hidden">
+                                                    <div className="bg-muted/50 px-4 py-2 border-b">
+                                                        <h4 className="text-sm font-semibold flex items-center gap-2">
+                                                            <Boxes className="h-4 w-4" />
+                                                            Raw Materials Consumed ({log.materialsConsumed.length} items)
+                                                        </h4>
+                                                    </div>
+                                                    <div className="divide-y">
+                                                        {log.materialsConsumed.map((material, idx) => (
+                                                            <div key={idx} className="px-4 py-2 flex justify-between items-center hover:bg-muted/30">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center text-xs font-medium text-amber-600 dark:text-amber-400">
+                                                                        {idx + 1}
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="font-medium">{material.rawMaterialName || material.name}</div>
+                                                                        <div className="text-xs text-muted-foreground">
+                                                                            SKU: {material.rawMaterialSku || material.sku || 'N/A'}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <div className="font-medium">
+                                                                        {material.quantityUsed || material.quantityRequired} {material.unit}
+                                                                    </div>
+                                                                    <div className="text-xs text-muted-foreground">
+                                                                        @ ₹{(material.costPerUnit || 0).toFixed(2)}/{material.unit}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right min-w-[80px]">
+                                                                    <div className="font-bold text-amber-600 dark:text-amber-400">
+                                                                        ₹{((material.quantityUsed || material.quantityRequired || 0) * (material.costPerUnit || 0)).toFixed(2)}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <div className="bg-muted/50 px-4 py-2 border-t flex justify-between items-center">
+                                                        <span className="text-sm font-medium">Total Raw Material Cost</span>
+                                                        <span className="text-sm font-bold">₹{(log.totalRawMaterialCost || 0).toFixed(2)}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Notes */}
+                                            {log.notes && (
+                                                <div className="mt-4 p-3 bg-muted/30 rounded-lg">
+                                                    <div className="text-xs text-muted-foreground mb-1">Production Notes:</div>
+                                                    <div className="text-sm">{log.notes}</div>
+                                                </div>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
                         </div>
                     )}
                 </TabsContent>
