@@ -5,7 +5,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart } from 'lucide-react';
+import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
@@ -51,15 +52,15 @@ export default function InventoryManagement() {
           cache: 'no-store',
           credentials: 'include',
         });
-        
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         setProducts(Array.isArray(data) ? data : []);
-        
+
       } catch (error) {
         console.error('Error in fetchProducts:', error);
         toast({
@@ -86,15 +87,15 @@ export default function InventoryManagement() {
           cache: 'no-store',
           credentials: 'include',
         });
-        
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         setProducts(Array.isArray(data) ? data : []);
-        
+
       } catch (error) {
         console.error('Error refreshing products:', error);
         toast({
@@ -130,7 +131,7 @@ export default function InventoryManagement() {
           <p className="text-sm text-muted-foreground">
             {searchTerm ? 'No products match your search' : 'Get started by adding your first product'}
           </p>
-          <Button 
+          <Button
             className="mt-4"
             onClick={() => setIsModalOpen(true)}
           >
@@ -146,7 +147,7 @@ export default function InventoryManagement() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/70 transition-colors">
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-accent transition-colors"
                 onClick={() => requestSort('name')}
               >
@@ -159,7 +160,7 @@ export default function InventoryManagement() {
                   )}
                 </div>
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('sku')}
               >
@@ -172,7 +173,7 @@ export default function InventoryManagement() {
                   )}
                 </div>
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('category')}
               >
@@ -185,7 +186,7 @@ export default function InventoryManagement() {
                   )}
                 </div>
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('price')}
               >
@@ -198,7 +199,7 @@ export default function InventoryManagement() {
                   )}
                 </div>
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('price')}
               >
@@ -211,7 +212,7 @@ export default function InventoryManagement() {
                   )}
                 </div>
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('profit')}
               >
@@ -224,7 +225,7 @@ export default function InventoryManagement() {
                   )}
                 </div>
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('quantity')}
               >
@@ -237,7 +238,7 @@ export default function InventoryManagement() {
                   )}
                 </div>
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('shelf')}
               >
@@ -250,7 +251,7 @@ export default function InventoryManagement() {
                   )}
                 </div>
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-accent transition-colors text-center"
                 onClick={() => requestSort('expiryDate')}
               >
@@ -268,8 +269,8 @@ export default function InventoryManagement() {
           </TableHeader>
           <TableBody>
             {sortedAndFilteredProducts.map((product) => (
-              <TableRow 
-                key={product._id} 
+              <TableRow
+                key={product._id}
                 className={getRowClass(product)}
               >
                 <TableCell className="font-medium">
@@ -309,8 +310,8 @@ export default function InventoryManagement() {
                   </span>
                 </TableCell>
                 <TableCell className="text-center">
-                  {product.expiryDate 
-                    ? new Date(product.expiryDate).toLocaleDateString() 
+                  {product.expiryDate
+                    ? new Date(product.expiryDate).toLocaleDateString()
                     : 'N/A'}
                 </TableCell>
                 <TableCell>
@@ -346,26 +347,26 @@ export default function InventoryManagement() {
   // Helper function to get row class based on expiry
   const getRowClass = (product) => {
     if (!product.expiryDate) return 'hover:bg-muted/50 transition-colors';
-    
+
     const expiry = new Date(product.expiryDate);
     const today = new Date();
-    
+
     if (expiry < today) return 'bg-destructive/10 hover:bg-destructive/20 transition-colors border-l-4 border-l-destructive';
-    
+
     const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
     if (daysUntilExpiry <= 15) return 'bg-amber-50/80 hover:bg-amber-100/80 transition-colors border-l-4 border-l-amber-500 dark:bg-amber-950/20 dark:hover:bg-amber-950/30';
-    
+
     return 'hover:bg-muted/50 transition-colors';
   };
 
   // Render expiry badge
   const renderExpiryBadge = (product) => {
     if (!product.expiryDate) return null;
-    
+
     const expiry = new Date(product.expiryDate);
     const today = new Date();
     const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-    
+
     if (daysUntilExpiry < 0) {
       return (
         <span className="text-xs text-red-500">
@@ -379,7 +380,7 @@ export default function InventoryManagement() {
         </span>
       );
     }
-    
+
     return (
       <span className="text-xs text-muted-foreground">
         Expires {expiry.toLocaleDateString()}
@@ -391,7 +392,7 @@ export default function InventoryManagement() {
   const totalProducts = products.length;
   const totalValue = products.reduce((sum, product) => sum + (product.price * product.quantity), 0);
   const totalProfit = products.reduce((sum, product) => sum + ((product.price - product.cost) * product.quantity), 0);
-  
+
   const aboutToExpire = products.filter(product => {
     if (!product.expiryDate) return false;
     const expiry = new Date(product.expiryDate);
@@ -431,8 +432,8 @@ export default function InventoryManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
-    const url = editingProduct 
+
+    const url = editingProduct
       ? `/api/inventory/products/${editingProduct._id}`
       : '/api/inventory/products';
     const method = editingProduct ? 'PUT' : 'POST';
@@ -440,7 +441,7 @@ export default function InventoryManagement() {
     try {
       // Basic validation
       const validationErrors = [];
-      
+
       if (!formData.name?.trim()) validationErrors.push('Name is required');
       if (!formData.sku?.trim()) validationErrors.push('SKU is required');
       if (!formData.price) validationErrors.push('Price is required');
@@ -465,7 +466,7 @@ export default function InventoryManagement() {
         expiryDate: formData.expiryDate ? new Date(formData.expiryDate).toISOString() : null,
         supplier: formData.supplier ? String(formData.supplier).trim() : ''
       };
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -474,7 +475,7 @@ export default function InventoryManagement() {
         credentials: 'include',
         body: JSON.stringify(requestBody),
       });
-      
+
       let responseData;
       try {
         responseData = await response.json();
@@ -485,7 +486,7 @@ export default function InventoryManagement() {
 
       if (!response.ok) {
         let errorMessage = responseData?.message || `Server responded with ${response.status}`;
-        
+
         if (response.status === 400 && responseData?.errors) {
           if (typeof responseData.errors === 'object') {
             errorMessage = Object.values(responseData.errors).join('\n');
@@ -493,7 +494,7 @@ export default function InventoryManagement() {
             errorMessage = responseData.errors.join('\n');
           }
         }
-        
+
         throw new Error(errorMessage);
       }
 
@@ -580,27 +581,27 @@ export default function InventoryManagement() {
   // Sort products
   const sortProducts = (products) => {
     if (!sortConfig.key) return products;
-    
+
     return [...products].sort((a, b) => {
       let aValue = a[sortConfig.key];
       let bValue = b[sortConfig.key];
-      
+
       // Handle profit calculation
       if (sortConfig.key === 'profit') {
         aValue = (a.price - a.cost) * a.quantity;
         bValue = (b.price - b.cost) * b.quantity;
       }
-      
+
       // Handle nested properties if needed
       if (sortConfig.key === 'expiryDate' && aValue && bValue) {
         aValue = new Date(aValue);
         bValue = new Date(bValue);
       }
-      
+
       // Handle undefined/null values
       if (aValue === null || aValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
       if (bValue === null || bValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
-      
+
       // Compare values
       if (aValue < bValue) {
         return sortConfig.direction === 'asc' ? -1 : 1;
@@ -627,7 +628,7 @@ export default function InventoryManagement() {
     product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
+
   // Apply sorting to filtered products
   const sortedAndFilteredProducts = sortProducts(filteredProducts);
 
@@ -635,201 +636,221 @@ export default function InventoryManagement() {
     <div className="container mx-auto px-4 py-8 space-y-8">
       <div className="flex justify-between items-center mb-8">
         <div className="space-y-2">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Inventory Management
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Manage your products and track inventory levels with ease
-          </p>
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl">
+              <ShoppingCart className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Inventory Management
+                </h1>
+                <span className="px-3 py-1 text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
+                  Trading Mode
+                </span>
+              </div>
+              <p className="text-muted-foreground text-lg">
+                Buy products and sell at higher prices • Simple buy/sell tracking
+              </p>
+            </div>
+          </div>
         </div>
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              onClick={() => {
-                resetForm();
-                setIsModalOpen(true);
-              }}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Product
+        <div className="flex items-center gap-3">
+          <Link href="/inventory-management/manufacturing">
+            <Button variant="outline" className="gap-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20">
+              <Factory className="h-4 w-4" />
+              Manufacturing Mode
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
-            <DialogHeader className="flex-shrink-0">
-              <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-2 -mr-4">
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">
-                    Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="col-span-3"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="description" className="text-right">
-                    Description
-                  </Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="col-span-3"
-                    rows={3}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="sku" className="text-right">
-                    SKU <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="sku"
-                    value={formData.sku}
-                    onChange={(e) => setFormData({...formData, sku: e.target.value})}
-                    className="col-span-3"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="category" className="text-right">
-                    Category
-                  </Label>
-                  <Input
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value})}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="price" className="text-right">
-                    Price <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="col-span-3 relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
+          </Link>
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
+              <Button
+                onClick={() => {
+                  resetForm();
+                  setIsModalOpen(true);
+                }}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Product
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+              <DialogHeader className="flex-shrink-0">
+                <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-2 -mr-4">
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right">
+                      Name <span className="text-red-500">*</span>
+                    </Label>
                     <Input
-                      id="price"
-                      type="number"
-                      step="0.01"
-                      value={formData.price}
-                      onChange={(e) => setFormData({...formData, price: e.target.value})}
-                      className="pl-8"
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="col-span-3"
                       required
                     />
                   </div>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="cost" className="text-right">
-                    Cost <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="col-span-3 relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="description" className="text-right">
+                      Description
+                    </Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="col-span-3"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="sku" className="text-right">
+                      SKU <span className="text-red-500">*</span>
+                    </Label>
                     <Input
-                      id="cost"
-                      type="number"
-                      step="0.01"
-                      value={formData.cost}
-                      onChange={(e) => setFormData({...formData, cost: e.target.value})}
-                      className="pl-8"
+                      id="sku"
+                      value={formData.sku}
+                      onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                      className="col-span-3"
                       required
                     />
                   </div>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="quantity" className="text-right">
-                    Quantity <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                    className="col-span-3"
-                    min="0"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="shelf" className="text-right">
-                    Shelf <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="flex gap-2 col-span-3">
-                    <select
-                      id="shelf"
-                      value={formData.shelf}
-                      onChange={(e) => setFormData({...formData, shelf: e.target.value})}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      required
-                    >
-                      {shelves.map((shelf) => (
-                        <option key={shelf} value={shelf}>
-                          {shelf}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex gap-2">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="category" className="text-right">
+                      Category
+                    </Label>
+                    <Input
+                      id="category"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="price" className="text-right">
+                      Price <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="col-span-3 relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
                       <Input
-                        type="text"
-                        placeholder="New shelf"
-                        value={newShelf}
-                        onChange={(e) => setNewShelf(e.target.value)}
-                        className="w-32"
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        className="pl-8"
+                        required
                       />
-                      <Button type="button" size="sm" onClick={addShelf}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
                     </div>
                   </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="cost" className="text-right">
+                      Cost <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="col-span-3 relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">₹</span>
+                      <Input
+                        id="cost"
+                        type="number"
+                        step="0.01"
+                        value={formData.cost}
+                        onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                        className="pl-8"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="quantity" className="text-right">
+                      Quantity <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                      className="col-span-3"
+                      min="0"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="shelf" className="text-right">
+                      Shelf <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="flex gap-2 col-span-3">
+                      <select
+                        id="shelf"
+                        value={formData.shelf}
+                        onChange={(e) => setFormData({ ...formData, shelf: e.target.value })}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        required
+                      >
+                        {shelves.map((shelf) => (
+                          <option key={shelf} value={shelf}>
+                            {shelf}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          placeholder="New shelf"
+                          value={newShelf}
+                          onChange={(e) => setNewShelf(e.target.value)}
+                          className="w-32"
+                        />
+                        <Button type="button" size="sm" onClick={addShelf}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="expiryDate" className="text-right">
+                      Expiry Date
+                    </Label>
+                    <Input
+                      id="expiryDate"
+                      type="date"
+                      value={formData.expiryDate}
+                      onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="supplier" className="text-right">
+                      Supplier
+                    </Label>
+                    <Input
+                      id="supplier"
+                      value={formData.supplier}
+                      onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                      className="col-span-3"
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="expiryDate" className="text-right">
-                    Expiry Date
-                  </Label>
-                  <Input
-                    id="expiryDate"
-                    type="date"
-                    value={formData.expiryDate}
-                    onChange={(e) => setFormData({...formData, expiryDate: e.target.value})}
-                    className="col-span-3"
-                  />
+                <div className="flex justify-end space-x-4 pt-4 flex-shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      resetForm();
+                      setIsModalOpen(false);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Saving...' : editingProduct ? 'Update Product' : 'Add Product'}
+                  </Button>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="supplier" className="text-right">
-                    Supplier
-                  </Label>
-                  <Input
-                    id="supplier"
-                    value={formData.supplier}
-                    onChange={(e) => setFormData({...formData, supplier: e.target.value})}
-                    className="col-span-3"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-4 pt-4 flex-shrink-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    resetForm();
-                    setIsModalOpen(false);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Saving...' : editingProduct ? 'Update Product' : 'Add Product'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Tab Navigation */}
@@ -838,11 +859,10 @@ export default function InventoryManagement() {
           <Button
             variant={activeTab === 'inventory' ? 'default' : 'ghost'}
             onClick={() => setActiveTab('inventory')}
-            className={`flex items-center gap-2 transition-all duration-200 ${
-              activeTab === 'inventory' 
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
-                : 'hover:bg-muted'
-            }`}
+            className={`flex items-center gap-2 transition-all duration-200 ${activeTab === 'inventory'
+              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+              : 'hover:bg-muted'
+              }`}
           >
             <Package2 className="h-4 w-4" />
             Inventory
@@ -850,11 +870,10 @@ export default function InventoryManagement() {
           <Button
             variant={activeTab === 'analytics' ? 'default' : 'ghost'}
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 transition-all duration-200 ${
-              activeTab === 'analytics' 
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
-                : 'hover:bg-muted'
-            }`}
+            className={`flex items-center gap-2 transition-all duration-200 ${activeTab === 'analytics'
+              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+              : 'hover:bg-muted'
+              }`}
           >
             <Activity className="h-4 w-4" />
             Analytics
@@ -862,16 +881,15 @@ export default function InventoryManagement() {
           <Button
             variant={activeTab === 'csv-upload' ? 'default' : 'ghost'}
             onClick={() => setActiveTab('csv-upload')}
-            className={`flex items-center gap-2 transition-all duration-200 ${
-              activeTab === 'csv-upload' 
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
-                : 'hover:bg-muted'
-            }`}
+            className={`flex items-center gap-2 transition-all duration-200 ${activeTab === 'csv-upload'
+              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+              : 'hover:bg-muted'
+              }`}
           >
             <Upload className="h-4 w-4" />
             CSV Upload
           </Button>
-                  </div>
+        </div>
       </div>
 
       {/* Tab Content */}
@@ -892,7 +910,7 @@ export default function InventoryManagement() {
                   {totalProducts === 0 ? 'No products yet' : 'Active items in inventory'}
                 </p>
                 <div className="mt-2 h-1 w-full bg-muted rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-blue-500 transition-all duration-500"
                     style={{ width: `${Math.min((totalProducts / 100) * 100, 100)}%` }}
                   />
@@ -962,7 +980,7 @@ export default function InventoryManagement() {
                 </p>
                 {aboutToExpire > 0 && (
                   <div className="mt-2 h-1 w-full bg-amber-200 dark:bg-amber-800 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-amber-500 transition-all duration-500"
                       style={{ width: `${Math.min((aboutToExpire / totalProducts) * 100, 100)}%` }}
                     />
@@ -1076,7 +1094,7 @@ export default function InventoryManagement() {
 
           {/* Products Table */}
           {renderContent()}
-          
+
           {/* Expiration Alert */}
           {!loading && aboutToExpire > 0 && (
             <Alert variant="destructive" className="mt-6">
