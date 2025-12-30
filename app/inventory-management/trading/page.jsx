@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import Analytics from '../components/Analytics';
 import CSVUpload from '../components/CSVUpload';
+import InvoiceScanner from '@/components/inventory/InvoiceScanner';
 
 export default function TradingInventory() {
     const [products, setProducts] = useState([]);
@@ -26,6 +27,9 @@ export default function TradingInventory() {
     const [activeTab, setActiveTab] = useState('inventory');
     const [showCSVUpload, setShowCSVUpload] = useState(false);
     const { toast } = useToast();
+
+    // Invoice Scanner State
+    const [isInvoiceScannerOpen, setIsInvoiceScannerOpen] = useState(false);
 
     // Form state
     const [shelves, setShelves] = useState(['Default', 'A1', 'A2', 'B1', 'B2']);
@@ -572,6 +576,61 @@ export default function TradingInventory() {
         }
     };
 
+    // Handle scanned products from invoice
+    const handleScannedProducts = async (items, supplierInfo) => {
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const item of items) {
+            try {
+                const productData = {
+                    name: item.name,
+                    description: item.description || '',
+                    sku: item.sku,
+                    category: item.category || 'Uncategorized',
+                    price: item.sellingPrice || 0,
+                    cost: item.costPrice || 0,
+                    quantity: item.quantity || 0,
+                    shelf: 'Default',
+                    supplier: supplierInfo?.name || item.supplier || ''
+                };
+
+                const response = await fetch('/api/inventory/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(productData)
+                });
+
+                if (response.ok) {
+                    const newProduct = await response.json();
+                    setProducts(prev => [newProduct, ...prev]);
+                    successCount++;
+                } else {
+                    errorCount++;
+                }
+            } catch (error) {
+                console.error('Error adding product:', error);
+                errorCount++;
+            }
+        }
+
+        // Show result toast
+        if (successCount > 0) {
+            toast({
+                title: 'Products Added',
+                description: `Successfully added ${successCount} product${successCount > 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
+                variant: errorCount > 0 ? 'warning' : 'default'
+            });
+        } else {
+            toast({
+                title: 'Error',
+                description: 'Failed to add products from invoice',
+                variant: 'destructive'
+            });
+        }
+    };
+
     // Sort products
     const sortProducts = (products) => {
         if (!sortConfig.key) return products;
@@ -644,6 +703,14 @@ export default function TradingInventory() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    <Button
+                        variant="outline"
+                        onClick={() => setIsInvoiceScannerOpen(true)}
+                        className="gap-2 border-violet-400 text-violet-700 hover:bg-violet-50 dark:border-violet-600 dark:text-violet-400 dark:hover:bg-violet-900/20"
+                    >
+                        <ScanLine className="h-4 w-4" />
+                        Scan Invoice
+                    </Button>
                     <Link href="/inventory-management/manufacturing">
                         <Button variant="outline" className="gap-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20">
                             <Factory className="h-4 w-4" />
@@ -1101,6 +1168,14 @@ export default function TradingInventory() {
             ) : (
                 <Analytics products={products} />
             )}
+
+            {/* AI Invoice Scanner */}
+            <InvoiceScanner
+                isOpen={isInvoiceScannerOpen}
+                onClose={() => setIsInvoiceScannerOpen(false)}
+                inventoryType="trading"
+                onProductsConfirmed={handleScannedProducts}
+            />
         </div>
     );
 }

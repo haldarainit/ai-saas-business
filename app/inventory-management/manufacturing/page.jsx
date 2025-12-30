@@ -9,8 +9,9 @@ import {
     Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign,
     TrendingUp, Activity, Factory, Boxes, Cog, ArrowRight, ArrowLeft,
     ClipboardList, RefreshCcw, ShoppingCart, History, Clock, Calendar,
-    ChevronDown, ChevronUp, Eye, BarChart3, Package
+    ChevronDown, ChevronUp, Eye, BarChart3, Package, ScanLine
 } from 'lucide-react';
+import InvoiceScanner from '@/components/inventory/InvoiceScanner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -80,6 +81,9 @@ export default function ManufacturingInventory() {
     const [materialHistory, setMaterialHistory] = useState(null);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [expandedHistoryItems, setExpandedHistoryItems] = useState({});
+
+    // Invoice Scanner State
+    const [isInvoiceScannerOpen, setIsInvoiceScannerOpen] = useState(false);
 
     const unitOptions = ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack'];
 
@@ -242,6 +246,64 @@ export default function ManufacturingInventory() {
             fetchRawMaterials();
         } catch (error) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        }
+    };
+
+    // Handle scanned raw materials from invoice
+    const handleScannedMaterials = async (items, supplierInfo) => {
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const item of items) {
+            try {
+                const materialData = {
+                    name: item.name,
+                    description: item.description || '',
+                    sku: item.sku,
+                    category: item.category || 'Uncategorized',
+                    unit: item.unit || 'pcs',
+                    costPerUnit: item.costPerUnit || 0,
+                    quantity: item.quantity || 0,
+                    minimumStock: 10,
+                    shelf: 'Default',
+                    supplier: supplierInfo?.name || item.supplier || '',
+                    supplierContact: supplierInfo?.contact || item.supplierContact || ''
+                };
+
+                const response = await fetch('/api/inventory/raw-materials', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(materialData)
+                });
+
+                if (response.ok) {
+                    successCount++;
+                } else {
+                    errorCount++;
+                }
+            } catch (error) {
+                console.error('Error adding material:', error);
+                errorCount++;
+            }
+        }
+
+        // Refresh the list
+        await fetchRawMaterials();
+
+        // Show result toast
+        if (successCount > 0) {
+            toast({
+                title: 'Materials Added',
+                description: `Successfully added ${successCount} raw material${successCount > 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
+                variant: errorCount > 0 ? 'warning' : 'default'
+            });
+        } else {
+            toast({
+                title: 'Error',
+                description: 'Failed to add raw materials from invoice',
+                variant: 'destructive'
+            });
         }
     };
 
@@ -873,13 +935,23 @@ export default function ManufacturingInventory() {
                 <TabsContent value="raw-materials" className="space-y-6">
                     <div className="flex justify-between items-center">
                         <h2 className="text-xl font-semibold">Raw Materials Inventory</h2>
-                        <Button
-                            onClick={() => { resetRawMaterialForm(); setIsRawMaterialModalOpen(true); }}
-                            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
-                        >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Raw Material
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsInvoiceScannerOpen(true)}
+                                className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-400 dark:hover:bg-violet-900/20"
+                            >
+                                <ScanLine className="mr-2 h-4 w-4" />
+                                Scan Invoice
+                            </Button>
+                            <Button
+                                onClick={() => { resetRawMaterialForm(); setIsRawMaterialModalOpen(true); }}
+                                className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Raw Material
+                            </Button>
+                        </div>
                     </div>
 
                     {loading ? (
@@ -1896,6 +1968,14 @@ export default function ManufacturingInventory() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* AI Invoice Scanner */}
+            <InvoiceScanner
+                isOpen={isInvoiceScannerOpen}
+                onClose={() => setIsInvoiceScannerOpen(false)}
+                inventoryType="manufacturing"
+                onProductsConfirmed={handleScannedMaterials}
+            />
 
         </div>
     );
