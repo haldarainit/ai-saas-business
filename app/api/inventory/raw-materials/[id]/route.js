@@ -15,7 +15,7 @@ export async function GET(request, { params }) {
             );
         }
 
-        const { id } = params;
+        const { id } = await params;
 
         await dbConnect();
 
@@ -50,7 +50,7 @@ export async function PUT(request, { params }) {
             );
         }
 
-        const { id } = params;
+        const { id } = await params;
         const data = await request.json();
 
         await dbConnect();
@@ -151,7 +151,7 @@ export async function PATCH(request, { params }) {
             );
         }
 
-        const { id } = params;
+        const { id } = await params;
         const { quantity, operation, lastPurchasePrice, lastPurchaseDate } = await request.json();
 
         await dbConnect();

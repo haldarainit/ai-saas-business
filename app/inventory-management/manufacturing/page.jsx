@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
     Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign,
     TrendingUp, Activity, Factory, Boxes, Cog, ArrowRight, ArrowLeft,
-    ClipboardList, RefreshCcw, ShoppingCart
+    ClipboardList, RefreshCcw, ShoppingCart, History, Clock, Calendar,
+    ChevronDown, ChevronUp, Eye, BarChart3, Package
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -72,6 +73,13 @@ export default function ManufacturingInventory() {
     const [bomEditorOpen, setBomEditorOpen] = useState(false);
     const [selectedBomRawMaterial, setSelectedBomRawMaterial] = useState('');
     const [bomQuantity, setBomQuantity] = useState('');
+
+    // Raw Material History State
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [selectedMaterialForHistory, setSelectedMaterialForHistory] = useState(null);
+    const [materialHistory, setMaterialHistory] = useState(null);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [expandedHistoryItems, setExpandedHistoryItems] = useState({});
 
     const unitOptions = ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack'];
 
@@ -437,6 +445,79 @@ export default function ManufacturingInventory() {
             setLoading(false);
         }
     };
+
+    // Raw Material History Functions
+    const openMaterialHistory = async (material) => {
+        setSelectedMaterialForHistory(material);
+        setIsHistoryModalOpen(true);
+        setMaterialHistory(null);
+        setHistoryLoading(true);
+        setExpandedHistoryItems({});
+
+        try {
+            const response = await fetch(`/api/inventory/raw-materials/${material._id}/history`, {
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setMaterialHistory(data);
+            } else {
+                const error = await response.json();
+                toast({
+                    title: 'Error',
+                    description: error.message || 'Failed to fetch material history',
+                    variant: 'destructive'
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching material history:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to load material history',
+                variant: 'destructive'
+            });
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
+    const toggleHistoryItemExpand = (itemId) => {
+        setExpandedHistoryItems(prev => ({
+            ...prev,
+            [itemId]: !prev[itemId]
+        }));
+    };
+
+    const formatTimeAgo = (date) => {
+        const now = new Date();
+        const past = new Date(date);
+        const diffMs = now - past;
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const diffWeeks = Math.floor(diffDays / 7);
+        const diffMonths = Math.floor(diffDays / 30);
+
+        if (diffMins < 60) return `${diffMins} mins ago`;
+        if (diffHours < 24) return `${diffHours} hours ago`;
+        if (diffDays < 7) return `${diffDays} days ago`;
+        if (diffWeeks < 4) return `${diffWeeks} weeks ago`;
+        return `${diffMonths} months ago`;
+    };
+
+    const getTimelineColor = (index, total) => {
+        const colors = [
+            'from-blue-500 to-indigo-500',
+            'from-purple-500 to-pink-500',
+            'from-green-500 to-emerald-500',
+            'from-amber-500 to-orange-500',
+            'from-red-500 to-rose-500',
+            'from-cyan-500 to-teal-500'
+        ];
+        return colors[index % colors.length];
+    };
+
 
     // Metrics
     const totalRawMaterialValue = rawMaterials.reduce((sum, m) => sum + (m.costPerUnit * m.quantity), 0);
@@ -850,7 +931,16 @@ export default function ManufacturingInventory() {
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex justify-end gap-2">
+                                                <div className="flex justify-end gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => openMaterialHistory(material)}
+                                                        title="View usage history"
+                                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                                    >
+                                                        <History className="h-4 w-4" />
+                                                    </Button>
                                                     <Button variant="ghost" size="icon" onClick={() => handleEditRawMaterial(material)}>
                                                         <Edit className="h-4 w-4" />
                                                     </Button>
@@ -1148,11 +1238,25 @@ export default function ManufacturingInventory() {
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label className="text-right">Category</Label>
-                                <Input
+                                <select
                                     value={rawMaterialForm.category}
                                     onChange={(e) => setRawMaterialForm({ ...rawMaterialForm, category: e.target.value })}
-                                    className="col-span-3"
-                                />
+                                    className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                >
+                                    <option value="Uncategorized">Uncategorized</option>
+                                    <option value="Metals">Metals</option>
+                                    <option value="Plastics">Plastics</option>
+                                    <option value="Polymers">Polymers</option>
+                                    <option value="Electronics">Electronics</option>
+                                    <option value="Chemicals">Chemicals</option>
+                                    <option value="Glass">Glass</option>
+                                    <option value="Wood">Wood</option>
+                                    <option value="Textiles">Textiles</option>
+                                    <option value="Hardware">Hardware</option>
+                                    <option value="Packaging">Packaging</option>
+                                    <option value="Consumables">Consumables</option>
+                                    <option value="Other">Other</option>
+                                </select>
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label className="text-right">Unit *</Label>
@@ -1361,78 +1465,172 @@ export default function ManufacturingInventory() {
 
             {/* Production Modal */}
             <Dialog open={isProductionModalOpen} onOpenChange={setIsProductionModalOpen}>
-                <DialogContent>
+                <DialogContent className="sm:max-w-[600px]">
                     <DialogHeader>
-                        <DialogTitle>Produce: {selectedProductForProduction?.name}</DialogTitle>
-                        <DialogDescription>This will consume raw materials and add finished products</DialogDescription>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Factory className="h-5 w-5 text-green-600" />
+                            Produce: {selectedProductForProduction?.name}
+                        </DialogTitle>
+                        <DialogDescription>This will consume raw materials and add finished products to inventory</DialogDescription>
                     </DialogHeader>
 
-                    {selectedProductForProduction && (
-                        <div className="space-y-4">
-                            {/* BOM Preview */}
-                            <div className="rounded-lg border p-4">
-                                <h4 className="font-medium mb-2">Materials per unit:</h4>
-                                <div className="space-y-1 text-sm">
-                                    {selectedProductForProduction.billOfMaterials?.map((item, i) => {
-                                        const rawMaterial = rawMaterials.find(rm => rm._id === item.rawMaterialId);
-                                        const available = rawMaterial?.quantity || 0;
-                                        const needed = item.quantityRequired * parseInt(productionQuantity || 0, 10);
-                                        const isEnough = available >= needed;
+                    {selectedProductForProduction && (() => {
+                        // Calculate max producible quantity based on available materials
+                        const maxProducible = selectedProductForProduction.billOfMaterials?.length > 0
+                            ? Math.floor(Math.min(...selectedProductForProduction.billOfMaterials.map(item => {
+                                const rawMaterial = rawMaterials.find(rm => rm._id === item.rawMaterialId);
+                                const available = rawMaterial?.quantity || 0;
+                                return item.quantityRequired > 0 ? available / item.quantityRequired : 0;
+                            })))
+                            : 0;
 
-                                        return (
-                                            <div key={i} className={`flex justify-between ${!isEnough ? 'text-red-600' : ''}`}>
-                                                <span>{item.rawMaterialName}</span>
-                                                <span>
-                                                    {item.quantityRequired} × {productionQuantity || 0} = {needed.toFixed(2)} {item.unit}
-                                                    <span className="ml-2 text-muted-foreground">(have: {available})</span>
-                                                    {!isEnough && <AlertTriangle className="h-4 w-4 inline ml-1" />}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
+                        const currentQty = parseInt(productionQuantity || 0, 10);
+                        const totalRawMaterialCost = selectedProductForProduction.billOfMaterials?.reduce((sum, item) => {
+                            return sum + (item.quantityRequired * currentQty * (item.costPerUnit || 0));
+                        }, 0) || 0;
+                        const totalMfgCost = (selectedProductForProduction.manufacturingCost || 0) * currentQty;
+                        const totalCost = totalRawMaterialCost + totalMfgCost;
+                        const expectedRevenue = (selectedProductForProduction.sellingPrice || 0) * currentQty;
+                        const expectedProfit = expectedRevenue - totalCost;
+                        const profitMargin = expectedRevenue > 0 ? (expectedProfit / expectedRevenue * 100) : 0;
 
-                            <div className="grid gap-4">
-                                <div>
-                                    <Label>Quantity to Produce</Label>
-                                    <Input
-                                        type="number"
-                                        min="1"
-                                        value={productionQuantity}
-                                        onChange={(e) => setProductionQuantity(e.target.value)}
-                                    />
+                        return (
+                            <div className="space-y-4">
+                                {/* Max Producible Info */}
+                                <div className={`p-4 rounded-lg border-2 ${maxProducible > 0 ? 'border-green-200 bg-green-50 dark:bg-green-900/20' : 'border-red-200 bg-red-50 dark:bg-red-900/20'}`}>
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-medium">Maximum Producible:</span>
+                                        <span className={`text-2xl font-bold ${maxProducible > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {maxProducible} units
+                                        </span>
+                                    </div>
+                                    {maxProducible === 0 && (
+                                        <p className="text-sm text-red-600 mt-1">⚠️ Not enough raw materials to produce even 1 unit</p>
+                                    )}
                                 </div>
+
+                                {/* BOM Preview with Stock Status */}
+                                <div className="rounded-lg border overflow-hidden">
+                                    <div className="bg-muted/50 px-4 py-2 border-b">
+                                        <h4 className="font-medium flex items-center gap-2">
+                                            <Boxes className="h-4 w-4" />
+                                            Raw Materials Required
+                                        </h4>
+                                    </div>
+                                    <div className="divide-y max-h-[200px] overflow-y-auto">
+                                        {selectedProductForProduction.billOfMaterials?.map((item, i) => {
+                                            const rawMaterial = rawMaterials.find(rm => rm._id === item.rawMaterialId);
+                                            const available = rawMaterial?.quantity || 0;
+                                            const needed = item.quantityRequired * currentQty;
+                                            const remaining = available - needed;
+                                            const isEnough = available >= needed;
+                                            const willBeLow = remaining <= (rawMaterial?.minimumStock || 10);
+                                            const itemCost = needed * (item.costPerUnit || 0);
+
+                                            return (
+                                                <div key={i} className={`px-4 py-2 ${!isEnough ? 'bg-red-50 dark:bg-red-900/10' : willBeLow ? 'bg-amber-50 dark:bg-amber-900/10' : ''}`}>
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <div className="font-medium">{item.rawMaterialName}</div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {item.quantityRequired} {item.unit} × {currentQty} units = <span className="font-medium">{needed.toFixed(2)} {item.unit}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="font-medium">₹{itemCost.toFixed(2)}</div>
+                                                            <div className={`text-xs ${!isEnough ? 'text-red-600 font-medium' : willBeLow ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                                                                Stock: {available} → {remaining.toFixed(2)} {item.unit}
+                                                                {!isEnough && <span className="ml-1">❌ Shortage!</span>}
+                                                                {isEnough && willBeLow && <span className="ml-1">⚠️ Low after</span>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Quantity Input */}
+                                <div className="grid gap-2">
+                                    <Label className="flex justify-between">
+                                        <span>Quantity to Produce</span>
+                                        <span className="text-xs text-muted-foreground">Max: {maxProducible}</span>
+                                    </Label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            type="number"
+                                            min="1"
+                                            max={maxProducible}
+                                            value={productionQuantity}
+                                            onChange={(e) => setProductionQuantity(e.target.value)}
+                                            className="flex-1"
+                                        />
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setProductionQuantity(Math.max(1, Math.floor(maxProducible / 2)).toString())}
+                                            disabled={maxProducible < 2}
+                                        >
+                                            Half
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setProductionQuantity(maxProducible.toString())}
+                                            disabled={maxProducible < 1}
+                                        >
+                                            Max
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {/* Notes */}
                                 <div>
-                                    <Label>Notes (Optional)</Label>
+                                    <Label>Production Notes (Optional)</Label>
                                     <Textarea
                                         value={productionNotes}
                                         onChange={(e) => setProductionNotes(e.target.value)}
-                                        placeholder="Production batch notes..."
+                                        placeholder="E.g., Order #12345, Priority batch..."
+                                        rows={2}
                                     />
                                 </div>
-                            </div>
 
-                            {/* Cost Preview */}
-                            <div className="p-4 bg-muted rounded-lg">
-                                <div className="flex justify-between">
-                                    <span>Estimated Cost:</span>
-                                    <span className="font-bold">
-                                        ₹{((selectedProductForProduction.totalCost || 0) * parseInt(productionQuantity || 0, 10)).toFixed(2)}
-                                    </span>
+                                {/* Cost & Profit Summary */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-center">
+                                        <div className="text-xs text-muted-foreground">Raw Material Cost</div>
+                                        <div className="text-lg font-bold text-amber-600">₹{totalRawMaterialCost.toFixed(2)}</div>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-center">
+                                        <div className="text-xs text-muted-foreground">Manufacturing Cost</div>
+                                        <div className="text-lg font-bold text-purple-600">₹{totalMfgCost.toFixed(2)}</div>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-center">
+                                        <div className="text-xs text-muted-foreground">Total Production Cost</div>
+                                        <div className="text-lg font-bold text-blue-600">₹{totalCost.toFixed(2)}</div>
+                                        <div className="text-xs text-muted-foreground">₹{currentQty > 0 ? (totalCost / currentQty).toFixed(2) : '0.00'}/unit</div>
+                                    </div>
+                                    <div className={`p-3 rounded-lg text-center ${expectedProfit >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
+                                        <div className="text-xs text-muted-foreground">Expected Profit</div>
+                                        <div className={`text-lg font-bold ${expectedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            ₹{expectedProfit.toFixed(2)}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {profitMargin >= 0 ? '↑' : '↓'} {Math.abs(profitMargin).toFixed(1)}% margin
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        );
+                    })()}
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsProductionModalOpen(false)}>Cancel</Button>
                         <Button
                             onClick={handleProduction}
-                            disabled={loading}
-                            className="bg-gradient-to-r from-green-500 to-emerald-500"
+                            disabled={loading || parseInt(productionQuantity || 0, 10) < 1}
+                            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
                         >
-                            {loading ? 'Producing...' : 'Start Production'}
+                            {loading ? 'Producing...' : `Produce ${productionQuantity || 0} Units`}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -1448,6 +1646,258 @@ export default function ManufacturingInventory() {
                     </AlertDescription>
                 </Alert>
             )}
+
+            {/* Raw Material History Modal - Compact Design */}
+            <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+                <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-hidden flex flex-col">
+                    <DialogHeader className="pb-3">
+                        <DialogTitle className="flex items-center gap-2 text-lg">
+                            <History className="h-5 w-5 text-blue-600" />
+                            {selectedMaterialForHistory?.name}
+                            <Badge variant="outline" className="ml-2 font-normal">
+                                {selectedMaterialForHistory?.sku}
+                            </Badge>
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto space-y-4">
+                        {historyLoading ? (
+                            <div className="space-y-3">
+                                <Skeleton className="h-16 w-full" />
+                                <Skeleton className="h-24 w-full" />
+                                <Skeleton className="h-32 w-full" />
+                            </div>
+                        ) : materialHistory ? (
+                            <>
+                                {/* Quick Stats Row */}
+                                <div className="grid grid-cols-4 gap-2">
+                                    <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-center">
+                                        <div className="text-lg font-bold text-blue-600">
+                                            {materialHistory.rawMaterial.currentStock}
+                                            <span className="text-xs font-normal ml-1">{materialHistory.rawMaterial.unit}</span>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">In Stock</div>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-center">
+                                        <div className="text-lg font-bold text-red-600">
+                                            {materialHistory.summary.totalConsumed.toFixed(1)}
+                                            <span className="text-xs font-normal ml-1">{materialHistory.rawMaterial.unit}</span>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">Total Used</div>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-center">
+                                        <div className="text-lg font-bold text-purple-600">
+                                            {materialHistory.summary.uniqueProducts}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">Products</div>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-center">
+                                        <div className="text-lg font-bold text-green-600">
+                                            {materialHistory.summary.totalBatches}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">Batches</div>
+                                    </div>
+                                </div>
+
+                                {/* Products Using This Material - Compact Table */}
+                                {materialHistory.productsUsingMaterial && materialHistory.productsUsingMaterial.length > 0 && (
+                                    <div className="rounded-lg border overflow-hidden">
+                                        <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 px-3 py-2 border-b">
+                                            <h4 className="font-semibold text-sm flex items-center gap-2">
+                                                <Package2 className="h-4 w-4 text-purple-600" />
+                                                Products Using This Material
+                                            </h4>
+                                        </div>
+                                        <div className="divide-y">
+                                            {materialHistory.productsUsingMaterial.map((product, index) => {
+                                                const usageData = materialHistory.productUsageBreakdown?.find(
+                                                    u => u.productId.toString() === product._id.toString()
+                                                );
+                                                const maxUsage = Math.max(...(materialHistory.productUsageBreakdown?.map(u => u.totalQuantityUsed) || [1]));
+                                                const usagePercent = usageData ? (usageData.totalQuantityUsed / maxUsage) * 100 : 0;
+
+                                                return (
+                                                    <div key={product._id} className="px-3 py-2 hover:bg-muted/30">
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                                <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${getTimelineColor(index, materialHistory.productsUsingMaterial.length)} flex items-center justify-center text-xs font-bold text-white shrink-0`}>
+                                                                    {index + 1}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <div className="font-medium text-sm truncate">{product.name}</div>
+                                                                    <div className="text-xs text-muted-foreground">{product.sku}</div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="text-center shrink-0 w-20">
+                                                                <div className="text-sm font-bold text-blue-600">
+                                                                    {product.quantityRequiredPerUnit} {product.unit}
+                                                                </div>
+                                                                <div className="text-[10px] text-muted-foreground">per unit</div>
+                                                            </div>
+
+                                                            <div className="text-center shrink-0 w-24">
+                                                                {usageData ? (
+                                                                    <>
+                                                                        <div className="text-sm font-bold text-red-600">
+                                                                            {usageData.totalQuantityUsed.toFixed(1)} {materialHistory.rawMaterial.unit}
+                                                                        </div>
+                                                                        <div className="text-[10px] text-muted-foreground">{usageData.batches} batches</div>
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-xs text-muted-foreground">Not used yet</span>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="text-right shrink-0 w-20">
+                                                                {usageData ? (
+                                                                    <div className="text-sm font-bold text-amber-600">
+                                                                        ₹{usageData.totalCost.toFixed(0)}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-xs text-muted-foreground">—</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {usageData && (
+                                                            <div className="mt-1.5 h-1 w-full bg-muted rounded-full overflow-hidden">
+                                                                <div
+                                                                    className={`h-full bg-gradient-to-r ${getTimelineColor(index, materialHistory.productsUsingMaterial.length)} transition-all duration-500`}
+                                                                    style={{ width: `${usagePercent}%` }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Production Timeline - Compact Table Version */}
+                                <div className="rounded-lg border overflow-hidden">
+                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-3 py-2 border-b flex items-center justify-between">
+                                        <h4 className="font-semibold text-sm flex items-center gap-2">
+                                            <Clock className="h-4 w-4 text-blue-600" />
+                                            Production History
+                                        </h4>
+                                        <span className="text-xs text-muted-foreground">
+                                            {materialHistory.usageHistory.length} records
+                                        </span>
+                                    </div>
+
+                                    {materialHistory.usageHistory.length === 0 ? (
+                                        <div className="text-center py-6 text-muted-foreground">
+                                            <History className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                                            <p className="text-sm">No production history yet</p>
+                                        </div>
+                                    ) : (
+                                        <div className="max-h-[250px] overflow-y-auto">
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-muted/50 sticky top-0">
+                                                    <tr className="text-xs text-muted-foreground">
+                                                        <th className="text-left px-3 py-2 font-medium">Date</th>
+                                                        <th className="text-left px-3 py-2 font-medium">Product</th>
+                                                        <th className="text-center px-3 py-2 font-medium">Used</th>
+                                                        <th className="text-center px-3 py-2 font-medium">Produced</th>
+                                                        <th className="text-right px-3 py-2 font-medium">Cost</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y">
+                                                    {materialHistory.usageHistory.map((item, index) => (
+                                                        <tr key={item._id} className="hover:bg-muted/30">
+                                                            <td className="px-3 py-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className={`w-2 h-2 rounded-full bg-gradient-to-br ${getTimelineColor(index, materialHistory.usageHistory.length)}`} />
+                                                                    <div>
+                                                                        <div className="font-medium text-xs">
+                                                                            {new Date(item.productionDate).toLocaleDateString('en-IN', {
+                                                                                day: '2-digit',
+                                                                                month: 'short',
+                                                                                year: '2-digit'
+                                                                            })}
+                                                                        </div>
+                                                                        <div className="text-[10px] text-muted-foreground">
+                                                                            {formatTimeAgo(item.productionDate)}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <div className="font-medium truncate max-w-[140px]">{item.productName}</div>
+                                                                <div className="text-[10px] text-muted-foreground">{item.productSku}</div>
+                                                            </td>
+                                                            <td className="px-3 py-2 text-center">
+                                                                <span className="font-bold text-red-600">-{item.quantityConsumed.toFixed(1)}</span>
+                                                                <span className="text-xs text-muted-foreground ml-1">{item.unit}</span>
+                                                            </td>
+                                                            <td className="px-3 py-2 text-center">
+                                                                <span className="font-bold text-green-600">+{item.productQuantityProduced}</span>
+                                                                <span className="text-xs text-muted-foreground ml-1">units</span>
+                                                            </td>
+                                                            <td className="px-3 py-2 text-right">
+                                                                <span className="font-bold text-amber-600">₹{item.totalCost.toFixed(0)}</span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Monthly Trend - Compact */}
+                                {materialHistory.monthlyTrend && materialHistory.monthlyTrend.some(m => m.quantityUsed > 0) && (
+                                    <div className="rounded-lg border p-3">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h4 className="font-semibold text-sm flex items-center gap-2">
+                                                <BarChart3 className="h-4 w-4 text-indigo-600" />
+                                                Monthly Trend
+                                            </h4>
+                                            <span className="text-xs text-muted-foreground">Last 12 months</span>
+                                        </div>
+                                        <div className="flex items-end justify-between gap-1 h-14">
+                                            {materialHistory.monthlyTrend.map((month, index) => {
+                                                const maxQty = Math.max(...materialHistory.monthlyTrend.map(m => m.quantityUsed));
+                                                const heightPercent = maxQty > 0 ? (month.quantityUsed / maxQty) * 100 : 0;
+                                                return (
+                                                    <div key={month.month} className="flex-1 flex flex-col items-center">
+                                                        <div
+                                                            className={`w-full rounded-t transition-all duration-300 ${month.quantityUsed > 0
+                                                                ? 'bg-gradient-to-t from-indigo-500 to-purple-400'
+                                                                : 'bg-muted/30'
+                                                                }`}
+                                                            style={{ height: `${Math.max(heightPercent, 4)}%` }}
+                                                            title={`${month.month}: ${month.quantityUsed.toFixed(1)} ${materialHistory.rawMaterial.unit}`}
+                                                        />
+                                                        <div className="text-[8px] text-muted-foreground mt-1">
+                                                            {month.month.slice(5)}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="text-center py-8 text-muted-foreground">
+                                <AlertTriangle className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                                <p className="text-sm">Failed to load history</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter className="pt-3 border-t">
+                        <Button variant="outline" size="sm" onClick={() => setIsHistoryModalOpen(false)}>
+                            Close
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
+
