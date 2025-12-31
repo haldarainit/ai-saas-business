@@ -596,17 +596,34 @@ export default function TradingInventory() {
 
         for (const item of items) {
             try {
+                // Calculate cost price from basePrice + gstAmount if available
+                const basePrice = parseFloat(item.basePrice) || 0;
+                const gstAmount = parseFloat(item.gstAmount) || 0;
+                const calculatedCostPrice = basePrice + gstAmount;
+
+                // Use costPrice from item if available, otherwise use calculated value
+                const costPrice = parseFloat(item.costPrice) || calculatedCostPrice || 0;
+
+                // Use sellingPrice from item, fallback to cost * 1.25 (25% margin)
+                const sellingPrice = parseFloat(item.sellingPrice) || (costPrice * 1.25);
+
+                // Use quantity from the edited item
+                const quantity = parseFloat(item.quantity) || 0;
+
                 const productData = {
-                    name: item.name,
+                    name: item.name || '',
                     description: item.description || '',
-                    sku: item.sku,
+                    sku: item.sku || '',
                     category: item.category || 'Uncategorized',
-                    price: item.sellingPrice || 0,
-                    cost: item.costPrice || 0,
-                    quantity: item.quantity || 0,
-                    shelf: 'Default',
-                    supplier: supplierInfo?.name || item.supplier || ''
+                    price: sellingPrice,  // Selling price for product
+                    cost: costPrice,      // Cost price (including GST)
+                    quantity: quantity,
+                    shelf: item.shelf || 'Default',
+                    supplier: supplierInfo?.name || item.supplier || '',
+                    hsnCode: item.hsnCode || ''
                 };
+
+                console.log('Adding product:', productData); // Debug log
 
                 const response = await fetch('/api/inventory/products', {
                     method: 'POST',
@@ -620,6 +637,8 @@ export default function TradingInventory() {
                     setProducts(prev => [newProduct, ...prev]);
                     successCount++;
                 } else {
+                    const errorData = await response.json();
+                    console.error('Failed to add product:', errorData);
                     errorCount++;
                 }
             } catch (error) {

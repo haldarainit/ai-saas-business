@@ -271,19 +271,34 @@ export default function ManufacturingInventory() {
 
         for (const item of items) {
             try {
+                // Calculate cost per unit from basePrice + gstAmount if available
+                const basePrice = parseFloat(item.basePrice) || 0;
+                const gstAmount = parseFloat(item.gstAmount) || 0;
+                const calculatedCostPerUnit = basePrice + gstAmount;
+
+                // Use costPerUnit from item if available, otherwise use calculated value
+                const costPerUnit = parseFloat(item.costPerUnit) || calculatedCostPerUnit || 0;
+
+                // Use quantity from the edited item
+                const quantity = parseFloat(item.quantity) || 0;
+
                 const materialData = {
-                    name: item.name,
+                    name: item.name || '',
                     description: item.description || '',
-                    sku: item.sku,
+                    sku: item.sku || '',
                     category: item.category || 'Uncategorized',
                     unit: item.unit || 'pcs',
-                    costPerUnit: item.costPerUnit || 0,
-                    quantity: item.quantity || 0,
-                    minimumStock: 10,
-                    shelf: 'Default',
+                    costPerUnit: costPerUnit,
+                    quantity: quantity,
+                    minimumStock: item.minimumStock || 10,
+                    shelf: item.shelf || 'Default',
                     supplier: supplierInfo?.name || item.supplier || '',
-                    supplierContact: supplierInfo?.contact || item.supplierContact || ''
+                    supplierContact: supplierInfo?.contact || item.supplierContact || '',
+                    hsnCode: item.hsnCode || '',
+                    expiryDate: item.expiryDate || null
                 };
+
+                console.log('Adding raw material:', materialData); // Debug log
 
                 const response = await fetch('/api/inventory/raw-materials', {
                     method: 'POST',
@@ -295,6 +310,8 @@ export default function ManufacturingInventory() {
                 if (response.ok) {
                     successCount++;
                 } else {
+                    const errorData = await response.json();
+                    console.error('Failed to add material:', errorData);
                     errorCount++;
                 }
             } catch (error) {
