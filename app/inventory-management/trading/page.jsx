@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import Analytics from '../components/Analytics';
 import CSVUpload from '../components/CSVUpload';
+import InvoiceScanner from '@/components/inventory/InvoiceScanner';
 
 export default function TradingInventory() {
     const [products, setProducts] = useState([]);
@@ -26,6 +27,13 @@ export default function TradingInventory() {
     const [activeTab, setActiveTab] = useState('inventory');
     const [showCSVUpload, setShowCSVUpload] = useState(false);
     const { toast } = useToast();
+
+    // Invoice Scanner State
+    const [isInvoiceScannerOpen, setIsInvoiceScannerOpen] = useState(false);
+
+    // Delete confirmation dialog state
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [productToDelete, setProductToDelete] = useState(null);
 
     // Form state
     const [shelves, setShelves] = useState(['Default', 'A1', 'A2', 'B1', 'B2']);
@@ -328,7 +336,7 @@ export default function TradingInventory() {
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                            onClick={() => handleDelete(product._id)}
+                                            onClick={() => handleDelete(product)}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                             <span className="sr-only">Delete</span>
@@ -541,12 +549,18 @@ export default function TradingInventory() {
         setIsModalOpen(true);
     };
 
-    // Handle delete product
-    const handleDelete = async (productId) => {
-        if (!window.confirm('Are you sure you want to delete this product?')) return;
+    // Handle delete product - open confirmation dialog
+    const handleDelete = (product) => {
+        setProductToDelete(product);
+        setDeleteDialogOpen(true);
+    };
+
+    // Confirm delete product
+    const confirmDelete = async () => {
+        if (!productToDelete) return;
 
         try {
-            const response = await fetch(`/api/inventory/products/${productId}`, {
+            const response = await fetch(`/api/inventory/products/${productToDelete._id}`, {
                 method: 'DELETE',
                 credentials: 'include',
             });
@@ -556,7 +570,7 @@ export default function TradingInventory() {
                 throw new Error(data.message || 'Failed to delete product');
             }
 
-            setProducts(products.filter(p => p._id !== productId));
+            setProducts(products.filter(p => p._id !== productToDelete._id));
 
             toast({
                 title: 'Success',
@@ -568,6 +582,83 @@ export default function TradingInventory() {
                 title: 'Error',
                 description: error.message || 'Failed to delete product',
                 variant: 'destructive',
+            });
+        } finally {
+            setDeleteDialogOpen(false);
+            setProductToDelete(null);
+        }
+    };
+
+    // Handle scanned products from invoice
+    const handleScannedProducts = async (items, supplierInfo) => {
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const item of items) {
+            try {
+                // Calculate cost price from basePrice + gstAmount if available
+                const basePrice = parseFloat(item.basePrice) || 0;
+                const gstAmount = parseFloat(item.gstAmount) || 0;
+                const calculatedCostPrice = basePrice + gstAmount;
+
+                // Use costPrice from item if available, otherwise use calculated value
+                const costPrice = parseFloat(item.costPrice) || calculatedCostPrice || 0;
+
+                // Use sellingPrice from item, fallback to cost * 1.25 (25% margin)
+                const sellingPrice = parseFloat(item.sellingPrice) || (costPrice * 1.25);
+
+                // Use quantity from the edited item
+                const quantity = parseFloat(item.quantity) || 0;
+
+                const productData = {
+                    name: item.name || '',
+                    description: item.description || '',
+                    sku: item.sku || '',
+                    category: item.category || 'Uncategorized',
+                    price: sellingPrice,  // Selling price for product
+                    cost: costPrice,      // Cost price (including GST)
+                    quantity: quantity,
+                    shelf: item.shelf || 'Default',
+                    supplier: supplierInfo?.name || item.supplier || '',
+                    hsnCode: item.hsnCode || ''
+                };
+
+                console.log('Adding product:', productData); // Debug log
+
+                const response = await fetch('/api/inventory/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(productData)
+                });
+
+                if (response.ok) {
+                    const newProduct = await response.json();
+                    setProducts(prev => [newProduct, ...prev]);
+                    successCount++;
+                } else {
+                    const errorData = await response.json();
+                    console.error('Failed to add product:', errorData);
+                    errorCount++;
+                }
+            } catch (error) {
+                console.error('Error adding product:', error);
+                errorCount++;
+            }
+        }
+
+        // Show result toast
+        if (successCount > 0) {
+            toast({
+                title: 'Products Added',
+                description: `Successfully added ${successCount} product${successCount > 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
+                variant: errorCount > 0 ? 'warning' : 'default'
+            });
+        } else {
+            toast({
+                title: 'Error',
+                description: 'Failed to add products from invoice',
+                variant: 'destructive'
             });
         }
     };
@@ -644,6 +735,14 @@ export default function TradingInventory() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    <Button
+                        variant="outline"
+                        onClick={() => setIsInvoiceScannerOpen(true)}
+                        className="gap-2 border-violet-400 text-violet-700 hover:bg-violet-50 dark:border-violet-600 dark:text-violet-400 dark:hover:bg-violet-900/20"
+                    >
+                        <ScanLine className="h-4 w-4" />
+                        Scan Invoice
+                    </Button>
                     <Link href="/inventory-management/manufacturing">
                         <Button variant="outline" className="gap-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20">
                             <Factory className="h-4 w-4" />
@@ -709,12 +808,50 @@ export default function TradingInventory() {
                                         <Label htmlFor="category" className="text-right">
                                             Category
                                         </Label>
-                                        <Input
+                                        <select
                                             id="category"
                                             value={formData.category}
                                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                            className="col-span-3"
-                                        />
+                                            className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <option value="Uncategorized">Uncategorized</option>
+                                            <optgroup label="Plumbing & Sanitary">
+                                                <option value="Plumbing">Plumbing</option>
+                                                <option value="Sanitary Ware">Sanitary Ware</option>
+                                                <option value="Pipes & Fittings">Pipes & Fittings</option>
+                                                <option value="Valves & Taps">Valves & Taps</option>
+                                                <option value="Bathroom Accessories">Bathroom Accessories</option>
+                                            </optgroup>
+                                            <optgroup label="Electrical">
+                                                <option value="Electrical">Electrical</option>
+                                                <option value="Wires & Cables">Wires & Cables</option>
+                                                <option value="Switches & Sockets">Switches & Sockets</option>
+                                                <option value="Lighting">Lighting</option>
+                                            </optgroup>
+                                            <optgroup label="Construction">
+                                                <option value="Construction Materials">Construction Materials</option>
+                                                <option value="Cement & Concrete">Cement & Concrete</option>
+                                                <option value="Tiles & Flooring">Tiles & Flooring</option>
+                                                <option value="Paints & Coatings">Paints & Coatings</option>
+                                                <option value="Adhesives & Sealants">Adhesives & Sealants</option>
+                                            </optgroup>
+                                            <optgroup label="Hardware">
+                                                <option value="Hardware">Hardware</option>
+                                                <option value="Fasteners">Fasteners</option>
+                                                <option value="Tools & Equipment">Tools & Equipment</option>
+                                                <option value="Locks & Security">Locks & Security</option>
+                                            </optgroup>
+                                            <optgroup label="General">
+                                                <option value="Electronics">Electronics</option>
+                                                <option value="Furniture">Furniture</option>
+                                                <option value="Automotive">Automotive</option>
+                                                <option value="Food & Beverages">Food & Beverages</option>
+                                                <option value="Office Supplies">Office Supplies</option>
+                                                <option value="Chemicals">Chemicals</option>
+                                                <option value="Industrial Supplies">Industrial Supplies</option>
+                                                <option value="Other">Other</option>
+                                            </optgroup>
+                                        </select>
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
                                         <Label htmlFor="price" className="text-right">
@@ -1101,6 +1238,46 @@ export default function TradingInventory() {
             ) : (
                 <Analytics products={products} />
             )}
+
+            {/* AI Invoice Scanner */}
+            <InvoiceScanner
+                isOpen={isInvoiceScannerOpen}
+                onClose={() => setIsInvoiceScannerOpen(false)}
+                inventoryType="trading"
+                onProductsConfirmed={handleScannedProducts}
+            />
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <Trash2 className="h-5 w-5" />
+                            Delete Product
+                        </DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this product? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {productToDelete && (
+                        <div className="py-4">
+                            <div className="p-4 rounded-lg bg-muted/50 border">
+                                <p className="font-medium">{productToDelete.name}</p>
+                                <p className="text-sm text-muted-foreground">SKU: {productToDelete.sku}</p>
+                                <p className="text-sm text-muted-foreground">Quantity: {productToDelete.quantity}</p>
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex justify-end gap-3">
+                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={confirmDelete}>
+                            Delete
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

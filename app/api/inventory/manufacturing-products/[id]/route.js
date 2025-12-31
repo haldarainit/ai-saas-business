@@ -16,7 +16,7 @@ export async function GET(request, { params }) {
             );
         }
 
-        const { id } = params;
+        const { id } = await params;
 
         await dbConnect();
 
@@ -51,7 +51,7 @@ export async function PUT(request, { params }) {
             );
         }
 
-        const { id } = params;
+        const { id } = await params;
         const data = await request.json();
 
         await dbConnect();
