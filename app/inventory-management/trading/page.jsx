@@ -789,12 +789,50 @@ export default function TradingInventory() {
                                         <Label htmlFor="category" className="text-right">
                                             Category
                                         </Label>
-                                        <Input
+                                        <select
                                             id="category"
                                             value={formData.category}
                                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                            className="col-span-3"
-                                        />
+                                            className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <option value="Uncategorized">Uncategorized</option>
+                                            <optgroup label="Plumbing & Sanitary">
+                                                <option value="Plumbing">Plumbing</option>
+                                                <option value="Sanitary Ware">Sanitary Ware</option>
+                                                <option value="Pipes & Fittings">Pipes & Fittings</option>
+                                                <option value="Valves & Taps">Valves & Taps</option>
+                                                <option value="Bathroom Accessories">Bathroom Accessories</option>
+                                            </optgroup>
+                                            <optgroup label="Electrical">
+                                                <option value="Electrical">Electrical</option>
+                                                <option value="Wires & Cables">Wires & Cables</option>
+                                                <option value="Switches & Sockets">Switches & Sockets</option>
+                                                <option value="Lighting">Lighting</option>
+                                            </optgroup>
+                                            <optgroup label="Construction">
+                                                <option value="Construction Materials">Construction Materials</option>
+                                                <option value="Cement & Concrete">Cement & Concrete</option>
+                                                <option value="Tiles & Flooring">Tiles & Flooring</option>
+                                                <option value="Paints & Coatings">Paints & Coatings</option>
+                                                <option value="Adhesives & Sealants">Adhesives & Sealants</option>
+                                            </optgroup>
+                                            <optgroup label="Hardware">
+                                                <option value="Hardware">Hardware</option>
+                                                <option value="Fasteners">Fasteners</option>
+                                                <option value="Tools & Equipment">Tools & Equipment</option>
+                                                <option value="Locks & Security">Locks & Security</option>
+                                            </optgroup>
+                                            <optgroup label="General">
+                                                <option value="Electronics">Electronics</option>
+                                                <option value="Furniture">Furniture</option>
+                                                <option value="Automotive">Automotive</option>
+                                                <option value="Food & Beverages">Food & Beverages</option>
+                                                <option value="Office Supplies">Office Supplies</option>
+                                                <option value="Chemicals">Chemicals</option>
+                                                <option value="Industrial Supplies">Industrial Supplies</option>
+                                                <option value="Other">Other</option>
+                                            </optgroup>
+                                        </select>
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
                                         <Label htmlFor="price" className="text-right">

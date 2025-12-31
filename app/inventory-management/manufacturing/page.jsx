@@ -1338,21 +1338,56 @@ export default function ManufacturingInventory() {
                                 <select
                                     value={rawMaterialForm.category}
                                     onChange={(e) => setRawMaterialForm({ ...rawMaterialForm, category: e.target.value })}
-                                    className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
                                     <option value="Uncategorized">Uncategorized</option>
-                                    <option value="Metals">Metals</option>
-                                    <option value="Plastics">Plastics</option>
-                                    <option value="Polymers">Polymers</option>
-                                    <option value="Electronics">Electronics</option>
-                                    <option value="Chemicals">Chemicals</option>
-                                    <option value="Glass">Glass</option>
-                                    <option value="Wood">Wood</option>
-                                    <option value="Textiles">Textiles</option>
-                                    <option value="Hardware">Hardware</option>
-                                    <option value="Packaging">Packaging</option>
-                                    <option value="Consumables">Consumables</option>
-                                    <option value="Other">Other</option>
+                                    <optgroup label="Metals">
+                                        <option value="Metals">Metals (General)</option>
+                                        <option value="Steel">Steel</option>
+                                        <option value="Aluminum">Aluminum</option>
+                                        <option value="Copper">Copper</option>
+                                        <option value="Brass">Brass</option>
+                                        <option value="Iron">Iron</option>
+                                    </optgroup>
+                                    <optgroup label="Plastics & Polymers">
+                                        <option value="Plastics">Plastics (General)</option>
+                                        <option value="PVC">PVC</option>
+                                        <option value="CPVC">CPVC</option>
+                                        <option value="HDPE">HDPE</option>
+                                        <option value="ABS">ABS</option>
+                                        <option value="Polymers">Polymers</option>
+                                        <option value="Rubber">Rubber</option>
+                                    </optgroup>
+                                    <optgroup label="Building Materials">
+                                        <option value="Cement">Cement</option>
+                                        <option value="Sand & Aggregates">Sand & Aggregates</option>
+                                        <option value="Tiles">Tiles</option>
+                                        <option value="Glass">Glass</option>
+                                        <option value="Wood & Timber">Wood & Timber</option>
+                                    </optgroup>
+                                    <optgroup label="Chemicals & Coatings">
+                                        <option value="Chemicals">Chemicals</option>
+                                        <option value="Solvents">Solvents</option>
+                                        <option value="Adhesives">Adhesives</option>
+                                        <option value="Paints">Paints</option>
+                                        <option value="Coatings">Coatings</option>
+                                        <option value="Lubricants">Lubricants</option>
+                                    </optgroup>
+                                    <optgroup label="Components & Parts">
+                                        <option value="Plumbing Components">Plumbing Components</option>
+                                        <option value="Pipe Fittings">Pipe Fittings</option>
+                                        <option value="Valves">Valves</option>
+                                        <option value="Connectors">Connectors</option>
+                                        <option value="Fasteners">Fasteners</option>
+                                        <option value="Electronics Components">Electronics Components</option>
+                                    </optgroup>
+                                    <optgroup label="Other">
+                                        <option value="Textiles">Textiles</option>
+                                        <option value="Hardware">Hardware</option>
+                                        <option value="Packaging">Packaging</option>
+                                        <option value="Consumables">Consumables</option>
+                                        <option value="Other">Other</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
@@ -1458,6 +1493,38 @@ export default function ManufacturingInventory() {
                                         className="col-span-3"
                                         required
                                     />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label className="text-right">Category</Label>
+                                    <select
+                                        value={productForm.category}
+                                        onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
+                                        className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    >
+                                        <option value="Uncategorized">Uncategorized</option>
+                                        <optgroup label="Plumbing & Sanitary">
+                                            <option value="Plumbing Products">Plumbing Products</option>
+                                            <option value="Sanitary Products">Sanitary Products</option>
+                                            <option value="Pipe Assemblies">Pipe Assemblies</option>
+                                        </optgroup>
+                                        <optgroup label="Electrical">
+                                            <option value="Electrical Products">Electrical Products</option>
+                                            <option value="Wiring Assemblies">Wiring Assemblies</option>
+                                        </optgroup>
+                                        <optgroup label="Furniture & Home">
+                                            <option value="Furniture">Furniture</option>
+                                            <option value="Home Products">Home Products</option>
+                                        </optgroup>
+                                        <optgroup label="Industrial">
+                                            <option value="Industrial Products">Industrial Products</option>
+                                            <option value="Machine Parts">Machine Parts</option>
+                                            <option value="Tools">Tools</option>
+                                        </optgroup>
+                                        <optgroup label="Other">
+                                            <option value="Consumer Products">Consumer Products</option>
+                                            <option value="Other">Other</option>
+                                        </optgroup>
+                                    </select>
                                 </div>
                                 <div className="grid grid-cols-4 items-center gap-4">
                                     <Label className="text-right">Selling Price *</Label>
