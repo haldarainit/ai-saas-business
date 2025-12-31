@@ -4,6 +4,8 @@
 
 **Error Message:**
 
+
+
 ```
 [Error: You cannot use different slug names for the same dynamic path ('id' !== 'trackingId').]
 ```
