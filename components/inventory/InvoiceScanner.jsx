@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
     Upload, FileText, Image, Sparkles, AlertTriangle, Check, X,
-    Edit2, Trash2, Plus, Loader2, ScanLine, Eye, FileCheck, Save
+    Edit2, Trash2, Plus, Loader2, ScanLine, Eye, FileCheck, Save, Files, Receipt
 } from 'lucide-react';
 
 export default function InvoiceScanner({
@@ -21,8 +21,8 @@ export default function InvoiceScanner({
     onProductsConfirmed,
     existingCategories = []
 }) {
-    const [file, setFile] = useState(null);
-    const [filePreview, setFilePreview] = useState(null);
+    const [files, setFiles] = useState([]);
+    const [filePreviews, setFilePreviews] = useState([]);
     const [scanning, setScanning] = useState(false);
     const [scanResult, setScanResult] = useState(null);
     const [editingItemIndex, setEditingItemIndex] = useState(null);
@@ -36,42 +36,42 @@ export default function InvoiceScanner({
         : ['Uncategorized', 'Electronics', 'Clothing', 'Food', 'Furniture', 'Automotive', 'Industrial', 'Office Supplies', 'Hardware', 'Other'];
 
     const handleFileSelect = (e) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            setFile(selectedFile);
+        const selectedFiles = Array.from(e.target.files || []);
+        if (selectedFiles.length > 0) {
+            setFiles(prev => [...prev, ...selectedFiles]);
             setScanResult(null);
             setEditedItems([]);
 
-            // Create preview for images
-            if (selectedFile.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setFilePreview(reader.result);
-                };
-                reader.readAsDataURL(selectedFile);
-            } else {
-                setFilePreview(null);
-            }
+            // Create previews for images
+            selectedFiles.forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setFilePreviews(prev => [...prev, { name: file.name, preview: reader.result }]);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
         }
     };
 
     const handleDrop = (e) => {
         e.preventDefault();
-        const droppedFile = e.dataTransfer.files?.[0];
-        if (droppedFile) {
-            setFile(droppedFile);
+        const droppedFiles = Array.from(e.dataTransfer.files || []);
+        if (droppedFiles.length > 0) {
+            setFiles(prev => [...prev, ...droppedFiles]);
             setScanResult(null);
             setEditedItems([]);
 
-            if (droppedFile.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setFilePreview(reader.result);
-                };
-                reader.readAsDataURL(droppedFile);
-            } else {
-                setFilePreview(null);
-            }
+            droppedFiles.forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setFilePreviews(prev => [...prev, { name: file.name, preview: reader.result }]);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
         }
     };
 
@@ -79,15 +79,23 @@ export default function InvoiceScanner({
         e.preventDefault();
     };
 
+    const removeFile = (index) => {
+        const fileToRemove = files[index];
+        setFiles(files.filter((_, i) => i !== index));
+        setFilePreviews(filePreviews.filter(p => p.name !== fileToRemove.name));
+    };
+
     const handleScan = async () => {
-        if (!file) return;
+        if (files.length === 0) return;
 
         setScanning(true);
         setScanResult(null);
 
         try {
             const formData = new FormData();
-            formData.append('file', file);
+            files.forEach(file => {
+                formData.append('files', file);
+            });
             formData.append('inventoryType', inventoryType);
 
             const response = await fetch('/api/inventory/scan-invoice', {
@@ -103,14 +111,15 @@ export default function InvoiceScanner({
                 setEditedItems(data.items);
             } else {
                 setScanResult({
-                    error: data.message || 'No products found in the invoice',
-                    items: []
+                    error: data.message || 'No products found in the invoice(s)',
+                    items: [],
+                    filesProcessed: data.filesProcessed || []
                 });
             }
         } catch (error) {
             console.error('Scan error:', error);
             setScanResult({
-                error: 'Failed to scan invoice. Please try again.',
+                error: 'Failed to scan invoice(s). Please try again.',
                 items: []
             });
         } finally {
@@ -128,12 +137,22 @@ export default function InvoiceScanner({
     const saveEditForm = () => {
         if (editingItemIndex !== null && editFormData) {
             const updated = [...editedItems];
-            // Recalculate total cost
+            // Recalculate costs with GST
+            const basePrice = parseFloat(editFormData.basePrice) || 0;
+            const gstPercentage = parseFloat(editFormData.gstPercentage) || 0;
+            const gstAmount = basePrice * gstPercentage / 100;
+            const quantity = parseFloat(editFormData.quantity) || 0;
+
+            editFormData.gstAmount = gstAmount;
+
             if (inventoryType === 'manufacturing') {
-                editFormData.totalCost = (parseFloat(editFormData.costPerUnit) || 0) * (parseFloat(editFormData.quantity) || 0);
+                editFormData.costPerUnit = basePrice + gstAmount;
+                editFormData.totalCost = editFormData.costPerUnit * quantity;
             } else {
-                editFormData.totalCost = (parseFloat(editFormData.costPrice) || 0) * (parseFloat(editFormData.quantity) || 0);
+                editFormData.costPrice = basePrice + gstAmount;
+                editFormData.totalCost = editFormData.costPrice * quantity;
             }
+
             updated[editingItemIndex] = editFormData;
             setEditedItems(updated);
             setEditingItemIndex(null);
@@ -159,8 +178,8 @@ export default function InvoiceScanner({
     };
 
     const handleClose = () => {
-        setFile(null);
-        setFilePreview(null);
+        setFiles([]);
+        setFilePreviews([]);
         setScanResult(null);
         setEditedItems([]);
         setEditingItemIndex(null);
@@ -185,7 +204,7 @@ export default function InvoiceScanner({
         <>
             {/* Main Scanner Dialog */}
             <Dialog open={isOpen} onOpenChange={handleClose}>
-                <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-hidden flex flex-col">
+                <DialogContent className="sm:max-w-[1100px] max-h-[90vh] overflow-hidden flex flex-col">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <div className="p-2 bg-gradient-to-r from-violet-500 to-purple-500 rounded-lg">
@@ -199,72 +218,111 @@ export default function InvoiceScanner({
                             </div>
                         </DialogTitle>
                         <DialogDescription>
-                            Upload an invoice (PDF or Image) and our AI will automatically extract {inventoryType === 'manufacturing' ? 'raw materials' : 'products'}
+                            Upload invoices (PDF or Images) - supports multiple files & multi-page PDFs. GST/taxes are automatically included in costs.
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto space-y-4 py-4">
                         {/* File Upload Section */}
                         {!scanResult && !scanning && (
-                            <div
-                                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer
-                                    ${file ? 'border-green-500 bg-green-50/50 dark:bg-green-900/10' : 'border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30'}`}
-                                onDrop={handleDrop}
-                                onDragOver={handleDragOver}
-                                onClick={() => fileInputRef.current?.click()}
-                            >
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept=".pdf,image/*"
-                                    onChange={handleFileSelect}
-                                    className="hidden"
-                                />
+                            <div className="space-y-4">
+                                <div
+                                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer
+                                        ${files.length > 0 ? 'border-green-500 bg-green-50/50 dark:bg-green-900/10' : 'border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30'}`}
+                                    onDrop={handleDrop}
+                                    onDragOver={handleDragOver}
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept=".pdf,image/*"
+                                        onChange={handleFileSelect}
+                                        className="hidden"
+                                        multiple
+                                    />
 
-                                {file ? (
                                     <div className="flex flex-col items-center gap-3">
-                                        <div className="p-4 bg-green-100 dark:bg-green-900/30 rounded-full">
-                                            {file.type === 'application/pdf'
-                                                ? <FileText className="h-10 w-10 text-green-600" />
-                                                : <Image className="h-10 w-10 text-green-600" />
-                                            }
+                                        <div className={`p-4 rounded-full ${files.length > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted/50'}`}>
+                                            <Files className={`h-10 w-10 ${files.length > 0 ? 'text-green-600' : 'text-muted-foreground'}`} />
                                         </div>
                                         <div>
-                                            <p className="font-semibold text-green-700 dark:text-green-400">{file.name}</p>
+                                            <p className="font-semibold">
+                                                {files.length > 0 ? `${files.length} file(s) selected` : 'Drop your invoices here'}
+                                            </p>
                                             <p className="text-sm text-muted-foreground">
-                                                {(file.size / 1024).toFixed(1)} KB • {file.type.split('/')[1].toUpperCase()}
+                                                Click to add more • PDF, PNG, JPG, WEBP • Multi-page supported
                                             </p>
                                         </div>
-                                        {filePreview && (
-                                            <div className="mt-2 max-w-xs max-h-48 overflow-hidden rounded-lg border">
-                                                <img src={filePreview} alt="Preview" className="object-contain w-full h-full" />
-                                            </div>
-                                        )}
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setFile(null);
-                                                setFilePreview(null);
-                                            }}
-                                        >
-                                            <X className="h-4 w-4 mr-1" /> Change File
-                                        </Button>
                                     </div>
-                                ) : (
-                                    <div className="flex flex-col items-center gap-3">
-                                        <div className="p-4 bg-muted/50 rounded-full">
-                                            <Upload className="h-10 w-10 text-muted-foreground" />
+                                </div>
+
+                                {/* File List */}
+                                {files.length > 0 && (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-sm">Selected Files</h4>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => { setFiles([]); setFilePreviews([]); }}
+                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-1" /> Clear All
+                                            </Button>
                                         </div>
-                                        <div>
-                                            <p className="font-semibold">Drop your invoice here</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                or click to browse • PDF, PNG, JPG, WEBP
-                                            </p>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                            {files.map((file, index) => {
+                                                const preview = filePreviews.find(p => p.name === file.name);
+                                                return (
+                                                    <div
+                                                        key={`${file.name}-${index}`}
+                                                        className="relative group border rounded-lg p-3 bg-muted/30"
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            {preview ? (
+                                                                <img src={preview.preview} alt="" className="w-10 h-10 object-cover rounded" />
+                                                            ) : file.type === 'application/pdf' ? (
+                                                                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded flex items-center justify-center">
+                                                                    <FileText className="h-5 w-5 text-red-600" />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded flex items-center justify-center">
+                                                                    <Image className="h-5 w-5 text-blue-600" />
+                                                                </div>
+                                                            )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-medium truncate">{file.name}</p>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    {(file.size / 1024).toFixed(1)} KB
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            onClick={(e) => { e.stopPropagation(); removeFile(index); }}
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
+
+                                {/* GST Info Notice */}
+                                <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                    <Receipt className="h-5 w-5 text-blue-600 mt-0.5" />
+                                    <div>
+                                        <p className="font-medium text-blue-700 dark:text-blue-300">GST/Tax Handling</p>
+                                        <p className="text-sm text-blue-600 dark:text-blue-400">
+                                            All costs will include GST/taxes automatically. Base price + GST = Final cost per unit.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
@@ -277,9 +335,9 @@ export default function InvoiceScanner({
                                         <Sparkles className="h-12 w-12 text-white animate-pulse" />
                                     </div>
                                 </div>
-                                <p className="mt-6 text-lg font-semibold">Analyzing Invoice with AI...</p>
+                                <p className="mt-6 text-lg font-semibold">Analyzing {files.length} Invoice{files.length > 1 ? 's' : ''} with AI...</p>
                                 <p className="text-sm text-muted-foreground">
-                                    Extracting {inventoryType === 'manufacturing' ? 'raw materials' : 'products'} and details
+                                    Extracting {inventoryType === 'manufacturing' ? 'raw materials' : 'products'}, calculating GST & totals
                                 </p>
                                 <div className="mt-4 space-y-2">
                                     <Skeleton className="h-10 w-full max-w-md mx-auto" />
@@ -292,6 +350,21 @@ export default function InvoiceScanner({
                         {/* Scan Results */}
                         {scanResult && !scanning && (
                             <div className="space-y-4">
+                                {/* Files Processed Summary */}
+                                {scanResult.filesProcessed && scanResult.filesProcessed.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {scanResult.filesProcessed.map((file, index) => (
+                                            <Badge
+                                                key={index}
+                                                variant={file.status === 'success' ? 'default' : 'destructive'}
+                                                className={file.status === 'success' ? 'bg-green-500' : ''}
+                                            >
+                                                {file.name} {file.status === 'success' ? `(${file.itemCount} items)` : '(failed)'}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                )}
+
                                 {/* Invoice Info Header */}
                                 {scanResult.supplier && (
                                     <div className="p-4 rounded-lg border bg-muted/30">
@@ -299,6 +372,9 @@ export default function InvoiceScanner({
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Supplier</p>
                                                 <p className="font-semibold">{scanResult.supplier.name || 'Unknown'}</p>
+                                                {scanResult.supplier.gstin && (
+                                                    <p className="text-sm font-mono text-muted-foreground">GSTIN: {scanResult.supplier.gstin}</p>
+                                                )}
                                                 {scanResult.supplier.contact && (
                                                     <p className="text-sm text-muted-foreground">{scanResult.supplier.contact}</p>
                                                 )}
@@ -315,6 +391,23 @@ export default function InvoiceScanner({
                                                 )}
                                             </div>
                                         </div>
+                                        {/* GST Summary */}
+                                        {(scanResult.subtotal > 0 || scanResult.totalGst > 0) && (
+                                            <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-4 text-sm">
+                                                <div>
+                                                    <p className="text-muted-foreground">Subtotal</p>
+                                                    <p className="font-semibold">₹{scanResult.subtotal?.toFixed(2) || '0.00'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-muted-foreground">Total GST</p>
+                                                    <p className="font-semibold text-amber-600">₹{scanResult.totalGst?.toFixed(2) || '0.00'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-muted-foreground">Grand Total</p>
+                                                    <p className="font-semibold text-green-600">₹{scanResult.totalAmount?.toFixed(2) || '0.00'}</p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
@@ -329,11 +422,11 @@ export default function InvoiceScanner({
                                             className="mt-3"
                                             onClick={() => {
                                                 setScanResult(null);
-                                                setFile(null);
-                                                setFilePreview(null);
+                                                setFiles([]);
+                                                setFilePreviews([]);
                                             }}
                                         >
-                                            Try Another File
+                                            Try Other Files
                                         </Button>
                                     </div>
                                 )}
@@ -349,25 +442,25 @@ export default function InvoiceScanner({
                                             </h4>
                                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                                 <Sparkles className="h-4 w-4 text-violet-500" />
-                                                Click Edit to review each item
+                                                Costs include GST
                                             </div>
                                         </div>
 
-                                        <div className="max-h-[350px] overflow-y-auto">
+                                        <div className="max-h-[300px] overflow-y-auto">
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
-                                                        <TableHead className="w-[250px]">Name</TableHead>
+                                                        <TableHead className="w-[200px]">Name</TableHead>
                                                         <TableHead>SKU</TableHead>
-                                                        <TableHead>Category</TableHead>
                                                         <TableHead className="text-center">Qty</TableHead>
+                                                        <TableHead className="text-right">Base Price</TableHead>
+                                                        <TableHead className="text-center">GST %</TableHead>
                                                         <TableHead className="text-right">
-                                                            {inventoryType === 'manufacturing' ? 'Cost/Unit' : 'Cost'}
+                                                            {inventoryType === 'manufacturing' ? 'Cost/Unit' : 'Cost'} (incl. GST)
                                                         </TableHead>
                                                         {inventoryType === 'trading' && (
                                                             <TableHead className="text-right">Sell Price</TableHead>
                                                         )}
-                                                        <TableHead className="text-center">Status</TableHead>
                                                         <TableHead className="text-right">Actions</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
@@ -379,38 +472,38 @@ export default function InvoiceScanner({
                                                         >
                                                             <TableCell>
                                                                 <div>
-                                                                    <p className="font-medium">{item.name}</p>
-                                                                    {item.description && (
-                                                                        <p className="text-xs text-muted-foreground truncate max-w-[230px]">
-                                                                            {item.description}
-                                                                        </p>
+                                                                    <p className="font-medium truncate max-w-[180px]">{item.name}</p>
+                                                                    {item.hsnCode && (
+                                                                        <p className="text-xs text-muted-foreground">HSN: {item.hsnCode}</p>
                                                                     )}
                                                                 </div>
                                                             </TableCell>
                                                             <TableCell>
                                                                 <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.sku}</code>
                                                             </TableCell>
-                                                            <TableCell>
-                                                                <Badge variant="outline" className="text-xs">{item.category}</Badge>
-                                                            </TableCell>
                                                             <TableCell className="text-center">
                                                                 <span className="font-medium">{item.quantity} {item.unit}</span>
                                                             </TableCell>
                                                             <TableCell className="text-right">
-                                                                <span className="font-medium text-amber-600">
+                                                                <span className="text-muted-foreground">₹{item.basePrice?.toFixed(2)}</span>
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {item.gstPercentage || 0}%
+                                                                </Badge>
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                <span className="font-semibold text-green-600">
                                                                     ₹{(inventoryType === 'manufacturing' ? item.costPerUnit : item.costPrice)?.toFixed(2)}
                                                                 </span>
                                                             </TableCell>
                                                             {inventoryType === 'trading' && (
                                                                 <TableCell className="text-right">
-                                                                    <span className="font-medium text-green-600">
+                                                                    <span className="font-medium text-blue-600">
                                                                         ₹{item.sellingPrice?.toFixed(2)}
                                                                     </span>
                                                                 </TableCell>
                                                             )}
-                                                            <TableCell className="text-center">
-                                                                {getConfidenceBadge(item.confidence)}
-                                                            </TableCell>
                                                             <TableCell className="text-right">
                                                                 <div className="flex justify-end gap-1">
                                                                     <Button
@@ -448,8 +541,13 @@ export default function InvoiceScanner({
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="font-semibold">
-                                                Total: ₹{editedItems.reduce((sum, i) => sum + (i.totalCost || 0), 0).toFixed(2)}
+                                            <div className="text-right">
+                                                <div className="text-sm text-muted-foreground">
+                                                    Total GST: ₹{editedItems.reduce((sum, i) => sum + ((i.gstAmount || 0) * (i.quantity || 0)), 0).toFixed(2)}
+                                                </div>
+                                                <div className="font-semibold text-lg">
+                                                    Total (incl. GST): ₹{editedItems.reduce((sum, i) => sum + (i.totalCost || 0), 0).toFixed(2)}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -464,13 +562,13 @@ export default function InvoiceScanner({
                                 Cancel
                             </Button>
                             <div className="flex gap-2">
-                                {!scanResult && file && !scanning && (
+                                {!scanResult && files.length > 0 && !scanning && (
                                     <Button
                                         onClick={handleScan}
                                         className="bg-gradient-to-r from-violet-500 to-purple-500 text-white hover:from-violet-600 hover:to-purple-600"
                                     >
                                         <Sparkles className="h-4 w-4 mr-2" />
-                                        Scan with AI
+                                        Scan {files.length} File{files.length > 1 ? 's' : ''} with AI
                                     </Button>
                                 )}
                                 {scanResult && editedItems.length > 0 && (
@@ -479,12 +577,12 @@ export default function InvoiceScanner({
                                             variant="outline"
                                             onClick={() => {
                                                 setScanResult(null);
-                                                setFile(null);
-                                                setFilePreview(null);
+                                                setFiles([]);
+                                                setFilePreviews([]);
                                                 setEditedItems([]);
                                             }}
                                         >
-                                            Scan Another
+                                            Scan More
                                         </Button>
                                         <Button
                                             onClick={handleConfirm}
@@ -503,14 +601,14 @@ export default function InvoiceScanner({
 
             {/* Edit Item Form Dialog */}
             <Dialog open={editingItemIndex !== null} onOpenChange={closeEditForm}>
-                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Edit2 className="h-5 w-5 text-violet-600" />
                             Edit {inventoryType === 'manufacturing' ? 'Raw Material' : 'Product'}
                         </DialogTitle>
                         <DialogDescription>
-                            Review and modify the extracted details before adding to inventory
+                            Review and modify the extracted details. Costs include GST.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -535,6 +633,17 @@ export default function InvoiceScanner({
                                     onChange={(e) => setEditFormData({ ...editFormData, sku: e.target.value })}
                                     className="col-span-3"
                                     placeholder="Enter SKU code"
+                                />
+                            </div>
+
+                            {/* HSN Code */}
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">HSN Code</Label>
+                                <Input
+                                    value={editFormData.hsnCode || ''}
+                                    onChange={(e) => setEditFormData({ ...editFormData, hsnCode: e.target.value })}
+                                    className="col-span-3"
+                                    placeholder="HSN/SAC code (optional)"
                                 />
                             </div>
 
@@ -591,66 +700,122 @@ export default function InvoiceScanner({
                                 />
                             </div>
 
-                            {/* Cost Per Unit (Manufacturing) or Cost Price (Trading) */}
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label className="text-right">{inventoryType === 'manufacturing' ? 'Cost/Unit *' : 'Cost Price *'}</Label>
-                                <div className="col-span-3 relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
-                                    <Input
-                                        type="number"
-                                        value={inventoryType === 'manufacturing' ? editFormData.costPerUnit : editFormData.costPrice}
-                                        onChange={(e) => setEditFormData({
-                                            ...editFormData,
-                                            [inventoryType === 'manufacturing' ? 'costPerUnit' : 'costPrice']: parseFloat(e.target.value) || 0
-                                        })}
-                                        className="pl-8"
-                                        min="0"
-                                        step="0.01"
-                                    />
-                                </div>
-                            </div>
+                            {/* Pricing Section */}
+                            <div className="border-t pt-4 mt-4">
+                                <h4 className="font-medium mb-4 flex items-center gap-2">
+                                    <Receipt className="h-4 w-4 text-violet-600" />
+                                    Pricing & GST
+                                </h4>
 
-                            {/* Selling Price (Trading only) */}
-                            {inventoryType === 'trading' && (
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label className="text-right">Selling Price *</Label>
+                                {/* Base Price */}
+                                <div className="grid grid-cols-4 items-center gap-4 mb-4">
+                                    <Label className="text-right">Base Price *</Label>
                                     <div className="col-span-3 relative">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
                                         <Input
                                             type="number"
-                                            value={editFormData.sellingPrice}
-                                            onChange={(e) => setEditFormData({ ...editFormData, sellingPrice: parseFloat(e.target.value) || 0 })}
+                                            value={editFormData.basePrice || 0}
+                                            onChange={(e) => {
+                                                const base = parseFloat(e.target.value) || 0;
+                                                const gstPct = editFormData.gstPercentage || 0;
+                                                const gstAmt = base * gstPct / 100;
+                                                setEditFormData({
+                                                    ...editFormData,
+                                                    basePrice: base,
+                                                    gstAmount: gstAmt
+                                                });
+                                            }}
                                             className="pl-8"
                                             min="0"
                                             step="0.01"
                                         />
                                     </div>
                                 </div>
-                            )}
 
-                            {/* Confidence Indicator */}
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label className="text-right">AI Confidence</Label>
+                                {/* GST Percentage */}
+                                <div className="grid grid-cols-4 items-center gap-4 mb-4">
+                                    <Label className="text-right">GST %</Label>
+                                    <div className="col-span-3 flex gap-2">
+                                        <select
+                                            value={editFormData.gstPercentage || 0}
+                                            onChange={(e) => {
+                                                const gstPct = parseFloat(e.target.value) || 0;
+                                                const base = editFormData.basePrice || 0;
+                                                const gstAmt = base * gstPct / 100;
+                                                setEditFormData({
+                                                    ...editFormData,
+                                                    gstPercentage: gstPct,
+                                                    gstAmount: gstAmt
+                                                });
+                                            }}
+                                            className="flex h-10 w-32 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                        >
+                                            <option value={0}>0%</option>
+                                            <option value={5}>5%</option>
+                                            <option value={12}>12%</option>
+                                            <option value={18}>18%</option>
+                                            <option value={28}>28%</option>
+                                        </select>
+                                        <div className="flex-1 flex items-center justify-end text-sm">
+                                            <span className="text-muted-foreground">GST Amount:</span>
+                                            <span className="ml-2 font-medium text-amber-600">
+                                                ₹{((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100).toFixed(2)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Final Cost (auto-calculated) */}
+                                <div className="grid grid-cols-4 items-center gap-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                    <Label className="text-right font-semibold">Final Cost *</Label>
+                                    <div className="col-span-3">
+                                        <span className="text-xl font-bold text-green-600">
+                                            ₹{((editFormData.basePrice || 0) + ((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100)).toFixed(2)}
+                                        </span>
+                                        <span className="text-sm text-muted-foreground ml-2">per {editFormData.unit}</span>
+                                        <p className="text-xs text-green-600 mt-1">
+                                            (Base ₹{(editFormData.basePrice || 0).toFixed(2)} + GST ₹{((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100).toFixed(2)})
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Selling Price (Trading only) */}
+                                {inventoryType === 'trading' && (
+                                    <div className="grid grid-cols-4 items-center gap-4 mt-4">
+                                        <Label className="text-right">Selling Price *</Label>
+                                        <div className="col-span-3 relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
+                                            <Input
+                                                type="number"
+                                                value={editFormData.sellingPrice}
+                                                onChange={(e) => setEditFormData({ ...editFormData, sellingPrice: parseFloat(e.target.value) || 0 })}
+                                                className="pl-8"
+                                                min="0"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Total Cost Summary */}
+                            <div className="grid grid-cols-4 items-center gap-4 pt-4 border-t">
+                                <Label className="text-right font-semibold">Total Value</Label>
                                 <div className="col-span-3">
-                                    {getConfidenceBadge(editFormData.confidence)}
-                                    <span className="ml-2 text-sm text-muted-foreground">
-                                        {editFormData.confidence === 'low' && '- Please verify all fields'}
-                                        {editFormData.confidence === 'medium' && '- Some fields may need review'}
-                                        {editFormData.confidence === 'high' && '- Data looks accurate'}
+                                    <span className="text-xl font-bold text-violet-600">
+                                        ₹{(((editFormData.basePrice || 0) + ((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100)) * (editFormData.quantity || 0)).toFixed(2)}
+                                    </span>
+                                    <span className="text-sm text-muted-foreground ml-2">
+                                        ({editFormData.quantity} × ₹{((editFormData.basePrice || 0) + ((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100)).toFixed(2)})
                                     </span>
                                 </div>
                             </div>
 
-                            {/* Cost Summary */}
-                            <div className="grid grid-cols-4 items-center gap-4 pt-2 border-t">
-                                <Label className="text-right font-semibold">Total Cost</Label>
+                            {/* Confidence */}
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">AI Confidence</Label>
                                 <div className="col-span-3">
-                                    <span className="text-lg font-bold text-violet-600">
-                                        ₹{((inventoryType === 'manufacturing' ? editFormData.costPerUnit : editFormData.costPrice) * editFormData.quantity).toFixed(2)}
-                                    </span>
-                                    <span className="text-sm text-muted-foreground ml-2">
-                                        ({editFormData.quantity} × ₹{(inventoryType === 'manufacturing' ? editFormData.costPerUnit : editFormData.costPrice)?.toFixed(2)})
-                                    </span>
+                                    {getConfidenceBadge(editFormData.confidence)}
                                 </div>
                             </div>
                         </div>
