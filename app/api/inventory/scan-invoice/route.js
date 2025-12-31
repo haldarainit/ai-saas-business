@@ -40,7 +40,34 @@ export async function POST(request) {
             }
         }
 
-        // Build the prompt based on inventory type - UPDATED to include GST/Tax handling
+        // Comprehensive category lists for smart categorization
+        const tradingCategories = [
+            'Plumbing', 'Sanitary Ware', 'Pipes & Fittings', 'Valves & Taps', 'Bathroom Accessories',
+            'Electrical', 'Wires & Cables', 'Switches & Sockets', 'Lighting', 'Electrical Fittings',
+            'Construction Materials', 'Cement & Concrete', 'Tiles & Flooring', 'Paints & Coatings', 'Adhesives & Sealants',
+            'Hardware', 'Fasteners', 'Tools & Equipment', 'Locks & Security', 'Door & Window Fittings',
+            'Furniture', 'Home Decor', 'Kitchen & Dining', 'Storage & Organization',
+            'Industrial Supplies', 'Safety Equipment', 'Machinery Parts', 'Bearings & Belts',
+            'Electronics', 'Automotive', 'Clothing & Textiles', 'Food & Beverages', 'Office Supplies',
+            'Stationery', 'Packaging Materials', 'Chemicals', 'Agricultural', 'Medical Supplies',
+            'Sports & Fitness', 'Toys & Games', 'Pet Supplies', 'Gardening', 'Other'
+        ];
+
+        const manufacturingCategories = [
+            'Metals', 'Steel', 'Aluminum', 'Copper', 'Brass', 'Iron',
+            'Plastics', 'Polymers', 'Rubber', 'PVC', 'CPVC', 'HDPE', 'ABS',
+            'Cement', 'Sand & Aggregates', 'Bricks & Blocks', 'Tiles', 'Glass', 'Wood & Timber',
+            'Chemicals', 'Solvents', 'Adhesives', 'Paints', 'Coatings', 'Lubricants',
+            'Electronics Components', 'Electrical Components', 'Mechanical Parts', 'Fasteners',
+            'Bearings', 'Springs', 'Gaskets & Seals',
+            'Fabrics', 'Textiles', 'Threads & Yarns', 'Leather',
+            'Packaging', 'Consumables', 'Safety Gear', 'Tools', 'Hardware',
+            'Plumbing Components', 'Pipe Fittings', 'Valves', 'Connectors', 'Other'
+        ];
+
+        const categoryList = inventoryType === 'manufacturing' ? manufacturingCategories : tradingCategories;
+
+        // Build the prompt based on inventory type - UPDATED with smart categorization
         const systemPrompt = inventoryType === 'manufacturing'
             ? `You are an expert at extracting raw material and production supply information from invoices.
                Analyze this invoice (including ALL PAGES if multi-page PDF) and extract ALL raw materials/supplies.
@@ -51,12 +78,24 @@ export async function POST(request) {
                - If invoice shows inclusive price, use that as costPerUnit
                - Extract the GST percentage and amount separately for reference
                
+               SMART CATEGORIZATION - YOU MUST CHOOSE FROM THESE CATEGORIES:
+               ${categoryList.join(', ')}
+               
+               Category Guidelines:
+               - CPVC Pipe, PVC Pipe, HDPE Pipe → "CPVC", "PVC", or "Pipes & Fittings"
+               - Elbow, Tee, Socket, Reducer → "Pipe Fittings" or "Plumbing Components"
+               - Commode, Basin, Urinal → "Sanitary Ware"
+               - Tap, Valve, Cock → "Valves"
+               - Solvent, Adhesive → "Solvents" or "Adhesives"
+               - Brass items → "Brass"
+               - If product doesn't fit any category, use "Other"
+               
                Extract the following details for EACH item:
                - name: Material/product name
                - sku: SKU or product code (generate if not found, format: RM-XXXX)
                - description: Brief description
-               - category: Category (e.g., Metals, Chemicals, Fabrics, Electronics, Packaging, etc.)
-               - unit: Unit of measurement (pcs, kg, g, ltr, ml, meter, cm, sqft, sqm, box, pack)
+               - category: MUST be one from the list above - choose the best match
+               - unit: Unit of measurement (pcs, kg, g, ltr, ml, meter, cm, sqft, sqm, box, pack, set, pair, roll)
                - basePrice: Base price per unit BEFORE tax (number only)
                - gstPercentage: GST/Tax percentage (number only, e.g., 18 for 18%)
                - gstAmount: GST/Tax amount per unit (number only)
@@ -69,7 +108,7 @@ export async function POST(request) {
                IMPORTANT:
                - Scan ALL PAGES of the document
                - If SKU is not visible, generate a logical one based on the product name
-               - If category is unclear, intelligently assign based on product type
+               - ALWAYS choose the most specific category from the list
                - If unit is not specified, infer from context
                - Always calculate costPerUnit = basePrice + gstAmount
                - Be thorough - extract EVERY line item from ALL pages of the invoice`
@@ -82,12 +121,27 @@ export async function POST(request) {
                - If invoice shows inclusive price, use that as costPrice
                - Extract the GST percentage and amount separately for reference
                
+               SMART CATEGORIZATION - YOU MUST CHOOSE FROM THESE CATEGORIES:
+               ${categoryList.join(', ')}
+               
+               Category Guidelines:
+               - CPVC Pipe, PVC Pipe, HDPE Pipe → "Pipes & Fittings"
+               - Elbow, Tee, Socket, Reducer, Connector → "Pipes & Fittings"
+               - Commode, Basin, Urinal, Toilet → "Sanitary Ware"
+               - Tap, Valve, Cock, Faucet → "Valves & Taps"
+               - Solvent, Adhesive, Glue → "Adhesives & Sealants"
+               - Paint, Primer, Thinner → "Paints & Coatings"
+               - Wire, Cable → "Wires & Cables"
+               - Switch, Socket, Board → "Switches & Sockets"
+               - Brass items, Copper items → "Hardware" or specific material
+               - If product doesn't fit any category, use "Other"
+               
                Extract the following details for EACH item:
                - name: Product name
                - sku: SKU or product code (generate if not found, format: PRD-XXXX)
                - description: Brief description
-               - category: Category (e.g., Electronics, Clothing, Food, Furniture, etc.)
-               - unit: Unit of measurement (pcs, kg, g, ltr, ml, meter, box, pack)
+               - category: MUST be one from the list above - choose the best match
+               - unit: Unit of measurement (pcs, kg, g, ltr, ml, meter, box, pack, set, pair, roll)
                - basePrice: Base price per unit BEFORE tax (number only)
                - gstPercentage: GST/Tax percentage (number only, e.g., 18 for 18%)
                - gstAmount: GST/Tax amount per unit (number only)
@@ -101,7 +155,7 @@ export async function POST(request) {
                IMPORTANT:
                - Scan ALL PAGES of the document
                - If SKU is not visible, generate a logical one based on the product name
-               - If category is unclear, intelligently assign based on product type
+               - ALWAYS choose the most specific category from the list
                - If selling price is not shown, calculate with reasonable margin on GST-inclusive cost
                - Always calculate costPrice = basePrice + gstAmount
                - Be thorough - extract EVERY line item from ALL pages of the invoice`;

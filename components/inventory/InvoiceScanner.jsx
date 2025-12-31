@@ -30,10 +30,52 @@ export default function InvoiceScanner({
     const [editedItems, setEditedItems] = useState([]);
     const fileInputRef = useRef(null);
 
-    const unitOptions = ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack'];
-    const categoryOptions = inventoryType === 'manufacturing'
-        ? ['Uncategorized', 'Metals', 'Plastics', 'Polymers', 'Electronics', 'Chemicals', 'Glass', 'Wood', 'Textiles', 'Hardware', 'Packaging', 'Consumables', 'Other']
-        : ['Uncategorized', 'Electronics', 'Clothing', 'Food', 'Furniture', 'Automotive', 'Industrial', 'Office Supplies', 'Hardware', 'Other'];
+    const unitOptions = ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack', 'set', 'pair', 'roll', 'bundle', 'dozen', 'ton', 'quintal'];
+
+    // Comprehensive category options for trading inventory
+    const tradingCategories = [
+        'Uncategorized',
+        // Plumbing & Sanitary
+        'Plumbing', 'Sanitary Ware', 'Pipes & Fittings', 'Valves & Taps', 'Bathroom Accessories',
+        // Electrical
+        'Electrical', 'Wires & Cables', 'Switches & Sockets', 'Lighting', 'Electrical Fittings',
+        // Construction & Building
+        'Construction Materials', 'Cement & Concrete', 'Tiles & Flooring', 'Paints & Coatings', 'Adhesives & Sealants',
+        // Hardware
+        'Hardware', 'Fasteners', 'Tools & Equipment', 'Locks & Security', 'Door & Window Fittings',
+        // Home & Living
+        'Furniture', 'Home Decor', 'Kitchen & Dining', 'Storage & Organization',
+        // Industrial
+        'Industrial Supplies', 'Safety Equipment', 'Machinery Parts', 'Bearings & Belts',
+        // General
+        'Electronics', 'Automotive', 'Clothing & Textiles', 'Food & Beverages', 'Office Supplies',
+        'Stationery', 'Packaging Materials', 'Chemicals', 'Agricultural', 'Medical Supplies',
+        'Sports & Fitness', 'Toys & Games', 'Pet Supplies', 'Gardening',
+        'Other'
+    ];
+
+    // Comprehensive category options for manufacturing inventory
+    const manufacturingCategories = [
+        'Uncategorized',
+        // Raw Materials
+        'Metals', 'Steel', 'Aluminum', 'Copper', 'Brass', 'Iron',
+        'Plastics', 'Polymers', 'Rubber', 'PVC', 'CPVC', 'HDPE', 'ABS',
+        // Building Materials
+        'Cement', 'Sand & Aggregates', 'Bricks & Blocks', 'Tiles', 'Glass', 'Wood & Timber',
+        // Chemicals & Paints
+        'Chemicals', 'Solvents', 'Adhesives', 'Paints', 'Coatings', 'Lubricants',
+        // Components
+        'Electronics Components', 'Electrical Components', 'Mechanical Parts', 'Fasteners',
+        'Bearings', 'Springs', 'Gaskets & Seals',
+        // Textiles
+        'Fabrics', 'Textiles', 'Threads & Yarns', 'Leather',
+        // Others
+        'Packaging', 'Consumables', 'Safety Gear', 'Tools', 'Hardware',
+        'Plumbing Components', 'Pipe Fittings', 'Valves', 'Connectors',
+        'Other'
+    ];
+
+    const categoryOptions = inventoryType === 'manufacturing' ? manufacturingCategories : tradingCategories;
 
     const handleFileSelect = (e) => {
         const selectedFiles = Array.from(e.target.files || []);
@@ -107,8 +149,51 @@ export default function InvoiceScanner({
             const data = await response.json();
 
             if (data.items && data.items.length > 0) {
+                // Validate and fix categories - ensure they match our category list
+                const validatedItems = data.items.map(item => {
+                    let category = item.category || 'Other';
+
+                    // Check if category exists in our list
+                    if (!categoryOptions.includes(category)) {
+                        // Try to find a matching category (case-insensitive partial match)
+                        const lowerCategory = category.toLowerCase();
+                        const matchedCategory = categoryOptions.find(cat =>
+                            cat.toLowerCase() === lowerCategory ||
+                            cat.toLowerCase().includes(lowerCategory) ||
+                            lowerCategory.includes(cat.toLowerCase())
+                        );
+
+                        if (matchedCategory) {
+                            category = matchedCategory;
+                        } else {
+                            // Additional smart matching for common product types
+                            if (lowerCategory.includes('pipe') || lowerCategory.includes('fitting') || lowerCategory.includes('elbow') || lowerCategory.includes('tee') || lowerCategory.includes('socket') || lowerCategory.includes('reducer')) {
+                                category = categoryOptions.find(c => c.includes('Pipe') || c.includes('Plumbing')) || 'Plumbing';
+                            } else if (lowerCategory.includes('tap') || lowerCategory.includes('valve') || lowerCategory.includes('cock') || lowerCategory.includes('faucet')) {
+                                category = categoryOptions.find(c => c.includes('Valve') || c.includes('Tap')) || 'Valves & Taps';
+                            } else if (lowerCategory.includes('commode') || lowerCategory.includes('basin') || lowerCategory.includes('toilet') || lowerCategory.includes('urinal')) {
+                                category = categoryOptions.find(c => c.includes('Sanitary')) || 'Sanitary Ware';
+                            } else if (lowerCategory.includes('solvent') || lowerCategory.includes('adhesive') || lowerCategory.includes('glue')) {
+                                category = categoryOptions.find(c => c.includes('Adhesive') || c.includes('Solvent')) || 'Adhesives & Sealants';
+                            } else if (lowerCategory.includes('wire') || lowerCategory.includes('cable')) {
+                                category = categoryOptions.find(c => c.includes('Wire') || c.includes('Cable')) || 'Electrical';
+                            } else if (lowerCategory.includes('paint') || lowerCategory.includes('primer') || lowerCategory.includes('coating')) {
+                                category = categoryOptions.find(c => c.includes('Paint')) || 'Paints & Coatings';
+                            } else if (lowerCategory.includes('brass')) {
+                                category = categoryOptions.find(c => c === 'Brass') || 'Hardware';
+                            } else if (lowerCategory.includes('copper')) {
+                                category = categoryOptions.find(c => c === 'Copper') || 'Hardware';
+                            } else {
+                                category = 'Other';
+                            }
+                        }
+                    }
+
+                    return { ...item, category };
+                });
+
                 setScanResult(data);
-                setEditedItems(data.items);
+                setEditedItems(validatedItems);
             } else {
                 setScanResult({
                     error: data.message || 'No products found in the invoice(s)',
