@@ -312,6 +312,28 @@ If you cannot read the invoice or find no items, return:
 
             } catch (fileError) {
                 console.error(`Error processing file ${file.name}:`, fileError);
+
+                // Check for quota/rate limit errors
+                const errorMessage = fileError.message || '';
+                const isQuotaError = fileError.status === 429 ||
+                    errorMessage.includes('quota') ||
+                    errorMessage.includes('rate limit') ||
+                    errorMessage.includes('RESOURCE_EXHAUSTED') ||
+                    errorMessage.includes('exceeded');
+
+                if (isQuotaError) {
+                    // Extract retry time if available
+                    const retryMatch = errorMessage.match(/retry in (\d+)/i);
+                    const retrySeconds = retryMatch ? retryMatch[1] : '60';
+
+                    return NextResponse.json({
+                        message: `AI limit exhausted! Please try again in ${retrySeconds} seconds.`,
+                        errorType: 'quota_exceeded',
+                        retryAfter: parseInt(retrySeconds),
+                        items: []
+                    }, { status: 429 });
+                }
+
                 processedFiles.push({ name: file.name, status: 'error', error: fileError.message });
             }
         }

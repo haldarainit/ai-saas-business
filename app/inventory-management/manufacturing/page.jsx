@@ -85,6 +85,11 @@ export default function ManufacturingInventory() {
     // Invoice Scanner State
     const [isInvoiceScannerOpen, setIsInvoiceScannerOpen] = useState(false);
 
+    // Delete confirmation dialog state
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState(null);
+    const [deleteType, setDeleteType] = useState(''); // 'raw-material' or 'product'
+
     const unitOptions = ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack'];
 
     // Fetch all data
@@ -228,11 +233,17 @@ export default function ManufacturingInventory() {
         setIsRawMaterialModalOpen(true);
     };
 
-    const handleDeleteRawMaterial = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this raw material?')) return;
+    const handleDeleteRawMaterial = (material) => {
+        setItemToDelete(material);
+        setDeleteType('raw-material');
+        setDeleteDialogOpen(true);
+    };
+
+    const confirmDeleteRawMaterial = async () => {
+        if (!itemToDelete) return;
 
         try {
-            const response = await fetch(`/api/inventory/raw-materials/${id}`, {
+            const response = await fetch(`/api/inventory/raw-materials/${itemToDelete._id}`, {
                 method: 'DELETE',
                 credentials: 'include'
             });
@@ -246,6 +257,10 @@ export default function ManufacturingInventory() {
             fetchRawMaterials();
         } catch (error) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } finally {
+            setDeleteDialogOpen(false);
+            setItemToDelete(null);
+            setDeleteType('');
         }
     };
 
@@ -385,11 +400,17 @@ export default function ManufacturingInventory() {
         setIsProductModalOpen(true);
     };
 
-    const handleDeleteProduct = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this product?')) return;
+    const handleDeleteProduct = (product) => {
+        setItemToDelete(product);
+        setDeleteType('product');
+        setDeleteDialogOpen(true);
+    };
+
+    const confirmDeleteProduct = async () => {
+        if (!itemToDelete) return;
 
         try {
-            const response = await fetch(`/api/inventory/manufacturing-products/${id}`, {
+            const response = await fetch(`/api/inventory/manufacturing-products/${itemToDelete._id}`, {
                 method: 'DELETE',
                 credentials: 'include'
             });
@@ -403,6 +424,10 @@ export default function ManufacturingInventory() {
             fetchManufacturingProducts();
         } catch (error) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } finally {
+            setDeleteDialogOpen(false);
+            setItemToDelete(null);
+            setDeleteType('');
         }
     };
 
@@ -1016,7 +1041,7 @@ export default function ManufacturingInventory() {
                                                     <Button variant="ghost" size="icon" onClick={() => handleEditRawMaterial(material)}>
                                                         <Edit className="h-4 w-4" />
                                                     </Button>
-                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteRawMaterial(material._id)}>
+                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteRawMaterial(material)}>
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </div>
@@ -1062,7 +1087,7 @@ export default function ManufacturingInventory() {
                                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditProduct(product)}>
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteProduct(product._id)}>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteProduct(product)}>
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -1976,6 +2001,50 @@ export default function ManufacturingInventory() {
                 inventoryType="manufacturing"
                 onProductsConfirmed={handleScannedMaterials}
             />
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <Trash2 className="h-5 w-5" />
+                            Delete {deleteType === 'raw-material' ? 'Raw Material' : 'Product'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this {deleteType === 'raw-material' ? 'raw material' : 'product'}? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {itemToDelete && (
+                        <div className="py-4">
+                            <div className="p-4 rounded-lg bg-muted/50 border">
+                                <p className="font-medium">{itemToDelete.name}</p>
+                                <p className="text-sm text-muted-foreground">SKU: {itemToDelete.sku}</p>
+                                {deleteType === 'raw-material' && (
+                                    <p className="text-sm text-muted-foreground">
+                                        Quantity: {itemToDelete.quantity} {itemToDelete.unit}
+                                    </p>
+                                )}
+                                {deleteType === 'product' && (
+                                    <p className="text-sm text-muted-foreground">
+                                        Finished: {itemToDelete.finishedQuantity} units
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex justify-end gap-3">
+                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={deleteType === 'raw-material' ? confirmDeleteRawMaterial : confirmDeleteProduct}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
         </div>
     );

@@ -31,6 +31,10 @@ export default function TradingInventory() {
     // Invoice Scanner State
     const [isInvoiceScannerOpen, setIsInvoiceScannerOpen] = useState(false);
 
+    // Delete confirmation dialog state
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [productToDelete, setProductToDelete] = useState(null);
+
     // Form state
     const [shelves, setShelves] = useState(['Default', 'A1', 'A2', 'B1', 'B2']);
     const [newShelf, setNewShelf] = useState('');
@@ -332,7 +336,7 @@ export default function TradingInventory() {
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                            onClick={() => handleDelete(product._id)}
+                                            onClick={() => handleDelete(product)}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                             <span className="sr-only">Delete</span>
@@ -545,12 +549,18 @@ export default function TradingInventory() {
         setIsModalOpen(true);
     };
 
-    // Handle delete product
-    const handleDelete = async (productId) => {
-        if (!window.confirm('Are you sure you want to delete this product?')) return;
+    // Handle delete product - open confirmation dialog
+    const handleDelete = (product) => {
+        setProductToDelete(product);
+        setDeleteDialogOpen(true);
+    };
+
+    // Confirm delete product
+    const confirmDelete = async () => {
+        if (!productToDelete) return;
 
         try {
-            const response = await fetch(`/api/inventory/products/${productId}`, {
+            const response = await fetch(`/api/inventory/products/${productToDelete._id}`, {
                 method: 'DELETE',
                 credentials: 'include',
             });
@@ -560,7 +570,7 @@ export default function TradingInventory() {
                 throw new Error(data.message || 'Failed to delete product');
             }
 
-            setProducts(products.filter(p => p._id !== productId));
+            setProducts(products.filter(p => p._id !== productToDelete._id));
 
             toast({
                 title: 'Success',
@@ -573,6 +583,9 @@ export default function TradingInventory() {
                 description: error.message || 'Failed to delete product',
                 variant: 'destructive',
             });
+        } finally {
+            setDeleteDialogOpen(false);
+            setProductToDelete(null);
         }
     };
 
@@ -1176,6 +1189,38 @@ export default function TradingInventory() {
                 inventoryType="trading"
                 onProductsConfirmed={handleScannedProducts}
             />
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <Trash2 className="h-5 w-5" />
+                            Delete Product
+                        </DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this product? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {productToDelete && (
+                        <div className="py-4">
+                            <div className="p-4 rounded-lg bg-muted/50 border">
+                                <p className="font-medium">{productToDelete.name}</p>
+                                <p className="text-sm text-muted-foreground">SKU: {productToDelete.sku}</p>
+                                <p className="text-sm text-muted-foreground">Quantity: {productToDelete.quantity}</p>
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex justify-end gap-3">
+                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={confirmDelete}>
+                            Delete
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

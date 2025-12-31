@@ -148,6 +148,18 @@ export default function InvoiceScanner({
 
             const data = await response.json();
 
+            // Check for quota/rate limit errors
+            if (response.status === 429 || data.errorType === 'quota_exceeded') {
+                setScanResult({
+                    error: data.message || 'AI limit exhausted! Please try again later.',
+                    errorType: 'quota_exceeded',
+                    retryAfter: data.retryAfter || 60,
+                    items: [],
+                    filesProcessed: []
+                });
+                return;
+            }
+
             if (data.items && data.items.length > 0) {
                 // Validate and fix categories - ensure they match our category list
                 const validatedItems = data.items.map(item => {
@@ -498,20 +510,52 @@ export default function InvoiceScanner({
 
                                 {/* Error Message */}
                                 {scanResult.error && editedItems.length === 0 && (
-                                    <div className="p-6 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/10 text-center">
-                                        <AlertTriangle className="h-10 w-10 mx-auto text-red-500 mb-2" />
-                                        <p className="font-semibold text-red-700 dark:text-red-400">{scanResult.error}</p>
+                                    <div className={`p-6 rounded-lg border text-center ${scanResult.errorType === 'quota_exceeded'
+                                            ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/10'
+                                            : 'border-red-200 bg-red-50 dark:bg-red-900/10'
+                                        }`}>
+                                        {scanResult.errorType === 'quota_exceeded' ? (
+                                            <>
+                                                <div className="relative inline-flex items-center justify-center mb-3">
+                                                    <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-full">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <circle cx="12" cy="12" r="10" />
+                                                            <polyline points="12 6 12 12 16 14" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                                <p className="font-bold text-lg text-amber-700 dark:text-amber-400 mb-1">
+                                                    AI Limit Exhausted
+                                                </p>
+                                                <p className="text-amber-600 dark:text-amber-400 text-sm mb-3">
+                                                    {scanResult.error}
+                                                </p>
+                                                <div className="flex items-center justify-center gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 rounded-lg px-4 py-2 inline-flex">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <circle cx="12" cy="12" r="10" />
+                                                        <line x1="12" y1="8" x2="12" y2="12" />
+                                                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                                                    </svg>
+                                                    Retry after {scanResult.retryAfter || 60} seconds
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <AlertTriangle className="h-10 w-10 mx-auto text-red-500 mb-2" />
+                                                <p className="font-semibold text-red-700 dark:text-red-400">{scanResult.error}</p>
+                                            </>
+                                        )}
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="mt-3"
+                                            className="mt-4"
                                             onClick={() => {
                                                 setScanResult(null);
                                                 setFiles([]);
                                                 setFilePreviews([]);
                                             }}
                                         >
-                                            Try Other Files
+                                            {scanResult.errorType === 'quota_exceeded' ? 'Try Again Later' : 'Try Other Files'}
                                         </Button>
                                     </div>
                                 )}
