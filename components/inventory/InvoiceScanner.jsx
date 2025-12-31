@@ -391,20 +391,20 @@ export default function InvoiceScanner({
                                                 )}
                                             </div>
                                         </div>
-                                        {/* GST Summary */}
-                                        {(scanResult.subtotal > 0 || scanResult.totalGst > 0) && (
+                                        {/* GST Summary - calculated from editedItems */}
+                                        {editedItems.length > 0 && (
                                             <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-4 text-sm">
                                                 <div>
                                                     <p className="text-muted-foreground">Subtotal</p>
-                                                    <p className="font-semibold">₹{scanResult.subtotal?.toFixed(2) || '0.00'}</p>
+                                                    <p className="font-semibold">₹{editedItems.reduce((sum, i) => sum + ((i.basePrice || 0) * (i.quantity || 0)), 0).toFixed(2)}</p>
                                                 </div>
                                                 <div>
                                                     <p className="text-muted-foreground">Total GST</p>
-                                                    <p className="font-semibold text-amber-600">₹{scanResult.totalGst?.toFixed(2) || '0.00'}</p>
+                                                    <p className="font-semibold text-amber-600">₹{editedItems.reduce((sum, i) => sum + ((i.gstAmount || 0) * (i.quantity || 0)), 0).toFixed(2)}</p>
                                                 </div>
                                                 <div>
                                                     <p className="text-muted-foreground">Grand Total</p>
-                                                    <p className="font-semibold text-green-600">₹{scanResult.totalAmount?.toFixed(2) || '0.00'}</p>
+                                                    <p className="font-semibold text-green-600">₹{editedItems.reduce((sum, i) => sum + (i.totalCost || 0), 0).toFixed(2)}</p>
                                                 </div>
                                             </div>
                                         )}
@@ -446,18 +446,18 @@ export default function InvoiceScanner({
                                             </div>
                                         </div>
 
-                                        <div className="max-h-[300px] overflow-y-auto">
+                                        <div className="max-h-[400px] overflow-y-auto">
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
-                                                        <TableHead className="w-[200px]">Name</TableHead>
+                                                        <TableHead className="w-[180px]">Name</TableHead>
                                                         <TableHead>SKU</TableHead>
                                                         <TableHead className="text-center">Qty</TableHead>
                                                         <TableHead className="text-right">Base Price</TableHead>
                                                         <TableHead className="text-center">GST %</TableHead>
-                                                        <TableHead className="text-right">
-                                                            {inventoryType === 'manufacturing' ? 'Cost/Unit' : 'Cost'} (incl. GST)
-                                                        </TableHead>
+                                                        <TableHead className="text-right">Base Total</TableHead>
+                                                        <TableHead className="text-right">GST Amount</TableHead>
+                                                        <TableHead className="text-right">Total Price</TableHead>
                                                         {inventoryType === 'trading' && (
                                                             <TableHead className="text-right">Sell Price</TableHead>
                                                         )}
@@ -465,88 +465,122 @@ export default function InvoiceScanner({
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {editedItems.map((item, index) => (
-                                                        <TableRow
-                                                            key={item.id}
-                                                            className={item.needsReview ? 'bg-yellow-50/50 dark:bg-yellow-900/10' : ''}
-                                                        >
-                                                            <TableCell>
-                                                                <div>
-                                                                    <p className="font-medium truncate max-w-[180px]">{item.name}</p>
-                                                                    {item.hsnCode && (
-                                                                        <p className="text-xs text-muted-foreground">HSN: {item.hsnCode}</p>
-                                                                    )}
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.sku}</code>
-                                                            </TableCell>
-                                                            <TableCell className="text-center">
-                                                                <span className="font-medium">{item.quantity} {item.unit}</span>
-                                                            </TableCell>
-                                                            <TableCell className="text-right">
-                                                                <span className="text-muted-foreground">₹{item.basePrice?.toFixed(2)}</span>
-                                                            </TableCell>
-                                                            <TableCell className="text-center">
-                                                                <Badge variant="outline" className="text-xs">
-                                                                    {item.gstPercentage || 0}%
-                                                                </Badge>
-                                                            </TableCell>
-                                                            <TableCell className="text-right">
-                                                                <span className="font-semibold text-green-600">
-                                                                    ₹{(inventoryType === 'manufacturing' ? item.costPerUnit : item.costPrice)?.toFixed(2)}
-                                                                </span>
-                                                            </TableCell>
-                                                            {inventoryType === 'trading' && (
-                                                                <TableCell className="text-right">
-                                                                    <span className="font-medium text-blue-600">
-                                                                        ₹{item.sellingPrice?.toFixed(2)}
-                                                                    </span>
+                                                    {editedItems.map((item, index) => {
+                                                        const baseTotal = (item.quantity || 0) * (item.basePrice || 0);
+                                                        const totalGst = (item.quantity || 0) * (item.gstAmount || 0);
+                                                        const totalPrice = baseTotal + totalGst;
+
+                                                        return (
+                                                            <TableRow
+                                                                key={item.id}
+                                                                className={item.needsReview ? 'bg-yellow-50/50 dark:bg-yellow-900/10' : ''}
+                                                            >
+                                                                <TableCell>
+                                                                    <div>
+                                                                        <p className="font-medium truncate max-w-[160px]">{item.name}</p>
+                                                                        {item.hsnCode && (
+                                                                            <p className="text-xs text-muted-foreground">HSN: {item.hsnCode}</p>
+                                                                        )}
+                                                                    </div>
                                                                 </TableCell>
-                                                            )}
-                                                            <TableCell className="text-right">
-                                                                <div className="flex justify-end gap-1">
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        className="h-8 gap-1"
-                                                                        onClick={() => openEditForm(index)}
-                                                                    >
-                                                                        <Edit2 className="h-3.5 w-3.5" />
-                                                                        Edit
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-8 w-8 text-red-600 hover:bg-red-50"
-                                                                        onClick={() => handleItemRemove(index)}
-                                                                    >
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                    </Button>
-                                                                </div>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
+                                                                <TableCell>
+                                                                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.sku}</code>
+                                                                </TableCell>
+                                                                <TableCell className="text-center">
+                                                                    <span className="font-medium">{item.quantity} {item.unit}</span>
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <span className="text-muted-foreground">₹{item.basePrice?.toFixed(2)}</span>
+                                                                </TableCell>
+                                                                <TableCell className="text-center">
+                                                                    <Badge variant="outline" className="text-xs">
+                                                                        {item.gstPercentage || 0}%
+                                                                    </Badge>
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <div>
+                                                                        <span className="text-muted-foreground">₹{baseTotal.toFixed(2)}</span>
+                                                                        <p className="text-[10px] text-muted-foreground/70">
+                                                                            {item.quantity} × {item.basePrice?.toFixed(2)}
+                                                                        </p>
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <span className="font-medium text-amber-600">₹{totalGst.toFixed(2)}</span>
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <div>
+                                                                        <span className="font-semibold text-green-600">₹{totalPrice.toFixed(2)}</span>
+                                                                        <p className="text-[10px] text-green-600/70">
+                                                                            {baseTotal.toFixed(2)} + {totalGst.toFixed(2)} GST
+                                                                        </p>
+                                                                    </div>
+                                                                </TableCell>
+                                                                {inventoryType === 'trading' && (
+                                                                    <TableCell className="text-right">
+                                                                        <span className="font-medium text-blue-600">
+                                                                            ₹{item.sellingPrice?.toFixed(2)}
+                                                                        </span>
+                                                                    </TableCell>
+                                                                )}
+                                                                <TableCell className="text-right">
+                                                                    <div className="flex justify-end gap-1">
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            className="h-8 gap-1"
+                                                                            onClick={() => openEditForm(index)}
+                                                                        >
+                                                                            <Edit2 className="h-3.5 w-3.5" />
+                                                                            Edit
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-8 w-8 text-red-600 hover:bg-red-50"
+                                                                            onClick={() => handleItemRemove(index)}
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </div>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        );
+                                                    })}
                                                 </TableBody>
                                             </Table>
                                         </div>
 
                                         {/* Total Summary */}
-                                        <div className="px-4 py-3 bg-muted/30 border-t flex justify-between items-center">
-                                            <div className="text-sm text-muted-foreground">
-                                                {editedItems.filter(i => i.needsReview).length > 0 && (
-                                                    <span className="flex items-center gap-1 text-yellow-600">
-                                                        <AlertTriangle className="h-4 w-4" />
-                                                        {editedItems.filter(i => i.needsReview).length} items need review
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="text-right">
+                                        <div className="px-4 py-4 bg-gradient-to-r from-muted/30 to-muted/50 border-t">
+                                            <div className="flex justify-between items-start">
                                                 <div className="text-sm text-muted-foreground">
-                                                    Total GST: ₹{editedItems.reduce((sum, i) => sum + ((i.gstAmount || 0) * (i.quantity || 0)), 0).toFixed(2)}
+                                                    {editedItems.filter(i => i.needsReview).length > 0 && (
+                                                        <span className="flex items-center gap-1 text-yellow-600">
+                                                            <AlertTriangle className="h-4 w-4" />
+                                                            {editedItems.filter(i => i.needsReview).length} items need review
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <div className="font-semibold text-lg">
-                                                    Total (incl. GST): ₹{editedItems.reduce((sum, i) => sum + (i.totalCost || 0), 0).toFixed(2)}
+                                                <div className="grid grid-cols-3 gap-6 text-right">
+                                                    <div>
+                                                        <p className="text-xs text-muted-foreground mb-1">Base Total</p>
+                                                        <p className="font-medium text-lg">
+                                                            ₹{editedItems.reduce((sum, i) => sum + ((i.basePrice || 0) * (i.quantity || 0)), 0).toFixed(2)}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-muted-foreground mb-1">Total GST</p>
+                                                        <p className="font-medium text-lg text-amber-600">
+                                                            ₹{editedItems.reduce((sum, i) => sum + ((i.gstAmount || 0) * (i.quantity || 0)), 0).toFixed(2)}
+                                                        </p>
+                                                    </div>
+                                                    <div className="bg-green-100 dark:bg-green-900/30 rounded-lg px-3 py-1 -my-1">
+                                                        <p className="text-xs text-green-700 dark:text-green-400 mb-1">Grand Total</p>
+                                                        <p className="font-bold text-xl text-green-600">
+                                                            ₹{editedItems.reduce((sum, i) => sum + (i.totalCost || 0), 0).toFixed(2)}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -798,16 +832,63 @@ export default function InvoiceScanner({
                                 )}
                             </div>
 
-                            {/* Total Cost Summary */}
-                            <div className="grid grid-cols-4 items-center gap-4 pt-4 border-t">
-                                <Label className="text-right font-semibold">Total Value</Label>
-                                <div className="col-span-3">
-                                    <span className="text-xl font-bold text-violet-600">
-                                        ₹{(((editFormData.basePrice || 0) + ((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100)) * (editFormData.quantity || 0)).toFixed(2)}
-                                    </span>
-                                    <span className="text-sm text-muted-foreground ml-2">
-                                        ({editFormData.quantity} × ₹{((editFormData.basePrice || 0) + ((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100)).toFixed(2)})
-                                    </span>
+                            {/* Detailed Total Calculation Preview */}
+                            <div className="pt-4 border-t space-y-3">
+                                <h4 className="font-medium text-sm text-muted-foreground">Calculation Preview</h4>
+
+                                {/* Base Total Row */}
+                                <div className="grid grid-cols-4 items-center gap-4 p-3 bg-muted/30 rounded-lg">
+                                    <Label className="text-right">Base Total</Label>
+                                    <div className="col-span-3 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-lg font-semibold">
+                                                {editFormData.quantity} × ₹{(editFormData.basePrice || 0).toFixed(2)}
+                                            </span>
+                                            <span className="text-muted-foreground">=</span>
+                                        </div>
+                                        <span className="text-lg font-bold">
+                                            ₹{((editFormData.basePrice || 0) * (editFormData.quantity || 0)).toFixed(2)}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* GST Amount Row */}
+                                {(editFormData.gstPercentage || 0) > 0 && (
+                                    <div className="grid grid-cols-4 items-center gap-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                                        <Label className="text-right">GST ({editFormData.gstPercentage}%)</Label>
+                                        <div className="col-span-3 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-lg font-semibold text-amber-700 dark:text-amber-400">
+                                                    {editFormData.quantity} × ₹{((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100).toFixed(2)}
+                                                </span>
+                                                <span className="text-muted-foreground">=</span>
+                                            </div>
+                                            <span className="text-lg font-bold text-amber-600">
+                                                ₹{(((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100) * (editFormData.quantity || 0)).toFixed(2)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Grand Total Row */}
+                                <div className="grid grid-cols-4 items-center gap-4 p-4 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 rounded-lg border border-green-200 dark:border-green-800">
+                                    <Label className="text-right font-semibold text-green-700 dark:text-green-400">Total Value</Label>
+                                    <div className="col-span-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="text-sm text-green-600">
+                                                ₹{((editFormData.basePrice || 0) * (editFormData.quantity || 0)).toFixed(2)}
+                                                {(editFormData.gstPercentage || 0) > 0 && (
+                                                    <> + ₹{(((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100) * (editFormData.quantity || 0)).toFixed(2)} GST</>
+                                                )}
+                                            </div>
+                                            <span className="text-2xl font-bold text-green-600">
+                                                ₹{(((editFormData.basePrice || 0) + ((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100)) * (editFormData.quantity || 0)).toFixed(2)}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-green-600/70 mt-1">
+                                            {editFormData.quantity} {editFormData.unit} × ₹{((editFormData.basePrice || 0) + ((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100)).toFixed(2)} per {editFormData.unit}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
