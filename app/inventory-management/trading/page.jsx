@@ -39,6 +39,20 @@ export default function TradingInventory() {
     const [selectedProducts, setSelectedProducts] = useState([]);
     const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
+    // Sales state (Cart-based for multiple products)
+    const [isSellModalOpen, setIsSellModalOpen] = useState(false);
+    const [sellCart, setSellCart] = useState([]); // Array of {product, quantity}
+    const [productSearchTerm, setProductSearchTerm] = useState('');
+    const [sellCustomer, setSellCustomer] = useState({ name: '', phone: '', email: '' });
+    const [sellPaymentMethod, setSellPaymentMethod] = useState('cash');
+    const [sellNotes, setSellNotes] = useState('');
+    const [sellingLoading, setSellingLoading] = useState(false);
+
+    // Sales History state
+    const [sales, setSales] = useState([]);
+    const [salesSummary, setSalesSummary] = useState(null);
+    const [salesLoading, setSalesLoading] = useState(false);
+
     // Form state
     const [shelves, setShelves] = useState(['Default', 'A1', 'A2', 'B1', 'B2']);
     const [newShelf, setNewShelf] = useState('');
@@ -120,6 +134,170 @@ export default function TradingInventory() {
         };
 
         fetchProducts();
+    };
+
+    // Fetch sales data
+    const fetchSales = async () => {
+        try {
+            setSalesLoading(true);
+            const response = await fetch('/api/inventory/sales', {
+                credentials: 'include',
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setSales(data.sales || []);
+                setSalesSummary(data.summary || null);
+            }
+        } catch (error) {
+            console.error('Error fetching sales:', error);
+        } finally {
+            setSalesLoading(false);
+        }
+    };
+
+    // Open sell modal (reset cart)
+    const openSellModal = () => {
+        setSellCart([]);
+        setProductSearchTerm('');
+        setSellCustomer({ name: '', phone: '', email: '' });
+        setSellPaymentMethod('cash');
+        setSellNotes('');
+        setIsSellModalOpen(true);
+    };
+
+    // Add product to cart
+    const addToCart = (product) => {
+        const existing = sellCart.find(item => item.product._id === product._id);
+        if (existing) {
+            // Increase quantity
+            if (existing.quantity < product.quantity) {
+                setSellCart(sellCart.map(item =>
+                    item.product._id === product._id
+                        ? { ...item, quantity: item.quantity + 1 }
+                        : item
+                ));
+            } else {
+                toast({ title: '⚠️ Stock limit reached', description: `Only ${product.quantity} available`, variant: 'destructive' });
+            }
+        } else {
+            if (product.quantity < 1) {
+                toast({ title: '❌ Out of stock', description: `${product.name} is out of stock`, variant: 'destructive' });
+                return;
+            }
+            setSellCart([...sellCart, { product, quantity: 1 }]);
+        }
+        setProductSearchTerm('');
+    };
+
+    // Update cart item quantity
+    const updateCartQuantity = (productId, newQuantity) => {
+        const item = sellCart.find(i => i.product._id === productId);
+        if (!item) return;
+
+        if (newQuantity < 1) {
+            removeFromCart(productId);
+            return;
+        }
+        if (newQuantity > item.product.quantity) {
+            toast({ title: '⚠️ Stock limit', description: `Only ${item.product.quantity} available`, variant: 'destructive' });
+            return;
+        }
+        setSellCart(sellCart.map(i =>
+            i.product._id === productId ? { ...i, quantity: newQuantity } : i
+        ));
+    };
+
+    // Remove from cart
+    const removeFromCart = (productId) => {
+        setSellCart(sellCart.filter(item => item.product._id !== productId));
+    };
+
+    // Calculate cart totals
+    const cartSubtotal = sellCart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+    const cartProfit = sellCart.reduce((sum, item) => sum + ((item.product.price - item.product.cost) * item.quantity), 0);
+    const cartItemCount = sellCart.reduce((sum, item) => sum + item.quantity, 0);
+
+    // Filter products for search dropdown
+    const searchedProducts = products.filter(p =>
+        productSearchTerm.length > 0 &&
+        (p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+            p.sku.toLowerCase().includes(productSearchTerm.toLowerCase()))
+    ).slice(0, 5);
+
+    // Handle complete sale
+    const handleSell = async () => {
+        if (sellCart.length === 0) {
+            toast({ title: '❌ Empty Cart', description: 'Add products to sell first.', variant: 'destructive' });
+            return;
+        }
+
+        // Validate stock for all items
+        for (const item of sellCart) {
+            if (item.quantity > item.product.quantity) {
+                toast({
+                    title: '❌ Insufficient Stock',
+                    description: `${item.product.name}: Only ${item.product.quantity} available.`,
+                    variant: 'destructive'
+                });
+                return;
+            }
+        }
+
+        try {
+            setSellingLoading(true);
+            const response = await fetch('/api/inventory/sales', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    items: sellCart.map(item => ({
+                        productId: item.product._id,
+                        productName: item.product.name,
+                        quantity: item.quantity,
+                        sellingPrice: item.product.price,
+                    })),
+                    customer: sellCustomer.name ? sellCustomer : { name: 'Walk-in Customer' },
+                    paymentMethod: sellPaymentMethod,
+                    notes: sellNotes,
+                    amountPaid: cartSubtotal,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || 'Sale failed');
+            }
+
+            toast({
+                title: '✅ Sale Completed!',
+                description: `Sold ${cartItemCount} items for ₹${cartSubtotal.toFixed(2)}. Profit: ₹${result.summary.profit.toFixed(2)}`,
+                duration: 5000,
+            });
+
+            setIsSellModalOpen(false);
+            setSellCart([]);
+
+            // Refresh products to show updated stock
+            const fetchProducts = async () => {
+                const res = await fetch('/api/inventory/products', { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    setProducts(Array.isArray(data) ? data : []);
+                }
+            };
+            fetchProducts();
+            fetchSales();
+
+        } catch (error) {
+            toast({
+                title: '❌ Sale Failed',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            setSellingLoading(false);
+        }
     };
 
     // Handle empty or error states
@@ -342,7 +520,7 @@ export default function TradingInventory() {
                                         : 'N/A'}
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex justify-end gap-2">
+                                    <div className="flex justify-end gap-1">
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -831,6 +1009,13 @@ export default function TradingInventory() {
                     >
                         <ScanLine className="h-4 w-4" />
                         Scan Invoice
+                    </Button>
+                    <Button
+                        onClick={openSellModal}
+                        className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all"
+                    >
+                        <ShoppingCart className="h-4 w-4" />
+                        New Sale
                     </Button>
                     <Link href="/inventory-management/manufacturing">
                         <Button variant="outline" className="gap-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20">
@@ -1347,6 +1532,8 @@ export default function TradingInventory() {
                 onProductsConfirmed={handleScannedProducts}
             />
 
+
+
             {/* Delete Confirmation Dialog */}
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <DialogContent className="sm:max-w-[425px]">
@@ -1405,6 +1592,224 @@ export default function TradingInventory() {
                         </Button>
                         <Button variant="destructive" onClick={confirmBulkDelete}>
                             Delete All ({selectedProducts.length})
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Sell Product Modal - Cart Based */}
+            <Dialog open={isSellModalOpen} onOpenChange={setIsSellModalOpen}>
+                <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                            <ShoppingCart className="h-5 w-5" />
+                            New Sale
+                        </DialogTitle>
+                        <DialogDescription>
+                            Add products to cart and complete the sale
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        {/* Product Search */}
+                        <div className="relative">
+                            <Label className="mb-2 block">Search Products</Label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Type product name or SKU..."
+                                    value={productSearchTerm}
+                                    onChange={(e) => setProductSearchTerm(e.target.value)}
+                                    className="pl-10"
+                                />
+                            </div>
+                            {searchedProducts.length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-[200px] overflow-y-auto">
+                                    {searchedProducts.map(product => (
+                                        <div
+                                            key={product._id}
+                                            className="flex items-center justify-between p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                                            onClick={() => addToCart(product)}
+                                        >
+                                            <div>
+                                                <p className="font-medium">{product.name}</p>
+                                                <p className="text-xs text-muted-foreground">SKU: {product.sku} • Stock: {product.quantity}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="font-semibold text-blue-600 dark:text-blue-400">₹{product.price?.toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="rounded-xl border-2 border-blue-200 dark:border-blue-800 overflow-hidden">
+                            <div className="bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-3">
+                                <h4 className="font-semibold text-white flex items-center gap-2">
+                                    <ShoppingCart className="h-4 w-4" />
+                                    Cart ({cartItemCount} items)
+                                </h4>
+                            </div>
+                            {sellCart.length === 0 ? (
+                                <div className="p-10 text-center bg-gradient-to-b from-blue-50/50 to-transparent dark:from-blue-900/10">
+                                    <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                        <ShoppingCart className="h-8 w-8 text-blue-400" />
+                                    </div>
+                                    <p className="font-medium text-muted-foreground">Cart is empty</p>
+                                    <p className="text-sm text-muted-foreground/60 mt-1">Search and add products above to start selling</p>
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-border max-h-[250px] overflow-y-auto bg-background">
+                                    {sellCart.map((item) => {
+                                        const isNearLimit = item.quantity >= item.product.quantity * 0.8;
+                                        const isAtLimit = item.quantity >= item.product.quantity;
+                                        return (
+                                            <div
+                                                key={item.product._id}
+                                                className={`p-4 transition-colors bg-background ${isAtLimit ? 'bg-red-500/10' : isNearLimit ? 'bg-amber-500/10' : 'hover:bg-muted/30'}`}
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-semibold truncate text-foreground">{item.product.name}</p>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">₹{item.product.price?.toFixed(2)}</span>
+                                                            <span className="text-xs text-muted-foreground">×</span>
+                                                            <span className={`text-xs px-2 py-0.5 rounded-full ${isAtLimit ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : isNearLimit ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}>
+                                                                Stock: {item.product.quantity}
+                                                            </span>
+                                                        </div>
+                                                        {isAtLimit && (
+                                                            <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                                                                <AlertTriangle className="h-3 w-3" /> Maximum stock reached!
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-8 w-8 rounded-md hover:bg-red-500/10 hover:text-red-600"
+                                                                onClick={() => updateCartQuantity(item.product._id, item.quantity - 1)}
+                                                            >
+                                                                -
+                                                            </Button>
+                                                            <span className="w-10 text-center font-bold text-lg text-foreground">{item.quantity}</span>
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className={`h-8 w-8 rounded-md ${isAtLimit ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-blue-900/30'}`}
+                                                                onClick={() => updateCartQuantity(item.product._id, item.quantity + 1)}
+                                                                disabled={isAtLimit}
+                                                            >
+                                                                +
+                                                            </Button>
+                                                        </div>
+                                                        <div className="text-right min-w-[80px]">
+                                                            <p className="font-bold text-lg text-blue-600 dark:text-blue-400">₹{(item.product.price * item.quantity).toFixed(2)}</p>
+                                                        </div>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-full"
+                                                            onClick={() => removeFromCart(item.product._id)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                        {/* Customer Info */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label>Customer Name</Label>
+                                <Input
+                                    placeholder="Walk-in Customer"
+                                    value={sellCustomer.name}
+                                    onChange={(e) => setSellCustomer({ ...sellCustomer, name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label>Phone</Label>
+                                <Input
+                                    placeholder="Optional"
+                                    value={sellCustomer.phone}
+                                    onChange={(e) => setSellCustomer({ ...sellCustomer, phone: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Payment Method & Notes */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label>Payment Method</Label>
+                                <select
+                                    value={sellPaymentMethod}
+                                    onChange={(e) => setSellPaymentMethod(e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                >
+                                    <option value="cash">💵 Cash</option>
+                                    <option value="upi">📱 UPI</option>
+                                    <option value="card">💳 Card</option>
+                                    <option value="bank_transfer">🏦 Bank Transfer</option>
+                                    <option value="credit">📝 Credit</option>
+                                </select>
+                            </div>
+                            <div>
+                                <Label>Notes</Label>
+                                <Input
+                                    placeholder="Optional notes..."
+                                    value={sellNotes}
+                                    onChange={(e) => setSellNotes(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Price Summary */}
+                        {sellCart.length > 0 && (
+                            <div className="rounded-xl overflow-hidden border-2 border-blue-300 dark:border-blue-700">
+                                <div className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-4 py-3">
+                                    <h4 className="font-semibold flex items-center gap-2">
+                                        <DollarSign className="h-4 w-4" /> Order Summary
+                                    </h4>
+                                </div>
+                                <div className="p-4 bg-background space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Subtotal ({cartItemCount} items):</span>
+                                        <span className="font-medium text-foreground">₹{cartSubtotal.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">Expected Profit:</span>
+                                        <span className="font-medium text-indigo-600 dark:text-indigo-400">+₹{cartProfit.toFixed(2)} ({cartSubtotal > 0 ? ((cartProfit / cartSubtotal) * 100).toFixed(1) : 0}%)</span>
+                                    </div>
+                                    <div className="border-t border-blue-200 dark:border-blue-700 pt-3 mt-2">
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-bold text-xl text-foreground">Grand Total:</span>
+                                            <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">₹{cartSubtotal.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex justify-between items-center gap-3 pt-2 border-t">
+                        <Button variant="outline" onClick={() => setIsSellModalOpen(false)} className="px-6">
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSell}
+                            disabled={sellingLoading || sellCart.length === 0}
+                            className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 h-12 text-lg font-semibold"
+                        >
+                            <ShoppingCart className="h-5 w-5 mr-2" />
+                            {sellingLoading ? 'Processing...' : `Complete Sale • ₹${cartSubtotal.toFixed(2)}`}
                         </Button>
                     </div>
                 </DialogContent>
