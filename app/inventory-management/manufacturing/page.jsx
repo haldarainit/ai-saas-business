@@ -1152,7 +1152,11 @@ export default function ManufacturingInventory() {
                                     {filteredRawMaterials.map((material) => (
                                         <TableRow
                                             key={material._id}
-                                            className={`${material.quantity <= material.minimumStock ? 'bg-red-50 dark:bg-red-900/10' : ''} ${selectedRawMaterials.includes(material._id) ? 'bg-primary/5' : ''}`}
+                                            className={`transition-colors border-l-2 ${material.quantity <= material.minimumStock
+                                                ? 'bg-red-500/5 dark:bg-red-500/10 border-l-red-500 hover:bg-red-500/10 dark:hover:bg-red-500/20'
+                                                : 'border-l-transparent hover:bg-muted/50 dark:hover:bg-muted/30'} ${selectedRawMaterials.includes(material._id)
+                                                    ? 'bg-primary/5 dark:bg-primary/10'
+                                                    : ''}`}
                                         >
                                             <TableCell className="w-12">
                                                 <input
