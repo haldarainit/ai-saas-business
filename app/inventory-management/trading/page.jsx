@@ -35,6 +35,10 @@ export default function TradingInventory() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [productToDelete, setProductToDelete] = useState(null);
 
+    // Select and bulk delete state
+    const [selectedProducts, setSelectedProducts] = useState([]);
+    const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+
     // Form state
     const [shelves, setShelves] = useState(['Default', 'A1', 'A2', 'B1', 'B2']);
     const [newShelf, setNewShelf] = useState('');
@@ -154,6 +158,14 @@ export default function TradingInventory() {
                 <Table>
                     <TableHeader>
                         <TableRow className="bg-muted/50 hover:bg-muted/70 transition-colors">
+                            <TableHead className="w-12">
+                                <input
+                                    type="checkbox"
+                                    checked={sortedAndFilteredProducts.length > 0 && selectedProducts.length === sortedAndFilteredProducts.length}
+                                    onChange={toggleSelectAll}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                />
+                            </TableHead>
                             <TableHead
                                 className="cursor-pointer hover:bg-accent transition-colors"
                                 onClick={() => requestSort('name')}
@@ -278,8 +290,16 @@ export default function TradingInventory() {
                         {sortedAndFilteredProducts.map((product) => (
                             <TableRow
                                 key={product._id}
-                                className={getRowClass(product)}
+                                className={`${getRowClass(product)} ${selectedProducts.includes(product._id) ? 'bg-primary/5' : ''}`}
                             >
+                                <TableCell className="w-12">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedProducts.includes(product._id)}
+                                        onChange={() => toggleProductSelection(product._id)}
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                    />
+                                </TableCell>
                                 <TableCell className="font-medium">
                                     <div className="flex flex-col">
                                         <span>{product.name}</span>
@@ -589,10 +609,68 @@ export default function TradingInventory() {
         }
     };
 
+    // Toggle single product selection
+    const toggleProductSelection = (productId) => {
+        setSelectedProducts(prev =>
+            prev.includes(productId)
+                ? prev.filter(id => id !== productId)
+                : [...prev, productId]
+        );
+    };
+
+    // Toggle select all products
+    const toggleSelectAll = () => {
+        if (selectedProducts.length === sortedAndFilteredProducts.length) {
+            setSelectedProducts([]);
+        } else {
+            setSelectedProducts(sortedAndFilteredProducts.map(p => p._id));
+        }
+    };
+
+    // Bulk delete confirmation
+    const confirmBulkDelete = async () => {
+        if (selectedProducts.length === 0) return;
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const productId of selectedProducts) {
+            try {
+                const response = await fetch(`/api/inventory/products/${productId}`, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                });
+
+                if (response.ok) {
+                    successCount++;
+                } else {
+                    errorCount++;
+                }
+            } catch (error) {
+                console.error('Error deleting product:', error);
+                errorCount++;
+            }
+        }
+
+        // Update products list
+        setProducts(products.filter(p => !selectedProducts.includes(p._id)));
+        setSelectedProducts([]);
+        setBulkDeleteDialogOpen(false);
+
+        toast({
+            title: successCount > 0 ? 'Products Deleted' : 'Error',
+            description: successCount > 0
+                ? `Successfully deleted ${successCount} product${successCount > 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+                : 'Failed to delete products',
+            variant: errorCount > 0 && successCount === 0 ? 'destructive' : 'default'
+        });
+    };
+
     // Handle scanned products from invoice
     const handleScannedProducts = async (items, supplierInfo) => {
         let successCount = 0;
         let errorCount = 0;
+        let errorMessages = [];
 
         for (const item of items) {
             try {
@@ -637,27 +715,38 @@ export default function TradingInventory() {
                     setProducts(prev => [newProduct, ...prev]);
                     successCount++;
                 } else {
-                    const errorData = await response.json();
-                    console.error('Failed to add product:', errorData);
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMsg = errorData.message || errorData.error || `Failed to add "${item.name}"`;
+                    console.error('Failed to add product:', errorMsg, errorData);
+                    errorMessages.push(`${item.name}: ${errorMsg}`);
                     errorCount++;
                 }
             } catch (error) {
                 console.error('Error adding product:', error);
+                errorMessages.push(`${item.name}: ${error.message || 'Unknown error'}`);
                 errorCount++;
             }
         }
 
-        // Show result toast
-        if (successCount > 0) {
+        // Show result toast with detailed error info
+        if (successCount > 0 && errorCount === 0) {
             toast({
-                title: 'Products Added',
-                description: `Successfully added ${successCount} product${successCount > 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
-                variant: errorCount > 0 ? 'warning' : 'default'
+                title: '✅ Products Added Successfully',
+                description: `Added ${successCount} product${successCount > 1 ? 's' : ''} to inventory`,
+                variant: 'default'
+            });
+        } else if (successCount > 0 && errorCount > 0) {
+            toast({
+                title: '⚠️ Partially Added',
+                description: `Added ${successCount} product${successCount > 1 ? 's' : ''}, but ${errorCount} failed: ${errorMessages.slice(0, 2).join('; ')}${errorMessages.length > 2 ? '...' : ''}`,
+                variant: 'warning'
             });
         } else {
             toast({
-                title: 'Error',
-                description: 'Failed to add products from invoice',
+                title: '❌ Failed to Add Products',
+                description: errorMessages.length > 0
+                    ? `Errors: ${errorMessages.slice(0, 3).join('; ')}${errorMessages.length > 3 ? '...' : ''}`
+                    : 'Failed to add products from invoice. Please try again.',
                 variant: 'destructive'
             });
         }
@@ -1213,6 +1302,17 @@ export default function TradingInventory() {
                                 <span className="text-sm text-muted-foreground">
                                     {sortedAndFilteredProducts.length} of {totalProducts} products
                                 </span>
+                                {selectedProducts.length > 0 && (
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => setBulkDeleteDialogOpen(true)}
+                                        className="ml-2"
+                                    >
+                                        <Trash2 className="h-4 w-4 mr-1" />
+                                        Delete ({selectedProducts.length})
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1274,6 +1374,37 @@ export default function TradingInventory() {
                         </Button>
                         <Button variant="destructive" onClick={confirmDelete}>
                             Delete
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bulk Delete Confirmation Dialog */}
+            <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <Trash2 className="h-5 w-5" />
+                            Delete {selectedProducts.length} Products
+                        </DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete {selectedProducts.length} selected product{selectedProducts.length > 1 ? 's' : ''}? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+                            <p className="font-medium text-destructive">Warning</p>
+                            <p className="text-sm text-muted-foreground">
+                                You are about to permanently delete {selectedProducts.length} product{selectedProducts.length > 1 ? 's' : ''} from your inventory.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-3">
+                        <Button variant="outline" onClick={() => setBulkDeleteDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={confirmBulkDelete}>
+                            Delete All ({selectedProducts.length})
                         </Button>
                     </div>
                 </DialogContent>

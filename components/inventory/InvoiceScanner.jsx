@@ -30,7 +30,7 @@ export default function InvoiceScanner({
     const [editedItems, setEditedItems] = useState([]);
     const fileInputRef = useRef(null);
 
-    const unitOptions = ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack', 'set', 'pair', 'roll', 'bundle', 'dozen', 'ton', 'quintal'];
+    const unitOptions = ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack', 'set', 'pair', 'roll', 'bundle', 'dozen', 'ton', 'quintal', 'nos', 'mt', 'bag', 'carton', 'sheet', 'feet', 'inch'];
 
     // Comprehensive category options for trading inventory
     const tradingCategories = [
@@ -76,6 +76,44 @@ export default function InvoiceScanner({
     ];
 
     const categoryOptions = inventoryType === 'manufacturing' ? manufacturingCategories : tradingCategories;
+
+    // Normalize unit to valid enum value
+    const normalizeUnit = (unit) => {
+        if (!unit) return 'pcs';
+        const lowerUnit = unit.toLowerCase().trim();
+
+        // Map common variants to valid enum values
+        const unitMap = {
+            'pcs': 'pcs', 'pc': 'pcs', 'piece': 'pcs', 'pieces': 'pcs',
+            'no': 'nos', 'nos': 'nos', 'no.': 'nos', 'nos.': 'nos', 'number': 'nos', 'numbers': 'nos',
+            'kg': 'kg', 'kgs': 'kg', 'kilogram': 'kg', 'kilograms': 'kg',
+            'g': 'g', 'gm': 'g', 'gms': 'g', 'gram': 'g', 'grams': 'g',
+            'ltr': 'ltr', 'l': 'ltr', 'litre': 'ltr', 'liter': 'ltr', 'litres': 'ltr', 'liters': 'ltr',
+            'ml': 'ml', 'milliliter': 'ml', 'millilitre': 'ml',
+            'meter': 'meter', 'mtr': 'meter', 'm': 'meter', 'meters': 'meter', 'mtrs': 'meter',
+            'cm': 'cm', 'centimeter': 'cm', 'centimetre': 'cm',
+            'sqft': 'sqft', 'sq ft': 'sqft', 'sq.ft': 'sqft', 'square feet': 'sqft',
+            'sqm': 'sqm', 'sq m': 'sqm', 'sq.m': 'sqm', 'square meter': 'sqm',
+            'unit': 'unit', 'units': 'unit',
+            'box': 'box', 'boxes': 'box',
+            'pack': 'pack', 'pkt': 'pack', 'packet': 'pack', 'packets': 'pack', 'packs': 'pack',
+            'set': 'set', 'sets': 'set',
+            'pair': 'pair', 'pairs': 'pair', 'pr': 'pair',
+            'roll': 'roll', 'rolls': 'roll',
+            'bundle': 'bundle', 'bundles': 'bundle',
+            'dozen': 'dozen', 'dz': 'dozen', 'dzn': 'dozen',
+            'ton': 'ton', 'tons': 'ton', 'tonne': 'ton', 'tonnes': 'ton',
+            'quintal': 'quintal', 'quintals': 'quintal', 'qtl': 'quintal',
+            'mt': 'mt', 'metric ton': 'mt', 'metric tons': 'mt',
+            'bag': 'bag', 'bags': 'bag',
+            'carton': 'carton', 'cartons': 'carton', 'ctn': 'carton',
+            'sheet': 'sheet', 'sheets': 'sheet',
+            'feet': 'feet', 'ft': 'feet', 'foot': 'feet',
+            'inch': 'inch', 'inches': 'inch', 'in': 'inch'
+        };
+
+        return unitMap[lowerUnit] || (unitOptions.includes(lowerUnit) ? lowerUnit : 'pcs');
+    };
 
     const handleFileSelect = (e) => {
         const selectedFiles = Array.from(e.target.files || []);
@@ -201,7 +239,10 @@ export default function InvoiceScanner({
                         }
                     }
 
-                    return { ...item, category };
+                    // Normalize unit to valid enum value
+                    const normalizedUnit = normalizeUnit(item.unit);
+
+                    return { ...item, category, unit: normalizedUnit };
                 });
 
                 setScanResult(data);
@@ -239,18 +280,27 @@ export default function InvoiceScanner({
             const gstPercentage = parseFloat(editFormData.gstPercentage) || 0;
             const gstAmount = basePrice * gstPercentage / 100;
             const quantity = parseFloat(editFormData.quantity) || 0;
+            const normalizedUnit = normalizeUnit(editFormData.unit);
 
-            editFormData.gstAmount = gstAmount;
+            // Create a new object with all the edited values
+            const updatedItem = {
+                ...editFormData,
+                gstAmount: gstAmount,
+                unit: normalizedUnit,
+                quantity: quantity
+            };
 
             if (inventoryType === 'manufacturing') {
-                editFormData.costPerUnit = basePrice + gstAmount;
-                editFormData.totalCost = editFormData.costPerUnit * quantity;
+                updatedItem.costPerUnit = basePrice + gstAmount;
+                updatedItem.totalCost = updatedItem.costPerUnit * quantity;
             } else {
-                editFormData.costPrice = basePrice + gstAmount;
-                editFormData.totalCost = editFormData.costPrice * quantity;
+                updatedItem.costPrice = basePrice + gstAmount;
+                updatedItem.totalCost = updatedItem.costPrice * quantity;
+                // Ensure sellingPrice is preserved from editFormData
+                updatedItem.sellingPrice = parseFloat(editFormData.sellingPrice) || (updatedItem.costPrice * 1.25);
             }
 
-            updated[editingItemIndex] = editFormData;
+            updated[editingItemIndex] = updatedItem;
             setEditedItems(updated);
             setEditingItemIndex(null);
             setEditFormData(null);
@@ -511,8 +561,8 @@ export default function InvoiceScanner({
                                 {/* Error Message */}
                                 {scanResult.error && editedItems.length === 0 && (
                                     <div className={`p-6 rounded-lg border text-center ${scanResult.errorType === 'quota_exceeded'
-                                            ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/10'
-                                            : 'border-red-200 bg-red-50 dark:bg-red-900/10'
+                                        ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/10'
+                                        : 'border-red-200 bg-red-50 dark:bg-red-900/10'
                                         }`}>
                                         {scanResult.errorType === 'quota_exceeded' ? (
                                             <>
@@ -928,17 +978,35 @@ export default function InvoiceScanner({
                                     </div>
                                 </div>
 
-                                {/* Final Cost (auto-calculated) */}
+                                {/* Final Cost (Editable - reverse calculates Base Price) */}
                                 <div className="grid grid-cols-4 items-center gap-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                                     <Label className="text-right font-semibold">Final Cost *</Label>
                                     <div className="col-span-3">
-                                        <span className="text-xl font-bold text-green-600">
-                                            ₹{((editFormData.basePrice || 0) + ((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100)).toFixed(2)}
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₹</span>
+                                            <Input
+                                                type="number"
+                                                value={((editFormData.basePrice || 0) + ((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100)).toFixed(2)}
+                                                onChange={(e) => {
+                                                    const finalCost = parseFloat(e.target.value) || 0;
+                                                    const gstPct = editFormData.gstPercentage || 0;
+                                                    // Reverse calculate base price: Final = Base * (1 + GST/100) -> Base = Final / (1 + GST/100)
+                                                    const newBasePrice = finalCost / (1 + (gstPct / 100));
+
+                                                    setEditFormData({
+                                                        ...editFormData,
+                                                        basePrice: newBasePrice,
+                                                        gstAmount: finalCost - newBasePrice
+                                                    });
+                                                }}
+                                                className="pl-8 font-bold text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 focus:ring-green-500"
+                                                min="0"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                        <span className="text-xs text-green-600 mt-1 block">
+                                            Enter the final buying price including tax. Base price will be auto-calculated.
                                         </span>
-                                        <span className="text-sm text-muted-foreground ml-2">per {editFormData.unit}</span>
-                                        <p className="text-xs text-green-600 mt-1">
-                                            (Base ₹{(editFormData.basePrice || 0).toFixed(2)} + GST ₹{((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100).toFixed(2)})
-                                        </p>
                                     </div>
                                 </div>
 
