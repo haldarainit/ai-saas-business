@@ -1825,7 +1825,7 @@ export default function ManufacturingInventory() {
 
             {/* Production Modal */}
             <Dialog open={isProductionModalOpen} onOpenChange={setIsProductionModalOpen}>
-                <DialogContent className="sm:max-w-[600px]">
+                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Factory className="h-5 w-5 text-green-600" />
@@ -1857,15 +1857,15 @@ export default function ManufacturingInventory() {
                         return (
                             <div className="space-y-4">
                                 {/* Max Producible Info */}
-                                <div className={`p-4 rounded-lg border-2 ${maxProducible > 0 ? 'border-green-200 bg-green-50 dark:bg-green-900/20' : 'border-red-200 bg-red-50 dark:bg-red-900/20'}`}>
+                                <div className={`p-4 rounded-lg border-2 ${maxProducible > 0 ? 'border-green-200 bg-green-500/5 dark:bg-green-500/10' : 'border-red-200 bg-red-500/5 dark:bg-red-500/10'}`}>
                                     <div className="flex justify-between items-center">
                                         <span className="font-medium">Maximum Producible:</span>
-                                        <span className={`text-2xl font-bold ${maxProducible > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        <span className={`text-2xl font-bold ${maxProducible > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                             {maxProducible} units
                                         </span>
                                     </div>
                                     {maxProducible === 0 && (
-                                        <p className="text-sm text-red-600 mt-1">⚠️ Not enough raw materials to produce even 1 unit</p>
+                                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">⚠️ Not enough raw materials to produce even 1 unit</p>
                                     )}
                                 </div>
 
@@ -1888,7 +1888,7 @@ export default function ManufacturingInventory() {
                                             const itemCost = needed * (item.costPerUnit || 0);
 
                                             return (
-                                                <div key={i} className={`px-4 py-2 ${!isEnough ? 'bg-red-50 dark:bg-red-900/10' : willBeLow ? 'bg-amber-50 dark:bg-amber-900/10' : ''}`}>
+                                                <div key={i} className={`px-4 py-2 ${!isEnough ? 'bg-red-500/5 dark:bg-red-500/10' : willBeLow ? 'bg-amber-500/5 dark:bg-amber-500/10' : ''}`}>
                                                     <div className="flex justify-between items-start">
                                                         <div>
                                                             <div className="font-medium">{item.rawMaterialName}</div>
@@ -1900,7 +1900,7 @@ export default function ManufacturingInventory() {
                                                             <div className="font-medium">₹{itemCost.toFixed(2)}</div>
                                                             <div className={`text-xs ${!isEnough ? 'text-red-600 font-medium' : willBeLow ? 'text-amber-600' : 'text-muted-foreground'}`}>
                                                                 Stock: {available} → {remaining.toFixed(2)} {item.unit}
-                                                                {!isEnough && <span className="ml-1">❌ Shortage!</span>}
+                                                                {!isEnough && <span className="ml-1">    Shortage!</span>}
                                                                 {isEnough && willBeLow && <span className="ml-1">⚠️ Low after</span>}
                                                             </div>
                                                         </div>
@@ -1956,22 +1956,22 @@ export default function ManufacturingInventory() {
 
                                 {/* Cost & Profit Summary */}
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-center">
+                                    <div className="p-3 rounded-lg bg-amber-500/5 dark:bg-amber-500/10 text-center">
                                         <div className="text-xs text-muted-foreground">Raw Material Cost</div>
-                                        <div className="text-lg font-bold text-amber-600">₹{totalRawMaterialCost.toFixed(2)}</div>
+                                        <div className="text-lg font-bold text-amber-600 dark:text-amber-400">₹{totalRawMaterialCost.toFixed(2)}</div>
                                     </div>
-                                    <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-center">
+                                    <div className="p-3 rounded-lg bg-purple-500/5 dark:bg-purple-500/10 text-center">
                                         <div className="text-xs text-muted-foreground">Manufacturing Cost</div>
-                                        <div className="text-lg font-bold text-purple-600">₹{totalMfgCost.toFixed(2)}</div>
+                                        <div className="text-lg font-bold text-purple-600 dark:text-purple-400">₹{totalMfgCost.toFixed(2)}</div>
                                     </div>
-                                    <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-center">
+                                    <div className="p-3 rounded-lg bg-blue-500/5 dark:bg-blue-500/10 text-center">
                                         <div className="text-xs text-muted-foreground">Total Production Cost</div>
-                                        <div className="text-lg font-bold text-blue-600">₹{totalCost.toFixed(2)}</div>
+                                        <div className="text-lg font-bold text-blue-600 dark:text-blue-400">₹{totalCost.toFixed(2)}</div>
                                         <div className="text-xs text-muted-foreground">₹{currentQty > 0 ? (totalCost / currentQty).toFixed(2) : '0.00'}/unit</div>
                                     </div>
-                                    <div className={`p-3 rounded-lg text-center ${expectedProfit >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
+                                    <div className={`p-3 rounded-lg text-center ${expectedProfit >= 0 ? 'bg-green-500/5 dark:bg-green-500/10' : 'bg-red-500/5 dark:bg-red-500/10'}`}>
                                         <div className="text-xs text-muted-foreground">Expected Profit</div>
-                                        <div className={`text-lg font-bold ${expectedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        <div className={`text-lg font-bold ${expectedProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                             ₹{expectedProfit.toFixed(2)}
                                         </div>
                                         <div className="text-xs text-muted-foreground">
