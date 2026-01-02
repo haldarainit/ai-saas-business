@@ -90,7 +90,13 @@ export default function ManufacturingInventory() {
     const [itemToDelete, setItemToDelete] = useState(null);
     const [deleteType, setDeleteType] = useState(''); // 'raw-material' or 'product'
 
-    const unitOptions = ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack'];
+    // Select and bulk delete state
+    const [selectedRawMaterials, setSelectedRawMaterials] = useState([]);
+    const [selectedManufacturingProducts, setSelectedManufacturingProducts] = useState([]);
+    const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+    const [bulkDeleteType, setBulkDeleteType] = useState(''); // 'raw-material' or 'product'
+
+    const unitOptions = ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack', 'set', 'pair', 'roll', 'bundle', 'dozen', 'ton', 'quintal', 'nos', 'mt', 'bag', 'carton', 'sheet', 'feet', 'inch'];
 
     // Fetch all data
     useEffect(() => {
@@ -268,6 +274,7 @@ export default function ManufacturingInventory() {
     const handleScannedMaterials = async (items, supplierInfo) => {
         let successCount = 0;
         let errorCount = 0;
+        let errorMessages = [];
 
         for (const item of items) {
             try {
@@ -282,12 +289,15 @@ export default function ManufacturingInventory() {
                 // Use quantity from the edited item
                 const quantity = parseFloat(item.quantity) || 0;
 
+                // Normalize unit to lowercase
+                const normalizedUnit = (item.unit || 'pcs').toLowerCase().trim();
+
                 const materialData = {
                     name: item.name || '',
                     description: item.description || '',
                     sku: item.sku || '',
                     category: item.category || 'Uncategorized',
-                    unit: item.unit || 'pcs',
+                    unit: normalizedUnit,
                     costPerUnit: costPerUnit,
                     quantity: quantity,
                     minimumStock: item.minimumStock || 10,
@@ -310,12 +320,15 @@ export default function ManufacturingInventory() {
                 if (response.ok) {
                     successCount++;
                 } else {
-                    const errorData = await response.json();
-                    console.error('Failed to add material:', errorData);
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMsg = errorData.message || errorData.error || `Failed to add "${item.name}"`;
+                    console.error('Failed to add material:', errorMsg, errorData);
+                    errorMessages.push(`${item.name}: ${errorMsg}`);
                     errorCount++;
                 }
             } catch (error) {
                 console.error('Error adding material:', error);
+                errorMessages.push(`${item.name}: ${error.message || 'Unknown error'}`);
                 errorCount++;
             }
         }
@@ -323,17 +336,25 @@ export default function ManufacturingInventory() {
         // Refresh the list
         await fetchRawMaterials();
 
-        // Show result toast
-        if (successCount > 0) {
+        // Show result toast with detailed error info
+        if (successCount > 0 && errorCount === 0) {
             toast({
-                title: 'Materials Added',
-                description: `Successfully added ${successCount} raw material${successCount > 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
-                variant: errorCount > 0 ? 'warning' : 'default'
+                title: '✅ Materials Added Successfully',
+                description: `Added ${successCount} raw material${successCount > 1 ? 's' : ''} to inventory`,
+                variant: 'default'
+            });
+        } else if (successCount > 0 && errorCount > 0) {
+            toast({
+                title: '⚠️ Partially Added',
+                description: `Added ${successCount} material${successCount > 1 ? 's' : ''}, but ${errorCount} failed: ${errorMessages.slice(0, 2).join('; ')}${errorMessages.length > 2 ? '...' : ''}`,
+                variant: 'warning'
             });
         } else {
             toast({
-                title: 'Error',
-                description: 'Failed to add raw materials from invoice',
+                title: '❌ Failed to Add Materials',
+                description: errorMessages.length > 0
+                    ? `Errors: ${errorMessages.slice(0, 3).join('; ')}${errorMessages.length > 3 ? '...' : ''}`
+                    : 'Failed to add raw materials from invoice. Please try again.',
                 variant: 'destructive'
             });
         }
@@ -645,6 +666,94 @@ export default function ManufacturingInventory() {
 
     const filteredRawMaterials = filterItems(rawMaterials, searchTerm);
     const filteredProducts = filterItems(manufacturingProducts, searchTerm);
+
+    // Raw Material Selection Functions
+    const toggleRawMaterialSelection = (materialId) => {
+        setSelectedRawMaterials(prev =>
+            prev.includes(materialId)
+                ? prev.filter(id => id !== materialId)
+                : [...prev, materialId]
+        );
+    };
+
+    const toggleSelectAllRawMaterials = () => {
+        if (selectedRawMaterials.length === filteredRawMaterials.length) {
+            setSelectedRawMaterials([]);
+        } else {
+            setSelectedRawMaterials(filteredRawMaterials.map(m => m._id));
+        }
+    };
+
+    // Product Selection Functions
+    const toggleProductSelection = (productId) => {
+        setSelectedManufacturingProducts(prev =>
+            prev.includes(productId)
+                ? prev.filter(id => id !== productId)
+                : [...prev, productId]
+        );
+    };
+
+    const toggleSelectAllProducts = () => {
+        if (selectedManufacturingProducts.length === filteredProducts.length) {
+            setSelectedManufacturingProducts([]);
+        } else {
+            setSelectedManufacturingProducts(filteredProducts.map(p => p._id));
+        }
+    };
+
+    // Bulk Delete Functions
+    const openBulkDeleteDialog = (type) => {
+        setBulkDeleteType(type);
+        setBulkDeleteDialogOpen(true);
+    };
+
+    const confirmBulkDelete = async () => {
+        const selectedIds = bulkDeleteType === 'raw-material' ? selectedRawMaterials : selectedManufacturingProducts;
+        const endpoint = bulkDeleteType === 'raw-material' ? '/api/inventory/raw-materials' : '/api/inventory/manufacturing-products';
+
+        if (selectedIds.length === 0) return;
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const id of selectedIds) {
+            try {
+                const response = await fetch(`${endpoint}/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                });
+
+                if (response.ok) {
+                    successCount++;
+                } else {
+                    errorCount++;
+                }
+            } catch (error) {
+                console.error('Error deleting item:', error);
+                errorCount++;
+            }
+        }
+
+        // Refresh and reset
+        if (bulkDeleteType === 'raw-material') {
+            await fetchRawMaterials();
+            setSelectedRawMaterials([]);
+        } else {
+            await fetchManufacturingProducts();
+            setSelectedManufacturingProducts([]);
+        }
+
+        setBulkDeleteDialogOpen(false);
+        setBulkDeleteType('');
+
+        toast({
+            title: successCount > 0 ? 'Items Deleted' : 'Error',
+            description: successCount > 0
+                ? `Successfully deleted ${successCount} ${bulkDeleteType === 'raw-material' ? 'material' : 'product'}${successCount > 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+                : 'Failed to delete items',
+            variant: errorCount > 0 && successCount === 0 ? 'destructive' : 'default'
+        });
+    };
 
     // Additional metrics
     const rawMaterialCategories = [...new Set(rawMaterials.map(m => m.category))].length;
@@ -993,6 +1102,16 @@ export default function ManufacturingInventory() {
                                 <Plus className="mr-2 h-4 w-4" />
                                 Add Raw Material
                             </Button>
+                            {selectedRawMaterials.length > 0 && (
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => openBulkDeleteDialog('raw-material')}
+                                >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Delete ({selectedRawMaterials.length})
+                                </Button>
+                            )}
                         </div>
                     </div>
 
@@ -1011,6 +1130,14 @@ export default function ManufacturingInventory() {
                             <Table>
                                 <TableHeader>
                                     <TableRow className="bg-muted/50">
+                                        <TableHead className="w-12">
+                                            <input
+                                                type="checkbox"
+                                                checked={filteredRawMaterials.length > 0 && selectedRawMaterials.length === filteredRawMaterials.length}
+                                                onChange={toggleSelectAllRawMaterials}
+                                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                            />
+                                        </TableHead>
                                         <TableHead>Name</TableHead>
                                         <TableHead className="text-center">SKU</TableHead>
                                         <TableHead className="text-center">Category</TableHead>
@@ -1023,7 +1150,18 @@ export default function ManufacturingInventory() {
                                 </TableHeader>
                                 <TableBody>
                                     {filteredRawMaterials.map((material) => (
-                                        <TableRow key={material._id} className={material.quantity <= material.minimumStock ? 'bg-red-50 dark:bg-red-900/10' : ''}>
+                                        <TableRow
+                                            key={material._id}
+                                            className={`${material.quantity <= material.minimumStock ? 'bg-red-50 dark:bg-red-900/10' : ''} ${selectedRawMaterials.includes(material._id) ? 'bg-primary/5' : ''}`}
+                                        >
+                                            <TableCell className="w-12">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedRawMaterials.includes(material._id)}
+                                                    onChange={() => toggleRawMaterialSelection(material._id)}
+                                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                                />
+                                            </TableCell>
                                             <TableCell className="font-medium">
                                                 <div>
                                                     <div>{material.name}</div>
@@ -1075,14 +1213,43 @@ export default function ManufacturingInventory() {
                 <TabsContent value="products" className="space-y-6">
                     <div className="flex justify-between items-center">
                         <h2 className="text-xl font-semibold">Manufacturing Products</h2>
-                        <Button
-                            onClick={() => { resetProductForm(); setIsProductModalOpen(true); }}
-                            className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
-                        >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Product
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={() => { resetProductForm(); setIsProductModalOpen(true); }}
+                                className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Product
+                            </Button>
+                            {selectedManufacturingProducts.length > 0 && (
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => openBulkDeleteDialog('product')}
+                                >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Delete ({selectedManufacturingProducts.length})
+                                </Button>
+                            )}
+                        </div>
                     </div>
+
+                    {/* Select All option for products */}
+                    {filteredProducts.length > 0 && (
+                        <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
+                            <input
+                                type="checkbox"
+                                checked={filteredProducts.length > 0 && selectedManufacturingProducts.length === filteredProducts.length}
+                                onChange={toggleSelectAllProducts}
+                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                            />
+                            <span className="text-sm text-muted-foreground">
+                                {selectedManufacturingProducts.length === 0
+                                    ? 'Select all products'
+                                    : `${selectedManufacturingProducts.length} of ${filteredProducts.length} selected`}
+                            </span>
+                        </div>
+                    )}
 
                     {filteredProducts.length === 0 ? (
                         <div className="text-center py-12">
@@ -1093,12 +1260,20 @@ export default function ManufacturingInventory() {
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {filteredProducts.map((product) => (
-                                <Card key={product._id} className="relative overflow-hidden">
+                                <Card key={product._id} className={`relative overflow-hidden ${selectedManufacturingProducts.includes(product._id) ? 'ring-2 ring-primary' : ''}`}>
                                     <CardHeader>
                                         <div className="flex justify-between items-start">
-                                            <div>
-                                                <CardTitle className="text-lg">{product.name}</CardTitle>
-                                                <CardDescription>{product.sku} • {product.category}</CardDescription>
+                                            <div className="flex items-start gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedManufacturingProducts.includes(product._id)}
+                                                    onChange={() => toggleProductSelection(product._id)}
+                                                    className="h-4 w-4 mt-1 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                                />
+                                                <div>
+                                                    <CardTitle className="text-lg">{product.name}</CardTitle>
+                                                    <CardDescription>{product.sku} • {product.category}</CardDescription>
+                                                </div>
                                             </div>
                                             <div className="flex gap-1">
                                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditProduct(product)}>
@@ -2125,6 +2300,37 @@ export default function ManufacturingInventory() {
                             onClick={deleteType === 'raw-material' ? confirmDeleteRawMaterial : confirmDeleteProduct}
                         >
                             Delete
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bulk Delete Confirmation Dialog */}
+            <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <Trash2 className="h-5 w-5" />
+                            Delete {bulkDeleteType === 'raw-material' ? selectedRawMaterials.length : selectedManufacturingProducts.length} {bulkDeleteType === 'raw-material' ? 'Raw Materials' : 'Products'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete {bulkDeleteType === 'raw-material' ? selectedRawMaterials.length : selectedManufacturingProducts.length} selected {bulkDeleteType === 'raw-material' ? 'raw material' : 'product'}{(bulkDeleteType === 'raw-material' ? selectedRawMaterials.length : selectedManufacturingProducts.length) > 1 ? 's' : ''}? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+                            <p className="font-medium text-destructive">Warning</p>
+                            <p className="text-sm text-muted-foreground">
+                                You are about to permanently delete {bulkDeleteType === 'raw-material' ? selectedRawMaterials.length : selectedManufacturingProducts.length} {bulkDeleteType === 'raw-material' ? 'raw material' : 'product'}{(bulkDeleteType === 'raw-material' ? selectedRawMaterials.length : selectedManufacturingProducts.length) > 1 ? 's' : ''} from your inventory.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-3">
+                        <Button variant="outline" onClick={() => setBulkDeleteDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={confirmBulkDelete}>
+                            Delete All ({bulkDeleteType === 'raw-material' ? selectedRawMaterials.length : selectedManufacturingProducts.length})
                         </Button>
                     </div>
                 </DialogContent>

@@ -6,8 +6,7 @@ console.log('RawMaterial model loading...');
 const rawMaterialSchema = new mongoose.Schema({
     userId: {
         type: String,
-        required: true,
-        index: true
+        required: true
     },
     name: {
         type: String,
@@ -32,7 +31,8 @@ const rawMaterialSchema = new mongoose.Schema({
         type: String,
         required: true,
         default: 'pcs',
-        enum: ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack']
+        trim: true,
+        lowercase: true  // Automatically normalize to lowercase
     },
     costPerUnit: {
         type: Number,
@@ -115,7 +115,6 @@ rawMaterialSchema.virtual('isAboutToExpire').get(function () {
 
 // Create indexes
 rawMaterialSchema.index({ userId: 1, sku: 1 }, { unique: true });
-rawMaterialSchema.index({ userId: 1 });
 rawMaterialSchema.index({ name: 'text', description: 'text' });
 
 // Error handling for duplicate SKU
