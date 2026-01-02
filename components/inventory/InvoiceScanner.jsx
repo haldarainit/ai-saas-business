@@ -978,17 +978,35 @@ export default function InvoiceScanner({
                                     </div>
                                 </div>
 
-                                {/* Final Cost (auto-calculated) */}
+                                {/* Final Cost (Editable - reverse calculates Base Price) */}
                                 <div className="grid grid-cols-4 items-center gap-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                                     <Label className="text-right font-semibold">Final Cost *</Label>
                                     <div className="col-span-3">
-                                        <span className="text-xl font-bold text-green-600">
-                                            ₹{((editFormData.basePrice || 0) + ((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100)).toFixed(2)}
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₹</span>
+                                            <Input
+                                                type="number"
+                                                value={((editFormData.basePrice || 0) + ((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100)).toFixed(2)}
+                                                onChange={(e) => {
+                                                    const finalCost = parseFloat(e.target.value) || 0;
+                                                    const gstPct = editFormData.gstPercentage || 0;
+                                                    // Reverse calculate base price: Final = Base * (1 + GST/100) -> Base = Final / (1 + GST/100)
+                                                    const newBasePrice = finalCost / (1 + (gstPct / 100));
+
+                                                    setEditFormData({
+                                                        ...editFormData,
+                                                        basePrice: newBasePrice,
+                                                        gstAmount: finalCost - newBasePrice
+                                                    });
+                                                }}
+                                                className="pl-8 font-bold text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 focus:ring-green-500"
+                                                min="0"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                        <span className="text-xs text-green-600 mt-1 block">
+                                            Enter the final buying price including tax. Base price will be auto-calculated.
                                         </span>
-                                        <span className="text-sm text-muted-foreground ml-2">per {editFormData.unit}</span>
-                                        <p className="text-xs text-green-600 mt-1">
-                                            (Base ₹{(editFormData.basePrice || 0).toFixed(2)} + GST ₹{((editFormData.basePrice || 0) * (editFormData.gstPercentage || 0) / 100).toFixed(2)})
-                                        </p>
                                     </div>
                                 </div>
 
