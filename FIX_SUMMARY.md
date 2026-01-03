@@ -1,4 +1,4 @@
-# Issues Fixed - Summary
+# Issues Fixed - Summary below
 
 ## ✅ Issue #1: Dynamic Route Slug Conflict
 
