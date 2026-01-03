@@ -11,6 +11,7 @@ interface FeatureCardProps {
   title: string
   description: string
   accentColor?: string
+  bullets?: string[]
 }
 
 export default function FeatureCard({
@@ -18,13 +19,14 @@ export default function FeatureCard({
   title,
   description,
   accentColor = "rgba(120, 120, 255, 0.5)",
+  bullets = [],
 }: FeatureCardProps) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === "dark"
 
   // Adjust accent color opacity for dark mode
   const adjustedAccentColor = isDark
-    ? accentColor.replace(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/, "rgba($1, $2, $3, 0.3)")
+    ? accentColor.replace(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*[\d.]+\)/, "rgba($1, $2, $3, 0.3)")
     : accentColor
 
   return (
@@ -40,7 +42,18 @@ export default function FeatureCard({
           <FrostedGlassIcon icon={icon} color={accentColor} className="mb-4 self-start" />
 
           <h3 className="text-xl font-bold mb-2">{title}</h3>
-          <p className="text-muted-foreground flex-grow">{description}</p>
+          <p className="text-muted-foreground">{description}</p>
+
+          {bullets && bullets.length > 0 && (
+            <ul className="mt-4 space-y-2 flex-grow">
+              {bullets.map((bullet, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                  <span>{bullet}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Always visible animated gradient background */}
