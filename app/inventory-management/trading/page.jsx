@@ -174,6 +174,56 @@ export default function TradingInventory() {
         setIsSellModalOpen(true);
     };
 
+    // Add selected products to sale cart and open modal
+    const addSelectedToSale = () => {
+        if (selectedProducts.length === 0) {
+            toast({ title: '⚠️ No products selected', description: 'Please select products to add to sale', variant: 'destructive' });
+            return;
+        }
+
+        // Get the selected products with their full data
+        const selectedProductsData = products.filter(p => selectedProducts.includes(p._id));
+
+        // Filter out products that are out of stock
+        const availableProducts = selectedProductsData.filter(p => p.quantity > 0);
+        const outOfStockProducts = selectedProductsData.filter(p => p.quantity <= 0);
+
+        if (outOfStockProducts.length > 0) {
+            toast({
+                title: '⚠️ Some products skipped',
+                description: `${outOfStockProducts.length} product(s) are out of stock and were not added`,
+                variant: 'warning'
+            });
+        }
+
+        if (availableProducts.length === 0) {
+            toast({ title: '❌ All selected products are out of stock', description: 'Please select products with available stock', variant: 'destructive' });
+            return;
+        }
+
+        // Create cart items from selected products (quantity 1 each)
+        const cartItems = availableProducts.map(product => ({
+            product,
+            quantity: 1
+        }));
+
+        // Reset and open the sell modal with pre-filled cart
+        setSellCart(cartItems);
+        setProductSearchTerm('');
+        setSellCustomer({ name: '', phone: '', email: '' });
+        setSellPaymentMethod('cash');
+        setSellNotes('');
+        setIsSellModalOpen(true);
+
+        // Clear the selection
+        setSelectedProducts([]);
+
+        toast({
+            title: '✅ Products added to cart',
+            description: `${availableProducts.length} product(s) added to sale cart`,
+        });
+    };
+
     // Add product to cart
     const addToCart = (product) => {
         const existing = sellCart.find(item => item.product._id === product._id);
@@ -1568,14 +1618,24 @@ export default function TradingInventory() {
                                     {sortedAndFilteredProducts.length} of {totalProducts} products
                                 </span>
                                 {selectedProducts.length > 0 && (
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        onClick={() => setBulkDeleteDialogOpen(true)}
-                                    >
-                                        <Trash2 className="h-4 w-4 mr-1" />
-                                        Delete ({selectedProducts.length})
-                                    </Button>
+                                    <>
+                                        <Button
+                                            size="sm"
+                                            onClick={addSelectedToSale}
+                                            className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all"
+                                        >
+                                            <ShoppingCart className="h-4 w-4" />
+                                            Add to Sale ({selectedProducts.length})
+                                        </Button>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() => setBulkDeleteDialogOpen(true)}
+                                        >
+                                            <Trash2 className="h-4 w-4 mr-1" />
+                                            Delete ({selectedProducts.length})
+                                        </Button>
+                                    </>
                                 )}
                             </div>
                         </div>
