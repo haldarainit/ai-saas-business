@@ -711,7 +711,7 @@ export default function EmailAutomationPage() {
               </p>
 
               <div className="flex flex-wrap justify-center gap-3 mt-8">
-                <Button className="flex items-center gap-3 px-5 py-6 h-[60px] bg-[#1a1d21] hover:bg-[#2a2d31] text-white rounded-xl border-0 dark:bg-primary dark:hover:bg-primary/90 dark:shadow-[0_0_15px_rgba(36,101,237,0.5)] relative overflow-hidden group">
+                {/* <Button className="flex items-center gap-3 px-5 py-6 h-[60px] bg-[#1a1d21] hover:bg-[#2a2d31] text-white rounded-xl border-0 dark:bg-primary dark:hover:bg-primary/90 dark:shadow-[0_0_15px_rgba(36,101,237,0.5)] relative overflow-hidden group">
                   <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0 dark:opacity-30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform translate-x-[-100%] group-hover:translate-x-[100%]"></div>
                   <Zap className="h-5 w-5 text-white relative z-10" />
                   <div className="flex flex-col items-start relative z-10">
@@ -722,7 +722,7 @@ export default function EmailAutomationPage() {
                       AI-Powered
                     </span>
                   </div>
-                </Button>
+                </Button> */}
                 <Button
                   onClick={() =>
                     router.push("/get-started/email-automation/history")

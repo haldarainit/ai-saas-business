@@ -42,7 +42,7 @@ export default function Features() {
         "Comprehensive marketing tools to grow your business.",
       benefits: [
         "Campaign Planner AI",
-        
+
       ],
       accentColor: "rgba(236, 72, 153, 0.5)",
       iconColor: "text-pink-500",
@@ -165,9 +165,26 @@ export default function Features() {
                   </span>
                 </h1>
 
-                <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mb-12 leading-relaxed">
+                <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mb-8 leading-relaxed">
                   From quotations to invoices, emails to presentations, and marketing insights—everything runs on AI.
                 </p>
+
+                {/* How to Use Steps */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 bg-primary/5 border border-primary/20 rounded-2xl px-8 py-4 mb-12">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm">
+                      1
+                    </div>
+                    <span className="text-sm font-medium text-foreground">Browse the features below</span>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground hidden sm:block" />
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm">
+                      2
+                    </div>
+                    <span className="text-sm font-medium text-foreground">Click on any card to start using the service</span>
+                  </div>
+                </div>
 
                 {/* <div className="flex flex-col sm:flex-row gap-4">
                   <Button size="lg" className="text-lg px-8 py-6 h-auto">
@@ -286,7 +303,7 @@ export default function Features() {
                               >
                                 {feature.title === "Landing Page Builder"
                                   ? "Try Builder"
-                                  : "Learn More"}
+                                  : "Start Now"}
                                 <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform duration-300" />
                               </Button>
                             </div>
@@ -346,7 +363,7 @@ export default function Features() {
                               variant="ghost"
                               className="w-full justify-between group/btn hover:bg-primary hover:text-primary-foreground transition-all duration-300 text-sm py-3 h-auto font-medium"
                             >
-                              Learn More
+                              Start Now
                               <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform duration-300" />
                             </Button>
                           </div>

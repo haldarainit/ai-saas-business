@@ -122,7 +122,7 @@ export default function MarketingAI() {
                   increase conversions, and grow your business faster.
                 </p>
 
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                {/* <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" className="text-lg px-8 py-6 h-auto">
                     Start Creating
                     <Zap className="ml-2 w-5 h-5" />
@@ -134,7 +134,7 @@ export default function MarketingAI() {
                   >
                     View Examples
                   </Button>
-                </div>
+                </div> */}
               </motion.div>
             </div>
           </section>
@@ -256,7 +256,7 @@ export default function MarketingAI() {
               </motion.div>
 
               {/* Interactive Demo Section */}
-              <motion.div
+              {/* <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
@@ -285,7 +285,7 @@ export default function MarketingAI() {
                     </Link>
                   </div>
                 </div>
-              </motion.div>
+              </motion.div> */}
             </div>
           </section>
         </main>

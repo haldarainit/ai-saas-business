@@ -36,66 +36,66 @@ import Image from "next/image";
 
 export default function AppointmentScheduling() {
     const schedulingFeatures = [
-        {
-            icon: <CalendarPlus className="w-8 h-8" />,
-            title: "Smart Auto-Scheduling",
-            description:
-                "AI-powered scheduling that finds the perfect time for everyone. Our intelligent algorithm considers availability, preferences, and time zones to suggest optimal meeting times.",
-            features: ["AI Time Optimization", "Conflict Detection", "Smart Suggestions"],
-            image: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?ixlib=rb-4.0.3&auto=format&fit=crop&w=2068&q=80",
-            accentColor: "rgba(99, 102, 241, 0.5)",
-            iconColor: "text-indigo-500",
-        },
-        {
-            icon: <Bell className="w-8 h-8" />,
-            title: "Automated Reminders",
-            description:
-                "Never miss an appointment again. Send customizable email and SMS reminders to reduce no-shows by up to 80%.",
-            features: ["Email Notifications", "SMS Reminders", "Custom Templates"],
-            image: "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
-            accentColor: "rgba(236, 72, 153, 0.5)",
-            iconColor: "text-pink-500",
-        },
-        {
-            icon: <CalendarX className="w-8 h-8" />,
-            title: "Easy Cancellations",
-            description:
-                "Hassle-free rescheduling and cancellation management. Automatically notify attendees and update all synced calendars.",
-            features: ["One-Click Cancel", "Auto-Reschedule", "Waitlist Management"],
-            image: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
-            accentColor: "rgba(239, 68, 68, 0.5)",
-            iconColor: "text-red-500",
-        },
-        {
-            icon: <RefreshCw className="w-8 h-8" />,
-            title: "Calendar Sync",
-            description:
-                "Seamlessly sync with Google Calendar, Outlook, Apple Calendar, and more. Real-time bi-directional sync keeps everything updated.",
-            features: ["Google Calendar", "Outlook Integration", "Apple Calendar"],
-            image: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?ixlib=rb-4.0.3&auto=format&fit=crop&w=2069&q=80",
-            accentColor: "rgba(34, 197, 94, 0.5)",
-            iconColor: "text-green-500",
-        },
-        {
-            icon: <MessageSquare className="w-8 h-8" />,
-            title: "Chat Booking",
-            description:
-                "Let customers book appointments through conversational AI chatbots. Available 24/7 on your website or messaging platforms.",
-            features: ["AI Chatbot", "Website Widget", "WhatsApp Integration"],
-            image: "https://images.unsplash.com/photo-1587560699334-cc4ff634909a?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
-            accentColor: "rgba(59, 130, 246, 0.5)",
-            iconColor: "text-blue-500",
-        },
-        {
-            icon: <Video className="w-8 h-8" />,
-            title: "Virtual Meetings",
-            description:
-                "Automatically generate Zoom, Google Meet, or Teams links for online appointments. One-click join for attendees.",
-            features: ["Zoom Integration", "Google Meet", "Microsoft Teams"],
-            image: "https://images.unsplash.com/photo-1609619385002-f40f1df9b7eb?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
-            accentColor: "rgba(139, 92, 246, 0.5)",
-            iconColor: "text-purple-500",
-        },
+        // {
+        //     icon: <CalendarPlus className="w-8 h-8" />,
+        //     title: "Smart Auto-Scheduling",
+        //     description:
+        //         "AI-powered scheduling that finds the perfect time for everyone. Our intelligent algorithm considers availability, preferences, and time zones to suggest optimal meeting times.",
+        //     features: ["AI Time Optimization", "Conflict Detection", "Smart Suggestions"],
+        //     image: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?ixlib=rb-4.0.3&auto=format&fit=crop&w=2068&q=80",
+        //     accentColor: "rgba(99, 102, 241, 0.5)",
+        //     iconColor: "text-indigo-500",
+        // },
+        // {
+        //     icon: <Bell className="w-8 h-8" />,
+        //     title: "Automated Reminders",
+        //     description:
+        //         "Never miss an appointment again. Send customizable email and SMS reminders to reduce no-shows by up to 80%.",
+        //     features: ["Email Notifications", "SMS Reminders", "Custom Templates"],
+        //     image: "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+        //     accentColor: "rgba(236, 72, 153, 0.5)",
+        //     iconColor: "text-pink-500",
+        // },
+        // {
+        //     icon: <CalendarX className="w-8 h-8" />,
+        //     title: "Easy Cancellations",
+        //     description:
+        //         "Hassle-free rescheduling and cancellation management. Automatically notify attendees and update all synced calendars.",
+        //     features: ["One-Click Cancel", "Auto-Reschedule", "Waitlist Management"],
+        //     image: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+        //     accentColor: "rgba(239, 68, 68, 0.5)",
+        //     iconColor: "text-red-500",
+        // },
+        // {
+        //     icon: <RefreshCw className="w-8 h-8" />,
+        //     title: "Calendar Sync",
+        //     description:
+        //         "Seamlessly sync with Google Calendar, Outlook, Apple Calendar, and more. Real-time bi-directional sync keeps everything updated.",
+        //     features: ["Google Calendar", "Outlook Integration", "Apple Calendar"],
+        //     image: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?ixlib=rb-4.0.3&auto=format&fit=crop&w=2069&q=80",
+        //     accentColor: "rgba(34, 197, 94, 0.5)",
+        //     iconColor: "text-green-500",
+        // },
+        // {
+        //     icon: <MessageSquare className="w-8 h-8" />,
+        //     title: "Chat Booking",
+        //     description:
+        //         "Let customers book appointments through conversational AI chatbots. Available 24/7 on your website or messaging platforms.",
+        //     features: ["AI Chatbot", "Website Widget", "WhatsApp Integration"],
+        //     image: "https://images.unsplash.com/photo-1587560699334-cc4ff634909a?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+        //     accentColor: "rgba(59, 130, 246, 0.5)",
+        //     iconColor: "text-blue-500",
+        // },
+        // {
+        //     icon: <Video className="w-8 h-8" />,
+        //     title: "Virtual Meetings",
+        //     description:
+        //         "Automatically generate Zoom, Google Meet, or Teams links for online appointments. One-click join for attendees.",
+        //     features: ["Zoom Integration", "Google Meet", "Microsoft Teams"],
+        //     image: "https://images.unsplash.com/photo-1609619385002-f40f1df9b7eb?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+        //     accentColor: "rgba(139, 92, 246, 0.5)",
+        //     iconColor: "text-purple-500",
+        // },
     ];
 
     const stats = [
@@ -225,18 +225,18 @@ export default function AppointmentScheduling() {
                                             <ArrowRight className="ml-2 w-5 h-5" />
                                         </Button>
                                     </Link>
-                                    <Button
+                                    {/* <Button
                                         variant="outline"
                                         size="lg"
                                         className="text-lg px-8 py-6 h-auto border-indigo-500/30 hover:bg-indigo-500/10"
                                     >
                                         <Video className="mr-2 w-5 h-5" />
                                         Watch Demo
-                                    </Button>
+                                    </Button> */}
                                 </div>
 
                                 {/* Stats Grid */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 w-full max-w-4xl">
+                                {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-8 w-full max-w-4xl">
                                     {stats.map((stat, index) => (
                                         <motion.div
                                             key={index}
@@ -256,7 +256,7 @@ export default function AppointmentScheduling() {
                                             </div>
                                         </motion.div>
                                     ))}
-                                </div>
+                                </div> */}
                             </motion.div>
                         </div>
                     </section>
@@ -267,7 +267,7 @@ export default function AppointmentScheduling() {
                         <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
 
                         <div className="container px-4 md:px-6 relative">
-                            <motion.div
+                            {/* <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
@@ -286,7 +286,7 @@ export default function AppointmentScheduling() {
                                     Powerful features designed to automate your appointment
                                     management and delight your customers.
                                 </p>
-                            </motion.div>
+                            </motion.div> */}
 
                             <motion.div
                                 variants={containerVariants}
@@ -319,25 +319,25 @@ export default function AppointmentScheduling() {
                                                     <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
 
                                                     {/* Floating Icon */}
-                                                    <div className="absolute bottom-4 left-4">
+                                                    {/* <div className="absolute bottom-4 left-4">
                                                         <div
                                                             className={`p-3 rounded-xl bg-background/90 backdrop-blur-sm border border-border/50 ${feature.iconColor} group-hover:scale-110 transition-transform duration-300`}
                                                         >
                                                             {feature.icon}
                                                         </div>
-                                                    </div>
+                                                    </div> */}
                                                 </div>
 
                                                 <div className="p-6 flex-grow flex flex-col">
-                                                    <h3 className="text-xl font-bold mb-2 text-foreground group-hover:text-white transition-colors duration-300">
+                                                    {/* <h3 className="text-xl font-bold mb-2 text-foreground group-hover:text-white transition-colors duration-300">
                                                         {feature.title}
                                                     </h3>
                                                     <p className="text-muted-foreground text-sm leading-relaxed mb-4 flex-grow group-hover:text-white/80 transition-colors duration-300">
                                                         {feature.description}
-                                                    </p>
+                                                    </p> */}
 
                                                     {/* Feature tags */}
-                                                    <div className="flex flex-wrap gap-2 mb-4">
+                                                    {/* <div className="flex flex-wrap gap-2 mb-4">
                                                         {feature.features.map((feat, i) => (
                                                             <Badge
                                                                 key={i}
@@ -347,15 +347,15 @@ export default function AppointmentScheduling() {
                                                                 {feat}
                                                             </Badge>
                                                         ))}
-                                                    </div>
+                                                    </div> */}
 
-                                                    <Button
+                                                    {/* <Button
                                                         variant="ghost"
                                                         className="w-full justify-between group/btn hover:bg-indigo-500 hover:text-white transition-all duration-300"
                                                     >
                                                         Learn More
                                                         <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                                                    </Button>
+                                                    </Button> */}
                                                 </div>
                                             </div>
                                         </Card>
@@ -366,12 +366,12 @@ export default function AppointmentScheduling() {
                     </section>
 
                     {/* Google Calendar Integration Section */}
-                    <section className="py-24 relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-background to-purple-500/5" />
+                    {/* <section className="py-24 relative overflow-hidden"> */}
+                        {/* <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-background to-purple-500/5" /> */}
 
-                        <div className="container px-4 md:px-6 relative">
-                            <div className="grid lg:grid-cols-2 gap-16 items-center">
-                                <motion.div
+                        {/* <div className="container px-4 md:px-6 relative"> */}
+                            {/* <div className="grid lg:grid-cols-2 gap-16 items-center"> */}
+                                {/* <motion.div
                                     initial={{ opacity: 0, x: -30 }}
                                     whileInView={{ opacity: 1, x: 0 }}
                                     viewport={{ once: true }}
@@ -429,19 +429,19 @@ export default function AppointmentScheduling() {
                                         </svg>
                                         Connect Google Calendar
                                     </Button>
-                                </motion.div>
+                                </motion.div> */}
 
-                                <motion.div
+                                {/* <motion.div
                                     initial={{ opacity: 0, x: 30 }}
                                     whileInView={{ opacity: 1, x: 0 }}
                                     viewport={{ once: true }}
                                     transition={{ duration: 0.8 }}
                                     className="relative"
-                                >
+                                > */}
                                     {/* Calendar Preview Card */}
-                                    <div className="relative bg-background rounded-3xl shadow-2xl border border-border/50 overflow-hidden">
+                                    {/* <div className="relative bg-background rounded-3xl shadow-2xl border border-border/50 overflow-hidden"> */}
                                         {/* Calendar Header */}
-                                        <div className="p-6 bg-gradient-to-r from-indigo-500 to-purple-500">
+                                        {/* <div className="p-6 bg-gradient-to-r from-indigo-500 to-purple-500">
                                             <div className="flex items-center justify-between text-white">
                                                 <div>
                                                     <h3 className="text-2xl font-bold">December 2025</h3>
@@ -449,11 +449,11 @@ export default function AppointmentScheduling() {
                                                 </div>
                                                 <CalendarDays className="w-10 h-10 text-white/80" />
                                             </div>
-                                        </div>
+                                        </div> */}
 
                                         {/* Calendar Grid */}
-                                        <div className="p-6">
-                                            <div className="grid grid-cols-7 gap-2 mb-4">
+                                        {/* <div className="p-6"> */}
+                                            {/* <div className="grid grid-cols-7 gap-2 mb-4">
                                                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
                                                     (day) => (
                                                         <div
@@ -464,9 +464,9 @@ export default function AppointmentScheduling() {
                                                         </div>
                                                     )
                                                 )}
-                                            </div>
+                                            </div> */}
 
-                                            <div className="grid grid-cols-7 gap-2">
+                                            {/* <div className="grid grid-cols-7 gap-2">
                                                 {[...Array(31)].map((_, i) => {
                                                     const hasEvent = [3, 7, 12, 15, 20, 25].includes(i + 1);
                                                     const isToday = i + 1 === 15;
@@ -489,10 +489,10 @@ export default function AppointmentScheduling() {
                                                         </motion.div>
                                                     );
                                                 })}
-                                            </div>
+                                            </div> */}
 
                                             {/* Upcoming Events */}
-                                            <div className="mt-6 space-y-3">
+                                            {/* <div className="mt-6 space-y-3">
                                                 <h4 className="font-semibold text-sm text-muted-foreground">
                                                     Upcoming Appointments
                                                 </h4>
@@ -531,12 +531,12 @@ export default function AppointmentScheduling() {
                                                         </div>
                                                     </motion.div>
                                                 ))}
-                                            </div>
-                                        </div>
-                                    </div>
+                                            </div> */}
+                                        {/* </div> */}
+                                    {/* </div> */}
 
                                     {/* Floating notification */}
-                                    <motion.div
+                                    {/* <motion.div
                                         initial={{ opacity: 0, y: 20, x: 20 }}
                                         whileInView={{ opacity: 1, y: 0, x: 0 }}
                                         transition={{ delay: 0.8 }}
@@ -553,14 +553,14 @@ export default function AppointmentScheduling() {
                                                 </p>
                                             </div>
                                         </div>
-                                    </motion.div>
-                                </motion.div>
-                            </div>
-                        </div>
-                    </section>
+                                    </motion.div> */}
+                                {/* </motion.div> */}
+                            {/* </div> */}
+                        {/* </div> */}
+                    {/* </section> */}
 
                     {/* How It Works Section */}
-                    <section className="py-24 bg-muted/30">
+                    {/* <section className="py-24 bg-muted/30">
                         <div className="container px-4 md:px-6">
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
@@ -631,10 +631,10 @@ export default function AppointmentScheduling() {
                                 ))}
                             </div>
                         </div>
-                    </section>
+                    </section> */}
 
                     {/* CTA Section */}
-                    <section className="py-24 relative overflow-hidden">
+                    {/* <section className="py-24 relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600" />
                         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:24px_24px]" />
 
@@ -672,7 +672,7 @@ export default function AppointmentScheduling() {
                                 </div>
                             </motion.div>
                         </div>
-                    </section>
+                    </section> */}
                 </main>
 
                 <Footer />
