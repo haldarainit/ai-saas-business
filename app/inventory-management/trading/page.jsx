@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine, Filter, X, ChevronDown } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine, Filter, X, ChevronDown, FileText, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -61,6 +61,11 @@ export default function TradingInventory() {
     const [sales, setSales] = useState([]);
     const [salesSummary, setSalesSummary] = useState(null);
     const [salesLoading, setSalesLoading] = useState(false);
+
+    // Quotation prompt state (after sale completion)
+    const [showQuotationDialog, setShowQuotationDialog] = useState(false);
+    const [completedSaleData, setCompletedSaleData] = useState(null);
+    const [creatingQuotation, setCreatingQuotation] = useState(false);
 
     // Form state
     const [shelves, setShelves] = useState(['Default', 'A1', 'A2', 'B1', 'B2']);
@@ -334,8 +339,28 @@ export default function TradingInventory() {
                 duration: 5000,
             });
 
+            // Store sale data for potential quotation
+            setCompletedSaleData({
+                items: sellCart.map(item => ({
+                    name: item.product.name,
+                    sku: item.product.sku,
+                    quantity: item.quantity,
+                    price: item.product.price,
+                    total: item.product.price * item.quantity
+                })),
+                customer: sellCustomer.name ? sellCustomer : { name: 'Walk-in Customer' },
+                total: cartSubtotal,
+                profit: result.summary.profit,
+                paymentMethod: sellPaymentMethod,
+                notes: sellNotes,
+                saleId: result.sale?._id
+            });
+
             setIsSellModalOpen(false);
             setSellCart([]);
+
+            // Show quotation dialog
+            setShowQuotationDialog(true);
 
             // Refresh products to show updated stock
             const fetchProducts = async () => {
@@ -358,6 +383,179 @@ export default function TradingInventory() {
             setSellingLoading(false);
         }
     };
+
+    // Handle quotation choice after sale completion
+    const handleQuotationChoice = async (wantsQuotation) => {
+        if (!wantsQuotation) {
+            setShowQuotationDialog(false);
+            setCompletedSaleData(null);
+            return;
+        }
+
+        if (!completedSaleData) {
+            toast({
+                title: '❌ Error',
+                description: 'Sale data not found. Please try again.',
+                variant: 'destructive',
+            });
+            setShowQuotationDialog(false);
+            return;
+        }
+
+        setCreatingQuotation(true);
+
+        try {
+            const currentDate = new Date().toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+
+            // Build table data for products
+            const tableHeaders = ['S.No', 'Product Name', 'SKU', 'Quantity', 'Unit Price (₹)', 'Total (₹)'];
+            const tableRows = completedSaleData.items.map((item, idx) => [
+                String(idx + 1),
+                item.name,
+                item.sku,
+                String(item.quantity),
+                item.price.toFixed(2),
+                item.total.toFixed(2)
+            ]);
+
+            // Add total row
+            tableRows.push([
+                '',
+                '',
+                '',
+                '',
+                'Grand Total:',
+                `₹${completedSaleData.total.toFixed(2)}`
+            ]);
+
+            // Build content blocks for the quotation
+            const contentBlocks = [
+                {
+                    id: 'block-1',
+                    type: 'heading',
+                    content: 'SALES QUOTATION',
+                    style: { fontSize: 16, fontWeight: 'bold', textAlign: 'center' }
+                },
+                {
+                    id: 'block-2',
+                    type: 'paragraph',
+                    content: `Date: ${currentDate}`,
+                    style: { fontSize: 11, textAlign: 'right' }
+                },
+                {
+                    id: 'block-3',
+                    type: 'heading',
+                    content: 'Customer Details',
+                    style: { fontSize: 12, fontWeight: 'bold', textAlign: 'left' }
+                },
+                {
+                    id: 'block-4',
+                    type: 'paragraph',
+                    content: `Name: ${completedSaleData.customer.name || 'Walk-in Customer'}${completedSaleData.customer.phone ? `\nPhone: ${completedSaleData.customer.phone}` : ''}`,
+                    style: { fontSize: 11, textAlign: 'left' }
+                },
+                {
+                    id: 'block-5',
+                    type: 'heading',
+                    content: 'Product Details',
+                    style: { fontSize: 12, fontWeight: 'bold', textAlign: 'left' }
+                },
+                {
+                    id: 'block-6',
+                    type: 'table',
+                    tableData: {
+                        headers: tableHeaders,
+                        rows: tableRows,
+                        style: {
+                            headerBgColor: '#1e40af',
+                            headerTextColor: '#ffffff',
+                            borderColor: '#e5e7eb',
+                            borderWidth: 1,
+                            textColor: '#1a1a1a',
+                            alternateRowColor: '#f9fafb',
+                            fontSize: 10
+                        }
+                    }
+                },
+                {
+                    id: 'block-7',
+                    type: 'heading',
+                    content: 'Payment Information',
+                    style: { fontSize: 12, fontWeight: 'bold', textAlign: 'left' }
+                },
+                {
+                    id: 'block-8',
+                    type: 'paragraph',
+                    content: `Payment Method: ${completedSaleData.paymentMethod.charAt(0).toUpperCase() + completedSaleData.paymentMethod.slice(1).replace('_', ' ')}${completedSaleData.notes ? `\nNotes: ${completedSaleData.notes}` : ''}`,
+                    style: { fontSize: 11, textAlign: 'left' }
+                }
+            ];
+
+            // Prepare items for Bill of Quantities text field backup
+            const itemsBoq = completedSaleData.items.map((item, idx) =>
+                `${idx + 1}. ${item.name} (SKU: ${item.sku}) - Qty: ${item.quantity} × ₹${item.price.toFixed(2)} = ₹${item.total.toFixed(2)}`
+            ).join('\n');
+
+            // Create quotation via API
+            const response = await fetch('/api/techno-quotation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    type: 'manual',
+                    title: `Sales Quotation - ${completedSaleData.customer.name || 'Customer'} - ${currentDate}`,
+                    subject: `Sales Quotation - ${completedSaleData.items.length} item(s) - ₹${completedSaleData.total.toFixed(2)}`,
+                    clientDetails: {
+                        name: completedSaleData.customer.name || 'Walk-in Customer',
+                        company: completedSaleData.customer.name || 'Walk-in Customer',
+                        contact: completedSaleData.customer.phone || '',
+                        address: ''
+                    },
+                    contentBlocks: contentBlocks,
+                    answers: {
+                        client_name: completedSaleData.customer.name || 'Walk-in Customer',
+                        client_contact: completedSaleData.customer.phone || '',
+                        project_subject: `Sales Quotation - ${completedSaleData.items.length} item(s)`,
+                        items_boq: itemsBoq + `\n\n--- TOTAL: ₹${completedSaleData.total.toFixed(2)} ---`,
+                        terms_conditions: `Payment Method: ${completedSaleData.paymentMethod.toUpperCase()}\n${completedSaleData.notes ? `Notes: ${completedSaleData.notes}` : ''}`,
+                    },
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create quotation');
+            }
+
+            const result = await response.json();
+
+            // Open quotation in new tab
+            const quotationUrl = `/accounting/techno-quotation/${result.quotation._id}`;
+            window.open(quotationUrl, '_blank');
+
+            toast({
+                title: '✅ Quotation Created!',
+                description: 'Quotation opened in a new tab.',
+                duration: 3000,
+            });
+
+        } catch (error) {
+            console.error('Error creating quotation:', error);
+            toast({
+                title: '❌ Quotation Failed',
+                description: error.message || 'Failed to create quotation. Please try again.',
+                variant: 'destructive',
+            });
+        } finally {
+            setCreatingQuotation(false);
+            setShowQuotationDialog(false);
+            setCompletedSaleData(null);
+        }
+    };
+
 
     // Handle empty or error states
     const renderContent = () => {
@@ -2076,6 +2274,77 @@ export default function TradingInventory() {
                         >
                             <ShoppingCart className="h-5 w-5 mr-2" />
                             {sellingLoading ? 'Processing...' : `Complete Sale • ₹${cartSubtotal.toFixed(2)}`}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Quotation Confirmation Dialog */}
+            <Dialog open={showQuotationDialog} onOpenChange={(open) => {
+                if (!open && !creatingQuotation) {
+                    setShowQuotationDialog(false);
+                    setCompletedSaleData(null);
+                }
+            }}>
+                <DialogContent className="sm:max-w-[450px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                            <FileText className="h-5 w-5" />
+                            Generate Quotation?
+                        </DialogTitle>
+                        <DialogDescription>
+                            Would you like to create a quotation for this sale?
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {completedSaleData && (
+                        <div className="py-4">
+                            <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Customer:</span>
+                                        <span className="font-medium">{completedSaleData.customer.name}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Items:</span>
+                                        <span className="font-medium">{completedSaleData.items.length} product(s)</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm font-semibold border-t pt-2 mt-2">
+                                        <span className="text-muted-foreground">Total:</span>
+                                        <span className="text-emerald-600 dark:text-emerald-400">₹{completedSaleData.total.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-3">
+                                A quotation will be created and opened in a new tab for review and customization.
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="flex justify-end gap-3">
+                        <Button
+                            variant="outline"
+                            onClick={() => handleQuotationChoice(false)}
+                            disabled={creatingQuotation}
+                        >
+                            No, Skip
+                        </Button>
+                        <Button
+                            onClick={() => handleQuotationChoice(true)}
+                            disabled={creatingQuotation}
+                            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
+                        >
+                            {creatingQuotation ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Creating...
+                                </>
+                            ) : (
+                                <>
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    Yes, Create Quotation
+                                </>
+                            )}
                         </Button>
                     </div>
                 </DialogContent>
