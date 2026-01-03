@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine, Filter, X, ChevronDown, FileText, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -38,6 +38,34 @@ export default function TradingInventory() {
     // Select and bulk delete state
     const [selectedProducts, setSelectedProducts] = useState([]);
     const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+
+    // Filter state
+    const [showFilters, setShowFilters] = useState(false);
+    const [filters, setFilters] = useState({
+        category: '',
+        shelf: '',
+        stockStatus: '', // 'in-stock', 'low-stock', 'out-of-stock'
+        expiryStatus: '' // 'expired', 'expiring-soon', 'not-expiring'
+    });
+
+    // Sales state (Cart-based for multiple products)
+    const [isSellModalOpen, setIsSellModalOpen] = useState(false);
+    const [sellCart, setSellCart] = useState([]); // Array of {product, quantity}
+    const [productSearchTerm, setProductSearchTerm] = useState('');
+    const [sellCustomer, setSellCustomer] = useState({ name: '', phone: '', email: '' });
+    const [sellPaymentMethod, setSellPaymentMethod] = useState('cash');
+    const [sellNotes, setSellNotes] = useState('');
+    const [sellingLoading, setSellingLoading] = useState(false);
+
+    // Sales History state
+    const [sales, setSales] = useState([]);
+    const [salesSummary, setSalesSummary] = useState(null);
+    const [salesLoading, setSalesLoading] = useState(false);
+
+    // Quotation prompt state (after sale completion)
+    const [showQuotationDialog, setShowQuotationDialog] = useState(false);
+    const [completedSaleData, setCompletedSaleData] = useState(null);
+    const [creatingQuotation, setCreatingQuotation] = useState(false);
 
     // Form state
     const [shelves, setShelves] = useState(['Default', 'A1', 'A2', 'B1', 'B2']);
@@ -121,6 +149,413 @@ export default function TradingInventory() {
 
         fetchProducts();
     };
+
+    // Fetch sales data
+    const fetchSales = async () => {
+        try {
+            setSalesLoading(true);
+            const response = await fetch('/api/inventory/sales', {
+                credentials: 'include',
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setSales(data.sales || []);
+                setSalesSummary(data.summary || null);
+            }
+        } catch (error) {
+            console.error('Error fetching sales:', error);
+        } finally {
+            setSalesLoading(false);
+        }
+    };
+
+    // Open sell modal (reset cart)
+    const openSellModal = () => {
+        setSellCart([]);
+        setProductSearchTerm('');
+        setSellCustomer({ name: '', phone: '', email: '' });
+        setSellPaymentMethod('cash');
+        setSellNotes('');
+        setIsSellModalOpen(true);
+    };
+
+    // Add selected products to sale cart and open modal
+    const addSelectedToSale = () => {
+        if (selectedProducts.length === 0) {
+            toast({ title: '⚠️ No products selected', description: 'Please select products to add to sale', variant: 'destructive' });
+            return;
+        }
+
+        // Get the selected products with their full data
+        const selectedProductsData = products.filter(p => selectedProducts.includes(p._id));
+
+        // Filter out products that are out of stock
+        const availableProducts = selectedProductsData.filter(p => p.quantity > 0);
+        const outOfStockProducts = selectedProductsData.filter(p => p.quantity <= 0);
+
+        if (outOfStockProducts.length > 0) {
+            toast({
+                title: '⚠️ Some products skipped',
+                description: `${outOfStockProducts.length} product(s) are out of stock and were not added`,
+                variant: 'warning'
+            });
+        }
+
+        if (availableProducts.length === 0) {
+            toast({ title: '❌ All selected products are out of stock', description: 'Please select products with available stock', variant: 'destructive' });
+            return;
+        }
+
+        // Create cart items from selected products (quantity 1 each)
+        const cartItems = availableProducts.map(product => ({
+            product,
+            quantity: 1
+        }));
+
+        // Reset and open the sell modal with pre-filled cart
+        setSellCart(cartItems);
+        setProductSearchTerm('');
+        setSellCustomer({ name: '', phone: '', email: '' });
+        setSellPaymentMethod('cash');
+        setSellNotes('');
+        setIsSellModalOpen(true);
+
+        // Clear the selection
+        setSelectedProducts([]);
+
+        toast({
+            title: '✅ Products added to cart',
+            description: `${availableProducts.length} product(s) added to sale cart`,
+        });
+    };
+
+    // Add product to cart
+    const addToCart = (product) => {
+        const existing = sellCart.find(item => item.product._id === product._id);
+        if (existing) {
+            // Increase quantity
+            if (existing.quantity < product.quantity) {
+                setSellCart(sellCart.map(item =>
+                    item.product._id === product._id
+                        ? { ...item, quantity: item.quantity + 1 }
+                        : item
+                ));
+            } else {
+                toast({ title: '⚠️ Stock limit reached', description: `Only ${product.quantity} available`, variant: 'destructive' });
+            }
+        } else {
+            if (product.quantity < 1) {
+                toast({ title: '❌ Out of stock', description: `${product.name} is out of stock`, variant: 'destructive' });
+                return;
+            }
+            setSellCart([...sellCart, { product, quantity: 1 }]);
+        }
+        setProductSearchTerm('');
+    };
+
+    // Update cart item quantity
+    const updateCartQuantity = (productId, newQuantity) => {
+        const item = sellCart.find(i => i.product._id === productId);
+        if (!item) return;
+
+        if (newQuantity < 1) {
+            removeFromCart(productId);
+            return;
+        }
+        if (newQuantity > item.product.quantity) {
+            toast({ title: '⚠️ Stock limit', description: `Only ${item.product.quantity} available`, variant: 'destructive' });
+            return;
+        }
+        setSellCart(sellCart.map(i =>
+            i.product._id === productId ? { ...i, quantity: newQuantity } : i
+        ));
+    };
+
+    // Remove from cart
+    const removeFromCart = (productId) => {
+        setSellCart(sellCart.filter(item => item.product._id !== productId));
+    };
+
+    // Calculate cart totals
+    const cartSubtotal = sellCart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+    const cartProfit = sellCart.reduce((sum, item) => sum + ((item.product.price - item.product.cost) * item.quantity), 0);
+    const cartItemCount = sellCart.reduce((sum, item) => sum + item.quantity, 0);
+
+    // Filter products for search dropdown
+    const searchedProducts = products.filter(p =>
+        productSearchTerm.length > 0 &&
+        (p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+            p.sku.toLowerCase().includes(productSearchTerm.toLowerCase()))
+    ).slice(0, 5);
+
+    // Handle complete sale
+    const handleSell = async () => {
+        if (sellCart.length === 0) {
+            toast({ title: '❌ Empty Cart', description: 'Add products to sell first.', variant: 'destructive' });
+            return;
+        }
+
+        // Validate stock for all items
+        for (const item of sellCart) {
+            if (item.quantity > item.product.quantity) {
+                toast({
+                    title: '❌ Insufficient Stock',
+                    description: `${item.product.name}: Only ${item.product.quantity} available.`,
+                    variant: 'destructive'
+                });
+                return;
+            }
+        }
+
+        try {
+            setSellingLoading(true);
+            const response = await fetch('/api/inventory/sales', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    items: sellCart.map(item => ({
+                        productId: item.product._id,
+                        productName: item.product.name,
+                        quantity: item.quantity,
+                        sellingPrice: item.product.price,
+                    })),
+                    customer: sellCustomer.name ? sellCustomer : { name: 'Walk-in Customer' },
+                    paymentMethod: sellPaymentMethod,
+                    notes: sellNotes,
+                    amountPaid: cartSubtotal,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || 'Sale failed');
+            }
+
+            toast({
+                title: '✅ Sale Completed!',
+                description: `Sold ${cartItemCount} items for ₹${cartSubtotal.toFixed(2)}. Profit: ₹${result.summary.profit.toFixed(2)}`,
+                duration: 5000,
+            });
+
+            // Store sale data for potential quotation
+            setCompletedSaleData({
+                items: sellCart.map(item => ({
+                    name: item.product.name,
+                    sku: item.product.sku,
+                    quantity: item.quantity,
+                    price: item.product.price,
+                    total: item.product.price * item.quantity
+                })),
+                customer: sellCustomer.name ? sellCustomer : { name: 'Walk-in Customer' },
+                total: cartSubtotal,
+                profit: result.summary.profit,
+                paymentMethod: sellPaymentMethod,
+                notes: sellNotes,
+                saleId: result.sale?._id
+            });
+
+            setIsSellModalOpen(false);
+            setSellCart([]);
+
+            // Show quotation dialog
+            setShowQuotationDialog(true);
+
+            // Refresh products to show updated stock
+            const fetchProducts = async () => {
+                const res = await fetch('/api/inventory/products', { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    setProducts(Array.isArray(data) ? data : []);
+                }
+            };
+            fetchProducts();
+            fetchSales();
+
+        } catch (error) {
+            toast({
+                title: '❌ Sale Failed',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            setSellingLoading(false);
+        }
+    };
+
+    // Handle quotation choice after sale completion
+    const handleQuotationChoice = async (wantsQuotation) => {
+        if (!wantsQuotation) {
+            setShowQuotationDialog(false);
+            setCompletedSaleData(null);
+            return;
+        }
+
+        if (!completedSaleData) {
+            toast({
+                title: '❌ Error',
+                description: 'Sale data not found. Please try again.',
+                variant: 'destructive',
+            });
+            setShowQuotationDialog(false);
+            return;
+        }
+
+        setCreatingQuotation(true);
+
+        try {
+            const currentDate = new Date().toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+
+            // Build table data for products
+            const tableHeaders = ['S.No', 'Product Name', 'SKU', 'Quantity', 'Unit Price (₹)', 'Total (₹)'];
+            const tableRows = completedSaleData.items.map((item, idx) => [
+                String(idx + 1),
+                item.name,
+                item.sku,
+                String(item.quantity),
+                item.price.toFixed(2),
+                item.total.toFixed(2)
+            ]);
+
+            // Add total row
+            tableRows.push([
+                '',
+                '',
+                '',
+                '',
+                'Grand Total:',
+                `₹${completedSaleData.total.toFixed(2)}`
+            ]);
+
+            // Build content blocks for the quotation
+            const contentBlocks = [
+                {
+                    id: 'block-1',
+                    type: 'heading',
+                    content: 'SALES QUOTATION',
+                    style: { fontSize: 16, fontWeight: 'bold', textAlign: 'center' }
+                },
+                {
+                    id: 'block-2',
+                    type: 'paragraph',
+                    content: `Date: ${currentDate}`,
+                    style: { fontSize: 11, textAlign: 'right' }
+                },
+                {
+                    id: 'block-3',
+                    type: 'heading',
+                    content: 'Customer Details',
+                    style: { fontSize: 12, fontWeight: 'bold', textAlign: 'left' }
+                },
+                {
+                    id: 'block-4',
+                    type: 'paragraph',
+                    content: `Name: ${completedSaleData.customer.name || 'Walk-in Customer'}${completedSaleData.customer.phone ? `\nPhone: ${completedSaleData.customer.phone}` : ''}`,
+                    style: { fontSize: 11, textAlign: 'left' }
+                },
+                {
+                    id: 'block-5',
+                    type: 'heading',
+                    content: 'Product Details',
+                    style: { fontSize: 12, fontWeight: 'bold', textAlign: 'left' }
+                },
+                {
+                    id: 'block-6',
+                    type: 'table',
+                    tableData: {
+                        headers: tableHeaders,
+                        rows: tableRows,
+                        style: {
+                            headerBgColor: '#1e40af',
+                            headerTextColor: '#ffffff',
+                            borderColor: '#e5e7eb',
+                            borderWidth: 1,
+                            textColor: '#1a1a1a',
+                            alternateRowColor: '#f9fafb',
+                            fontSize: 10
+                        }
+                    }
+                },
+                {
+                    id: 'block-7',
+                    type: 'heading',
+                    content: 'Payment Information',
+                    style: { fontSize: 12, fontWeight: 'bold', textAlign: 'left' }
+                },
+                {
+                    id: 'block-8',
+                    type: 'paragraph',
+                    content: `Payment Method: ${completedSaleData.paymentMethod.charAt(0).toUpperCase() + completedSaleData.paymentMethod.slice(1).replace('_', ' ')}${completedSaleData.notes ? `\nNotes: ${completedSaleData.notes}` : ''}`,
+                    style: { fontSize: 11, textAlign: 'left' }
+                }
+            ];
+
+            // Prepare items for Bill of Quantities text field backup
+            const itemsBoq = completedSaleData.items.map((item, idx) =>
+                `${idx + 1}. ${item.name} (SKU: ${item.sku}) - Qty: ${item.quantity} × ₹${item.price.toFixed(2)} = ₹${item.total.toFixed(2)}`
+            ).join('\n');
+
+            // Create quotation via API
+            const response = await fetch('/api/techno-quotation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    type: 'manual',
+                    title: `Sales Quotation - ${completedSaleData.customer.name || 'Customer'} - ${currentDate}`,
+                    subject: `Sales Quotation - ${completedSaleData.items.length} item(s) - ₹${completedSaleData.total.toFixed(2)}`,
+                    clientDetails: {
+                        name: completedSaleData.customer.name || 'Walk-in Customer',
+                        company: completedSaleData.customer.name || 'Walk-in Customer',
+                        contact: completedSaleData.customer.phone || '',
+                        address: ''
+                    },
+                    contentBlocks: contentBlocks,
+                    answers: {
+                        client_name: completedSaleData.customer.name || 'Walk-in Customer',
+                        client_contact: completedSaleData.customer.phone || '',
+                        project_subject: `Sales Quotation - ${completedSaleData.items.length} item(s)`,
+                        items_boq: itemsBoq + `\n\n--- TOTAL: ₹${completedSaleData.total.toFixed(2)} ---`,
+                        terms_conditions: `Payment Method: ${completedSaleData.paymentMethod.toUpperCase()}\n${completedSaleData.notes ? `Notes: ${completedSaleData.notes}` : ''}`,
+                    },
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create quotation');
+            }
+
+            const result = await response.json();
+
+            // Open quotation in new tab
+            const quotationUrl = `/accounting/techno-quotation/${result.quotation._id}`;
+            window.open(quotationUrl, '_blank');
+
+            toast({
+                title: '✅ Quotation Created!',
+                description: 'Quotation opened in a new tab.',
+                duration: 3000,
+            });
+
+        } catch (error) {
+            console.error('Error creating quotation:', error);
+            toast({
+                title: '❌ Quotation Failed',
+                description: error.message || 'Failed to create quotation. Please try again.',
+                variant: 'destructive',
+            });
+        } finally {
+            setCreatingQuotation(false);
+            setShowQuotationDialog(false);
+            setCompletedSaleData(null);
+        }
+    };
+
 
     // Handle empty or error states
     const renderContent = () => {
@@ -342,7 +777,7 @@ export default function TradingInventory() {
                                         : 'N/A'}
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex justify-end gap-2">
+                                    <div className="flex justify-end gap-1">
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -792,12 +1227,68 @@ export default function TradingInventory() {
         setSortConfig({ key, direction });
     };
 
-    // Filter products based on search term
-    const filteredProducts = products.filter(product =>
-        product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.category?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Get unique categories and shelves for filter dropdowns
+    const uniqueCategories = [...new Set(products.map(p => p.category).filter(Boolean))];
+    const uniqueShelves = [...new Set(products.map(p => p.shelf).filter(Boolean))];
+
+    // Count active filters
+    const activeFilterCount = Object.values(filters).filter(v => v !== '').length;
+
+    // Clear all filters
+    const clearFilters = () => {
+        setFilters({
+            category: '',
+            shelf: '',
+            stockStatus: '',
+            expiryStatus: ''
+        });
+    };
+
+    // Filter products based on search term and filters
+    const filteredProducts = products.filter(product => {
+        // Search filter
+        const matchesSearch =
+            product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.category?.toLowerCase().includes(searchTerm.toLowerCase());
+
+        if (!matchesSearch) return false;
+
+        // Category filter
+        if (filters.category && product.category !== filters.category) return false;
+
+        // Shelf filter
+        if (filters.shelf && product.shelf !== filters.shelf) return false;
+
+        // Stock status filter
+        if (filters.stockStatus) {
+            const quantity = product.quantity || 0;
+            if (filters.stockStatus === 'out-of-stock' && quantity > 0) return false;
+            if (filters.stockStatus === 'low-stock' && (quantity === 0 || quantity > 10)) return false;
+            if (filters.stockStatus === 'in-stock' && quantity <= 10) return false;
+        }
+
+        // Expiry status filter
+        if (filters.expiryStatus) {
+            const today = new Date();
+            const expiryDate = product.expiryDate ? new Date(product.expiryDate) : null;
+
+            if (filters.expiryStatus === 'expired') {
+                if (!expiryDate || expiryDate >= today) return false;
+            } else if (filters.expiryStatus === 'expiring-soon') {
+                if (!expiryDate) return false;
+                const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                if (daysUntilExpiry < 0 || daysUntilExpiry > 15) return false;
+            } else if (filters.expiryStatus === 'not-expiring') {
+                if (expiryDate) {
+                    const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                    if (daysUntilExpiry <= 15) return false;
+                }
+            }
+        }
+
+        return true;
+    });
 
     // Apply sorting to filtered products
     const sortedAndFilteredProducts = sortProducts(filteredProducts);
@@ -831,6 +1322,13 @@ export default function TradingInventory() {
                     >
                         <ScanLine className="h-4 w-4" />
                         Scan Invoice
+                    </Button>
+                    <Button
+                        onClick={openSellModal}
+                        className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all"
+                    >
+                        <ShoppingCart className="h-4 w-4" />
+                        New Sale
                     </Button>
                     <Link href="/inventory-management/manufacturing">
                         <Button variant="outline" className="gap-2 border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20">
@@ -1284,7 +1782,7 @@ export default function TradingInventory() {
                     </div>
 
                     {/* Search and filter */}
-                    <div className="bg-card/50 backdrop-blur-sm rounded-xl border p-6 shadow-sm">
+                    <div className="bg-card/50 backdrop-blur-sm rounded-xl border p-6 shadow-sm space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex-1 max-w-md">
                                 <div className="relative">
@@ -1298,23 +1796,174 @@ export default function TradingInventory() {
                                     />
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 ml-4">
+                            <div className="flex items-center gap-3 ml-4">
+                                {/* Filters Button */}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowFilters(!showFilters)}
+                                    className={`gap-2 transition-all ${showFilters ? 'bg-primary/10 border-primary' : ''}`}
+                                >
+                                    <Filter className="h-4 w-4" />
+                                    Filters
+                                    {activeFilterCount > 0 && (
+                                        <span className="ml-1 px-1.5 py-0.5 text-xs font-medium bg-primary text-primary-foreground rounded-full">
+                                            {activeFilterCount}
+                                        </span>
+                                    )}
+                                </Button>
                                 <span className="text-sm text-muted-foreground">
                                     {sortedAndFilteredProducts.length} of {totalProducts} products
                                 </span>
                                 {selectedProducts.length > 0 && (
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        onClick={() => setBulkDeleteDialogOpen(true)}
-                                        className="ml-2"
-                                    >
-                                        <Trash2 className="h-4 w-4 mr-1" />
-                                        Delete ({selectedProducts.length})
-                                    </Button>
+                                    <>
+                                        <Button
+                                            size="sm"
+                                            onClick={addSelectedToSale}
+                                            className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all"
+                                        >
+                                            <ShoppingCart className="h-4 w-4" />
+                                            Add to Sale ({selectedProducts.length})
+                                        </Button>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() => setBulkDeleteDialogOpen(true)}
+                                        >
+                                            <Trash2 className="h-4 w-4 mr-1" />
+                                            Delete ({selectedProducts.length})
+                                        </Button>
+                                    </>
                                 )}
                             </div>
                         </div>
+
+                        {/* Filter Panel */}
+                        {showFilters && (
+                            <div className="border-t pt-4 mt-4 animate-in slide-in-from-top-2 duration-200">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-sm font-medium text-foreground">Filter Products</h3>
+                                    {activeFilterCount > 0 && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={clearFilters}
+                                            className="text-muted-foreground hover:text-foreground gap-1"
+                                        >
+                                            <X className="h-3 w-3" />
+                                            Clear all
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    {/* Category Filter */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                            Category
+                                        </label>
+                                        <select
+                                            value={filters.category}
+                                            onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <option value="">All Categories</option>
+                                            {uniqueCategories.map((category) => (
+                                                <option key={category} value={category}>{category}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Shelf Filter */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                            Shelf Location
+                                        </label>
+                                        <select
+                                            value={filters.shelf}
+                                            onChange={(e) => setFilters({ ...filters, shelf: e.target.value })}
+                                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <option value="">All Shelves</option>
+                                            {uniqueShelves.map((shelf) => (
+                                                <option key={shelf} value={shelf}>{shelf}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Stock Status Filter */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                            Stock Status
+                                        </label>
+                                        <select
+                                            value={filters.stockStatus}
+                                            onChange={(e) => setFilters({ ...filters, stockStatus: e.target.value })}
+                                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <option value="">All Stock Levels</option>
+                                            <option value="in-stock">In Stock (more than 10)</option>
+                                            <option value="low-stock">Low Stock (1-10)</option>
+                                            <option value="out-of-stock">Out of Stock (0)</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Expiry Status Filter */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                            Expiry Status
+                                        </label>
+                                        <select
+                                            value={filters.expiryStatus}
+                                            onChange={(e) => setFilters({ ...filters, expiryStatus: e.target.value })}
+                                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <option value="">All Expiry Status</option>
+                                            <option value="expired">Expired</option>
+                                            <option value="expiring-soon">Expiring Soon (within 15 days)</option>
+                                            <option value="not-expiring">Not Expiring Soon</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Active Filters Display */}
+                                {activeFilterCount > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
+                                        {filters.category && (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                                Category: {filters.category}
+                                                <button onClick={() => setFilters({ ...filters, category: '' })} className="ml-1 hover:text-blue-600">
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </span>
+                                        )}
+                                        {filters.shelf && (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                                                Shelf: {filters.shelf}
+                                                <button onClick={() => setFilters({ ...filters, shelf: '' })} className="ml-1 hover:text-purple-600">
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </span>
+                                        )}
+                                        {filters.stockStatus && (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                                Stock: {filters.stockStatus.replace('-', ' ')}
+                                                <button onClick={() => setFilters({ ...filters, stockStatus: '' })} className="ml-1 hover:text-green-600">
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </span>
+                                        )}
+                                        {filters.expiryStatus && (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                                                Expiry: {filters.expiryStatus.replace('-', ' ')}
+                                                <button onClick={() => setFilters({ ...filters, expiryStatus: '' })} className="ml-1 hover:text-amber-600">
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Products Table */}
@@ -1346,6 +1995,8 @@ export default function TradingInventory() {
                 inventoryType="trading"
                 onProductsConfirmed={handleScannedProducts}
             />
+
+
 
             {/* Delete Confirmation Dialog */}
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -1405,6 +2056,295 @@ export default function TradingInventory() {
                         </Button>
                         <Button variant="destructive" onClick={confirmBulkDelete}>
                             Delete All ({selectedProducts.length})
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Sell Product Modal - Cart Based */}
+            <Dialog open={isSellModalOpen} onOpenChange={setIsSellModalOpen}>
+                <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                            <ShoppingCart className="h-5 w-5" />
+                            New Sale
+                        </DialogTitle>
+                        <DialogDescription>
+                            Add products to cart and complete the sale
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        {/* Product Search */}
+                        <div className="relative">
+                            <Label className="mb-2 block">Search Products</Label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Type product name or SKU..."
+                                    value={productSearchTerm}
+                                    onChange={(e) => setProductSearchTerm(e.target.value)}
+                                    className="pl-10"
+                                />
+                            </div>
+                            {searchedProducts.length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-[200px] overflow-y-auto">
+                                    {searchedProducts.map(product => (
+                                        <div
+                                            key={product._id}
+                                            className="flex items-center justify-between p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                                            onClick={() => addToCart(product)}
+                                        >
+                                            <div>
+                                                <p className="font-medium">{product.name}</p>
+                                                <p className="text-xs text-muted-foreground">SKU: {product.sku} • Stock: {product.quantity}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="font-semibold text-blue-600 dark:text-blue-400">₹{product.price?.toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="rounded-xl border-2 border-blue-200 dark:border-blue-800 overflow-hidden">
+                            <div className="bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-3">
+                                <h4 className="font-semibold text-white flex items-center gap-2">
+                                    <ShoppingCart className="h-4 w-4" />
+                                    Cart ({cartItemCount} items)
+                                </h4>
+                            </div>
+                            {sellCart.length === 0 ? (
+                                <div className="p-10 text-center bg-gradient-to-b from-blue-50/50 to-transparent dark:from-blue-900/10">
+                                    <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                        <ShoppingCart className="h-8 w-8 text-blue-400" />
+                                    </div>
+                                    <p className="font-medium text-muted-foreground">Cart is empty</p>
+                                    <p className="text-sm text-muted-foreground/60 mt-1">Search and add products above to start selling</p>
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-border max-h-[250px] overflow-y-auto bg-background">
+                                    {sellCart.map((item) => {
+                                        const isNearLimit = item.quantity >= item.product.quantity * 0.8;
+                                        const isAtLimit = item.quantity >= item.product.quantity;
+                                        return (
+                                            <div
+                                                key={item.product._id}
+                                                className={`p-4 transition-colors bg-background ${isAtLimit ? 'bg-red-500/10' : isNearLimit ? 'bg-amber-500/10' : 'hover:bg-muted/30'}`}
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-semibold truncate text-foreground">{item.product.name}</p>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">₹{item.product.price?.toFixed(2)}</span>
+                                                            <span className="text-xs text-muted-foreground">×</span>
+                                                            <span className={`text-xs px-2 py-0.5 rounded-full ${isAtLimit ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : isNearLimit ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}>
+                                                                Stock: {item.product.quantity}
+                                                            </span>
+                                                        </div>
+                                                        {isAtLimit && (
+                                                            <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                                                                <AlertTriangle className="h-3 w-3" /> Maximum stock reached!
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-8 w-8 rounded-md hover:bg-red-500/10 hover:text-red-600"
+                                                                onClick={() => updateCartQuantity(item.product._id, item.quantity - 1)}
+                                                            >
+                                                                -
+                                                            </Button>
+                                                            <span className="w-10 text-center font-bold text-lg text-foreground">{item.quantity}</span>
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className={`h-8 w-8 rounded-md ${isAtLimit ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-blue-900/30'}`}
+                                                                onClick={() => updateCartQuantity(item.product._id, item.quantity + 1)}
+                                                                disabled={isAtLimit}
+                                                            >
+                                                                +
+                                                            </Button>
+                                                        </div>
+                                                        <div className="text-right min-w-[80px]">
+                                                            <p className="font-bold text-lg text-blue-600 dark:text-blue-400">₹{(item.product.price * item.quantity).toFixed(2)}</p>
+                                                        </div>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-full"
+                                                            onClick={() => removeFromCart(item.product._id)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                        {/* Customer Info */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label>Customer Name</Label>
+                                <Input
+                                    placeholder="Walk-in Customer"
+                                    value={sellCustomer.name}
+                                    onChange={(e) => setSellCustomer({ ...sellCustomer, name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label>Phone</Label>
+                                <Input
+                                    placeholder="Optional"
+                                    value={sellCustomer.phone}
+                                    onChange={(e) => setSellCustomer({ ...sellCustomer, phone: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Payment Method & Notes */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label>Payment Method</Label>
+                                <select
+                                    value={sellPaymentMethod}
+                                    onChange={(e) => setSellPaymentMethod(e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                >
+                                    <option value="cash">💵 Cash</option>
+                                    <option value="upi">📱 UPI</option>
+                                    <option value="card">💳 Card</option>
+                                    <option value="bank_transfer">🏦 Bank Transfer</option>
+                                    <option value="credit">📝 Credit</option>
+                                </select>
+                            </div>
+                            <div>
+                                <Label>Notes</Label>
+                                <Input
+                                    placeholder="Optional notes..."
+                                    value={sellNotes}
+                                    onChange={(e) => setSellNotes(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Price Summary */}
+                        {sellCart.length > 0 && (
+                            <div className="rounded-xl overflow-hidden border-2 border-blue-300 dark:border-blue-700">
+                                <div className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-4 py-3">
+                                    <h4 className="font-semibold flex items-center gap-2">
+                                        <DollarSign className="h-4 w-4" /> Order Summary
+                                    </h4>
+                                </div>
+                                <div className="p-4 bg-background space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Subtotal ({cartItemCount} items):</span>
+                                        <span className="font-medium text-foreground">₹{cartSubtotal.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">Expected Profit:</span>
+                                        <span className="font-medium text-indigo-600 dark:text-indigo-400">+₹{cartProfit.toFixed(2)} ({cartSubtotal > 0 ? ((cartProfit / cartSubtotal) * 100).toFixed(1) : 0}%)</span>
+                                    </div>
+                                    <div className="border-t border-blue-200 dark:border-blue-700 pt-3 mt-2">
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-bold text-xl text-foreground">Grand Total:</span>
+                                            <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">₹{cartSubtotal.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex justify-between items-center gap-3 pt-2 border-t">
+                        <Button variant="outline" onClick={() => setIsSellModalOpen(false)} className="px-6">
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSell}
+                            disabled={sellingLoading || sellCart.length === 0}
+                            className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 h-12 text-lg font-semibold"
+                        >
+                            <ShoppingCart className="h-5 w-5 mr-2" />
+                            {sellingLoading ? 'Processing...' : `Complete Sale • ₹${cartSubtotal.toFixed(2)}`}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Quotation Confirmation Dialog */}
+            <Dialog open={showQuotationDialog} onOpenChange={(open) => {
+                if (!open && !creatingQuotation) {
+                    setShowQuotationDialog(false);
+                    setCompletedSaleData(null);
+                }
+            }}>
+                <DialogContent className="sm:max-w-[450px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                            <FileText className="h-5 w-5" />
+                            Generate Quotation?
+                        </DialogTitle>
+                        <DialogDescription>
+                            Would you like to create a quotation for this sale?
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {completedSaleData && (
+                        <div className="py-4">
+                            <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Customer:</span>
+                                        <span className="font-medium">{completedSaleData.customer.name}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Items:</span>
+                                        <span className="font-medium">{completedSaleData.items.length} product(s)</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm font-semibold border-t pt-2 mt-2">
+                                        <span className="text-muted-foreground">Total:</span>
+                                        <span className="text-emerald-600 dark:text-emerald-400">₹{completedSaleData.total.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-3">
+                                A quotation will be created and opened in a new tab for review and customization.
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="flex justify-end gap-3">
+                        <Button
+                            variant="outline"
+                            onClick={() => handleQuotationChoice(false)}
+                            disabled={creatingQuotation}
+                        >
+                            No, Skip
+                        </Button>
+                        <Button
+                            onClick={() => handleQuotationChoice(true)}
+                            disabled={creatingQuotation}
+                            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
+                        >
+                            {creatingQuotation ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Creating...
+                                </>
+                            ) : (
+                                <>
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    Yes, Create Quotation
+                                </>
+                            )}
                         </Button>
                     </div>
                 </DialogContent>
