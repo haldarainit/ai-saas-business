@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine, Filter, X, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -38,6 +38,15 @@ export default function TradingInventory() {
     // Select and bulk delete state
     const [selectedProducts, setSelectedProducts] = useState([]);
     const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+
+    // Filter state
+    const [showFilters, setShowFilters] = useState(false);
+    const [filters, setFilters] = useState({
+        category: '',
+        shelf: '',
+        stockStatus: '', // 'in-stock', 'low-stock', 'out-of-stock'
+        expiryStatus: '' // 'expired', 'expiring-soon', 'not-expiring'
+    });
 
     // Form state
     const [shelves, setShelves] = useState(['Default', 'A1', 'A2', 'B1', 'B2']);
@@ -792,12 +801,68 @@ export default function TradingInventory() {
         setSortConfig({ key, direction });
     };
 
-    // Filter products based on search term
-    const filteredProducts = products.filter(product =>
-        product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.category?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Get unique categories and shelves for filter dropdowns
+    const uniqueCategories = [...new Set(products.map(p => p.category).filter(Boolean))];
+    const uniqueShelves = [...new Set(products.map(p => p.shelf).filter(Boolean))];
+
+    // Count active filters
+    const activeFilterCount = Object.values(filters).filter(v => v !== '').length;
+
+    // Clear all filters
+    const clearFilters = () => {
+        setFilters({
+            category: '',
+            shelf: '',
+            stockStatus: '',
+            expiryStatus: ''
+        });
+    };
+
+    // Filter products based on search term and filters
+    const filteredProducts = products.filter(product => {
+        // Search filter
+        const matchesSearch =
+            product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.category?.toLowerCase().includes(searchTerm.toLowerCase());
+
+        if (!matchesSearch) return false;
+
+        // Category filter
+        if (filters.category && product.category !== filters.category) return false;
+
+        // Shelf filter
+        if (filters.shelf && product.shelf !== filters.shelf) return false;
+
+        // Stock status filter
+        if (filters.stockStatus) {
+            const quantity = product.quantity || 0;
+            if (filters.stockStatus === 'out-of-stock' && quantity > 0) return false;
+            if (filters.stockStatus === 'low-stock' && (quantity === 0 || quantity > 10)) return false;
+            if (filters.stockStatus === 'in-stock' && quantity <= 10) return false;
+        }
+
+        // Expiry status filter
+        if (filters.expiryStatus) {
+            const today = new Date();
+            const expiryDate = product.expiryDate ? new Date(product.expiryDate) : null;
+
+            if (filters.expiryStatus === 'expired') {
+                if (!expiryDate || expiryDate >= today) return false;
+            } else if (filters.expiryStatus === 'expiring-soon') {
+                if (!expiryDate) return false;
+                const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                if (daysUntilExpiry < 0 || daysUntilExpiry > 15) return false;
+            } else if (filters.expiryStatus === 'not-expiring') {
+                if (expiryDate) {
+                    const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                    if (daysUntilExpiry <= 15) return false;
+                }
+            }
+        }
+
+        return true;
+    });
 
     // Apply sorting to filtered products
     const sortedAndFilteredProducts = sortProducts(filteredProducts);
@@ -1284,7 +1349,7 @@ export default function TradingInventory() {
                     </div>
 
                     {/* Search and filter */}
-                    <div className="bg-card/50 backdrop-blur-sm rounded-xl border p-6 shadow-sm">
+                    <div className="bg-card/50 backdrop-blur-sm rounded-xl border p-6 shadow-sm space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex-1 max-w-md">
                                 <div className="relative">
@@ -1298,7 +1363,22 @@ export default function TradingInventory() {
                                     />
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 ml-4">
+                            <div className="flex items-center gap-3 ml-4">
+                                {/* Filters Button */}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowFilters(!showFilters)}
+                                    className={`gap-2 transition-all ${showFilters ? 'bg-primary/10 border-primary' : ''}`}
+                                >
+                                    <Filter className="h-4 w-4" />
+                                    Filters
+                                    {activeFilterCount > 0 && (
+                                        <span className="ml-1 px-1.5 py-0.5 text-xs font-medium bg-primary text-primary-foreground rounded-full">
+                                            {activeFilterCount}
+                                        </span>
+                                    )}
+                                </Button>
                                 <span className="text-sm text-muted-foreground">
                                     {sortedAndFilteredProducts.length} of {totalProducts} products
                                 </span>
@@ -1307,7 +1387,6 @@ export default function TradingInventory() {
                                         variant="destructive"
                                         size="sm"
                                         onClick={() => setBulkDeleteDialogOpen(true)}
-                                        className="ml-2"
                                     >
                                         <Trash2 className="h-4 w-4 mr-1" />
                                         Delete ({selectedProducts.length})
@@ -1315,6 +1394,133 @@ export default function TradingInventory() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Filter Panel */}
+                        {showFilters && (
+                            <div className="border-t pt-4 mt-4 animate-in slide-in-from-top-2 duration-200">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-sm font-medium text-foreground">Filter Products</h3>
+                                    {activeFilterCount > 0 && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={clearFilters}
+                                            className="text-muted-foreground hover:text-foreground gap-1"
+                                        >
+                                            <X className="h-3 w-3" />
+                                            Clear all
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    {/* Category Filter */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                            Category
+                                        </label>
+                                        <select
+                                            value={filters.category}
+                                            onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <option value="">All Categories</option>
+                                            {uniqueCategories.map((category) => (
+                                                <option key={category} value={category}>{category}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Shelf Filter */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                            Shelf Location
+                                        </label>
+                                        <select
+                                            value={filters.shelf}
+                                            onChange={(e) => setFilters({ ...filters, shelf: e.target.value })}
+                                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <option value="">All Shelves</option>
+                                            {uniqueShelves.map((shelf) => (
+                                                <option key={shelf} value={shelf}>{shelf}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Stock Status Filter */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                            Stock Status
+                                        </label>
+                                        <select
+                                            value={filters.stockStatus}
+                                            onChange={(e) => setFilters({ ...filters, stockStatus: e.target.value })}
+                                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <option value="">All Stock Levels</option>
+                                            <option value="in-stock">In Stock (more than 10)</option>
+                                            <option value="low-stock">Low Stock (1-10)</option>
+                                            <option value="out-of-stock">Out of Stock (0)</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Expiry Status Filter */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                            Expiry Status
+                                        </label>
+                                        <select
+                                            value={filters.expiryStatus}
+                                            onChange={(e) => setFilters({ ...filters, expiryStatus: e.target.value })}
+                                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <option value="">All Expiry Status</option>
+                                            <option value="expired">Expired</option>
+                                            <option value="expiring-soon">Expiring Soon (within 15 days)</option>
+                                            <option value="not-expiring">Not Expiring Soon</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Active Filters Display */}
+                                {activeFilterCount > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
+                                        {filters.category && (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                                Category: {filters.category}
+                                                <button onClick={() => setFilters({ ...filters, category: '' })} className="ml-1 hover:text-blue-600">
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </span>
+                                        )}
+                                        {filters.shelf && (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                                                Shelf: {filters.shelf}
+                                                <button onClick={() => setFilters({ ...filters, shelf: '' })} className="ml-1 hover:text-purple-600">
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </span>
+                                        )}
+                                        {filters.stockStatus && (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                                Stock: {filters.stockStatus.replace('-', ' ')}
+                                                <button onClick={() => setFilters({ ...filters, stockStatus: '' })} className="ml-1 hover:text-green-600">
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </span>
+                                        )}
+                                        {filters.expiryStatus && (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                                                Expiry: {filters.expiryStatus.replace('-', ' ')}
+                                                <button onClick={() => setFilters({ ...filters, expiryStatus: '' })} className="ml-1 hover:text-amber-600">
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Products Table */}
