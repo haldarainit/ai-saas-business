@@ -194,7 +194,7 @@ export default function InventoryManagement() {
             </motion.div>
 
             {/* Comparison Info */}
-            <motion.div
+            {/* <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
@@ -234,7 +234,7 @@ export default function InventoryManagement() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </motion.div> */}
           </div>
         </section>
       </main>

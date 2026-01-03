@@ -14,7 +14,7 @@ export default function Features() {
   const features = [
     {
       image:
-        "https://images.unsplash.com/photo-1556740738-b6a63e27c4df?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+        "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
       title: "Inventory Management",
       description:
         "Efficiently track and manage your inventory with real-time updates, stock alerts, and automated reordering.",
@@ -25,7 +25,7 @@ export default function Features() {
     },
     {
       image:
-        "https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+        "https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2069&q=80",
       title: "Landing Page Builder",
       description:
         "Create stunning, high-converting landing pages with our drag-and-drop builder. No coding required.",
@@ -36,14 +36,13 @@ export default function Features() {
     },
     {
       image:
-        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+        "https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=2015&q=80",
       title: "Marketing",
       description:
-        "Comprehensive marketing tools to grow your business. From email campaigns to social media management.",
+        "Comprehensive marketing tools to grow your business.",
       benefits: [
-        "Email Automation",
-        "Social Media Tools",
-        "Analytics Dashboard",
+        "Campaign Planner AI",
+        
       ],
       accentColor: "rgba(236, 72, 153, 0.5)",
       iconColor: "text-pink-500",
@@ -51,29 +50,18 @@ export default function Features() {
     },
     {
       image:
-        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+        "https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
       title: "Sales & Communication",
       description:
-        "AI-powered sales acceleration with intelligent scripts, automated calling, and deal closing assistance.",
-      benefits: ["Sales Scripts", "Calling Agent", "Deal Closing"],
+        "AI-powered sales acceleration with intelligent scripts.",
+      benefits: ["Sales Scripts"],
       accentColor: "rgba(34, 211, 238, 0.5)",
       iconColor: "text-cyan-500",
       link: "/sales-ai",
     },
-    // {
-    //   image:
-    //     "https://images.unsplash.com/photo-1581094794329-c8112a89af12?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-    //   title: "Techno Tally ChatBot",
-    //   description:
-    //     "Intelligent chatbot solution to fetch and analyze your Tally data through natural conversations. Get insights instantly.",
-    //   benefits: ["Natural Language Queries", "Real-time Data Fetch", "Tally Integration"],
-    //   accentColor: "rgba(20, 184, 166, 0.5)",
-    //   iconColor: "text-teal-500",
-    //   link: "/tally-chatbot",
-    // },
     {
       image:
-        "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+        "https://images.unsplash.com/photo-1557426272-fc759fdf7a8d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
       title: "AI Presentations",
       description:
         "Generate professional presentations in seconds. Just describe your topic and let AI create the slides and find images.",
@@ -84,40 +72,40 @@ export default function Features() {
     },
     {
       image:
-        "https://images.unsplash.com/photo-1557200134-90327ee9fafa?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+        "https://images.unsplash.com/photo-1596526131083-e8c633c948d2?ixlib=rb-4.0.3&auto=format&fit=crop&w=2074&q=80",
       title: "Email Automation",
       description:
         "Automate your email campaigns with AI-powered templates, personalization, and analytics to engage your audience effectively.",
-      benefits: ["AI Templates", "Personalization", "Campaign Analytics"],
+      benefits: ["AI Templates", "Email Automation", "Analytics Dashboard"],
       accentColor: "rgba(249, 115, 22, 0.5)",
       iconColor: "text-orange-500",
       link: "/get-started/email-automation",
     },
     {
       image:
-        "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+        "https://images.unsplash.com/photo-1521737711867-e3b97375f902?ixlib=rb-4.0.3&auto=format&fit=crop&w=2087&q=80",
       title: "Employee Management",
       description:
         "Streamline HR operations with AI-powered attendance tracking, payroll management, leave systems, and intelligent HR assistance.",
-      benefits: ["Attendance Tracking", "Payroll Management", "HR AI Assistant"],
+      benefits: ["Attendance Tracking", "Leave System", "Live Tracking"],
       accentColor: "rgba(139, 92, 246, 0.5)",
       iconColor: "text-purple-500",
       link: "/employee-management",
     },
     {
       image:
-        "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+        "https://images.unsplash.com/photo-1554224155-6726b3ff858f?ixlib=rb-4.0.3&auto=format&fit=crop&w=2072&q=80",
       title: "Accounting & Finance",
       description:
         "Streamline your financial operations with AI-powered accounting tools, automated invoicing, expense tracking, and comprehensive financial reporting.",
-      benefits: ["Invoice Management", "Expense Tracking", "Financial Reports"],
+      benefits: ["Invoice Management", "Quotation Management"],
       accentColor: "rgba(6, 182, 212, 0.5)",
       iconColor: "text-cyan-500",
       link: "/accounting",
     },
     {
       image:
-        "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?ixlib=rb-4.0.3&auto=format&fit=crop&w=2068&q=80",
+        "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?ixlib=rb-4.0.3&auto=format&fit=crop&w=2074&q=80",
       title: "Appointment Scheduling",
       description:
         "Auto-schedule meetings, send reminders, handle cancellations, and sync with calendars. Customers book appointments through chat or forms without manual coordination.",
@@ -127,6 +115,7 @@ export default function Features() {
       link: "/appointment-scheduling",
     },
   ];
+
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -177,9 +166,7 @@ export default function Features() {
                 </h1>
 
                 <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mb-12 leading-relaxed">
-                  Discover our comprehensive suite of AI-powered tools designed
-                  to streamline operations, boost productivity, and drive
-                  unprecedented growth for your business.
+                  From quotations to invoices, emails to presentations, and marketing insights—everything runs on AI.
                 </p>
 
                 {/* <div className="flex flex-col sm:flex-row gap-4">
