@@ -39,7 +39,6 @@ export default function TradingInventory() {
     const [selectedProducts, setSelectedProducts] = useState([]);
     const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
-<<<<<<< HEAD
     // Filter state
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters] = useState({
@@ -48,7 +47,7 @@ export default function TradingInventory() {
         stockStatus: '', // 'in-stock', 'low-stock', 'out-of-stock'
         expiryStatus: '' // 'expired', 'expiring-soon', 'not-expiring'
     });
-=======
+
     // Sales state (Cart-based for multiple products)
     const [isSellModalOpen, setIsSellModalOpen] = useState(false);
     const [sellCart, setSellCart] = useState([]); // Array of {product, quantity}
@@ -62,7 +61,6 @@ export default function TradingInventory() {
     const [sales, setSales] = useState([]);
     const [salesSummary, setSalesSummary] = useState(null);
     const [salesLoading, setSalesLoading] = useState(false);
->>>>>>> 2cf99b3e1b268effe4be92463ef40cf59bb5df96
 
     // Form state
     const [shelves, setShelves] = useState(['Default', 'A1', 'A2', 'B1', 'B2']);
