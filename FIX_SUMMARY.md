@@ -96,7 +96,7 @@ MONGODB_URI=<your-mongodb-connection-string>
 EMAIL_USER=<your-email>
 EMAIL_PASSWORD=<your-password>
 
-# Other
+# 
 GOOGLE_API_KEY=<your-gemini-api-key>
 JWT_SECRET=<generate-strong-secret>
 CRON_SECRET=<your-cron-secret>
