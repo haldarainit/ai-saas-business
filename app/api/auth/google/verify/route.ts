@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
 import connectDB from "@/lib/mongodb";
-import User from "@/lib/models/User.ts";
+import User from "@/lib/models/User";
 
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
