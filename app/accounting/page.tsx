@@ -83,12 +83,29 @@ export default function Accounting() {
                                     </span>
                                 </h1>
 
-                                <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mb-12 leading-relaxed">
+                                <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mb-8 leading-relaxed">
                                     Automate invoicing, generate professional quotations, and manage your finances with
                                     intelligent AI-powered tools designed for modern businesses.
                                 </p>
 
-                                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                {/* How to Use Steps */}
+                                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 bg-cyan-500/5 border border-cyan-500/20 rounded-2xl px-8 py-4 mb-12">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-cyan-500 text-white font-bold text-sm">
+                                            1
+                                        </div>
+                                        <span className="text-sm font-medium text-foreground">Choose a card below</span>
+                                    </div>
+                                    <ArrowRight className="w-4 h-4 text-muted-foreground hidden sm:block" />
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500 text-white font-bold text-sm">
+                                            2
+                                        </div>
+                                        <span className="text-sm font-medium text-foreground">Generate Invoice or Quotation instantly</span>
+                                    </div>
+                                </div>
+
+                                {/* <div className="flex flex-col sm:flex-row gap-4 justify-center">
                                     <Button size="lg" className="text-lg px-8 py-6 h-auto">
                                         Start Free Trial
                                         <DollarSign className="ml-2 w-5 h-5" />
@@ -96,10 +113,10 @@ export default function Accounting() {
                                     <Button variant="outline" size="lg" className="text-lg px-8 py-6 h-auto">
                                         View Demo
                                     </Button>
-                                </div>
+                                </div> */}
 
                                 {/* Stats */}
-                                <div className="grid grid-cols-3 gap-8 mt-16 w-full max-w-2xl mx-auto">
+                                {/* <div className="grid grid-cols-3 gap-8 mt-16 w-full max-w-2xl mx-auto">
                                     <div className="text-center">
                                         <div className="text-3xl font-bold text-cyan-500">98%</div>
                                         <div className="text-sm text-muted-foreground">Faster Invoicing</div>
@@ -112,7 +129,7 @@ export default function Accounting() {
                                         <div className="text-3xl font-bold text-blue-500">24/7</div>
                                         <div className="text-sm text-muted-foreground">Automation</div>
                                     </div>
-                                </div>
+                                </div> */}
                             </motion.div>
                         </div>
                     </section>
@@ -209,7 +226,7 @@ export default function Accounting() {
                             </motion.div>
 
                             {/* Bottom CTA Section */}
-                            <motion.div
+                            {/* <motion.div
                                 initial={{ opacity: 0, y: 30 }}
                                 whileInView={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.8, delay: 0.4 }}
@@ -233,7 +250,7 @@ export default function Accounting() {
                                         </Link>
                                     </div>
                                 </div>
-                            </motion.div>
+                            </motion.div> */}
                         </div>
                     </section>
                 </main>

@@ -145,7 +145,7 @@ export default function Profile() {
                   {/* Actions and Features */}
                   <div className="md:col-span-2 space-y-6">
                     {/* Quick Actions */}
-                    <Card>
+                    {/* <Card>
                       <CardHeader>
                         <CardTitle>Quick Actions</CardTitle>
                         <CardDescription>
@@ -178,7 +178,7 @@ export default function Profile() {
                           </div>
                         </Button>
                       </CardContent>
-                    </Card>
+                    </Card> */}
 
                     {/* Account Overview */}
                     <Card>
@@ -208,7 +208,7 @@ export default function Profile() {
                           </div>
                           <div className="text-center p-4 bg-muted/50 rounded-lg">
                             <div className="text-2xl font-bold text-primary">
-                              7
+                              0
                             </div>
                             <div className="text-sm text-muted-foreground">
                               Days Active

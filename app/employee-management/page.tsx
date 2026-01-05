@@ -119,9 +119,40 @@ export default function EmployeeManagement() {
                 </span>
               </h1>
 
-              <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mb-12 leading-relaxed">
+              <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mb-8 leading-relaxed">
                 Streamline your HR operations with our comprehensive suite of AI-powered tools for attendance, payroll, leave management, and more.
               </p>
+
+              {/* How It Works Steps */}
+              <div className="w-full max-w-4xl bg-purple-500/5 border border-purple-500/20 rounded-2xl p-6 mb-12">
+                <h3 className="text-lg font-semibold text-center mb-6 text-foreground">How It Works</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-500 text-white font-bold text-sm shrink-0">
+                      1
+                    </div>
+                    <span className="text-sm font-medium text-foreground">Register your employee</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-500 text-white font-bold text-sm shrink-0">
+                      2
+                    </div>
+                    <span className="text-sm font-medium text-foreground">Employee receives email with attendance link</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-500 text-white font-bold text-sm shrink-0">
+                      3
+                    </div>
+                    <span className="text-sm font-medium text-foreground">Employee uses the link to mark attendance</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-500 text-white font-bold text-sm shrink-0">
+                      4
+                    </div>
+                    <span className="text-sm font-medium text-foreground">Track attendance in the Attendance card</span>
+                  </div>
+                </div>
+              </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link href="/employee-management/register">

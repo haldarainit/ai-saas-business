@@ -9,7 +9,7 @@ import {
     Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign,
     TrendingUp, Activity, Factory, Boxes, Cog, ArrowRight, ArrowLeft,
     ClipboardList, RefreshCcw, ShoppingCart, History, Clock, Calendar,
-    ChevronDown, ChevronUp, Eye, BarChart3, Package, ScanLine
+    ChevronDown, ChevronUp, Eye, BarChart3, Package, ScanLine, Receipt, CreditCard, Wallet
 } from 'lucide-react';
 import InvoiceScanner from '@/components/inventory/InvoiceScanner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -96,6 +96,28 @@ export default function ManufacturingInventory() {
     const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
     const [bulkDeleteType, setBulkDeleteType] = useState(''); // 'raw-material' or 'product'
 
+    // Payment confirmation state
+    const [showPaymentConfirmDialog, setShowPaymentConfirmDialog] = useState(false);
+    const [showPaymentMethodDialog, setShowPaymentMethodDialog] = useState(false);
+    const [pendingScannedItems, setPendingScannedItems] = useState([]);
+    const [pendingSupplierInfo, setPendingSupplierInfo] = useState(null);
+    const [paymentDetails, setPaymentDetails] = useState({
+        method: 'cash',
+        transactionId: '',
+        bankName: '',
+        accountNumber: '',
+        chequeNumber: '',
+        chequeDate: '',
+        upiId: '',
+        notes: ''
+    });
+
+    // Purchase history state
+    const [purchaseHistory, setPurchaseHistory] = useState([]);
+    const [purchaseHistoryLoading, setPurchaseHistoryLoading] = useState(false);
+    const [showPurchaseHistoryDialog, setShowPurchaseHistoryDialog] = useState(false);
+    const [selectedPurchase, setSelectedPurchase] = useState(null);
+
     const unitOptions = ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack', 'set', 'pair', 'roll', 'bundle', 'dozen', 'ton', 'quintal', 'nos', 'mt', 'bag', 'carton', 'sheet', 'feet', 'inch'];
 
     // Fetch all data
@@ -103,6 +125,7 @@ export default function ManufacturingInventory() {
         fetchRawMaterials();
         fetchManufacturingProducts();
         fetchProductionLogs();
+        fetchPurchaseHistory();
     }, []);
 
     const fetchRawMaterials = async () => {
@@ -152,6 +175,34 @@ export default function ManufacturingInventory() {
             }
         } catch (error) {
             console.error('Error fetching production logs:', error);
+        }
+    };
+
+    const fetchPurchaseHistory = async () => {
+        try {
+            setPurchaseHistoryLoading(true);
+            const response = await fetch('/api/inventory/purchase-history?type=manufacturing&limit=100', {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                // Map the API response to match the expected format
+                const purchases = data.purchases || [];
+                setPurchaseHistory(purchases.map(p => ({
+                    id: p._id,
+                    date: p.createdAt,
+                    items: p.items,
+                    supplier: p.supplier,
+                    totalValue: p.totalValue,
+                    itemCount: p.itemCount,
+                    isPaid: p.isPaid,
+                    paymentDetails: p.paymentDetails
+                })));
+            }
+        } catch (error) {
+            console.error('Error fetching purchase history:', error);
+        } finally {
+            setPurchaseHistoryLoading(false);
         }
     };
 
@@ -271,7 +322,7 @@ export default function ManufacturingInventory() {
     };
 
     // Handle scanned raw materials from invoice
-    const handleScannedMaterials = async (items, supplierInfo) => {
+    const handleScannedMaterials = async (items, supplierInfo, paymentInfo = null) => {
         let successCount = 0;
         let errorCount = 0;
         let errorMessages = [];
@@ -355,6 +406,172 @@ export default function ManufacturingInventory() {
                 description: errorMessages.length > 0
                     ? `Errors: ${errorMessages.slice(0, 3).join('; ')}${errorMessages.length > 3 ? '...' : ''}`
                     : 'Failed to add raw materials from invoice. Please try again.',
+                variant: 'destructive'
+            });
+        }
+    };
+
+    // Handler for when products are confirmed from invoice scanner
+    // This triggers the payment confirmation flow
+    const onProductsConfirmedFromScanner = (items, supplierInfo) => {
+        // Store the scanned items and supplier info temporarily
+        setPendingScannedItems(items);
+        setPendingSupplierInfo(supplierInfo);
+        // Show payment confirmation dialog
+        setShowPaymentConfirmDialog(true);
+    };
+
+    // Handle payment confirmation response
+    const handlePaymentConfirmation = async (isPaid) => {
+        setShowPaymentConfirmDialog(false);
+
+        if (isPaid) {
+            // Show payment method dialog
+            setShowPaymentMethodDialog(true);
+        } else {
+            // Show immediate feedback
+            toast({
+                title: '⏳ Processing...',
+                description: 'Adding materials and sending reminder email...',
+                variant: 'default'
+            });
+
+            // Send email notification for pending payment
+            try {
+                const response = await fetch('/api/inventory/purchase-history/notify-pending', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        items: pendingScannedItems,
+                        supplier: pendingSupplierInfo,
+                        totalValue: pendingScannedItems.reduce((sum, item) => sum + (item.totalCost || 0), 0),
+                        date: new Date().toISOString()
+                    })
+                });
+
+                if (response.ok) {
+                    toast({
+                        title: '📧 Reminder Email Sent',
+                        description: 'A pending payment reminder has been sent to your email.',
+                        variant: 'default'
+                    });
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Failed to send pending payment email:', errorData);
+                    toast({
+                        title: '⚠️ Email Not Sent',
+                        description: errorData.message || 'Could not send reminder email, but materials will still be added.',
+                        variant: 'destructive'
+                    });
+                }
+            } catch (error) {
+                console.error('Error sending pending payment email:', error);
+                toast({
+                    title: '⚠️ Email Error',
+                    description: 'Failed to send reminder email. Materials will still be added.',
+                    variant: 'destructive'
+                });
+            }
+
+            // Proceed directly without payment info
+            await proceedWithAddingMaterials(false);
+        }
+    };
+
+    // Handle payment method submission
+    const handlePaymentMethodSubmit = () => {
+        setShowPaymentMethodDialog(false);
+        // Proceed with adding materials (with payment info)
+        proceedWithAddingMaterials(true);
+    };
+
+    // Reset payment details
+    const resetPaymentDetails = () => {
+        setPaymentDetails({
+            method: 'cash',
+            transactionId: '',
+            bankName: '',
+            accountNumber: '',
+            chequeNumber: '',
+            chequeDate: '',
+            upiId: '',
+            notes: ''
+        });
+    };
+
+    // Proceed with adding materials to inventory
+    const proceedWithAddingMaterials = async (withPayment) => {
+        try {
+            // Create purchase record data for API
+            const purchaseData = {
+                purchaseType: 'manufacturing',
+                items: pendingScannedItems.map(item => ({
+                    name: item.name || '',
+                    sku: item.sku || '',
+                    quantity: item.quantity || 0,
+                    unit: item.unit || 'pcs',
+                    basePrice: item.basePrice || 0,
+                    costPerUnit: item.costPerUnit || item.basePrice || 0,
+                    gstPercentage: item.gstPercentage || 0,
+                    gstAmount: item.gstAmount || 0,
+                    totalCost: item.totalCost || 0,
+                    category: item.category || 'Uncategorized',
+                    hsnCode: item.hsnCode || ''
+                })),
+                supplier: pendingSupplierInfo,
+                totalValue: pendingScannedItems.reduce((sum, item) => sum + (item.totalCost || 0), 0),
+                itemCount: pendingScannedItems.length,
+                isPaid: withPayment,
+                paymentDetails: withPayment ? { ...paymentDetails } : null
+            };
+
+            // Save to database via API
+            const response = await fetch('/api/inventory/purchase-history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(purchaseData)
+            });
+
+            if (response.ok) {
+                const savedPurchase = await response.json();
+                // Add to local state with mapped format
+                const purchaseRecord = {
+                    id: savedPurchase._id,
+                    date: savedPurchase.createdAt,
+                    items: savedPurchase.items,
+                    supplier: savedPurchase.supplier,
+                    totalValue: savedPurchase.totalValue,
+                    itemCount: savedPurchase.itemCount,
+                    isPaid: savedPurchase.isPaid,
+                    paymentDetails: savedPurchase.paymentDetails
+                };
+                setPurchaseHistory(prev => [purchaseRecord, ...prev]);
+            } else {
+                console.error('Failed to save purchase history');
+            }
+
+            // Call the original handleScannedMaterials with the stored items
+            await handleScannedMaterials(pendingScannedItems, pendingSupplierInfo, withPayment ? paymentDetails : null);
+
+            // Clear pending data
+            setPendingScannedItems([]);
+            setPendingSupplierInfo(null);
+            resetPaymentDetails();
+
+            if (withPayment) {
+                toast({
+                    title: '💰 Payment Recorded',
+                    description: `Payment via ${paymentDetails.method.charAt(0).toUpperCase() + paymentDetails.method.slice(1)} has been recorded.`,
+                    variant: 'default'
+                });
+            }
+        } catch (error) {
+            console.error('Error saving purchase:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to save purchase record',
                 variant: 'destructive'
             });
         }
@@ -1095,6 +1312,19 @@ export default function ManufacturingInventory() {
                                 <ScanLine className="mr-2 h-4 w-4" />
                                 Scan Invoice
                             </Button>
+                            {purchaseHistory.length > 0 && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowPurchaseHistoryDialog(true)}
+                                    className="border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-900/20"
+                                >
+                                    <Receipt className="mr-2 h-4 w-4" />
+                                    Purchase History
+                                    <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                        {purchaseHistory.length}
+                                    </Badge>
+                                </Button>
+                            )}
                             <Button
                                 onClick={() => { resetRawMaterialForm(); setIsRawMaterialModalOpen(true); }}
                                 className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
@@ -2262,7 +2492,7 @@ export default function ManufacturingInventory() {
                 isOpen={isInvoiceScannerOpen}
                 onClose={() => setIsInvoiceScannerOpen(false)}
                 inventoryType="manufacturing"
-                onProductsConfirmed={handleScannedMaterials}
+                onProductsConfirmed={onProductsConfirmedFromScanner}
             />
 
             {/* Delete Confirmation Dialog */}
@@ -2337,6 +2567,529 @@ export default function ManufacturingInventory() {
                             Delete All ({bulkDeleteType === 'raw-material' ? selectedRawMaterials.length : selectedManufacturingProducts.length})
                         </Button>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Payment Confirmation Dialog */}
+            <Dialog open={showPaymentConfirmDialog} onOpenChange={setShowPaymentConfirmDialog}>
+                <DialogContent className="sm:max-w-[450px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+                                <DollarSign className="h-5 w-5 text-white" />
+                            </div>
+                            Payment Confirmation
+                        </DialogTitle>
+                        <DialogDescription>
+                            Are these raw materials being paid for?
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-6">
+                        <div className="p-4 rounded-xl bg-gradient-to-br from-muted/30 to-muted/50 border">
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="text-sm text-muted-foreground">Items to add:</span>
+                                <Badge variant="secondary" className="font-semibold">
+                                    {pendingScannedItems.length} items
+                                </Badge>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Total Value:</span>
+                                <span className="text-lg font-bold text-green-600">
+                                    ₹{pendingScannedItems.reduce((sum, item) => sum + (item.totalCost || 0), 0).toFixed(2)}
+                                </span>
+                            </div>
+                            {pendingSupplierInfo?.name && (
+                                <div className="flex items-center justify-between mt-2 pt-2 border-t">
+                                    <span className="text-sm text-muted-foreground">Supplier:</span>
+                                    <span className="text-sm font-medium">{pendingSupplierInfo.name}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <DialogFooter className="flex gap-3 sm:gap-3">
+                        <Button
+                            variant="outline"
+                            onClick={() => handlePaymentConfirmation(false)}
+                            className="flex-1 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                        >
+                            <AlertTriangle className="h-4 w-4 mr-2" />
+                            Not Paid
+                        </Button>
+                        <Button
+                            onClick={() => handlePaymentConfirmation(true)}
+                            className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+                        >
+                            <DollarSign className="h-4 w-4 mr-2" />
+                            Yes, Paid
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Payment Method Dialog */}
+            <Dialog open={showPaymentMethodDialog} onOpenChange={setShowPaymentMethodDialog}>
+                <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-hidden flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
+                        <DialogTitle className="flex items-center gap-2">
+                            <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
+                                <DollarSign className="h-5 w-5 text-white" />
+                            </div>
+                            Payment Details
+                        </DialogTitle>
+                        <DialogDescription>
+                            Select the payment method and enter the details
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
+                        {/* Payment Method Selection */}
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Payment Method</Label>
+                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                {[
+                                    { id: 'cash', label: 'Cash', icon: '💵' },
+                                    { id: 'card', label: 'Card', icon: '💳' },
+                                    { id: 'upi', label: 'UPI', icon: '📱' },
+                                    { id: 'bank', label: 'Bank', icon: '🏦' },
+                                    { id: 'cheque', label: 'Cheque', icon: '📝' }
+                                ].map((method) => (
+                                    <button
+                                        key={method.id}
+                                        type="button"
+                                        onClick={() => setPaymentDetails({ ...paymentDetails, method: method.id })}
+                                        className={`p-3 rounded-xl border-2 transition-all text-center ${paymentDetails.method === method.id
+                                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md'
+                                            : 'border-muted hover:border-muted-foreground/30 hover:bg-muted/30'
+                                            }`}
+                                    >
+                                        <span className="text-2xl block mb-1">{method.icon}</span>
+                                        <span className={`text-xs font-medium ${paymentDetails.method === method.id ? 'text-blue-600' : 'text-muted-foreground'
+                                            }`}>
+                                            {method.label}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Dynamic Fields based on Payment Method */}
+                        {paymentDetails.method === 'card' && (
+                            <div className="space-y-4 p-4 rounded-xl border bg-muted/30">
+                                <div className="space-y-2">
+                                    <Label htmlFor="transactionId">Transaction ID / Reference Number</Label>
+                                    <Input
+                                        id="transactionId"
+                                        placeholder="Enter transaction ID"
+                                        value={paymentDetails.transactionId}
+                                        onChange={(e) => setPaymentDetails({ ...paymentDetails, transactionId: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {paymentDetails.method === 'upi' && (
+                            <div className="space-y-4 p-4 rounded-xl border bg-muted/30">
+                                <div className="space-y-2">
+                                    <Label htmlFor="upiId">UPI ID</Label>
+                                    <Input
+                                        id="upiId"
+                                        placeholder="e.g., name@upi"
+                                        value={paymentDetails.upiId}
+                                        onChange={(e) => setPaymentDetails({ ...paymentDetails, upiId: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="transactionIdUpi">Transaction ID</Label>
+                                    <Input
+                                        id="transactionIdUpi"
+                                        placeholder="Enter UPI transaction ID"
+                                        value={paymentDetails.transactionId}
+                                        onChange={(e) => setPaymentDetails({ ...paymentDetails, transactionId: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {paymentDetails.method === 'bank' && (
+                            <div className="space-y-4 p-4 rounded-xl border bg-muted/30">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="bankName">Bank Name</Label>
+                                        <Input
+                                            id="bankName"
+                                            placeholder="Enter bank name"
+                                            value={paymentDetails.bankName}
+                                            onChange={(e) => setPaymentDetails({ ...paymentDetails, bankName: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="accountNumber">Account Number</Label>
+                                        <Input
+                                            id="accountNumber"
+                                            placeholder="Last 4 digits"
+                                            value={paymentDetails.accountNumber}
+                                            onChange={(e) => setPaymentDetails({ ...paymentDetails, accountNumber: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="transactionIdBank">Transaction / NEFT / RTGS Reference</Label>
+                                    <Input
+                                        id="transactionIdBank"
+                                        placeholder="Enter reference number"
+                                        value={paymentDetails.transactionId}
+                                        onChange={(e) => setPaymentDetails({ ...paymentDetails, transactionId: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {paymentDetails.method === 'cheque' && (
+                            <div className="space-y-4 p-4 rounded-xl border bg-muted/30">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="chequeNumber">Cheque Number</Label>
+                                        <Input
+                                            id="chequeNumber"
+                                            placeholder="Enter cheque number"
+                                            value={paymentDetails.chequeNumber}
+                                            onChange={(e) => setPaymentDetails({ ...paymentDetails, chequeNumber: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="chequeDate">Cheque Date</Label>
+                                        <Input
+                                            id="chequeDate"
+                                            type="date"
+                                            value={paymentDetails.chequeDate}
+                                            onChange={(e) => setPaymentDetails({ ...paymentDetails, chequeDate: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="bankNameCheque">Bank Name</Label>
+                                    <Input
+                                        id="bankNameCheque"
+                                        placeholder="Enter bank name"
+                                        value={paymentDetails.bankName}
+                                        onChange={(e) => setPaymentDetails({ ...paymentDetails, bankName: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Notes (always shown) */}
+                        <div className="space-y-2">
+                            <Label htmlFor="paymentNotes">Notes (Optional)</Label>
+                            <Textarea
+                                id="paymentNotes"
+                                placeholder="Add any payment notes..."
+                                value={paymentDetails.notes}
+                                onChange={(e) => setPaymentDetails({ ...paymentDetails, notes: e.target.value })}
+                                rows={2}
+                            />
+                        </div>
+
+                        {/* Invoice Summary */}
+                        <div className="p-4 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10 border border-green-200 dark:border-green-800">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-green-700 dark:text-green-400">Amount Paid:</span>
+                                <span className="text-xl font-bold text-green-600">
+                                    ₹{pendingScannedItems.reduce((sum, item) => sum + (item.totalCost || 0), 0).toFixed(2)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="flex-shrink-0 flex gap-3 sm:gap-3">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setShowPaymentMethodDialog(false);
+                                resetPaymentDetails();
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handlePaymentMethodSubmit}
+                            className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
+                        >
+                            <DollarSign className="h-4 w-4 mr-2" />
+                            Confirm Payment
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Purchase History Dialog */}
+            <Dialog open={showPurchaseHistoryDialog} onOpenChange={setShowPurchaseHistoryDialog}>
+                <DialogContent className="sm:max-w-[800px] max-h-[90vh] h-auto overflow-hidden flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
+                        <DialogTitle className="flex items-center gap-2">
+                            <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+                                <Receipt className="h-5 w-5 text-white" />
+                            </div>
+                            Purchase History
+                            <Badge variant="secondary" className="ml-2">
+                                {purchaseHistory.length} purchases
+                            </Badge>
+                        </DialogTitle>
+                        <DialogDescription>
+                            View all your recent purchases and their payment details
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
+                        {selectedPurchase ? (
+                            // Detailed view of selected purchase
+                            <div className="space-y-4">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setSelectedPurchase(null)}
+                                    className="mb-2"
+                                >
+                                    <ArrowLeft className="h-4 w-4 mr-2" />
+                                    Back to list
+                                </Button>
+
+                                {/* Purchase Summary */}
+                                <div className="p-4 rounded-xl bg-gradient-to-br from-muted/30 to-muted/50 border">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Date</p>
+                                            <p className="font-medium">{new Date(selectedPurchase.date).toLocaleDateString('en-IN', {
+                                                day: 'numeric',
+                                                month: 'short',
+                                                year: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Supplier</p>
+                                            <p className="font-medium">{selectedPurchase.supplier?.name || 'Unknown'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Items</p>
+                                            <p className="font-medium">{selectedPurchase.itemCount} items</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Total Value</p>
+                                            <p className="font-bold text-green-600">₹{selectedPurchase.totalValue.toFixed(2)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Payment Details */}
+                                <div className={`p-4 rounded-xl border ${selectedPurchase.isPaid
+                                    ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
+                                    : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800'
+                                    }`}>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        {selectedPurchase.isPaid ? (
+                                            <>
+                                                <DollarSign className="h-5 w-5 text-green-600" />
+                                                <h4 className="font-semibold text-green-700 dark:text-green-400">Payment Details</h4>
+                                                <Badge className="bg-green-500 text-white">Paid</Badge>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                                                <h4 className="font-semibold text-amber-700 dark:text-amber-400">Payment Status</h4>
+                                                <Badge variant="outline" className="border-amber-500 text-amber-600">Unpaid</Badge>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {selectedPurchase.isPaid && selectedPurchase.paymentDetails && (
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <p className="text-muted-foreground">Method</p>
+                                                <p className="font-medium capitalize flex items-center gap-2">
+                                                    {selectedPurchase.paymentDetails.method === 'cash' && '💵'}
+                                                    {selectedPurchase.paymentDetails.method === 'card' && '💳'}
+                                                    {selectedPurchase.paymentDetails.method === 'upi' && '📱'}
+                                                    {selectedPurchase.paymentDetails.method === 'bank' && '🏦'}
+                                                    {selectedPurchase.paymentDetails.method === 'cheque' && '📝'}
+                                                    {selectedPurchase.paymentDetails.method}
+                                                </p>
+                                            </div>
+                                            {selectedPurchase.paymentDetails.transactionId && (
+                                                <div>
+                                                    <p className="text-muted-foreground">Transaction ID</p>
+                                                    <p className="font-mono font-medium">{selectedPurchase.paymentDetails.transactionId}</p>
+                                                </div>
+                                            )}
+                                            {selectedPurchase.paymentDetails.upiId && (
+                                                <div>
+                                                    <p className="text-muted-foreground">UPI ID</p>
+                                                    <p className="font-medium">{selectedPurchase.paymentDetails.upiId}</p>
+                                                </div>
+                                            )}
+                                            {selectedPurchase.paymentDetails.bankName && (
+                                                <div>
+                                                    <p className="text-muted-foreground">Bank</p>
+                                                    <p className="font-medium">{selectedPurchase.paymentDetails.bankName}</p>
+                                                </div>
+                                            )}
+                                            {selectedPurchase.paymentDetails.accountNumber && (
+                                                <div>
+                                                    <p className="text-muted-foreground">Account</p>
+                                                    <p className="font-mono font-medium">****{selectedPurchase.paymentDetails.accountNumber}</p>
+                                                </div>
+                                            )}
+                                            {selectedPurchase.paymentDetails.chequeNumber && (
+                                                <div>
+                                                    <p className="text-muted-foreground">Cheque No.</p>
+                                                    <p className="font-mono font-medium">{selectedPurchase.paymentDetails.chequeNumber}</p>
+                                                </div>
+                                            )}
+                                            {selectedPurchase.paymentDetails.chequeDate && (
+                                                <div>
+                                                    <p className="text-muted-foreground">Cheque Date</p>
+                                                    <p className="font-medium">{new Date(selectedPurchase.paymentDetails.chequeDate).toLocaleDateString('en-IN')}</p>
+                                                </div>
+                                            )}
+                                            {selectedPurchase.paymentDetails.notes && (
+                                                <div className="col-span-2">
+                                                    <p className="text-muted-foreground">Notes</p>
+                                                    <p className="font-medium">{selectedPurchase.paymentDetails.notes}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Items Table */}
+                                <div className="rounded-lg border overflow-hidden">
+                                    <div className="bg-muted/50 px-4 py-2 border-b">
+                                        <h4 className="font-semibold flex items-center gap-2">
+                                            <Package className="h-4 w-4" />
+                                            Purchased Items
+                                        </h4>
+                                    </div>
+                                    <div className="max-h-[200px] overflow-y-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Name</TableHead>
+                                                    <TableHead className="text-center">Qty</TableHead>
+                                                    <TableHead className="text-right">Unit Cost</TableHead>
+                                                    <TableHead className="text-right">Total</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {selectedPurchase.items.map((item, index) => (
+                                                    <TableRow key={index}>
+                                                        <TableCell>
+                                                            <div>
+                                                                <p className="font-medium">{item.name}</p>
+                                                                {item.sku && <code className="text-xs text-muted-foreground">{item.sku}</code>}
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            {item.quantity} {item.unit}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            ₹{(item.costPerUnit || item.basePrice || 0).toFixed(2)}
+                                                        </TableCell>
+                                                        <TableCell className="text-right font-medium">
+                                                            ₹{(item.totalCost || 0).toFixed(2)}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            // List of all purchases
+                            <div className="space-y-3">
+                                {purchaseHistory.length === 0 ? (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        <Receipt className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                                        <p>No purchase history yet</p>
+                                        <p className="text-sm">Scan invoices and add products to see them here</p>
+                                    </div>
+                                ) : (
+                                    purchaseHistory.map((purchase) => (
+                                        <div
+                                            key={purchase.id}
+                                            className="p-4 rounded-xl border bg-card hover:bg-muted/30 transition-colors cursor-pointer"
+                                            onClick={() => setSelectedPurchase(purchase)}
+                                        >
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <Badge variant={purchase.isPaid ? 'default' : 'outline'}
+                                                            className={purchase.isPaid
+                                                                ? 'bg-green-500 text-white'
+                                                                : 'border-amber-500 text-amber-600'
+                                                            }>
+                                                            {purchase.isPaid ? '✓ Paid' : 'Unpaid'}
+                                                        </Badge>
+                                                        {purchase.isPaid && purchase.paymentDetails && (
+                                                            <Badge variant="outline" className="text-xs capitalize">
+                                                                {purchase.paymentDetails.method === 'cash' && '💵'}
+                                                                {purchase.paymentDetails.method === 'card' && '💳'}
+                                                                {purchase.paymentDetails.method === 'upi' && '📱'}
+                                                                {purchase.paymentDetails.method === 'bank' && '🏦'}
+                                                                {purchase.paymentDetails.method === 'cheque' && '📝'}
+                                                                {' '}{purchase.paymentDetails.method}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
+                                                        <span className="flex items-center gap-1">
+                                                            <Calendar className="h-3.5 w-3.5" />
+                                                            {new Date(purchase.date).toLocaleDateString('en-IN', {
+                                                                day: 'numeric',
+                                                                month: 'short',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}
+                                                        </span>
+                                                        <span className="flex items-center gap-1">
+                                                            <Package className="h-3.5 w-3.5" />
+                                                            {purchase.itemCount} items
+                                                        </span>
+                                                        {purchase.supplier?.name && (
+                                                            <span className="flex items-center gap-1">
+                                                                <Factory className="h-3.5 w-3.5" />
+                                                                {purchase.supplier.name}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-lg font-bold text-green-600">
+                                                        ₹{purchase.totalValue.toFixed(2)}
+                                                    </p>
+                                                    <Button variant="ghost" size="sm" className="mt-1">
+                                                        View Details <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter className="flex-shrink-0 border-t pt-4">
+                        <Button variant="outline" onClick={() => {
+                            setShowPurchaseHistoryDialog(false);
+                            setSelectedPurchase(null);
+                        }}>
+                            Close
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
