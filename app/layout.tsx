@@ -6,6 +6,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
 import { GoogleSessionProvider } from "@/components/session-provider";
 
+// Initialize recurring reminders service on server side
+import "@/lib/recurring-reminders";
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {

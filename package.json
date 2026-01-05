@@ -11,7 +11,9 @@
     "enable-ai": "powershell -ExecutionPolicy Bypass -File ./scripts/enable-ai-verification.ps1",
     "disable-ai": "powershell -ExecutionPolicy Bypass -File ./scripts/disable-ai-verification.ps1",
     "test:tracking": "node scripts/test-tracking.js simulate",
-    "tracking:view": "node scripts/test-tracking.js view"
+    "tracking:view": "node scripts/test-tracking.js view",
+    "cron:reminders": "node scripts/recurring-reminders-cron.js",
+    "test:reminders": "node scripts/test-recurring-reminders.js"
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",
