@@ -6,7 +6,8 @@ import Footer from "@/components/footer"
 import TypingPromptInput from "@/components/typing-prompt-input"
 import FramerSpotlight from "@/components/framer-spotlight"
 import CssGridBackground from "@/components/css-grid-background"
-// import FeaturesSection from "@/components/features-section"
+import FeatureShowcase from "@/components/feature-showcase"
+import ServiceTabs from "@/components/service-tabs"
 import StructuredData from "@/components/structured-data"
 import HeroButtons from "@/components/hero-buttons"
 
@@ -46,9 +47,13 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Service Tabs - How Each Service Works */}
+        <ServiceTabs />
 
-        {/* Features Section */}
-        {/* <FeaturesSection /> */}
+        {/* Feature Showcase - Alternating Layout */}
+        <FeatureShowcase />
+
+        
 
         {/* How It Works */}
         {/* <section className="py-20" id="how-it-works" aria-labelledby="how-it-works-heading">
@@ -96,7 +101,7 @@ export default function Home() {
         </section> */}
 
         {/* Use Cases */}
-        <UseCases />
+        {/* <UseCases /> */}
 
         {/* Testimonials */}
         {/* <Testimonials /> */}
