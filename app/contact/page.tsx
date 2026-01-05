@@ -22,15 +22,15 @@ export default function ContactPage() {
             icon: <Phone className="h-6 w-6" />,
             title: "Call Us",
             description: "Mon-Fri from 9am to 6pm",
-            value: "+91 (XXX) XXX-XXXX",
+            value: "+91 81053 20657",
             href: "tel:+91XXXXXXXXXX",
         },
-        {
-            icon: <MapPin className="h-6 w-6" />,
-            title: "Visit Us",
-            description: "Come say hello at our office",
-            value: "India",
-        },
+        // {
+        //     icon: <MapPin className="h-6 w-6" />,
+        //     title: "Visit Us",
+        //     description: "Come say hello at our office",
+        //     value: "India",
+        // },
         {
             icon: <Clock className="h-6 w-6" />,
             title: "Business Hours",
