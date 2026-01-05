@@ -7,7 +7,7 @@
 
 
 ```
-[Error: You cannot use different slug names for the same dynamic path ('id' !== 'trackingId').]
+[Error: You cannot use different slug names for the same dynamic path ('id' !== 'trackingId')]
 ```
 ajfhjdshfjsahjdsf
 **Root Cause:**

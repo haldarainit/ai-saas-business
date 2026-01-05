@@ -45,7 +45,14 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       }
 
       onClose();
-      router.push("/profile");
+
+      // Check if onboarding tour is active - if so, don't redirect
+      // so the user can continue the tour on the homepage
+      const hasSeenOnboarding = localStorage.getItem("hasSeenOnboarding");
+      if (hasSeenOnboarding) {
+        router.push("/profile");
+      }
+      // If onboarding not complete, stay on current page for tour step 2
     } catch (error) {
       // Error is handled by the auth context
     }
@@ -82,7 +89,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           <div className="mt-4 space-y-4">
             {/* Google Sign-In Button */}
             <GoogleSignInButton />
-            
+
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
