@@ -114,6 +114,7 @@ export default function ManufacturingInventory() {
 
     // Purchase history state
     const [purchaseHistory, setPurchaseHistory] = useState([]);
+    const [purchaseHistoryLoading, setPurchaseHistoryLoading] = useState(false);
     const [showPurchaseHistoryDialog, setShowPurchaseHistoryDialog] = useState(false);
     const [selectedPurchase, setSelectedPurchase] = useState(null);
 
@@ -124,6 +125,7 @@ export default function ManufacturingInventory() {
         fetchRawMaterials();
         fetchManufacturingProducts();
         fetchProductionLogs();
+        fetchPurchaseHistory();
     }, []);
 
     const fetchRawMaterials = async () => {
@@ -173,6 +175,34 @@ export default function ManufacturingInventory() {
             }
         } catch (error) {
             console.error('Error fetching production logs:', error);
+        }
+    };
+
+    const fetchPurchaseHistory = async () => {
+        try {
+            setPurchaseHistoryLoading(true);
+            const response = await fetch('/api/inventory/purchase-history?type=manufacturing&limit=100', {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                // Map the API response to match the expected format
+                const purchases = data.purchases || [];
+                setPurchaseHistory(purchases.map(p => ({
+                    id: p._id,
+                    date: p.createdAt,
+                    items: p.items,
+                    supplier: p.supplier,
+                    totalValue: p.totalValue,
+                    itemCount: p.itemCount,
+                    isPaid: p.isPaid,
+                    paymentDetails: p.paymentDetails
+                })));
+            }
+        } catch (error) {
+            console.error('Error fetching purchase history:', error);
+        } finally {
+            setPurchaseHistoryLoading(false);
         }
     };
 
@@ -427,34 +457,77 @@ export default function ManufacturingInventory() {
 
     // Proceed with adding materials to inventory
     const proceedWithAddingMaterials = async (withPayment) => {
-        // Create purchase record
-        const purchaseRecord = {
-            id: Date.now().toString(),
-            date: new Date().toISOString(),
-            items: [...pendingScannedItems],
-            supplier: pendingSupplierInfo,
-            totalValue: pendingScannedItems.reduce((sum, item) => sum + (item.totalCost || 0), 0),
-            itemCount: pendingScannedItems.length,
-            isPaid: withPayment,
-            paymentDetails: withPayment ? { ...paymentDetails } : null
-        };
+        try {
+            // Create purchase record data for API
+            const purchaseData = {
+                purchaseType: 'manufacturing',
+                items: pendingScannedItems.map(item => ({
+                    name: item.name || '',
+                    sku: item.sku || '',
+                    quantity: item.quantity || 0,
+                    unit: item.unit || 'pcs',
+                    basePrice: item.basePrice || 0,
+                    costPerUnit: item.costPerUnit || item.basePrice || 0,
+                    gstPercentage: item.gstPercentage || 0,
+                    gstAmount: item.gstAmount || 0,
+                    totalCost: item.totalCost || 0,
+                    category: item.category || 'Uncategorized',
+                    hsnCode: item.hsnCode || ''
+                })),
+                supplier: pendingSupplierInfo,
+                totalValue: pendingScannedItems.reduce((sum, item) => sum + (item.totalCost || 0), 0),
+                itemCount: pendingScannedItems.length,
+                isPaid: withPayment,
+                paymentDetails: withPayment ? { ...paymentDetails } : null
+            };
 
-        // Add to purchase history
-        setPurchaseHistory(prev => [purchaseRecord, ...prev]);
+            // Save to database via API
+            const response = await fetch('/api/inventory/purchase-history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(purchaseData)
+            });
 
-        // Call the original handleScannedMaterials with the stored items
-        await handleScannedMaterials(pendingScannedItems, pendingSupplierInfo, withPayment ? paymentDetails : null);
+            if (response.ok) {
+                const savedPurchase = await response.json();
+                // Add to local state with mapped format
+                const purchaseRecord = {
+                    id: savedPurchase._id,
+                    date: savedPurchase.createdAt,
+                    items: savedPurchase.items,
+                    supplier: savedPurchase.supplier,
+                    totalValue: savedPurchase.totalValue,
+                    itemCount: savedPurchase.itemCount,
+                    isPaid: savedPurchase.isPaid,
+                    paymentDetails: savedPurchase.paymentDetails
+                };
+                setPurchaseHistory(prev => [purchaseRecord, ...prev]);
+            } else {
+                console.error('Failed to save purchase history');
+            }
 
-        // Clear pending data
-        setPendingScannedItems([]);
-        setPendingSupplierInfo(null);
-        resetPaymentDetails();
+            // Call the original handleScannedMaterials with the stored items
+            await handleScannedMaterials(pendingScannedItems, pendingSupplierInfo, withPayment ? paymentDetails : null);
 
-        if (withPayment) {
+            // Clear pending data
+            setPendingScannedItems([]);
+            setPendingSupplierInfo(null);
+            resetPaymentDetails();
+
+            if (withPayment) {
+                toast({
+                    title: '💰 Payment Recorded',
+                    description: `Payment via ${paymentDetails.method.charAt(0).toUpperCase() + paymentDetails.method.slice(1)} has been recorded.`,
+                    variant: 'default'
+                });
+            }
+        } catch (error) {
+            console.error('Error saving purchase:', error);
             toast({
-                title: '💰 Payment Recorded',
-                description: `Payment via ${paymentDetails.method.charAt(0).toUpperCase() + paymentDetails.method.slice(1)} has been recorded.`,
-                variant: 'default'
+                title: 'Error',
+                description: 'Failed to save purchase record',
+                variant: 'destructive'
             });
         }
     };
@@ -2768,8 +2841,8 @@ export default function ManufacturingInventory() {
 
                                 {/* Payment Details */}
                                 <div className={`p-4 rounded-xl border ${selectedPurchase.isPaid
-                                        ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
-                                        : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800'
+                                    ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
+                                    : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800'
                                     }`}>
                                     <div className="flex items-center gap-2 mb-3">
                                         {selectedPurchase.isPaid ? (
