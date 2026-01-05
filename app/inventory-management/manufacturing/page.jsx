@@ -422,15 +422,60 @@ export default function ManufacturingInventory() {
     };
 
     // Handle payment confirmation response
-    const handlePaymentConfirmation = (isPaid) => {
+    const handlePaymentConfirmation = async (isPaid) => {
         setShowPaymentConfirmDialog(false);
 
         if (isPaid) {
             // Show payment method dialog
             setShowPaymentMethodDialog(true);
         } else {
+            // Show immediate feedback
+            toast({
+                title: '⏳ Processing...',
+                description: 'Adding materials and sending reminder email...',
+                variant: 'default'
+            });
+
+            // Send email notification for pending payment
+            try {
+                const response = await fetch('/api/inventory/purchase-history/notify-pending', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        items: pendingScannedItems,
+                        supplier: pendingSupplierInfo,
+                        totalValue: pendingScannedItems.reduce((sum, item) => sum + (item.totalCost || 0), 0),
+                        date: new Date().toISOString()
+                    })
+                });
+
+                if (response.ok) {
+                    toast({
+                        title: '📧 Reminder Email Sent',
+                        description: 'A pending payment reminder has been sent to your email.',
+                        variant: 'default'
+                    });
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Failed to send pending payment email:', errorData);
+                    toast({
+                        title: '⚠️ Email Not Sent',
+                        description: errorData.message || 'Could not send reminder email, but materials will still be added.',
+                        variant: 'destructive'
+                    });
+                }
+            } catch (error) {
+                console.error('Error sending pending payment email:', error);
+                toast({
+                    title: '⚠️ Email Error',
+                    description: 'Failed to send reminder email. Materials will still be added.',
+                    variant: 'destructive'
+                });
+            }
+
             // Proceed directly without payment info
-            proceedWithAddingMaterials(false);
+            await proceedWithAddingMaterials(false);
         }
     };
 
