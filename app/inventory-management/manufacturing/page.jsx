@@ -2585,8 +2585,8 @@ export default function ManufacturingInventory() {
 
             {/* Payment Method Dialog */}
             <Dialog open={showPaymentMethodDialog} onOpenChange={setShowPaymentMethodDialog}>
-                <DialogContent className="sm:max-w-[550px]">
-                    <DialogHeader>
+                <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-hidden flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
                         <DialogTitle className="flex items-center gap-2">
                             <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
                                 <DollarSign className="h-5 w-5 text-white" />
@@ -2598,7 +2598,7 @@ export default function ManufacturingInventory() {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="py-4 space-y-4">
+                    <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
                         {/* Payment Method Selection */}
                         <div className="space-y-2">
                             <Label className="text-sm font-medium">Payment Method</Label>
@@ -2758,7 +2758,7 @@ export default function ManufacturingInventory() {
                         </div>
                     </div>
 
-                    <DialogFooter className="flex gap-3 sm:gap-3">
+                    <DialogFooter className="flex-shrink-0 flex gap-3 sm:gap-3">
                         <Button
                             variant="outline"
                             onClick={() => {
@@ -2781,8 +2781,8 @@ export default function ManufacturingInventory() {
 
             {/* Purchase History Dialog */}
             <Dialog open={showPurchaseHistoryDialog} onOpenChange={setShowPurchaseHistoryDialog}>
-                <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-hidden flex flex-col">
-                    <DialogHeader>
+                <DialogContent className="sm:max-w-[800px] max-h-[90vh] h-auto overflow-hidden flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
                         <DialogTitle className="flex items-center gap-2">
                             <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
                                 <Receipt className="h-5 w-5 text-white" />
@@ -2797,7 +2797,7 @@ export default function ManufacturingInventory() {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="flex-1 overflow-y-auto py-4 space-y-4">
+                    <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
                         {selectedPurchase ? (
                             // Detailed view of selected purchase
                             <div className="space-y-4">
@@ -2927,7 +2927,7 @@ export default function ManufacturingInventory() {
                                             Purchased Items
                                         </h4>
                                     </div>
-                                    <div className="max-h-[300px] overflow-y-auto">
+                                    <div className="max-h-[200px] overflow-y-auto">
                                         <Table>
                                             <TableHeader>
                                                 <TableRow>
@@ -3037,7 +3037,7 @@ export default function ManufacturingInventory() {
                         )}
                     </div>
 
-                    <DialogFooter className="border-t pt-4">
+                    <DialogFooter className="flex-shrink-0 border-t pt-4">
                         <Button variant="outline" onClick={() => {
                             setShowPurchaseHistoryDialog(false);
                             setSelectedPurchase(null);
