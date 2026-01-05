@@ -160,6 +160,54 @@ const services: ServiceTab[] = [
         ],
         image: "/screenshots/landing.png",
     },
+    {
+        id: "appointments",
+        label: "Appointment Scheduling",
+        title: "Smart Booking System",
+        steps: [
+            {
+                title: "Set Your Availability",
+                description: "Define your working hours, break times, and available days for bookings.",
+            },
+            {
+                title: "Share Booking Link",
+                description: "Get a personalized booking page link to share with clients via email, SMS, or social media.",
+            },
+            {
+                title: "Clients Book Online",
+                description: "Customers select available slots and book appointments 24/7 without any back-and-forth.",
+            },
+            {
+                title: "Automated Reminders",
+                description: "Both you and your clients receive email/SMS reminders. Reduce no-shows by up to 90%.",
+            },
+        ],
+        image: "/screenshots/appointments.png",
+    },
+    {
+        id: "marketing",
+        label: "Marketing AI",
+        title: "AI Marketing Suite",
+        steps: [
+            {
+                title: "Describe Your Campaign",
+                description: "Tell AI your product, target audience, and marketing goals you want to achieve.",
+            },
+            {
+                title: "Generate Content",
+                description: "AI creates compelling ad copy, social posts, email content, and marketing materials.",
+            },
+            {
+                title: "Schedule & Publish",
+                description: "Plan your content calendar and auto-publish across multiple social media platforms.",
+            },
+            {
+                title: "Track Performance",
+                description: "Monitor engagement, reach, and conversions with detailed analytics dashboards.",
+            },
+        ],
+        image: "/screenshots/marketing.png",
+    },
 ];
 
 export default function ServiceTabs() {

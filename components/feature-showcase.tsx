@@ -13,6 +13,9 @@ import {
     Layout,
     Package2,
     Zap,
+    Calendar,
+    TrendingUp,
+    Target,
 } from "lucide-react";
 
 interface FeatureShowcaseItem {
@@ -108,6 +111,48 @@ const features: FeatureShowcaseItem[] = [
         image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
         icon: <Package2 className="w-6 h-6" />,
         borderColor: "border-emerald-500",
+    },
+    {
+        title: "Appointment Scheduling",
+        description:
+            "Effortlessly manage bookings and appointments with our intelligent scheduling system. Let customers book online 24/7 while you focus on growing your business.",
+        features: [
+            "Online booking portal for customers",
+            "Automated reminders via email & SMS",
+            "Calendar sync with Google & Outlook",
+            "Customizable availability and time slots",
+        ],
+        image: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
+        icon: <Calendar className="w-6 h-6" />,
+        borderColor: "border-pink-500",
+    },
+    {
+        title: "Marketing AI",
+        description:
+            "Supercharge your marketing with AI-powered insights and automation. Generate compelling content, analyze market trends, and optimize campaigns for maximum ROI.",
+        features: [
+            "AI-generated marketing copy & content",
+            "Social media post scheduling",
+            "Campaign performance analytics",
+            "Audience segmentation & targeting",
+        ],
+        image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
+        icon: <TrendingUp className="w-6 h-6" />,
+        borderColor: "border-rose-500",
+    },
+    {
+        title: "Sales AI",
+        description:
+            "Close more deals with AI-powered sales intelligence. Track leads, automate follow-ups, and get actionable insights to boost your conversion rates.",
+        features: [
+            "Smart lead scoring & prioritization",
+            "Automated follow-up sequences",
+            "Sales pipeline visualization",
+            "AI-driven deal predictions & insights",
+        ],
+        image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
+        icon: <Target className="w-6 h-6" />,
+        borderColor: "border-indigo-500",
     },
 ];
 
