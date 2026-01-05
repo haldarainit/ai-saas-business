@@ -10,6 +10,7 @@ import FeatureShowcase from "@/components/feature-showcase"
 import ServiceTabs from "@/components/service-tabs"
 import StructuredData from "@/components/structured-data"
 import HeroButtons from "@/components/hero-buttons"
+import OnboardingTour from "@/components/onboarding-tour"
 
 export default function Home() {
   return (
@@ -53,7 +54,7 @@ export default function Home() {
         {/* Feature Showcase - Alternating Layout */}
         <FeatureShowcase />
 
-        
+
 
         {/* How It Works */}
         {/* <section className="py-20" id="how-it-works" aria-labelledby="how-it-works-heading">
@@ -107,6 +108,7 @@ export default function Home() {
         {/* <Testimonials /> */}
 
         <Footer />
+        <OnboardingTour />
       </div>
     </>
   )

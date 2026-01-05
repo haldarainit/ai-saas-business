@@ -17,6 +17,7 @@ export default function HeroButtons() {
                 {user ? (
                     <Button
                         asChild
+                        id="get-started-button"
                         className="flex items-center gap-3 px-5 py-6 h-[60px] bg-[#1a1d21] hover:bg-[#2a2d31] text-white rounded-xl border-0 dark:bg-primary dark:hover:bg-primary/90 dark:shadow-[0_0_15px_rgba(36,101,237,0.5)] relative overflow-hidden group"
                     >
                         <Link href="/get-started">
@@ -28,6 +29,7 @@ export default function HeroButtons() {
                 ) : (
                     <Button
                         onClick={() => setAuthModalOpen(true)}
+                        id="join-button"
                         className="flex items-center gap-3 px-5 py-6 h-[60px] bg-[#1a1d21] hover:bg-[#2a2d31] text-white rounded-xl border-0 dark:bg-primary dark:hover:bg-primary/90 dark:shadow-[0_0_15px_rgba(36,101,237,0.5)] relative overflow-hidden group"
                     >
                         <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0 dark:opacity-30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform translate-x-[-100%] group-hover:translate-x-[100%]"></div>

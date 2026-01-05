@@ -239,7 +239,7 @@ export default function FeatureShowcase() {
                 </div>
 
                 {/* Bottom CTA */}
-                <motion.div
+                {/* <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
@@ -266,7 +266,7 @@ export default function FeatureShowcase() {
                             </Button>
                         </Link>
                     )}
-                </motion.div>
+                </motion.div> */}
             </div>
         </section>
     );
