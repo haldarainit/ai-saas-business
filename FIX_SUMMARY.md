@@ -1,6 +1,6 @@
 # Issues Fixed - Summary below
 
-## ✅ Issue #1: Dynamic Route Slug Conflict
+## ✅ Issue #1: Dynamic Route Slug Conflict.
 
 **Error Message:**
 
