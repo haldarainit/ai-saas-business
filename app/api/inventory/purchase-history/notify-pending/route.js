@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
 import EmailService from '@/lib/email/EmailService';
+import dbConnect from '@/lib/mongodb';
+import PaymentReminder from '@/models/PaymentReminder';
 
 // POST /api/inventory/purchase-history/notify-pending
 // Send email notification for unpaid purchase
@@ -51,10 +53,61 @@ export async function POST(request) {
 
         if (result.success) {
             console.log(`Pending payment email sent to ${email}`);
+
+            // Create a reminder for weekly follow-up emails
+            await dbConnect();
+
+            // Calculate next reminder date (1 week from now)
+            const nextReminderDate = new Date();
+            nextReminderDate.setDate(nextReminderDate.getDate() + 7);
+
+            // Check if a reminder already exists for this purchase
+            const existingReminder = data.purchaseId
+                ? await PaymentReminder.findOne({
+                    purchaseId: data.purchaseId,
+                    status: 'active'
+                })
+                : null;
+
+            if (!existingReminder) {
+                // Create new reminder
+                const reminder = new PaymentReminder({
+                    purchaseId: data.purchaseId || null,
+                    userId,
+                    recipientEmail: email,
+                    recipientName: name || 'User',
+                    items: items.map(item => ({
+                        name: item.name,
+                        sku: item.sku,
+                        quantity: item.quantity,
+                        unit: item.unit,
+                        costPerUnit: item.costPerUnit || item.basePrice,
+                        basePrice: item.basePrice,
+                        totalCost: item.totalCost
+                    })),
+                    supplier: supplier ? {
+                        name: supplier.name,
+                        gstin: supplier.gstin
+                    } : null,
+                    totalValue,
+                    purchaseDate,
+                    nextReminderDate,
+                    reminderCount: 1, // Initial email counts as first reminder
+                    lastReminderSent: new Date(),
+                    status: 'active'
+                });
+
+                await reminder.save();
+                console.log(`Payment reminder created, next reminder scheduled for ${nextReminderDate.toISOString()}`);
+            } else {
+                console.log(`Reminder already exists for purchase ${data.purchaseId}`);
+            }
+
             return NextResponse.json({
                 success: true,
-                message: 'Email sent successfully',
-                recipient: email
+                message: 'Email sent successfully. Weekly reminders scheduled until payment is marked as paid.',
+                recipient: email,
+                nextReminder: nextReminderDate.toISOString()
             });
         } else {
             throw new Error(result.error || 'Failed to send email');

@@ -118,6 +118,7 @@ export default function ManufacturingInventory() {
     const [showPurchaseHistoryDialog, setShowPurchaseHistoryDialog] = useState(false);
     const [selectedPurchase, setSelectedPurchase] = useState(null);
     const [addingProducts, setAddingProducts] = useState(false);
+    const [updatingPurchase, setUpdatingPurchase] = useState(null);
 
     const unitOptions = ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack', 'set', 'pair', 'roll', 'bundle', 'dozen', 'ton', 'quintal', 'nos', 'mt', 'bag', 'carton', 'sheet', 'feet', 'inch'];
 
@@ -433,17 +434,73 @@ export default function ManufacturingInventory() {
             // Show immediate feedback
             toast({
                 title: '⏳ Processing...',
-                description: 'Adding materials and sending reminder email...',
+                description: 'Adding materials and setting up reminders...',
                 variant: 'default'
             });
 
-            // Send email notification for pending payment
+            // First, save the purchase record to get the purchaseId
+            setAddingProducts(true);
+            let savedPurchaseId = null;
+
             try {
-                const response = await fetch('/api/inventory/purchase-history/notify-pending', {
+                // Create purchase record data for API
+                const purchaseData = {
+                    purchaseType: 'manufacturing',
+                    items: pendingScannedItems.map(item => ({
+                        name: item.name || '',
+                        sku: item.sku || '',
+                        quantity: item.quantity || 0,
+                        unit: item.unit || 'pcs',
+                        basePrice: item.basePrice || 0,
+                        costPerUnit: item.costPerUnit || item.basePrice || 0,
+                        gstPercentage: item.gstPercentage || 0,
+                        gstAmount: item.gstAmount || 0,
+                        totalCost: item.totalCost || 0,
+                        category: item.category || 'Uncategorized',
+                        hsnCode: item.hsnCode || ''
+                    })),
+                    supplier: pendingSupplierInfo,
+                    totalValue: pendingScannedItems.reduce((sum, item) => sum + (item.totalCost || 0), 0),
+                    itemCount: pendingScannedItems.length,
+                    isPaid: false,
+                    paymentDetails: null
+                };
+
+                // Save to database via API
+                const purchaseResponse = await fetch('/api/inventory/purchase-history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(purchaseData)
+                });
+
+                if (purchaseResponse.ok) {
+                    const savedPurchase = await purchaseResponse.json();
+                    savedPurchaseId = savedPurchase._id;
+
+                    // Add to local state with mapped format
+                    const purchaseRecord = {
+                        id: savedPurchase._id,
+                        date: savedPurchase.createdAt,
+                        items: savedPurchase.items,
+                        supplier: savedPurchase.supplier,
+                        totalValue: savedPurchase.totalValue,
+                        itemCount: savedPurchase.itemCount,
+                        isPaid: savedPurchase.isPaid,
+                        paymentDetails: savedPurchase.paymentDetails
+                    };
+                    setPurchaseHistory(prev => [purchaseRecord, ...prev]);
+                } else {
+                    console.error('Failed to save purchase history');
+                }
+
+                // Now send email notification with the purchaseId for reminder tracking
+                const emailResponse = await fetch('/api/inventory/purchase-history/notify-pending', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({
+                        purchaseId: savedPurchaseId, // Include purchaseId for reminder linking
                         items: pendingScannedItems,
                         supplier: pendingSupplierInfo,
                         totalValue: pendingScannedItems.reduce((sum, item) => sum + (item.totalCost || 0), 0),
@@ -451,14 +508,14 @@ export default function ManufacturingInventory() {
                     })
                 });
 
-                if (response.ok) {
+                if (emailResponse.ok) {
                     toast({
-                        title: '📧 Reminder Email Sent',
-                        description: 'A pending payment reminder has been sent to your email.',
+                        title: '📧 Reminder System Activated',
+                        description: 'A pending payment reminder has been sent. You will receive weekly reminders until payment is marked as complete.',
                         variant: 'default'
                     });
                 } else {
-                    const errorData = await response.json().catch(() => ({}));
+                    const errorData = await emailResponse.json().catch(() => ({}));
                     console.error('Failed to send pending payment email:', errorData);
                     toast({
                         title: '⚠️ Email Not Sent',
@@ -466,25 +523,105 @@ export default function ManufacturingInventory() {
                         variant: 'destructive'
                     });
                 }
+
+                // Add materials to inventory
+                await handleScannedMaterials(pendingScannedItems, pendingSupplierInfo, null);
+
+                // Clear pending data
+                setPendingScannedItems([]);
+                setPendingSupplierInfo(null);
+                resetPaymentDetails();
             } catch (error) {
-                console.error('Error sending pending payment email:', error);
+                console.error('Error in payment confirmation flow:', error);
                 toast({
-                    title: '⚠️ Email Error',
-                    description: 'Failed to send reminder email. Materials will still be added.',
+                    title: 'Error',
+                    description: 'Failed to process. Please try again.',
                     variant: 'destructive'
                 });
+            } finally {
+                setAddingProducts(false);
             }
-
-            // Proceed directly without payment info
-            await proceedWithAddingMaterials(false);
         }
     };
 
     // Handle payment method submission
     const handlePaymentMethodSubmit = () => {
-        setShowPaymentMethodDialog(false);
-        // Proceed with adding materials (with payment info)
-        proceedWithAddingMaterials(true);
+        if (updatingPurchase) {
+            updatePurchasePayment();
+        } else {
+            setShowPaymentMethodDialog(false);
+            // Proceed with adding materials (with payment info)
+            proceedWithAddingMaterials(true);
+        }
+    };
+
+    // Handle marking an existing purchase as paid
+    const handleMarkAsPaid = (purchase) => {
+        setUpdatingPurchase(purchase);
+        resetPaymentDetails();
+        setShowPaymentMethodDialog(true);
+    };
+
+    // Update existing purchase payment
+    const updatePurchasePayment = async () => {
+        if (!updatingPurchase) return;
+
+        setAddingProducts(true); // Reuse loading state
+        try {
+            const response = await fetch(`/api/inventory/purchase-history/${updatingPurchase.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    isPaid: true,
+                    paymentDetails: paymentDetails
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to update payment status');
+            }
+
+            const updatedData = await response.json();
+
+            // Update local state
+            setPurchaseHistory(prev => prev.map(p =>
+                p.id === updatedData._id
+                    ? {
+                        ...p,
+                        isPaid: true,
+                        paymentDetails: updatedData.paymentDetails
+                    }
+                    : p
+            ));
+
+            // Update selected purchase if it's the one we're viewing
+            if (selectedPurchase && selectedPurchase.id === updatingPurchase.id) {
+                setSelectedPurchase({
+                    ...selectedPurchase,
+                    isPaid: true,
+                    paymentDetails: updatedData.paymentDetails
+                });
+            }
+
+            toast({
+                title: 'Success',
+                description: 'Payment status updated to Paid'
+            });
+
+            setShowPaymentMethodDialog(false);
+            setUpdatingPurchase(null);
+        } catch (error) {
+            console.error('Error updating payment:', error);
+            toast({
+                title: 'Error',
+                description: error.message,
+                variant: 'destructive'
+            });
+        } finally {
+            setAddingProducts(false);
+        }
     };
 
     // Reset payment details
@@ -2821,7 +2958,10 @@ export default function ManufacturingInventory() {
                             <div className="flex items-center justify-between">
                                 <span className="text-sm font-medium text-green-700 dark:text-green-400">Amount Paid:</span>
                                 <span className="text-xl font-bold text-green-600">
-                                    ₹{pendingScannedItems.reduce((sum, item) => sum + (item.totalCost || 0), 0).toFixed(2)}
+                                    ₹{updatingPurchase
+                                        ? updatingPurchase.totalValue.toFixed(2)
+                                        : pendingScannedItems.reduce((sum, item) => sum + (item.totalCost || 0), 0).toFixed(2)
+                                    }
                                 </span>
                             </div>
                         </div>
@@ -2833,6 +2973,7 @@ export default function ManufacturingInventory() {
                             disabled={addingProducts}
                             onClick={() => {
                                 setShowPaymentMethodDialog(false);
+                                setUpdatingPurchase(null);
                                 resetPaymentDetails();
                             }}
                         >
@@ -2941,11 +3082,20 @@ export default function ManufacturingInventory() {
                                                 <Badge className="bg-green-500 text-white">Paid</Badge>
                                             </>
                                         ) : (
-                                            <>
-                                                <AlertTriangle className="h-5 w-5 text-amber-600" />
-                                                <h4 className="font-semibold text-amber-700 dark:text-amber-400">Payment Status</h4>
-                                                <Badge variant="outline" className="border-amber-500 text-amber-600">Unpaid</Badge>
-                                            </>
+                                            <div className="flex items-center justify-between w-full">
+                                                <div className="flex items-center gap-2">
+                                                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                                                    <h4 className="font-semibold text-amber-700 dark:text-amber-400">Payment Status</h4>
+                                                    <Badge variant="outline" className="border-amber-500 text-amber-600">Unpaid</Badge>
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                                    onClick={() => handleMarkAsPaid(selectedPurchase)}
+                                                >
+                                                    Mark as Paid
+                                                </Button>
+                                            </div>
                                         )}
                                     </div>
 
@@ -3159,7 +3309,7 @@ export default function ManufacturingInventory() {
                 </DialogContent>
             </Dialog>
 
-        </div>
+        </div >
     );
 }
 

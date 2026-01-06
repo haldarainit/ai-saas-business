@@ -1,5 +1,6 @@
 import dbConnect from '@/lib/mongodb';
 import PurchaseHistory from '@/models/PurchaseHistory';
+import PaymentReminder from '@/models/PaymentReminder';
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
@@ -136,6 +137,15 @@ export async function PUT(request, { params }) {
                 { message: 'Purchase record not found' },
                 { status: 404 }
             );
+        }
+
+        // If payment is marked as paid, cancel any active reminders
+        if (data.isPaid === true) {
+            const cancelledReminders = await PaymentReminder.updateMany(
+                { purchaseId: id, status: 'active' },
+                { $set: { status: 'completed' } }
+            );
+            console.log(`Cancelled ${cancelledReminders.modifiedCount} payment reminders for purchase ${id}`);
         }
 
         console.log(`Purchase record ${id} updated successfully`);
