@@ -67,8 +67,8 @@ export default function Navbar() {
     <>
       <header
         className={`sticky top-0 z-50 w-full transition-all duration-300 ${scrolled
-            ? "bg-background/80 backdrop-blur-xl border-b shadow-sm"
-            : "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-transparent"
+          ? "bg-background/80 backdrop-blur-xl border-b shadow-sm"
+          : "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-transparent"
           }`}
       >
         <div className="container flex h-16 sm:h-18 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -88,18 +88,18 @@ export default function Navbar() {
                 <Image
                   src={logoSrc}
                   alt="Business Accelerator Logo"
-                  width={48}
-                  height={48}
-                  className="object-contain w-10 h-10 sm:w-12 sm:h-12 transition-transform duration-300 group-hover:scale-105"
+                  width={90}
+                  height={90}
+                  className="object-contain w-16 h-16 sm:w-18 sm:h-18 transition-transform duration-300 group-hover:scale-105"
                 />
               </div>
               <div className="hidden sm:flex flex-col">
                 <span className="text-base font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
                   Business AI
                 </span>
-                <span className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase">
+                {/* <span className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase">
                   Accelerator
-                </span>
+                </span> */}
               </div>
             </Link>
           </motion.div>
@@ -117,8 +117,8 @@ export default function Navbar() {
                 key={index}
                 href={item.href}
                 className={`relative px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 ${isActive(item.href)
-                    ? "text-primary-foreground bg-primary shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  ? "text-primary-foreground bg-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   }`}
               >
                 {item.label}
@@ -252,8 +252,8 @@ export default function Navbar() {
                       key={index}
                       href={item.href}
                       className={`flex items-center justify-between px-5 py-3.5 text-base font-medium transition-all ${isActive(item.href)
-                          ? "bg-primary/10 text-primary border-l-4 border-primary"
-                          : "hover:bg-muted hover:text-primary border-l-4 border-transparent"
+                        ? "bg-primary/10 text-primary border-l-4 border-primary"
+                        : "hover:bg-muted hover:text-primary border-l-4 border-transparent"
                         }`}
                       onClick={() => setIsOpen(false)}
                     >
