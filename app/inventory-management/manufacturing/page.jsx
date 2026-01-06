@@ -9,7 +9,7 @@ import {
     Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign,
     TrendingUp, Activity, Factory, Boxes, Cog, ArrowRight, ArrowLeft,
     ClipboardList, RefreshCcw, ShoppingCart, History, Clock, Calendar,
-    ChevronDown, ChevronUp, Eye, BarChart3, Package, ScanLine, Receipt, CreditCard, Wallet
+    ChevronDown, ChevronUp, Eye, BarChart3, Package, ScanLine, Receipt, CreditCard, Wallet, Loader2
 } from 'lucide-react';
 import InvoiceScanner from '@/components/inventory/InvoiceScanner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -117,6 +117,7 @@ export default function ManufacturingInventory() {
     const [purchaseHistoryLoading, setPurchaseHistoryLoading] = useState(false);
     const [showPurchaseHistoryDialog, setShowPurchaseHistoryDialog] = useState(false);
     const [selectedPurchase, setSelectedPurchase] = useState(null);
+    const [addingProducts, setAddingProducts] = useState(false);
 
     const unitOptions = ['pcs', 'kg', 'g', 'ltr', 'ml', 'meter', 'cm', 'sqft', 'sqm', 'unit', 'box', 'pack', 'set', 'pair', 'roll', 'bundle', 'dozen', 'ton', 'quintal', 'nos', 'mt', 'bag', 'carton', 'sheet', 'feet', 'inch'];
 
@@ -502,6 +503,7 @@ export default function ManufacturingInventory() {
 
     // Proceed with adding materials to inventory
     const proceedWithAddingMaterials = async (withPayment) => {
+        setAddingProducts(true);
         try {
             // Create purchase record data for API
             const purchaseData = {
@@ -574,6 +576,8 @@ export default function ManufacturingInventory() {
                 description: 'Failed to save purchase record',
                 variant: 'destructive'
             });
+        } finally {
+            setAddingProducts(false);
         }
     };
 
@@ -2612,17 +2616,37 @@ export default function ManufacturingInventory() {
                         <Button
                             variant="outline"
                             onClick={() => handlePaymentConfirmation(false)}
+                            disabled={addingProducts}
                             className="flex-1 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20"
                         >
-                            <AlertTriangle className="h-4 w-4 mr-2" />
-                            Not Paid
+                            {addingProducts ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Adding...
+                                </>
+                            ) : (
+                                <>
+                                    <AlertTriangle className="h-4 w-4 mr-2" />
+                                    Not Paid
+                                </>
+                            )}
                         </Button>
                         <Button
                             onClick={() => handlePaymentConfirmation(true)}
+                            disabled={addingProducts}
                             className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
                         >
-                            <DollarSign className="h-4 w-4 mr-2" />
-                            Yes, Paid
+                            {addingProducts ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Adding...
+                                </>
+                            ) : (
+                                <>
+                                    <DollarSign className="h-4 w-4 mr-2" />
+                                    Yes, Paid
+                                </>
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -2649,11 +2673,11 @@ export default function ManufacturingInventory() {
                             <Label className="text-sm font-medium">Payment Method</Label>
                             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                                 {[
-                                    { id: 'cash', label: 'Cash', icon: '💵' },
-                                    { id: 'card', label: 'Card', icon: '💳' },
-                                    { id: 'upi', label: 'UPI', icon: '📱' },
-                                    { id: 'bank', label: 'Bank', icon: '🏦' },
-                                    { id: 'cheque', label: 'Cheque', icon: '📝' }
+                                    { id: 'cash', label: 'Cash', Icon: Wallet },
+                                    { id: 'card', label: 'Card', Icon: CreditCard },
+                                    { id: 'upi', label: 'UPI', Icon: Receipt },
+                                    { id: 'bank', label: 'Bank', Icon: DollarSign },
+                                    { id: 'cheque', label: 'Cheque', Icon: ClipboardList }
                                 ].map((method) => (
                                     <button
                                         key={method.id}
@@ -2664,7 +2688,7 @@ export default function ManufacturingInventory() {
                                             : 'border-muted hover:border-muted-foreground/30 hover:bg-muted/30'
                                             }`}
                                     >
-                                        <span className="text-2xl block mb-1">{method.icon}</span>
+                                        <method.Icon className={`h-6 w-6 mx-auto mb-1 ${paymentDetails.method === method.id ? 'text-blue-600' : 'text-muted-foreground'}`} />
                                         <span className={`text-xs font-medium ${paymentDetails.method === method.id ? 'text-blue-600' : 'text-muted-foreground'
                                             }`}>
                                             {method.label}
@@ -2806,6 +2830,7 @@ export default function ManufacturingInventory() {
                     <DialogFooter className="flex-shrink-0 flex gap-3 sm:gap-3">
                         <Button
                             variant="outline"
+                            disabled={addingProducts}
                             onClick={() => {
                                 setShowPaymentMethodDialog(false);
                                 resetPaymentDetails();
@@ -2815,10 +2840,20 @@ export default function ManufacturingInventory() {
                         </Button>
                         <Button
                             onClick={handlePaymentMethodSubmit}
+                            disabled={addingProducts}
                             className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
                         >
-                            <DollarSign className="h-4 w-4 mr-2" />
-                            Confirm Payment
+                            {addingProducts ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Processing...
+                                </>
+                            ) : (
+                                <>
+                                    <DollarSign className="h-4 w-4 mr-2" />
+                                    Confirm Payment
+                                </>
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -2836,6 +2871,15 @@ export default function ManufacturingInventory() {
                             <Badge variant="secondary" className="ml-2">
                                 {purchaseHistory.length} purchases
                             </Badge>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 ml-auto"
+                                onClick={fetchPurchaseHistory}
+                                disabled={purchaseHistoryLoading}
+                            >
+                                <RefreshCcw className={`h-4 w-4 ${purchaseHistoryLoading ? 'animate-spin' : ''}`} />
+                            </Button>
                         </DialogTitle>
                         <DialogDescription>
                             View all your recent purchases and their payment details
@@ -2909,55 +2953,55 @@ export default function ManufacturingInventory() {
                                         <div className="grid grid-cols-2 gap-4 text-sm">
                                             <div>
                                                 <p className="text-muted-foreground">Method</p>
-                                                <p className="font-medium capitalize flex items-center gap-2">
-                                                    {selectedPurchase.paymentDetails.method === 'cash' && '💵'}
-                                                    {selectedPurchase.paymentDetails.method === 'card' && '💳'}
-                                                    {selectedPurchase.paymentDetails.method === 'upi' && '📱'}
-                                                    {selectedPurchase.paymentDetails.method === 'bank' && '🏦'}
-                                                    {selectedPurchase.paymentDetails.method === 'cheque' && '📝'}
+                                                <p className="font-medium capitalize flex items-center gap-2 text-green-700 dark:text-green-400">
+                                                    {selectedPurchase.paymentDetails.method === 'cash' && <Wallet className="h-4 w-4" />}
+                                                    {selectedPurchase.paymentDetails.method === 'card' && <CreditCard className="h-4 w-4" />}
+                                                    {selectedPurchase.paymentDetails.method === 'upi' && <Receipt className="h-4 w-4" />}
+                                                    {selectedPurchase.paymentDetails.method === 'bank' && <DollarSign className="h-4 w-4" />}
+                                                    {selectedPurchase.paymentDetails.method === 'cheque' && <ClipboardList className="h-4 w-4" />}
                                                     {selectedPurchase.paymentDetails.method}
                                                 </p>
                                             </div>
                                             {selectedPurchase.paymentDetails.transactionId && (
                                                 <div>
                                                     <p className="text-muted-foreground">Transaction ID</p>
-                                                    <p className="font-mono font-medium">{selectedPurchase.paymentDetails.transactionId}</p>
+                                                    <p className="font-mono font-medium text-green-700 dark:text-green-400">{selectedPurchase.paymentDetails.transactionId}</p>
                                                 </div>
                                             )}
                                             {selectedPurchase.paymentDetails.upiId && (
                                                 <div>
                                                     <p className="text-muted-foreground">UPI ID</p>
-                                                    <p className="font-medium">{selectedPurchase.paymentDetails.upiId}</p>
+                                                    <p className="font-medium text-green-700 dark:text-green-400">{selectedPurchase.paymentDetails.upiId}</p>
                                                 </div>
                                             )}
                                             {selectedPurchase.paymentDetails.bankName && (
                                                 <div>
                                                     <p className="text-muted-foreground">Bank</p>
-                                                    <p className="font-medium">{selectedPurchase.paymentDetails.bankName}</p>
+                                                    <p className="font-medium text-green-700 dark:text-green-400">{selectedPurchase.paymentDetails.bankName}</p>
                                                 </div>
                                             )}
                                             {selectedPurchase.paymentDetails.accountNumber && (
                                                 <div>
                                                     <p className="text-muted-foreground">Account</p>
-                                                    <p className="font-mono font-medium">****{selectedPurchase.paymentDetails.accountNumber}</p>
+                                                    <p className="font-mono font-medium text-green-700 dark:text-green-400">****{selectedPurchase.paymentDetails.accountNumber}</p>
                                                 </div>
                                             )}
                                             {selectedPurchase.paymentDetails.chequeNumber && (
                                                 <div>
                                                     <p className="text-muted-foreground">Cheque No.</p>
-                                                    <p className="font-mono font-medium">{selectedPurchase.paymentDetails.chequeNumber}</p>
+                                                    <p className="font-mono font-medium text-green-700 dark:text-green-400">{selectedPurchase.paymentDetails.chequeNumber}</p>
                                                 </div>
                                             )}
                                             {selectedPurchase.paymentDetails.chequeDate && (
                                                 <div>
                                                     <p className="text-muted-foreground">Cheque Date</p>
-                                                    <p className="font-medium">{new Date(selectedPurchase.paymentDetails.chequeDate).toLocaleDateString('en-IN')}</p>
+                                                    <p className="font-medium text-green-700 dark:text-green-400">{new Date(selectedPurchase.paymentDetails.chequeDate).toLocaleDateString('en-IN')}</p>
                                                 </div>
                                             )}
                                             {selectedPurchase.paymentDetails.notes && (
                                                 <div className="col-span-2">
                                                     <p className="text-muted-foreground">Notes</p>
-                                                    <p className="font-medium">{selectedPurchase.paymentDetails.notes}</p>
+                                                    <p className="font-medium text-green-700 dark:text-green-400">{selectedPurchase.paymentDetails.notes}</p>
                                                 </div>
                                             )}
                                         </div>
@@ -3010,7 +3054,29 @@ export default function ManufacturingInventory() {
                         ) : (
                             // List of all purchases
                             <div className="space-y-3">
-                                {purchaseHistory.length === 0 ? (
+                                {purchaseHistoryLoading ? (
+                                    // Loading skeleton
+                                    <div className="space-y-3">
+                                        {[1, 2, 3].map((i) => (
+                                            <div key={i} className="p-4 rounded-xl border">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Skeleton className="h-5 w-16" />
+                                                            <Skeleton className="h-5 w-12" />
+                                                        </div>
+                                                        <Skeleton className="h-4 w-32 mb-1" />
+                                                        <Skeleton className="h-3 w-24" />
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <Skeleton className="h-6 w-20 mb-1" />
+                                                        <Skeleton className="h-3 w-16" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : purchaseHistory.length === 0 ? (
                                     <div className="text-center py-8 text-muted-foreground">
                                         <Receipt className="h-12 w-12 mx-auto mb-3 opacity-30" />
                                         <p>No purchase history yet</p>
@@ -3034,13 +3100,13 @@ export default function ManufacturingInventory() {
                                                             {purchase.isPaid ? '✓ Paid' : 'Unpaid'}
                                                         </Badge>
                                                         {purchase.isPaid && purchase.paymentDetails && (
-                                                            <Badge variant="outline" className="text-xs capitalize">
-                                                                {purchase.paymentDetails.method === 'cash' && '💵'}
-                                                                {purchase.paymentDetails.method === 'card' && '💳'}
-                                                                {purchase.paymentDetails.method === 'upi' && '📱'}
-                                                                {purchase.paymentDetails.method === 'bank' && '🏦'}
-                                                                {purchase.paymentDetails.method === 'cheque' && '📝'}
-                                                                {' '}{purchase.paymentDetails.method}
+                                                            <Badge variant="outline" className="text-xs capitalize flex items-center gap-1">
+                                                                {purchase.paymentDetails.method === 'cash' && <Wallet className="h-3 w-3" />}
+                                                                {purchase.paymentDetails.method === 'card' && <CreditCard className="h-3 w-3" />}
+                                                                {purchase.paymentDetails.method === 'upi' && <Receipt className="h-3 w-3" />}
+                                                                {purchase.paymentDetails.method === 'bank' && <DollarSign className="h-3 w-3" />}
+                                                                {purchase.paymentDetails.method === 'cheque' && <ClipboardList className="h-3 w-3" />}
+                                                                {purchase.paymentDetails.method}
                                                             </Badge>
                                                         )}
                                                     </div>
