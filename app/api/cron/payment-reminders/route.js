@@ -14,15 +14,23 @@ export async function GET(request) {
     console.log('GET /api/cron/payment-reminders - Cron job triggered');
 
     // Optional: Verify cron secret for security
+    // Supports both Vercel Cron (Header) and external services like cron-job.org (Query Param or Header)
     const authHeader = request.headers.get('authorization');
+    const url = new URL(request.url);
+    const apiKey = url.searchParams.get('key');
     const cronSecret = process.env.CRON_SECRET;
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-        console.log('Unauthorized cron request');
-        return NextResponse.json(
-            { message: 'Unauthorized' },
-            { status: 401 }
-        );
+    if (cronSecret) {
+        const isHeaderValid = authHeader === `Bearer ${cronSecret}`;
+        const isParamValid = apiKey === cronSecret;
+
+        if (!isHeaderValid && !isParamValid) {
+            console.log('Unauthorized cron request');
+            return NextResponse.json(
+                { message: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
     }
 
     try {
