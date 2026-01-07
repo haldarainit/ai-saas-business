@@ -10,7 +10,7 @@
 
 - `/api/track/click/[id]` - Link click tracking
 - `/api/track/pixel/[id]` - Email open tracking
-
+//
 ### 2. ✅ Authentication Configuration
 
 **Problem**: Login not working in production
