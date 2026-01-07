@@ -9,41 +9,45 @@ import { GoogleSessionProvider } from "@/components/session-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title:
-    "Enterprise AI Platform | Secure AI Solutions for Business & Government",
+  title: "Business AI | AI-Powered Business Automation Tools",
   description:
-    "Enterprise-grade AI platform with LLM conversations, customizable agents, secure knowledge base, and MCP server support for businesses and government agencies.",
+    "Automate your business with Business AI. AI-powered invoices, quotations, presentations, email campaigns, employee management, inventory tracking, landing pages, and more. Scale faster with intelligent automation.",
   keywords:
-    "enterprise AI, secure AI, government AI solutions, LLM, knowledge base, AI agents, MCP server",
+    "AI business tools, invoice generator, quotation maker, AI presentations, email automation, employee management, attendance tracking, inventory management, landing page builder, marketing AI, sales automation, appointment scheduling, GST invoice, PDF export, business automation India",
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://your-domain.com",
-    title: "Enterprise AI Platform | Secure AI Solutions",
+    url: "https://ai-saas-business.vercel.app",
+    title: "Business AI | AI-Powered Business Automation",
     description:
-      "Enterprise-grade AI platform with advanced security, customization, and control for businesses and government agencies.",
-    siteName: "Enterprise AI Platform",
+      "Automate invoices, presentations, emails, HR, inventory & more with AI. Business AI helps businesses eliminate manual work and scale faster.",
+    siteName: "Business AI",
     images: [
       {
-        url: "https://your-domain.com/og-image.jpg",
+        url: "https://ai-saas-business.vercel.app/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "Enterprise AI Platform",
+        alt: "Business AI - Business Automation Platform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Enterprise AI Platform | Secure AI Solutions",
+    title: "Business AI | AI Business Automation",
     description:
-      "Enterprise-grade AI platform with advanced security, customization, and control.",
-    images: ["https://your-domain.com/twitter-image.jpg"],
+      "AI-powered invoices, presentations, email campaigns, HR management & more. Automate your business today.",
+    images: ["https://ai-saas-business.vercel.app/twitter-image.jpg"],
   },
   robots: {
     index: true,
     follow: true,
   },
-  generator: "v0.app",
+  icons: {
+    icon: "/favicon.ico",
+  },
+  authors: [{ name: "Business AI" }],
+  creator: "Business AI",
+  publisher: "Business AI",
 };
 
 export default function RootLayout({
