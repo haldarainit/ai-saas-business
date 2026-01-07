@@ -11,7 +11,7 @@ import EmailService from '@/lib/email/EmailService';
 // - GitHub Actions
 // - External cron services like cron-job.org
 export async function GET(request) {
-    console.log('GET /api/cron/payment-reminders - Cron job triggered');
+    console.log('GET /api/cron/payment-reminders - Cron job triggered (v2)');
 
     // Optional: Verify cron secret for security
     // Supports both Vercel Cron (Header) and external services like cron-job.org (Query Param or Header)
