@@ -16,6 +16,7 @@ import { EmailUploader } from "../../components/EmailUploader";
 import { EmailTemplateEditor } from "../../components/EmailTemplateEditor";
 import { RecipientsList } from "../../components/RecipientsList";
 import { CampaignControls } from "../../components/CampaignControls";
+import EmailSettingsConfigurator from "../../components/EmailSettingsConfigurator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -86,6 +87,7 @@ export default function EmailAutomationPage() {
   const [testEmail, setTestEmail] = useState("");
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
+  const [isEmailConfigured, setIsEmailConfigured] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-save subject changes to database
@@ -798,7 +800,12 @@ export default function EmailAutomationPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Upload & Controls */}
             <div className="space-y-8">
-              {/* Email Test Section */}
+              {/* Email Configuration - User SMTP Settings */}
+              <EmailSettingsConfigurator
+                onConfigured={(configured) => setIsEmailConfigured(configured)}
+              />
+
+              {/* Test Email Section */}
               <Card className="p-6 bg-background/60 backdrop-blur-sm border transition-all duration-300 hover:shadow-lg dark:bg-background/80">
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 mb-4">
@@ -807,7 +814,7 @@ export default function EmailAutomationPage() {
                     </div>
                     <div>
                       <h3 className="text-lg font-bold">
-                        Email Configuration Test
+                        Send Test Email
                       </h3>
                       <p className="text-sm text-muted-foreground">
                         Test your email settings before starting campaign
@@ -820,16 +827,22 @@ export default function EmailAutomationPage() {
                       onChange={(e) => setTestEmail(e.target.value)}
                       placeholder="Enter test email address..."
                       className="flex-1"
+                      disabled={!isEmailConfigured}
                     />
                     <Button
                       onClick={handleTestEmail}
-                      disabled={isTestingEmail}
+                      disabled={isTestingEmail || !isEmailConfigured}
                       className="bg-primary hover:bg-primary/90 text-primary-foreground"
                     >
                       <TestTube className="w-4 h-4 mr-2" />
                       {isTestingEmail ? "Testing..." : "Test"}
                     </Button>
                   </div>
+                  {!isEmailConfigured && (
+                    <p className="text-xs text-orange-500">
+                      Please configure your email settings above to send test emails.
+                    </p>
+                  )}
                 </div>
               </Card>
 
@@ -847,7 +860,7 @@ export default function EmailAutomationPage() {
                 onStart={handleStart}
                 onStop={handleStop}
                 onReset={handleReset}
-                disabled={emails.length === 0}
+                disabled={emails.length === 0 || !isEmailConfigured}
                 campaignStatus={campaignStatus}
               />
             </div>
