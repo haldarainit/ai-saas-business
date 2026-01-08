@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
       email: savedUser.email,
       name: savedUser.name,
       createdAt: savedUser.createdAt,
+      onboardingCompleted: savedUser.onboardingCompleted || false,
     };
 
     const response = NextResponse.json({

@@ -11,6 +11,7 @@ interface User {
   image?: string;
   createdAt?: string;
   isEmployee?: boolean;
+  onboardingCompleted?: boolean;
 }
 
 interface AuthContextType {
@@ -79,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('employeeAuthChange', handleEmployeeAuthChange);
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('employeeAuthChange', handleEmployeeAuthChange);
@@ -96,24 +97,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsCheckingAuth(true);
       console.log("Checking auth status...");
       console.log("Current URL:", window.location.href);
-      
+
       // First try admin authentication
       const response = await fetch("/api/auth/me");
       console.log("Auth check response:", response.status);
       if (response.ok) {
         const data = await response.json();
         console.log("Auth check data:", data);
-        setUser(data.user);
+        setUser({
+          ...data.user,
+          onboardingCompleted: data.user.onboardingCompleted || false,
+        });
         return;
       } else {
         console.log("Admin auth check failed:", response.status);
       }
-      
+
       // If admin auth failed, check for employee authentication
       console.log("Checking employee authentication...");
       console.log("Employee token:", employeeAuth.getToken());
       console.log("Employee isAuthenticated:", employeeAuth.isAuthenticated());
-      
+
       if (employeeAuth.isAuthenticated()) {
         const employeeData = employeeAuth.getEmployeeData();
         console.log("Employee data:", employeeData);
@@ -133,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         console.log("Employee not authenticated");
       }
-      
+
       console.log("No valid authentication found");
     } catch (error) {
       console.error("Auth check failed:", error);

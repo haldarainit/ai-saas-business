@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
       email: user.email,
       name: user.name,
       createdAt: user.createdAt,
+      onboardingCompleted: user.onboardingCompleted || false,
     };
 
     console.log("Me response sent for user:", user.email);

@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Menu, Zap, ChevronRight, Sparkles } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthModal } from "@/components/auth-modal";
+import { OnboardingModal } from "@/components/onboarding-modal";
 import { useAuth } from "@/contexts/auth-context";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
@@ -17,11 +18,13 @@ import { motion } from "framer-motion";
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { theme } = useTheme();
   const { user } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
 
   // Handle scroll effect
   useEffect(() => {
@@ -63,6 +66,23 @@ export default function Navbar() {
     return pathname.startsWith(href);
   };
 
+  const handleGetStartedClick = () => {
+    if (user?.onboardingCompleted) {
+      router.push("/get-started");
+    } else {
+      setOnboardingModalOpen(true);
+    }
+  };
+
+  const handleMobileGetStartedClick = () => {
+    setIsOpen(false);
+    if (user?.onboardingCompleted) {
+      router.push("/get-started");
+    } else {
+      setOnboardingModalOpen(true);
+    }
+  };
+
   return (
     <>
       <header
@@ -97,9 +117,6 @@ export default function Navbar() {
                 <span className="text-base font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
                   Business AI
                 </span>
-                {/* <span className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase">
-                  Accelerator
-                </span> */}
               </div>
             </Link>
           </motion.div>
@@ -138,14 +155,12 @@ export default function Navbar() {
             {user ? (
               <>
                 <Button
-                  asChild
+                  onClick={handleGetStartedClick}
                   className="relative overflow-hidden flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-full border-0 h-auto shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 group"
                 >
-                  <Link href="/get-started">
-                    <Sparkles className="h-4 w-4 text-white transition-transform group-hover:rotate-12" />
-                    <span className="text-sm font-semibold">Get Started</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                  </Link>
+                  <Sparkles className="h-4 w-4 text-white transition-transform group-hover:rotate-12" />
+                  <span className="text-sm font-semibold">Get Started</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                 </Button>
                 <Link href="/profile" aria-label="Go to profile">
                   <Avatar className="h-9 w-9 cursor-pointer ring-2 ring-border hover:ring-primary/50 transition-all duration-300 hover:scale-105">
@@ -267,16 +282,11 @@ export default function Navbar() {
                 <div className="absolute bottom-0 left-0 right-0 p-5 border-t bg-gradient-to-t from-background to-background/80 backdrop-blur-sm">
                   {user ? (
                     <Button
-                      asChild
+                      onClick={handleMobileGetStartedClick}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-xl h-auto shadow-lg"
                     >
-                      <Link
-                        href="/get-started"
-                        onClick={() => setIsOpen(false)}
-                      >
-                        <Sparkles className="h-5 w-5 text-white" />
-                        <span className="text-base font-semibold">Get Started</span>
-                      </Link>
+                      <Sparkles className="h-5 w-5 text-white" />
+                      <span className="text-base font-semibold">Get Started</span>
                     </Button>
                   ) : (
                     <Button
@@ -301,6 +311,12 @@ export default function Navbar() {
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
       />
+
+      <OnboardingModal
+        isOpen={onboardingModalOpen}
+        onClose={() => setOnboardingModalOpen(false)}
+      />
     </>
   );
 }
+

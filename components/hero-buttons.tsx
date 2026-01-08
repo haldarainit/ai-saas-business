@@ -1,30 +1,46 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Zap } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { AuthModal } from "@/components/auth-modal"
-import { useState } from "react"
-import Link from "next/link"
+import { OnboardingModal } from "@/components/onboarding-modal"
 
 export default function HeroButtons() {
     const { user } = useAuth()
+    const router = useRouter()
     const [authModalOpen, setAuthModalOpen] = useState(false)
+    const [onboardingModalOpen, setOnboardingModalOpen] = useState(false)
+
+    const handleGetStartedClick = () => {
+        // Check user's onboardingCompleted from database (via auth context)
+        if (user?.onboardingCompleted) {
+            // User has already completed onboarding, go directly to get-started
+            router.push("/get-started")
+        } else {
+            // First time user, show onboarding modal
+            setOnboardingModalOpen(true)
+        }
+    }
+
+    const handleOnboardingClose = () => {
+        setOnboardingModalOpen(false)
+    }
 
     return (
         <>
             <div className="flex flex-wrap justify-center gap-3 mt-16">
                 {user ? (
                     <Button
-                        asChild
+                        onClick={handleGetStartedClick}
                         id="get-started-button"
                         className="flex items-center gap-3 px-5 py-6 h-[60px] bg-[#1a1d21] hover:bg-[#2a2d31] text-white rounded-xl border-0 dark:bg-primary dark:hover:bg-primary/90 dark:shadow-[0_0_15px_rgba(36,101,237,0.5)] relative overflow-hidden group"
                     >
-                        <Link href="/get-started">
-                            <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0 dark:opacity-30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform translate-x-[-100%] group-hover:translate-x-[100%]"></div>
-                            <Zap className="h-5 w-5 text-white relative z-10" />
-                            <span className="text-[15px] font-medium relative z-10">Get Started</span>
-                        </Link>
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0 dark:opacity-30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform translate-x-[-100%] group-hover:translate-x-[100%]"></div>
+                        <Zap className="h-5 w-5 text-white relative z-10" />
+                        <span className="text-[15px] font-medium relative z-10">Get Started</span>
                     </Button>
                 ) : (
                     <Button
@@ -43,6 +59,12 @@ export default function HeroButtons() {
                 isOpen={authModalOpen}
                 onClose={() => setAuthModalOpen(false)}
             />
+
+            <OnboardingModal
+                isOpen={onboardingModalOpen}
+                onClose={handleOnboardingClose}
+            />
         </>
     )
 }
+

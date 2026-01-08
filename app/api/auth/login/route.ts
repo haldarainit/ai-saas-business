@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
       email: user.email,
       name: user.name,
       createdAt: user.createdAt,
+      onboardingCompleted: user.onboardingCompleted || false,
     };
 
     const response = NextResponse.json({
