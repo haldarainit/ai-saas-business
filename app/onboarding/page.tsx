@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 import { Loader2, ChevronRight, ChevronLeft } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
 
 // Data from existing onboarding
 const industries = [
@@ -71,8 +72,10 @@ interface FormData {
 
 export default function OnboardingPage() {
     const router = useRouter()
+    const { user, loading: authLoading, refreshUser } = useAuth()
     const [step, setStep] = useState(1)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isChecking, setIsChecking] = useState(true)
     const [formData, setFormData] = useState<FormData>({
         fullName: "",
         companyName: "",
@@ -86,6 +89,38 @@ export default function OnboardingPage() {
         roleOther: "",
         challenges: [],
     })
+
+    // Check if user has already completed onboarding
+    useEffect(() => {
+        if (!authLoading) {
+            if (!user) {
+                // Not logged in, redirect to home
+                router.push("/")
+            } else if (user.onboardingCompleted) {
+                // Already completed onboarding, redirect to get-started
+                router.push("/get-started")
+            } else {
+                // User needs to complete onboarding
+                setIsChecking(false)
+                // Pre-fill name if available
+                if (user.name) {
+                    setFormData(prev => ({ ...prev, fullName: user.name || "" }))
+                }
+            }
+        }
+    }, [user, authLoading, router])
+
+    // Show loading while checking auth status
+    if (authLoading || isChecking) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="text-center">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                    <p className="mt-4 text-muted-foreground">Loading...</p>
+                </div>
+            </div>
+        )
+    }
 
     const totalSteps = 4
 
@@ -127,6 +162,8 @@ export default function OnboardingPage() {
             })
 
             if (response.ok) {
+                // Refresh user data to update onboardingCompleted status
+                await refreshUser()
                 router.push("/get-started")
             }
         } catch (error) {

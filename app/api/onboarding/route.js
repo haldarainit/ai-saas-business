@@ -159,12 +159,39 @@ export async function POST(request) {
         try {
             const cookieStore = await cookies();
             const token = cookieStore.get("auth-token")?.value;
+            let userId = null;
 
+            // First try auth-token cookie (traditional login)
             if (token) {
-                const decoded = jwt.verify(token, JWT_SECRET);
+                try {
+                    const decoded = jwt.verify(token, JWT_SECRET);
+                    userId = decoded.userId;
+                } catch (tokenError) {
+                    console.log("Token verification failed, trying NextAuth session");
+                }
+            }
+
+            // If no auth-token, try NextAuth session (Google OAuth login)
+            if (!userId) {
+                const { getServerSession } = await import("next-auth");
+                const { authOptions } = await import("@/lib/auth-options");
+                const session = await getServerSession(authOptions);
+
+                if (session?.user?.email) {
+                    await dbConnect();
+                    const user = await User.findOne({ email: session.user.email });
+                    if (user) {
+                        userId = user._id;
+                    }
+                }
+            }
+
+            if (userId) {
                 await dbConnect();
-                await User.findByIdAndUpdate(decoded.userId, { onboardingCompleted: true });
-                console.log("Marked onboarding completed for user:", decoded.userId);
+                await User.findByIdAndUpdate(userId, { onboardingCompleted: true });
+                console.log("Marked onboarding completed for user:", userId);
+            } else {
+                console.log("Could not find user to mark onboarding completed");
             }
         } catch (dbError) {
             console.error("Error updating onboarding status in DB:", dbError);

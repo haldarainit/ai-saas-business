@@ -23,6 +23,7 @@ interface AuthContextType {
   error: string | null;
   clearError: () => void;
   authToken: string | null;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,17 +36,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(false);
 
+  // Fetch complete user data for Google OAuth users
+  const fetchGoogleUserData = async (email: string, sessionData: any) => {
+    try {
+      // Fetch complete user data from API to get onboardingCompleted
+      const response = await fetch("/api/auth/me");
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Google user data fetched:", data.user?.email, "onboardingCompleted:", data.user?.onboardingCompleted);
+        setUser({
+          ...data.user,
+          image: sessionData.user?.image || data.user?.image,
+          onboardingCompleted: data.user.onboardingCompleted || false,
+        });
+      } else {
+        // Fallback to session data if API fails
+        console.log("API failed, using session data for Google user");
+        setUser({
+          id: sessionData.userId || "",
+          email: email,
+          name: sessionData.user?.name || "",
+          image: sessionData.user?.image || "",
+          onboardingCompleted: false, // Default to false, will show onboarding
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching Google user data:", error);
+      setUser({
+        id: sessionData.userId || "",
+        email: email,
+        name: sessionData.user?.name || "",
+        image: sessionData.user?.image || "",
+        onboardingCompleted: false,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     // Handle Google OAuth session
     if (status === "authenticated" && session) {
-      setUser({
-        id: (session as any).userId || "",
-        email: session.user?.email || "",
-        name: session.user?.name || "",
-        image: session.user?.image || "",
-      });
+      console.log("Google OAuth authenticated, fetching user data...");
       setAuthToken((session as any).authToken || null);
-      setLoading(false);
+      // Fetch complete user data from API
+      fetchGoogleUserData(session.user?.email || "", session);
     } else if (status === "unauthenticated") {
       // Check for traditional auth
       checkAuthStatus();
@@ -200,6 +235,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearError = useCallback(() => setError(null), []);
 
+  // Refresh user data from server (e.g., after onboarding completion)
+  const refreshUser = useCallback(async () => {
+    try {
+      const response = await fetch("/api/auth/me");
+      if (response.ok) {
+        const data = await response.json();
+        setUser({
+          ...data.user,
+          onboardingCompleted: data.user.onboardingCompleted || false,
+        });
+      }
+    } catch (error) {
+      console.error("Error refreshing user:", error);
+    }
+  }, []);
+
   // Memoize context value to prevent unnecessary re-renders
   const value = useMemo(() => ({
     user,
@@ -210,7 +261,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     error,
     clearError,
     authToken,
-  }), [user, loading, signIn, signUp, logout, error, clearError, authToken]);
+    refreshUser,
+  }), [user, loading, signIn, signUp, logout, error, clearError, authToken, refreshUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
