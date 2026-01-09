@@ -3,7 +3,7 @@
 ## Overview
 The Attendance Module provides AI-powered face verification for employee clock-in/clock-out with GPS tracking, fraud detection, and comprehensive reporting.
 
-## Features
+## Feature
 - ✅ Camera-based face capture
 - ✅ AI face verification using Google Gemini
 - ✅ GPS location tracking
