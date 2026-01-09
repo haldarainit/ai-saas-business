@@ -10,7 +10,8 @@
 │  ┌──────────────┐  ┌───────────────────────────────────────┐ │
 │  │ Text Input   │  │  URL Input (Optional)                 │ │
 │  │ "My Campaign │  │  • https://competitor1.com            │ │
-│  │  Goal..."    │  │  • https://competitor2.com            │ │
+│  │  Goal..."    │  │  • https://competitor2.com
+       │ │
 │  └──────────────┘  └───────────────────────────────────────┘ │
 │                                                                 │
 │                  [ Unlock Campaign Genius ]                     │
