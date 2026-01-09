@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { Menu, Zap, ChevronRight, Sparkles } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthModal } from "@/components/auth-modal";
-import { OnboardingModal } from "@/components/onboarding-modal";
+
 import { useAuth } from "@/contexts/auth-context";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
@@ -18,7 +18,7 @@ import { motion } from "framer-motion";
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
+
   const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { theme } = useTheme();
@@ -70,7 +70,7 @@ export default function Navbar() {
     if (user?.onboardingCompleted) {
       router.push("/get-started");
     } else {
-      setOnboardingModalOpen(true);
+      router.push("/onboarding");
     }
   };
 
@@ -79,7 +79,7 @@ export default function Navbar() {
     if (user?.onboardingCompleted) {
       router.push("/get-started");
     } else {
-      setOnboardingModalOpen(true);
+      router.push("/onboarding");
     }
   };
 
@@ -312,10 +312,7 @@ export default function Navbar() {
         onClose={() => setAuthModalOpen(false)}
       />
 
-      <OnboardingModal
-        isOpen={onboardingModalOpen}
-        onClose={() => setOnboardingModalOpen(false)}
-      />
+
     </>
   );
 }

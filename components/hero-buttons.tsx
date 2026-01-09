@@ -6,27 +6,18 @@ import { Button } from "@/components/ui/button"
 import { Zap } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { AuthModal } from "@/components/auth-modal"
-import { OnboardingModal } from "@/components/onboarding-modal"
 
 export default function HeroButtons() {
     const { user } = useAuth()
     const router = useRouter()
     const [authModalOpen, setAuthModalOpen] = useState(false)
-    const [onboardingModalOpen, setOnboardingModalOpen] = useState(false)
 
     const handleGetStartedClick = () => {
-        // Check user's onboardingCompleted from database (via auth context)
         if (user?.onboardingCompleted) {
-            // User has already completed onboarding, go directly to get-started
             router.push("/get-started")
         } else {
-            // First time user, show onboarding modal
-            setOnboardingModalOpen(true)
+            router.push("/onboarding")
         }
-    }
-
-    const handleOnboardingClose = () => {
-        setOnboardingModalOpen(false)
     }
 
     return (
@@ -59,12 +50,6 @@ export default function HeroButtons() {
                 isOpen={authModalOpen}
                 onClose={() => setAuthModalOpen(false)}
             />
-
-            <OnboardingModal
-                isOpen={onboardingModalOpen}
-                onClose={handleOnboardingClose}
-            />
         </>
     )
 }
-
