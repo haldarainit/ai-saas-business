@@ -9,6 +9,19 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Performance optimizations
+  reactStrictMode: true,
+  compiler: {
+    // Remove console.log in production builds
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
+  },
+  // Cache and performance configurations
+  poweredByHeader: false,
+  compress: true,
 }
 
 export default nextConfig
+
+

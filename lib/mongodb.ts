@@ -21,41 +21,26 @@ if (!cached) {
 }
 
 async function dbConnect() {
-  console.log("Attempting to connect to MongoDB...");
-  console.log(
-    "MONGODB_URI:",
-    MONGODB_URI.replace(/\/\/[^:]+:[^@]+@/, "//***:***@")
-  ); // Hide credentials in logs
-
   if (cached.conn) {
-    console.log("Using cached connection");
     return cached.conn;
   }
 
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      maxPoolSize: 10, // Optimize connection pool
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     };
 
-    console.log("Creating new connection promise...");
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      console.log("MongoDB connected successfully");
-      console.log(
-        "Connected to database:",
-        mongoose.connection.db?.databaseName
-      );
       return mongoose;
     });
   }
 
   try {
     cached.conn = await cached.promise;
-    console.log(
-      "Connection established to database:",
-      cached.conn.connection.db?.databaseName
-    );
   } catch (e) {
-    console.error("MongoDB connection error:", e);
     cached.promise = null;
     throw e;
   }
@@ -64,3 +49,4 @@ async function dbConnect() {
 }
 
 export default dbConnect;
+

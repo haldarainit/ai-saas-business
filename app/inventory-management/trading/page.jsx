@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/use-debounce';
 import Analytics from '../components/Analytics';
 import CSVUpload from '../components/CSVUpload';
 import InvoiceScanner from '@/components/inventory/InvoiceScanner';
@@ -276,17 +277,30 @@ export default function TradingInventory() {
         setSellCart(sellCart.filter(item => item.product._id !== productId));
     };
 
-    // Calculate cart totals
-    const cartSubtotal = sellCart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-    const cartProfit = sellCart.reduce((sum, item) => sum + ((item.product.price - item.product.cost) * item.quantity), 0);
-    const cartItemCount = sellCart.reduce((sum, item) => sum + item.quantity, 0);
+    // Debounce search and product search for better performance
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
+    const debouncedProductSearch = useDebounce(productSearchTerm, 200);
 
-    // Filter products for search dropdown
-    const searchedProducts = products.filter(p =>
-        productSearchTerm.length > 0 &&
-        (p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-            p.sku.toLowerCase().includes(productSearchTerm.toLowerCase()))
-    ).slice(0, 5);
+    // Memoize cart calculations
+    const cartTotals = useMemo(() => ({
+        subtotal: sellCart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0),
+        profit: sellCart.reduce((sum, item) => sum + ((item.product.price - item.product.cost) * item.quantity), 0),
+        itemCount: sellCart.reduce((sum, item) => sum + item.quantity, 0)
+    }), [sellCart]);
+
+    // Renamed for clarity
+    const cartSubtotal = cartTotals.subtotal;
+    const cartProfit = cartTotals.profit;
+    const cartItemCount = cartTotals.itemCount;
+
+    // Memoize product search results
+    const searchedProducts = useMemo(() => {
+        if (debouncedProductSearch.length === 0) return [];
+        return products.filter(p =>
+            p.name.toLowerCase().includes(debouncedProductSearch.toLowerCase()) ||
+            p.sku.toLowerCase().includes(debouncedProductSearch.toLowerCase())
+        ).slice(0, 5);
+    }, [products, debouncedProductSearch]);
 
     // Handle complete sale
     const handleSell = async () => {
@@ -1244,54 +1258,62 @@ export default function TradingInventory() {
         });
     };
 
-    // Filter products based on search term and filters
-    const filteredProducts = products.filter(product => {
-        // Search filter
-        const matchesSearch =
-            product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.category?.toLowerCase().includes(searchTerm.toLowerCase());
+    // Memoize filtered products based on debounced search term and filters
+    const filteredProducts = useMemo(() => {
+        const searchLower = debouncedSearchTerm.toLowerCase();
+        const today = new Date();
 
-        if (!matchesSearch) return false;
+        return products.filter(product => {
+            // Search filter (use debounced value)
+            if (searchLower) {
+                const matchesSearch =
+                    product.name?.toLowerCase().includes(searchLower) ||
+                    product.sku?.toLowerCase().includes(searchLower) ||
+                    product.category?.toLowerCase().includes(searchLower);
+                if (!matchesSearch) return false;
+            }
 
-        // Category filter
-        if (filters.category && product.category !== filters.category) return false;
+            // Category filter
+            if (filters.category && product.category !== filters.category) return false;
 
-        // Shelf filter
-        if (filters.shelf && product.shelf !== filters.shelf) return false;
+            // Shelf filter
+            if (filters.shelf && product.shelf !== filters.shelf) return false;
 
-        // Stock status filter
-        if (filters.stockStatus) {
-            const quantity = product.quantity || 0;
-            if (filters.stockStatus === 'out-of-stock' && quantity > 0) return false;
-            if (filters.stockStatus === 'low-stock' && (quantity === 0 || quantity > 10)) return false;
-            if (filters.stockStatus === 'in-stock' && quantity <= 10) return false;
-        }
+            // Stock status filter
+            if (filters.stockStatus) {
+                const quantity = product.quantity || 0;
+                if (filters.stockStatus === 'out-of-stock' && quantity > 0) return false;
+                if (filters.stockStatus === 'low-stock' && (quantity === 0 || quantity > 10)) return false;
+                if (filters.stockStatus === 'in-stock' && quantity <= 10) return false;
+            }
 
-        // Expiry status filter
-        if (filters.expiryStatus) {
-            const today = new Date();
-            const expiryDate = product.expiryDate ? new Date(product.expiryDate) : null;
+            // Expiry status filter
+            if (filters.expiryStatus) {
+                const expiryDate = product.expiryDate ? new Date(product.expiryDate) : null;
 
-            if (filters.expiryStatus === 'expired') {
-                if (!expiryDate || expiryDate >= today) return false;
-            } else if (filters.expiryStatus === 'expiring-soon') {
-                if (!expiryDate) return false;
-                const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-                if (daysUntilExpiry < 0 || daysUntilExpiry > 15) return false;
-            } else if (filters.expiryStatus === 'not-expiring') {
-                if (expiryDate) {
+                if (filters.expiryStatus === 'expired') {
+                    if (!expiryDate || expiryDate >= today) return false;
+                } else if (filters.expiryStatus === 'expiring-soon') {
+                    if (!expiryDate) return false;
                     const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-                    if (daysUntilExpiry <= 15) return false;
+                    if (daysUntilExpiry < 0 || daysUntilExpiry > 15) return false;
+                } else if (filters.expiryStatus === 'not-expiring') {
+                    if (expiryDate) {
+                        const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                        if (daysUntilExpiry <= 15) return false;
+                    }
                 }
             }
-        }
 
-        return true;
-    });
+            return true;
+        });
+    }, [products, debouncedSearchTerm, filters]);
 
-    // Apply sorting to filtered products
-    const sortedAndFilteredProducts = sortProducts(filteredProducts);
+    // Memoize sorted products
+    const sortedAndFilteredProducts = useMemo(() =>
+        sortProducts(filteredProducts),
+        [filteredProducts, sortConfig]
+    );
 
     return (
         <div className="container mx-auto px-4 py-8 space-y-8">

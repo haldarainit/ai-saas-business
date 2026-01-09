@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowDown, Sparkles } from "lucide-react";
@@ -36,8 +36,10 @@ export default function OnboardingTour() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { user } = useAuth();
 
-    // Detect when auth modal (dialog) opens/closes
+    // Detect when auth modal (dialog) opens/closes - optimized observer
     useEffect(() => {
+        let timeoutId: NodeJS.Timeout | null = null;
+
         const checkForDialog = () => {
             const dialog = document.querySelector('[role="dialog"]');
             setIsModalOpen(!!dialog);
@@ -46,17 +48,26 @@ export default function OnboardingTour() {
         // Check initially
         checkForDialog();
 
-        // Create observer to watch for dialog appearing/disappearing
-        const observer = new MutationObserver(() => {
-            checkForDialog();
-        });
+        // Debounced mutation observer callback
+        const debouncedCheck = () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            timeoutId = setTimeout(checkForDialog, 50);
+        };
+
+        // Create observer with more specific options
+        const observer = new MutationObserver(debouncedCheck);
 
         observer.observe(document.body, {
             childList: true,
-            subtree: true,
+            subtree: false, // Only watch direct children for better performance
+            attributes: false,
+            characterData: false,
         });
 
-        return () => observer.disconnect();
+        return () => {
+            observer.disconnect();
+            if (timeoutId) clearTimeout(timeoutId);
+        };
     }, []);
 
     // Check if user has seen onboarding
@@ -99,12 +110,12 @@ export default function OnboardingTour() {
 
         updateTargetPosition();
 
-        // Update position on scroll and resize
-        window.addEventListener("scroll", updateTargetPosition, true);
-        window.addEventListener("resize", updateTargetPosition);
+        // Use passive event listeners for better scroll performance
+        window.addEventListener("scroll", updateTargetPosition, { capture: true, passive: true });
+        window.addEventListener("resize", updateTargetPosition, { passive: true });
 
         return () => {
-            window.removeEventListener("scroll", updateTargetPosition, true);
+            window.removeEventListener("scroll", updateTargetPosition, { capture: true } as EventListenerOptions);
             window.removeEventListener("resize", updateTargetPosition);
         };
     }, [isActive, currentStep, updateTargetPosition]);

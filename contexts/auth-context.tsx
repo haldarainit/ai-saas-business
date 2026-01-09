@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { employeeAuth } from "@/lib/utils/employeeAuth";
 
@@ -87,110 +87,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const checkAuthStatus = async () => {
-    if (isCheckingAuth) {
-      console.log("Auth check already in progress, skipping");
-      return;
-    }
+  const checkAuthStatus = useCallback(async () => {
+    if (isCheckingAuth) return;
 
     try {
       setIsCheckingAuth(true);
-      console.log("Checking auth status...");
-      console.log("Current URL:", window.location.href);
 
       // First try admin authentication
       const response = await fetch("/api/auth/me");
-      console.log("Auth check response:", response.status);
       if (response.ok) {
         const data = await response.json();
-        console.log("Auth check data:", data);
         setUser({
           ...data.user,
           onboardingCompleted: data.user.onboardingCompleted || false,
         });
         return;
-      } else {
-        console.log("Admin auth check failed:", response.status);
       }
 
       // If admin auth failed, check for employee authentication
-      console.log("Checking employee authentication...");
-      console.log("Employee token:", employeeAuth.getToken());
-      console.log("Employee isAuthenticated:", employeeAuth.isAuthenticated());
-
       if (employeeAuth.isAuthenticated()) {
         const employeeData = employeeAuth.getEmployeeData();
-        console.log("Employee data:", employeeData);
         if (employeeData) {
-          console.log("Found employee auth, setting user:", employeeData);
-          // Set user data from employee auth
           setUser({
             id: employeeData.employeeId || employeeData.id,
             email: employeeData.email,
             name: employeeData.name,
-            isEmployee: true, // Flag to identify employee users
+            isEmployee: true,
           });
           return;
-        } else {
-          console.log("Employee data is null/undefined");
         }
-      } else {
-        console.log("Employee not authenticated");
       }
-
-      console.log("No valid authentication found");
     } catch (error) {
-      console.error("Auth check failed:", error);
+      // Silent fail - user will remain logged out
     } finally {
       setLoading(false);
       setIsCheckingAuth(false);
     }
-  };
+  }, [isCheckingAuth]);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     try {
       setError(null);
       setLoading(true);
-      console.log("Attempting sign in for:", email);
 
       const response = await fetch("/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
-      console.log("Sign in response status:", response.status);
       const data = await response.json();
-      console.log("Sign in response data:", data);
 
       if (!response.ok) {
         throw new Error(data.error || "Login failed");
       }
 
-      console.log("Setting user:", data.user);
       setUser(data.user);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Login failed";
-      console.error("Sign in error:", message);
       setError(message);
       throw error;
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string, name?: string) => {
+  const signUp = useCallback(async (email: string, password: string, name?: string) => {
     try {
       setError(null);
       setLoading(true);
 
       const response = await fetch("/api/auth/signup", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, name }),
       });
 
@@ -208,38 +177,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
-      // Check if this is an employee user
       if (user?.isEmployee) {
-        // Use employee logout
         employeeAuth.logout();
         setUser(null);
         setAuthToken(null);
         return;
       }
 
-      // Clear NextAuth session (for Google OAuth)
       await signOut({ redirect: false });
-
-      // Clear local state
       setUser(null);
       setAuthToken(null);
 
-      // Clear traditional auth session
-      await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-    } catch (error) {
-      console.error("Logout error:", error);
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Silent fail on logout
     }
-  };
+  }, [user?.isEmployee]);
 
-  const clearError = () => setError(null);
+  const clearError = useCallback(() => setError(null), []);
 
-  const value = {
+  // Memoize context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
     user,
     loading,
     signIn,
@@ -248,7 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     error,
     clearError,
     authToken,
-  };
+  }), [user, loading, signIn, signUp, logout, error, clearError, authToken]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
