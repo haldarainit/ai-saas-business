@@ -340,6 +340,9 @@ If you cannot read the invoice or find no items, return:
 
         // Validate and enhance the extracted data
         if (allItems.length > 0) {
+            // Track used SKUs to ensure uniqueness
+            const usedSkus = new Map(); // Maps base SKU to count
+
             allItems = allItems.map((item, index) => {
                 // Calculate GST-inclusive cost if not already
                 let finalCost, basePrice, gstAmount, gstPercentage;
@@ -368,11 +371,26 @@ If you cannot read the invoice or find no items, return:
 
                 const quantity = parseFloat(item.quantity) || 1;
 
+                // Generate or ensure unique SKU
+                let baseSku = item.sku || `${inventoryType === 'manufacturing' ? 'RM' : 'PRD'}-${String(Date.now()).slice(-4)}-${index + 1}`;
+
+                // Ensure SKU is unique by tracking and appending suffix if needed
+                let finalSku = baseSku;
+                if (usedSkus.has(baseSku)) {
+                    // SKU already used, append a suffix
+                    const count = usedSkus.get(baseSku) + 1;
+                    usedSkus.set(baseSku, count);
+                    finalSku = `${baseSku}-${count}`;
+                    console.log(`Duplicate SKU detected: ${baseSku}, making unique: ${finalSku}`);
+                } else {
+                    usedSkus.set(baseSku, 1);
+                }
+
                 const enhanced = {
                     ...item,
                     id: `temp-${Date.now()}-${index}`,
                     name: item.name || 'Unknown Product',
-                    sku: item.sku || `${inventoryType === 'manufacturing' ? 'RM' : 'PRD'}-${String(Date.now()).slice(-4)}-${index + 1}`,
+                    sku: finalSku, // Use the unique SKU
                     description: item.description || '',
                     category: item.category || 'Uncategorized',
                     unit: item.unit || 'pcs',

@@ -1224,10 +1224,76 @@ export default function TradingInventory() {
                         successCount++;
                     } else {
                         const errorData = await response.json().catch(() => ({}));
-                        const errorMsg = errorData.message || errorData.error || `Failed to add "${productData.name}"`;
-                        console.error('Failed to add product:', errorMsg, errorData);
-                        errorMessages.push(`${productData.name}: ${errorMsg}`);
-                        errorCount++;
+                        const errorMsg = errorData.message || errorData.error || '';
+
+                        // Check if the error is "SKU already exists" - this means the product exists in DB but not in local state
+                        if (errorMsg.toLowerCase().includes('sku already exists') || errorData.error?.toLowerCase().includes('sku already exists')) {
+                            console.log(`Product with SKU ${sku} exists in database but not in local state. Fetching and updating...`);
+
+                            try {
+                                // Fetch all products to find the existing one
+                                const fetchResponse = await fetch('/api/inventory/products', {
+                                    credentials: 'include'
+                                });
+
+                                if (fetchResponse.ok) {
+                                    const allProducts = await fetchResponse.json();
+                                    const existingProduct = allProducts.find(p => p.sku === sku);
+
+                                    if (existingProduct) {
+                                        // Update the existing product
+                                        const updatedData = {
+                                            ...existingProduct,
+                                            quantity: existingProduct.quantity + productData.quantity,
+                                            cost: productData.cost || existingProduct.cost,
+                                            price: productData.price || existingProduct.price,
+                                        };
+
+                                        const updateResponse = await fetch(`/api/inventory/products/${existingProduct._id}`, {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            credentials: 'include',
+                                            body: JSON.stringify(updatedData)
+                                        });
+
+                                        if (updateResponse.ok) {
+                                            const updatedProduct = await updateResponse.json();
+                                            setProducts(prev => {
+                                                const exists = prev.find(p => p._id === existingProduct._id);
+                                                if (exists) {
+                                                    return prev.map(p => p._id === existingProduct._id ? updatedProduct : p);
+                                                } else {
+                                                    return [updatedProduct, ...prev];
+                                                }
+                                            });
+                                            updatedCount++;
+                                            console.log(`Successfully updated existing product: ${productData.name}`);
+                                        } else {
+                                            const updateError = await updateResponse.json().catch(() => ({}));
+                                            console.error('Failed to update existing product:', updateError);
+                                            errorMessages.push(`${productData.name}: Failed to update existing product`);
+                                            errorCount++;
+                                        }
+                                    } else {
+                                        console.error('Could not find product with SKU in fetched products:', sku);
+                                        errorMessages.push(`${productData.name}: ${errorMsg}`);
+                                        errorCount++;
+                                    }
+                                } else {
+                                    console.error('Failed to fetch products for fallback update');
+                                    errorMessages.push(`${productData.name}: ${errorMsg}`);
+                                    errorCount++;
+                                }
+                            } catch (fallbackError) {
+                                console.error('Error in fallback update:', fallbackError);
+                                errorMessages.push(`${productData.name}: ${errorMsg}`);
+                                errorCount++;
+                            }
+                        } else {
+                            console.error('Failed to add product:', errorMsg, errorData);
+                            errorMessages.push(`${productData.name}: ${errorMsg || 'Unknown error'}`);
+                            errorCount++;
+                        }
                     }
                 }
             } catch (error) {

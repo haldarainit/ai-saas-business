@@ -430,10 +430,66 @@ export default function ManufacturingInventory() {
                         successCount++;
                     } else {
                         const errorData = await response.json().catch(() => ({}));
-                        const errorMsg = errorData.message || errorData.error || `Failed to add "${materialData.name}"`;
-                        console.error('Failed to add material:', errorMsg, errorData);
-                        errorMessages.push(`${materialData.name}: ${errorMsg}`);
-                        errorCount++;
+                        const errorMsg = errorData.message || errorData.error || '';
+
+                        // Check if the error is "SKU already exists" - this means the material exists in DB but not in local state
+                        if (errorMsg.toLowerCase().includes('sku already exists') || errorData.error?.toLowerCase().includes('sku already exists')) {
+                            console.log(`Raw material with SKU ${sku} exists in database but not in local state. Fetching and updating...`);
+
+                            try {
+                                // Fetch all raw materials to find the existing one
+                                const fetchResponse = await fetch('/api/inventory/raw-materials', {
+                                    credentials: 'include'
+                                });
+
+                                if (fetchResponse.ok) {
+                                    const allMaterials = await fetchResponse.json();
+                                    const existingMaterial = allMaterials.find(m => m.sku === sku);
+
+                                    if (existingMaterial) {
+                                        // Update the existing material
+                                        const updatedData = {
+                                            ...existingMaterial,
+                                            quantity: existingMaterial.quantity + materialData.quantity,
+                                            costPerUnit: materialData.costPerUnit || existingMaterial.costPerUnit,
+                                        };
+
+                                        const updateResponse = await fetch(`/api/inventory/raw-materials/${existingMaterial._id}`, {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            credentials: 'include',
+                                            body: JSON.stringify(updatedData)
+                                        });
+
+                                        if (updateResponse.ok) {
+                                            updatedCount++;
+                                            console.log(`Successfully updated existing raw material: ${materialData.name}`);
+                                        } else {
+                                            const updateError = await updateResponse.json().catch(() => ({}));
+                                            console.error('Failed to update existing material:', updateError);
+                                            errorMessages.push(`${materialData.name}: Failed to update existing material`);
+                                            errorCount++;
+                                        }
+                                    } else {
+                                        console.error('Could not find material with SKU in fetched materials:', sku);
+                                        errorMessages.push(`${materialData.name}: ${errorMsg}`);
+                                        errorCount++;
+                                    }
+                                } else {
+                                    console.error('Failed to fetch materials for fallback update');
+                                    errorMessages.push(`${materialData.name}: ${errorMsg}`);
+                                    errorCount++;
+                                }
+                            } catch (fallbackError) {
+                                console.error('Error in fallback update:', fallbackError);
+                                errorMessages.push(`${materialData.name}: ${errorMsg}`);
+                                errorCount++;
+                            }
+                        } else {
+                            console.error('Failed to add material:', errorMsg, errorData);
+                            errorMessages.push(`${materialData.name}: ${errorMsg || 'Unknown error'}`);
+                            errorCount++;
+                        }
                     }
                 }
             } catch (error) {
