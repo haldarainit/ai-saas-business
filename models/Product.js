@@ -7,8 +7,14 @@ console.log('Product model loading...');
 const productSchema = new mongoose.Schema({
   userId: {
     type: String,
-    required: true,
-    index: true
+    required: [true, 'User ID is required'],
+    index: true,
+    validate: {
+      validator: function(v) {
+        return v && v.trim().length > 0;
+      },
+      message: 'User ID cannot be empty or null'
+    }
   },
   name: {
     type: String,
@@ -22,7 +28,15 @@ const productSchema = new mongoose.Schema({
   },
   sku: {
     type: String,
-    required: true
+    required: [true, 'SKU is required'],
+    uppercase: true, // Normalize to uppercase
+    trim: true,
+    validate: {
+      validator: function(v) {
+        return v && v.trim().length > 0;
+      },
+      message: 'SKU cannot be empty or null'
+    }
   },
   category: {
     type: String,
@@ -68,7 +82,8 @@ const productSchema = new mongoose.Schema({
 }, {
   timestamps: true,
   toJSON: { virtuals: true, getters: true },
-  toObject: { virtuals: true, getters: true }
+  toObject: { virtuals: true, getters: true },
+  validateBeforeSave: true // Ensure validation runs before save
 });
 
 // Calculate profit (virtual field)
@@ -96,9 +111,26 @@ productSchema.index({ userId: 1, sku: 1 }, { unique: true });
 productSchema.index({ userId: 1 });
 productSchema.index({ name: 'text', description: 'text' });
 
-// Middleware for validation
+// Middleware for validation and normalization
 productSchema.pre('save', function(next) {
   console.log('Saving product:', this);
+  
+  // Ensure userId is valid
+  if (!this.userId || this.userId.trim() === '') {
+    return next(new Error('User ID is required and cannot be empty'));
+  }
+  
+  // Ensure SKU is valid and normalized
+  if (!this.sku || this.sku.trim() === '') {
+    return next(new Error('SKU is required and cannot be empty'));
+  }
+  
+  // Normalize SKU to uppercase
+  this.sku = this.sku.toUpperCase().trim();
+  
+  // Normalize userId
+  this.userId = this.userId.trim();
+  
   next();
 });
 
