@@ -326,29 +326,44 @@ export default function ManufacturingInventory() {
     // Handle scanned raw materials from invoice
     const handleScannedMaterials = async (items, supplierInfo, paymentInfo = null) => {
         let successCount = 0;
+        let updatedCount = 0;
         let errorCount = 0;
         let errorMessages = [];
 
+        // Step 1: Consolidate items with the same SKU
+        const consolidatedItems = {};
         for (const item of items) {
-            try {
-                // Calculate cost per unit from basePrice + gstAmount if available
-                const basePrice = parseFloat(item.basePrice) || 0;
-                const gstAmount = parseFloat(item.gstAmount) || 0;
-                const calculatedCostPerUnit = basePrice + gstAmount;
+            const sku = item.sku || '';
+            if (!sku) {
+                errorMessages.push(`${item.name}: Missing SKU`);
+                errorCount++;
+                continue;
+            }
 
-                // Use costPerUnit from item if available, otherwise use calculated value
-                const costPerUnit = parseFloat(item.costPerUnit) || calculatedCostPerUnit || 0;
+            // Calculate cost per unit from basePrice + gstAmount if available
+            const basePrice = parseFloat(item.basePrice) || 0;
+            const gstAmount = parseFloat(item.gstAmount) || 0;
+            const calculatedCostPerUnit = basePrice + gstAmount;
 
-                // Use quantity from the edited item
-                const quantity = parseFloat(item.quantity) || 0;
+            // Use costPerUnit from item if available, otherwise use calculated value
+            const costPerUnit = parseFloat(item.costPerUnit) || calculatedCostPerUnit || 0;
 
-                // Normalize unit to lowercase
-                const normalizedUnit = (item.unit || 'pcs').toLowerCase().trim();
+            // Use quantity from the edited item
+            const quantity = parseFloat(item.quantity) || 0;
 
-                const materialData = {
+            // Normalize unit to lowercase
+            const normalizedUnit = (item.unit || 'pcs').toLowerCase().trim();
+
+            if (consolidatedItems[sku]) {
+                // SKU already exists in this invoice, add to quantity
+                consolidatedItems[sku].quantity += quantity;
+                console.log(`Consolidated SKU ${sku}: quantity now ${consolidatedItems[sku].quantity}`);
+            } else {
+                // New SKU, create entry
+                consolidatedItems[sku] = {
                     name: item.name || '',
                     description: item.description || '',
-                    sku: item.sku || '',
+                    sku: sku,
                     category: item.category || 'Uncategorized',
                     unit: normalizedUnit,
                     costPerUnit: costPerUnit,
@@ -360,28 +375,70 @@ export default function ManufacturingInventory() {
                     hsnCode: item.hsnCode || '',
                     expiryDate: item.expiryDate || null
                 };
+            }
+        }
 
-                console.log('Adding raw material:', materialData); // Debug log
+        console.log('Consolidated items:', Object.keys(consolidatedItems).length, 'unique SKUs from', items.length, 'invoice items');
 
-                const response = await fetch('/api/inventory/raw-materials', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify(materialData)
-                });
+        // Step 2: Process each consolidated item
+        for (const sku of Object.keys(consolidatedItems)) {
+            const materialData = consolidatedItems[sku];
 
-                if (response.ok) {
-                    successCount++;
+            try {
+                console.log('Processing raw material:', materialData);
+
+                // Check if raw material with this SKU already exists in the inventory
+                const existingMaterial = rawMaterials.find(m => m.sku === sku);
+
+                if (existingMaterial) {
+                    // Material exists - UPDATE it (add to quantity)
+                    console.log(`Raw material with SKU ${sku} exists, updating quantity from ${existingMaterial.quantity} to ${existingMaterial.quantity + materialData.quantity}`);
+
+                    const updatedData = {
+                        ...existingMaterial,
+                        quantity: existingMaterial.quantity + materialData.quantity,
+                        // Optionally update cost if the new invoice has different values
+                        costPerUnit: materialData.costPerUnit || existingMaterial.costPerUnit,
+                    };
+
+                    const response = await fetch(`/api/inventory/raw-materials/${existingMaterial._id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(updatedData)
+                    });
+
+                    if (response.ok) {
+                        updatedCount++;
+                    } else {
+                        const errorData = await response.json().catch(() => ({}));
+                        const errorMsg = errorData.message || errorData.error || `Failed to update "${materialData.name}"`;
+                        console.error('Failed to update material:', errorMsg, errorData);
+                        errorMessages.push(`${materialData.name}: ${errorMsg}`);
+                        errorCount++;
+                    }
                 } else {
-                    const errorData = await response.json().catch(() => ({}));
-                    const errorMsg = errorData.message || errorData.error || `Failed to add "${item.name}"`;
-                    console.error('Failed to add material:', errorMsg, errorData);
-                    errorMessages.push(`${item.name}: ${errorMsg}`);
-                    errorCount++;
+                    // Material doesn't exist - CREATE new one
+                    const response = await fetch('/api/inventory/raw-materials', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(materialData)
+                    });
+
+                    if (response.ok) {
+                        successCount++;
+                    } else {
+                        const errorData = await response.json().catch(() => ({}));
+                        const errorMsg = errorData.message || errorData.error || `Failed to add "${materialData.name}"`;
+                        console.error('Failed to add material:', errorMsg, errorData);
+                        errorMessages.push(`${materialData.name}: ${errorMsg}`);
+                        errorCount++;
+                    }
                 }
             } catch (error) {
-                console.error('Error adding material:', error);
-                errorMessages.push(`${item.name}: ${error.message || 'Unknown error'}`);
+                console.error('Error processing material:', error);
+                errorMessages.push(`${materialData.name}: ${error.message || 'Unknown error'}`);
                 errorCount++;
             }
         }
@@ -389,25 +446,34 @@ export default function ManufacturingInventory() {
         // Refresh the list
         await fetchRawMaterials();
 
-        // Show result toast with detailed error info
-        if (successCount > 0 && errorCount === 0) {
+        // Show result toast with detailed info
+        const totalSuccess = successCount + updatedCount;
+        if (totalSuccess > 0 && errorCount === 0) {
+            let message = '';
+            if (successCount > 0 && updatedCount > 0) {
+                message = `Added ${successCount} new material${successCount > 1 ? 's' : ''} and updated ${updatedCount} existing material${updatedCount > 1 ? 's' : ''}`;
+            } else if (successCount > 0) {
+                message = `Added ${successCount} raw material${successCount > 1 ? 's' : ''} to inventory`;
+            } else {
+                message = `Updated ${updatedCount} existing material${updatedCount > 1 ? 's' : ''} with new quantities`;
+            }
             toast({
-                title: '✅ Materials Added Successfully',
-                description: `Added ${successCount} raw material${successCount > 1 ? 's' : ''} to inventory`,
+                title: '✅ Materials Processed Successfully',
+                description: message,
                 variant: 'default'
             });
-        } else if (successCount > 0 && errorCount > 0) {
+        } else if (totalSuccess > 0 && errorCount > 0) {
             toast({
-                title: '⚠️ Partially Added',
-                description: `Added ${successCount} material${successCount > 1 ? 's' : ''}, but ${errorCount} failed: ${errorMessages.slice(0, 2).join('; ')}${errorMessages.length > 2 ? '...' : ''}`,
+                title: '⚠️ Partially Processed',
+                description: `Processed ${totalSuccess} material${totalSuccess > 1 ? 's' : ''}, but ${errorCount} failed: ${errorMessages.slice(0, 2).join('; ')}${errorMessages.length > 2 ? '...' : ''}`,
                 variant: 'warning'
             });
         } else {
             toast({
-                title: '❌ Failed to Add Materials',
+                title: '❌ Failed to Process Materials',
                 description: errorMessages.length > 0
                     ? `Errors: ${errorMessages.slice(0, 3).join('; ')}${errorMessages.length > 3 ? '...' : ''}`
-                    : 'Failed to add raw materials from invoice. Please try again.',
+                    : 'Failed to process raw materials from invoice. Please try again.',
                 variant: 'destructive'
             });
         }

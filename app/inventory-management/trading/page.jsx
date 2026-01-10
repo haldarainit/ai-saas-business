@@ -1118,84 +1118,153 @@ export default function TradingInventory() {
     // Handle scanned products from invoice
     const handleScannedProducts = async (items, supplierInfo) => {
         let successCount = 0;
+        let updatedCount = 0;
         let errorCount = 0;
         let errorMessages = [];
 
+        // Step 1: Consolidate items with the same SKU
+        const consolidatedItems = {};
         for (const item of items) {
-            try {
-                // Calculate cost price from basePrice + gstAmount if available
-                const basePrice = parseFloat(item.basePrice) || 0;
-                const gstAmount = parseFloat(item.gstAmount) || 0;
-                const calculatedCostPrice = basePrice + gstAmount;
+            const sku = item.sku || '';
+            if (!sku) {
+                errorMessages.push(`${item.name}: Missing SKU`);
+                errorCount++;
+                continue;
+            }
 
-                // Use costPrice from item if available, otherwise use calculated value
-                const costPrice = parseFloat(item.costPrice) || calculatedCostPrice || 0;
+            // Calculate cost price from basePrice + gstAmount if available
+            const basePrice = parseFloat(item.basePrice) || 0;
+            const gstAmount = parseFloat(item.gstAmount) || 0;
+            const calculatedCostPrice = basePrice + gstAmount;
 
-                // Use sellingPrice from item, fallback to cost * 1.25 (25% margin)
-                const sellingPrice = parseFloat(item.sellingPrice) || (costPrice * 1.25);
+            // Use costPrice from item if available, otherwise use calculated value
+            const costPrice = parseFloat(item.costPrice) || calculatedCostPrice || 0;
 
-                // Use quantity from the edited item
-                const quantity = parseInt(item.quantity, 10) || 0;
+            // Use sellingPrice from item, fallback to cost * 1.25 (25% margin)
+            const sellingPrice = parseFloat(item.sellingPrice) || (costPrice * 1.25);
 
-                const productData = {
+            // Use quantity from the edited item
+            const quantity = parseInt(item.quantity, 10) || 0;
+
+            if (consolidatedItems[sku]) {
+                // SKU already exists, add to quantity
+                consolidatedItems[sku].quantity += quantity;
+                console.log(`Consolidated SKU ${sku}: quantity now ${consolidatedItems[sku].quantity}`);
+            } else {
+                // New SKU, create entry
+                consolidatedItems[sku] = {
                     name: item.name || '',
                     description: item.description || '',
-                    sku: item.sku || '',
+                    sku: sku,
                     category: item.category || 'Uncategorized',
-                    price: sellingPrice,  // Selling price for product
-                    cost: costPrice,      // Cost price (including GST)
+                    price: sellingPrice,
+                    cost: costPrice,
                     quantity: quantity,
                     shelf: item.shelf || 'Default',
                     supplier: supplierInfo?.name || item.supplier || '',
                     hsnCode: item.hsnCode || ''
                 };
+            }
+        }
 
-                console.log('Adding product:', productData); // Debug log
+        console.log('Consolidated items:', Object.keys(consolidatedItems).length, 'unique SKUs from', items.length, 'invoice items');
 
-                const response = await fetch('/api/inventory/products', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify(productData)
-                });
+        // Step 2: Process each consolidated item
+        for (const sku of Object.keys(consolidatedItems)) {
+            const productData = consolidatedItems[sku];
 
-                if (response.ok) {
-                    const newProduct = await response.json();
-                    setProducts(prev => [newProduct, ...prev]);
-                    successCount++;
+            try {
+                console.log('Processing product:', productData);
+
+                // Check if product with this SKU already exists in the inventory
+                const existingProduct = products.find(p => p.sku === sku);
+
+                if (existingProduct) {
+                    // Product exists - UPDATE it (add to quantity)
+                    console.log(`Product with SKU ${sku} exists, updating quantity from ${existingProduct.quantity} to ${existingProduct.quantity + productData.quantity}`);
+
+                    const updatedData = {
+                        ...existingProduct,
+                        quantity: existingProduct.quantity + productData.quantity,
+                        // Optionally update cost/price if the new invoice has different values
+                        cost: productData.cost || existingProduct.cost,
+                        price: productData.price || existingProduct.price,
+                    };
+
+                    const response = await fetch(`/api/inventory/products/${existingProduct._id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(updatedData)
+                    });
+
+                    if (response.ok) {
+                        const updatedProduct = await response.json();
+                        setProducts(prev => prev.map(p => p._id === existingProduct._id ? updatedProduct : p));
+                        updatedCount++;
+                    } else {
+                        const errorData = await response.json().catch(() => ({}));
+                        const errorMsg = errorData.message || errorData.error || `Failed to update "${productData.name}"`;
+                        console.error('Failed to update product:', errorMsg, errorData);
+                        errorMessages.push(`${productData.name}: ${errorMsg}`);
+                        errorCount++;
+                    }
                 } else {
-                    const errorData = await response.json().catch(() => ({}));
-                    const errorMsg = errorData.message || errorData.error || `Failed to add "${item.name}"`;
-                    console.error('Failed to add product:', errorMsg, errorData);
-                    errorMessages.push(`${item.name}: ${errorMsg}`);
-                    errorCount++;
+                    // Product doesn't exist - CREATE new one
+                    const response = await fetch('/api/inventory/products', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(productData)
+                    });
+
+                    if (response.ok) {
+                        const newProduct = await response.json();
+                        setProducts(prev => [newProduct, ...prev]);
+                        successCount++;
+                    } else {
+                        const errorData = await response.json().catch(() => ({}));
+                        const errorMsg = errorData.message || errorData.error || `Failed to add "${productData.name}"`;
+                        console.error('Failed to add product:', errorMsg, errorData);
+                        errorMessages.push(`${productData.name}: ${errorMsg}`);
+                        errorCount++;
+                    }
                 }
             } catch (error) {
-                console.error('Error adding product:', error);
-                errorMessages.push(`${item.name}: ${error.message || 'Unknown error'}`);
+                console.error('Error processing product:', error);
+                errorMessages.push(`${productData.name}: ${error.message || 'Unknown error'}`);
                 errorCount++;
             }
         }
 
-        // Show result toast with detailed error info
-        if (successCount > 0 && errorCount === 0) {
+        // Show result toast with detailed info
+        const totalSuccess = successCount + updatedCount;
+        if (totalSuccess > 0 && errorCount === 0) {
+            let message = '';
+            if (successCount > 0 && updatedCount > 0) {
+                message = `Added ${successCount} new product${successCount > 1 ? 's' : ''} and updated ${updatedCount} existing product${updatedCount > 1 ? 's' : ''}`;
+            } else if (successCount > 0) {
+                message = `Added ${successCount} product${successCount > 1 ? 's' : ''} to inventory`;
+            } else {
+                message = `Updated ${updatedCount} existing product${updatedCount > 1 ? 's' : ''} with new quantities`;
+            }
             toast({
-                title: '✅ Products Added Successfully',
-                description: `Added ${successCount} product${successCount > 1 ? 's' : ''} to inventory`,
+                title: '✅ Products Processed Successfully',
+                description: message,
                 variant: 'default'
             });
-        } else if (successCount > 0 && errorCount > 0) {
+        } else if (totalSuccess > 0 && errorCount > 0) {
             toast({
-                title: '⚠️ Partially Added',
-                description: `Added ${successCount} product${successCount > 1 ? 's' : ''}, but ${errorCount} failed: ${errorMessages.slice(0, 2).join('; ')}${errorMessages.length > 2 ? '...' : ''}`,
+                title: '⚠️ Partially Processed',
+                description: `Processed ${totalSuccess} product${totalSuccess > 1 ? 's' : ''}, but ${errorCount} failed: ${errorMessages.slice(0, 2).join('; ')}${errorMessages.length > 2 ? '...' : ''}`,
                 variant: 'warning'
             });
         } else {
             toast({
-                title: '❌ Failed to Add Products',
+                title: '❌ Failed to Process Products',
                 description: errorMessages.length > 0
                     ? `Errors: ${errorMessages.slice(0, 3).join('; ')}${errorMessages.length > 3 ? '...' : ''}`
-                    : 'Failed to add products from invoice. Please try again.',
+                    : 'Failed to process products from invoice. Please try again.',
                 variant: 'destructive'
             });
         }
