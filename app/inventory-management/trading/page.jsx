@@ -1135,7 +1135,7 @@ export default function TradingInventory() {
                 const sellingPrice = parseFloat(item.sellingPrice) || (costPrice * 1.25);
 
                 // Use quantity from the edited item
-                const quantity = parseFloat(item.quantity) || 0;
+                const quantity = parseInt(item.quantity, 10) || 0;
 
                 const productData = {
                     name: item.name || '',

@@ -34,22 +34,32 @@ export async function getAuthenticatedUser(request?: Request): Promise<{ userId:
 
     // Second, try custom JWT token from auth-token cookie (email/password login)
     try {
-        const cookieStore = await cookies();
-        const authToken = cookieStore.get("auth-token");
+        let cookieStore;
+        try {
+            cookieStore = await cookies();
+        } catch (cookieError) {
+            // cookies() can fail in certain edge cases in Next.js 15
+            console.warn("Could not access cookies from next/headers:", cookieError);
+            cookieStore = null;
+        }
 
-        if (authToken?.value) {
-            const decoded = jwt.verify(authToken.value, JWT_SECRET) as {
-                userId: string;
-                email: string;
-                name: string;
-            };
+        if (cookieStore) {
+            const authToken = cookieStore.get("auth-token");
 
-            if (decoded && decoded.userId) {
-                return {
-                    userId: decoded.userId,
-                    email: decoded.email || null,
-                    name: decoded.name || null
+            if (authToken?.value) {
+                const decoded = jwt.verify(authToken.value, JWT_SECRET) as {
+                    userId: string;
+                    email: string;
+                    name: string;
                 };
+
+                if (decoded && decoded.userId) {
+                    return {
+                        userId: decoded.userId,
+                        email: decoded.email || null,
+                        name: decoded.name || null
+                    };
+                }
             }
         }
     } catch (error) {
