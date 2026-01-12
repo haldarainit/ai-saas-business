@@ -323,23 +323,27 @@ export default function ManufacturingInventory() {
         }
     };
 
-    // Handle scanned raw materials from invoice
+    // Handle scanned raw materials from invoice - uses batch upsert API for atomic processing
     const handleScannedMaterials = async (items, supplierInfo, paymentInfo = null) => {
-        let successCount = 0;
-        let updatedCount = 0;
-        let errorCount = 0;
-        let errorMessages = [];
+        // Filter out items without SKU and track errors
+        const itemsWithoutSku = items.filter(item => !item.sku);
+        const validItems = items.filter(item => item.sku);
 
-        // Step 1: Consolidate items with the same SKU
-        const consolidatedItems = {};
-        for (const item of items) {
-            const sku = item.sku || '';
-            if (!sku) {
-                errorMessages.push(`${item.name}: Missing SKU`);
-                errorCount++;
-                continue;
-            }
+        if (itemsWithoutSku.length > 0) {
+            console.warn(`${itemsWithoutSku.length} items without SKU will be skipped:`, itemsWithoutSku.map(i => i.name));
+        }
 
+        if (validItems.length === 0) {
+            toast({
+                title: '❌ No Valid Items',
+                description: 'All items are missing SKU. Please ensure all products have valid SKU codes.',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        // Prepare items for batch upsert with calculated costs
+        const preparedItems = validItems.map(item => {
             // Calculate cost per unit from basePrice + gstAmount if available
             const basePrice = parseFloat(item.basePrice) || 0;
             const gstAmount = parseFloat(item.gstAmount) || 0;
@@ -348,188 +352,98 @@ export default function ManufacturingInventory() {
             // Use costPerUnit from item if available, otherwise use calculated value
             const costPerUnit = parseFloat(item.costPerUnit) || calculatedCostPerUnit || 0;
 
-            // Use quantity from the edited item
-            const quantity = parseFloat(item.quantity) || 0;
+            return {
+                name: item.name || '',
+                description: item.description || '',
+                sku: item.sku.trim(),
+                category: item.category || 'Uncategorized',
+                unit: (item.unit || 'pcs').toLowerCase().trim(),
+                costPerUnit: costPerUnit,
+                quantity: parseFloat(item.quantity) || 0,
+                minimumStock: item.minimumStock || 10,
+                shelf: item.shelf || 'Default',
+                supplier: supplierInfo?.name || item.supplier || '',
+                supplierContact: supplierInfo?.contact || item.supplierContact || '',
+                hsnCode: item.hsnCode || '',
+                expiryDate: item.expiryDate || null
+            };
+        });
 
-            // Normalize unit to lowercase
-            const normalizedUnit = (item.unit || 'pcs').toLowerCase().trim();
+        console.log(`Sending ${preparedItems.length} items to batch upsert API`);
 
-            if (consolidatedItems[sku]) {
-                // SKU already exists in this invoice, add to quantity
-                consolidatedItems[sku].quantity += quantity;
-                console.log(`Consolidated SKU ${sku}: quantity now ${consolidatedItems[sku].quantity}`);
-            } else {
-                // New SKU, create entry
-                consolidatedItems[sku] = {
-                    name: item.name || '',
-                    description: item.description || '',
-                    sku: sku,
-                    category: item.category || 'Uncategorized',
-                    unit: normalizedUnit,
-                    costPerUnit: costPerUnit,
-                    quantity: quantity,
-                    minimumStock: item.minimumStock || 10,
-                    shelf: item.shelf || 'Default',
-                    supplier: supplierInfo?.name || item.supplier || '',
-                    supplierContact: supplierInfo?.contact || item.supplierContact || '',
-                    hsnCode: item.hsnCode || '',
-                    expiryDate: item.expiryDate || null
-                };
+        try {
+            // Use the batch upsert API for atomic processing
+            const response = await fetch('/api/inventory/raw-materials/batch-upsert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ items: preparedItems })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || 'Failed to process materials');
             }
-        }
 
-        console.log('Consolidated items:', Object.keys(consolidatedItems).length, 'unique SKUs from', items.length, 'invoice items');
+            // Refresh the list after successful processing
+            await fetchRawMaterials();
 
-        // Step 2: Process each consolidated item
-        for (const sku of Object.keys(consolidatedItems)) {
-            const materialData = consolidatedItems[sku];
+            // Show result toast with detailed info
+            const { created, updated, errors, total } = result;
+            const skippedCount = itemsWithoutSku.length;
 
-            try {
-                console.log('Processing raw material:', materialData);
-
-                // Check if raw material with this SKU already exists in the inventory
-                const existingMaterial = rawMaterials.find(m => m.sku === sku);
-
-                if (existingMaterial) {
-                    // Material exists - UPDATE it (add to quantity)
-                    console.log(`Raw material with SKU ${sku} exists, updating quantity from ${existingMaterial.quantity} to ${existingMaterial.quantity + materialData.quantity}`);
-
-                    const updatedData = {
-                        ...existingMaterial,
-                        quantity: existingMaterial.quantity + materialData.quantity,
-                        // Optionally update cost if the new invoice has different values
-                        costPerUnit: materialData.costPerUnit || existingMaterial.costPerUnit,
-                    };
-
-                    const response = await fetch(`/api/inventory/raw-materials/${existingMaterial._id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify(updatedData)
-                    });
-
-                    if (response.ok) {
-                        updatedCount++;
-                    } else {
-                        const errorData = await response.json().catch(() => ({}));
-                        const errorMsg = errorData.message || errorData.error || `Failed to update "${materialData.name}"`;
-                        console.error('Failed to update material:', errorMsg, errorData);
-                        errorMessages.push(`${materialData.name}: ${errorMsg}`);
-                        errorCount++;
-                    }
+            if (total > 0 && errors.length === 0) {
+                let message = '';
+                if (created > 0 && updated > 0) {
+                    message = `Added ${created} new material${created > 1 ? 's' : ''} and updated ${updated} existing material${updated > 1 ? 's' : ''}`;
+                } else if (created > 0) {
+                    message = `Added ${created} raw material${created > 1 ? 's' : ''} to inventory`;
                 } else {
-                    // Material doesn't exist - CREATE new one
-                    const response = await fetch('/api/inventory/raw-materials', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify(materialData)
-                    });
-
-                    if (response.ok) {
-                        successCount++;
-                    } else {
-                        const errorData = await response.json().catch(() => ({}));
-                        const errorMsg = errorData.message || errorData.error || '';
-
-                        // Check if the error is "SKU already exists" - this means the material exists in DB but not in local state
-                        if (errorMsg.toLowerCase().includes('sku already exists') || errorData.error?.toLowerCase().includes('sku already exists')) {
-                            console.log(`Raw material with SKU ${sku} exists in database but not in local state. Fetching and updating...`);
-
-                            try {
-                                // Fetch all raw materials to find the existing one
-                                const fetchResponse = await fetch('/api/inventory/raw-materials', {
-                                    credentials: 'include'
-                                });
-
-                                if (fetchResponse.ok) {
-                                    const allMaterials = await fetchResponse.json();
-                                    const existingMaterial = allMaterials.find(m => m.sku === sku);
-
-                                    if (existingMaterial) {
-                                        // Update the existing material
-                                        const updatedData = {
-                                            ...existingMaterial,
-                                            quantity: existingMaterial.quantity + materialData.quantity,
-                                            costPerUnit: materialData.costPerUnit || existingMaterial.costPerUnit,
-                                        };
-
-                                        const updateResponse = await fetch(`/api/inventory/raw-materials/${existingMaterial._id}`, {
-                                            method: 'PUT',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            credentials: 'include',
-                                            body: JSON.stringify(updatedData)
-                                        });
-
-                                        if (updateResponse.ok) {
-                                            updatedCount++;
-                                            console.log(`Successfully updated existing raw material: ${materialData.name}`);
-                                        } else {
-                                            const updateError = await updateResponse.json().catch(() => ({}));
-                                            console.error('Failed to update existing material:', updateError);
-                                            errorMessages.push(`${materialData.name}: Failed to update existing material`);
-                                            errorCount++;
-                                        }
-                                    } else {
-                                        console.error('Could not find material with SKU in fetched materials:', sku);
-                                        errorMessages.push(`${materialData.name}: ${errorMsg}`);
-                                        errorCount++;
-                                    }
-                                } else {
-                                    console.error('Failed to fetch materials for fallback update');
-                                    errorMessages.push(`${materialData.name}: ${errorMsg}`);
-                                    errorCount++;
-                                }
-                            } catch (fallbackError) {
-                                console.error('Error in fallback update:', fallbackError);
-                                errorMessages.push(`${materialData.name}: ${errorMsg}`);
-                                errorCount++;
-                            }
-                        } else {
-                            console.error('Failed to add material:', errorMsg, errorData);
-                            errorMessages.push(`${materialData.name}: ${errorMsg || 'Unknown error'}`);
-                            errorCount++;
-                        }
-                    }
+                    message = `Updated ${updated} existing material${updated > 1 ? 's' : ''} with new quantities`;
                 }
-            } catch (error) {
-                console.error('Error processing material:', error);
-                errorMessages.push(`${materialData.name}: ${error.message || 'Unknown error'}`);
-                errorCount++;
-            }
-        }
 
-        // Refresh the list
-        await fetchRawMaterials();
+                if (skippedCount > 0) {
+                    message += ` (${skippedCount} skipped - missing SKU)`;
+                }
 
-        // Show result toast with detailed info
-        const totalSuccess = successCount + updatedCount;
-        if (totalSuccess > 0 && errorCount === 0) {
-            let message = '';
-            if (successCount > 0 && updatedCount > 0) {
-                message = `Added ${successCount} new material${successCount > 1 ? 's' : ''} and updated ${updatedCount} existing material${updatedCount > 1 ? 's' : ''}`;
-            } else if (successCount > 0) {
-                message = `Added ${successCount} raw material${successCount > 1 ? 's' : ''} to inventory`;
+                toast({
+                    title: '✅ Materials Processed Successfully',
+                    description: message,
+                    variant: 'default'
+                });
+            } else if (total > 0 && errors.length > 0) {
+                const errorMsgs = errors.map(e => `${e.name || e.sku}: ${e.message}`).slice(0, 2);
+                toast({
+                    title: '⚠️ Partially Processed',
+                    description: `Processed ${total} material${total > 1 ? 's' : ''}, but ${errors.length} failed: ${errorMsgs.join('; ')}${errors.length > 2 ? '...' : ''}`,
+                    variant: 'warning'
+                });
             } else {
-                message = `Updated ${updatedCount} existing material${updatedCount > 1 ? 's' : ''} with new quantities`;
+                const errorMsgs = errors.map(e => `${e.name || e.sku}: ${e.message}`).slice(0, 3);
+                toast({
+                    title: '❌ Failed to Process Materials',
+                    description: errorMsgs.length > 0
+                        ? `Errors: ${errorMsgs.join('; ')}${errors.length > 3 ? '...' : ''}`
+                        : 'Failed to process raw materials from invoice. Please try again.',
+                    variant: 'destructive'
+                });
             }
-            toast({
-                title: '✅ Materials Processed Successfully',
-                description: message,
-                variant: 'default'
+
+            // Log detailed results for debugging
+            console.log('Batch upsert results:', {
+                total,
+                created,
+                updated,
+                errors: errors.length,
+                skippedNoSku: skippedCount
             });
-        } else if (totalSuccess > 0 && errorCount > 0) {
-            toast({
-                title: '⚠️ Partially Processed',
-                description: `Processed ${totalSuccess} material${totalSuccess > 1 ? 's' : ''}, but ${errorCount} failed: ${errorMessages.slice(0, 2).join('; ')}${errorMessages.length > 2 ? '...' : ''}`,
-                variant: 'warning'
-            });
-        } else {
+
+        } catch (error) {
+            console.error('Error in batch upsert:', error);
             toast({
                 title: '❌ Failed to Process Materials',
-                description: errorMessages.length > 0
-                    ? `Errors: ${errorMessages.slice(0, 3).join('; ')}${errorMessages.length > 3 ? '...' : ''}`
-                    : 'Failed to process raw materials from invoice. Please try again.',
+                description: error.message || 'An unexpected error occurred. Please try again.',
                 variant: 'destructive'
             });
         }
