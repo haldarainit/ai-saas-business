@@ -37,6 +37,7 @@ Click **"Unlock Campaign Genius"** and watch the magic happen:
 
 From each URL, the AI extracts:
 
+
 - ✅ Page title & description
 - ✅ Main headings (H1, H2, H3)
 - ✅ Key marketing messages
