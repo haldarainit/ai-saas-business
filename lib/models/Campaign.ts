@@ -1,16 +1,30 @@
 import mongoose from "mongoose";
 
+export interface ICsvData {
+  headers?: string[];
+  data?: unknown[];
+  totalRows?: number;
+}
+
+export interface IRecipient {
+  email: string;
+  name?: string;
+  sent?: boolean;
+  sentAt?: Date;
+  error?: string;
+}
+
+export interface ICampaignSettings {
+  batchSize?: number;
+  delay?: number;
+  maxRetries?: number;
+}
+
 export interface ICampaign extends mongoose.Document {
   userId?: string;
   subject: string;
   template: string;
-  recipients: Array<{
-    email: string;
-    name?: string;
-    sent?: boolean;
-    sentAt?: Date;
-    error?: string;
-  }>;
+  recipients: IRecipient[];
   status: "draft" | "active" | "paused" | "completed" | "cancelled";
   totalEmails: number;
   sentCount: number;
@@ -21,11 +35,9 @@ export interface ICampaign extends mongoose.Document {
   actualStartTime?: Date;
   completedAt?: Date;
   pausedAt?: Date;
-  settings: {
-    batchSize?: number;
-    delay?: number;
-    maxRetries?: number;
-  };
+  settings: ICampaignSettings;
+  csvData?: ICsvData;
+  enabledColumns?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -93,6 +105,13 @@ const CampaignSchema = new mongoose.Schema<ICampaign>(
       delay: { type: Number, default: 6000 }, // milliseconds
       maxRetries: { type: Number, default: 3 },
     },
+    // Store CSV data for template processing
+    csvData: {
+      headers: [String],
+      data: [mongoose.Schema.Types.Mixed],
+      totalRows: Number,
+    },
+    enabledColumns: [String],
   },
   {
     timestamps: true,

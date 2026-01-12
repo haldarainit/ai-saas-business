@@ -1,11 +1,39 @@
 import mongoose from "mongoose";
 
 /**
- * Email Automation Settings Model
+ * Interface for SMTP providers configuration
+ */
+export interface ISmtpConfig {
+    host: string;
+    port: number;
+    secure: boolean;
+}
+
+/**
+ * Email Automation Settings Interface
  * Stores user-specific SMTP configuration for email campaigns
  */
+export interface IEmailAutomationSettings extends mongoose.Document {
+    userId: string;
+    emailProvider: "gmail" | "hostinger" | "outlook" | "yahoo" | "zoho" | "custom";
+    emailUser?: string;
+    emailPassword?: string;
+    fromName: string;
+    smtpHost?: string;
+    smtpPort: number;
+    smtpSecure: boolean;
+    isConfigured: boolean;
+    lastVerifiedAt?: Date;
+    verificationStatus: "pending" | "verified" | "failed";
+    createdAt: Date;
+    updatedAt: Date;
+    // Virtual
+    hasCredentials: boolean;
+    // Methods
+    getSmtpConfig(): ISmtpConfig;
+}
 
-const emailAutomationSettingsSchema = new mongoose.Schema({
+const emailAutomationSettingsSchema = new mongoose.Schema<IEmailAutomationSettings>({
     userId: {
         type: String,
         required: true,
@@ -58,15 +86,15 @@ emailAutomationSettingsSchema.virtual("hasCredentials").get(function () {
 });
 
 // Instance method to get SMTP config
-emailAutomationSettingsSchema.methods.getSmtpConfig = function () {
-    const providers = {
+emailAutomationSettingsSchema.methods.getSmtpConfig = function (): ISmtpConfig {
+    const providers: Record<string, ISmtpConfig> = {
         gmail: { host: "smtp.gmail.com", port: 587, secure: false },
         hostinger: { host: "smtp.hostinger.com", port: 587, secure: false },
         outlook: { host: "smtp-mail.outlook.com", port: 587, secure: false },
         yahoo: { host: "smtp.mail.yahoo.com", port: 587, secure: false },
         zoho: { host: "smtp.zoho.com", port: 587, secure: false },
         custom: {
-            host: this.smtpHost,
+            host: this.smtpHost || "",
             port: this.smtpPort || 587,
             secure: this.smtpSecure || false
         },
@@ -76,6 +104,6 @@ emailAutomationSettingsSchema.methods.getSmtpConfig = function () {
 };
 
 const EmailAutomationSettings = mongoose.models.EmailAutomationSettings ||
-    mongoose.model("EmailAutomationSettings", emailAutomationSettingsSchema);
+    mongoose.model<IEmailAutomationSettings>("EmailAutomationSettings", emailAutomationSettingsSchema);
 
 export default EmailAutomationSettings;

@@ -1,6 +1,47 @@
 import mongoose from "mongoose";
 
-const customQuestionSchema = new mongoose.Schema({
+// Type definitions for nested objects
+export interface ICustomQuestion {
+    id: string;
+    label: string;
+    type: "text" | "textarea" | "email" | "phone" | "select" | "checkbox" | "radio";
+    required: boolean;
+    options?: string[];
+    placeholder?: string;
+}
+
+export interface IEventTypeLocation {
+    type: "video" | "phone" | "in-person" | "custom";
+    value?: string;
+    provider: "google-meet" | "zoom" | "teams" | "custom";
+}
+
+export interface IEventType extends mongoose.Document {
+    userId: string;
+    name: string;
+    slug: string;
+    bookingLinkId?: string;
+    description: string;
+    duration: number; // in minutes
+    color: string;
+    location: IEventTypeLocation;
+    customQuestions: ICustomQuestion[];
+    isActive: boolean;
+    requiresConfirmation: boolean;
+    allowReschedule: boolean;
+    allowCancellation: boolean;
+    maxBookingsPerDay: number;
+    bufferTimeBefore: number;
+    bufferTimeAfter: number;
+    minimumNotice: number;
+    schedulingWindow: number;
+    price: number;
+    currency: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const customQuestionSchema = new mongoose.Schema<ICustomQuestion>({
     id: { type: String, required: true },
     label: { type: String, required: true },
     type: {
@@ -13,7 +54,7 @@ const customQuestionSchema = new mongoose.Schema({
     placeholder: String,
 });
 
-const eventTypeSchema = new mongoose.Schema({
+const eventTypeSchema = new mongoose.Schema<IEventType>({
     userId: { type: String, required: true, index: true },
     name: { type: String, required: true },
     slug: { type: String, required: true },
@@ -53,6 +94,16 @@ const eventTypeSchema = new mongoose.Schema({
 // Create unique slug per user
 eventTypeSchema.index({ userId: 1, slug: 1 }, { unique: true });
 
+// Helper function to generate unique booking link ID
+function generateBookingLinkId(): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 10; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
 // Pre-save hook to update timestamp and generate unique booking link ID
 eventTypeSchema.pre("save", function (next) {
     this.updatedAt = new Date();
@@ -75,16 +126,6 @@ eventTypeSchema.pre("save", function (next) {
     next();
 });
 
-// Helper function to generate unique booking link ID
-function generateBookingLinkId() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < 10; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-}
-
-const EventType = mongoose.models.EventType || mongoose.model("EventType", eventTypeSchema);
+const EventType = mongoose.models.EventType || mongoose.model<IEventType>("EventType", eventTypeSchema);
 
 export default EventType;

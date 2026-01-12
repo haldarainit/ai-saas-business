@@ -1,19 +1,67 @@
 import mongoose from "mongoose";
 
-const attendeeSchema = new mongoose.Schema({
+// Type definitions for nested objects
+export interface IAttendee {
+    name: string;
+    email: string;
+    phone?: string;
+    customResponses?: Map<string, string>;
+}
+
+export interface IReminderSent {
+    type: "24h" | "1h" | "confirmation" | "cancellation" | "reschedule" | "followup";
+    sentAt: Date;
+    channel: "email" | "sms";
+}
+
+export interface IBooking extends mongoose.Document {
+    bookingId: string;
+    userId: string;
+    eventTypeId: mongoose.Types.ObjectId;
+    title: string;
+    description?: string;
+    date: string; // "2025-12-20"
+    startTime: string; // "10:00"
+    endTime: string; // "10:30"
+    timezone: string;
+    duration: number; // in minutes
+    attendee: IAttendee;
+    locationType: "video" | "phone" | "in-person" | "custom";
+    location?: string;
+    meetingLink?: string;
+    meetingProvider?: string;
+    status: "pending" | "confirmed" | "cancelled" | "completed" | "no-show" | "rescheduled";
+    googleCalendarEventId?: string;
+    outlookCalendarEventId?: string;
+    remindersSent: IReminderSent[];
+    cancelledAt?: Date;
+    cancellationReason?: string;
+    cancelledBy?: "host" | "attendee";
+    rescheduledFrom?: mongoose.Types.ObjectId;
+    rescheduledTo?: mongoose.Types.ObjectId;
+    paymentStatus: "not_required" | "pending" | "paid" | "refunded";
+    paymentAmount?: number;
+    paymentCurrency?: string;
+    hostNotes?: string;
+    attendeeNotes?: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const attendeeSchema = new mongoose.Schema<IAttendee>({
     name: { type: String, required: true },
     email: { type: String, required: true },
     phone: String,
     customResponses: { type: Map, of: String }, // Responses to custom questions
 });
 
-const reminderSentSchema = new mongoose.Schema({
+const reminderSentSchema = new mongoose.Schema<IReminderSent>({
     type: { type: String, enum: ["24h", "1h", "confirmation", "cancellation", "reschedule", "followup"] },
     sentAt: { type: Date },
     channel: { type: String, enum: ["email", "sms"] },
 });
 
-const bookingSchema = new mongoose.Schema({
+const bookingSchema = new mongoose.Schema<IBooking>({
     // Unique booking ID for public reference
     bookingId: {
         type: String,
@@ -97,6 +145,6 @@ bookingSchema.pre("save", function (next) {
     next();
 });
 
-const Booking = mongoose.models.Booking || mongoose.model("Booking", bookingSchema);
+const Booking = mongoose.models.Booking || mongoose.model<IBooking>("Booking", bookingSchema);
 
 export default Booking;

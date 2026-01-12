@@ -1,6 +1,76 @@
 import mongoose from "mongoose";
 
-const userProfileSchema = new mongoose.Schema({
+// Type definitions for nested objects
+export interface IGoogleCalendar {
+    connected: boolean;
+    clientId?: string;
+    clientSecret?: string;
+    accessToken?: string;
+    refreshToken?: string;
+    tokenExpiry?: Date;
+    calendarId: string;
+    connectedEmail?: string;
+}
+
+export interface IOutlookCalendar {
+    connected: boolean;
+    accessToken?: string;
+    refreshToken?: string;
+    tokenExpiry?: Date;
+}
+
+export interface INotifications {
+    emailEnabled: boolean;
+    notificationEmail?: string;
+    smsEnabled: boolean;
+    phoneNumber?: string;
+    reminderTimes: number[];
+    sendFollowUp: boolean;
+    followUpDelay: number;
+}
+
+export interface IEmailSettings {
+    emailProvider: "gmail" | "hostinger" | "outlook" | "yahoo" | "zoho" | "custom";
+    emailUser?: string;
+    emailPassword?: string;
+    fromName?: string;
+    smtpHost?: string;
+    smtpPort: number;
+    smtpSecure: boolean;
+    sendConfirmationToAttendee: boolean;
+    sendNotificationToHost: boolean;
+    sendReminders: boolean;
+    reminderHoursBefore: number[];
+}
+
+export interface IDefaultLocation {
+    type: "video" | "phone" | "in-person" | "custom";
+    provider: string;
+}
+
+export interface IUserProfile extends mongoose.Document {
+    userId: string;
+    email: string;
+    username?: string;
+    displayName?: string;
+    bio?: string;
+    profileImage?: string;
+    companyName?: string;
+    companyLogo?: string;
+    brandColor: string;
+    welcomeMessage: string;
+    googleCalendar: IGoogleCalendar;
+    outlookCalendar: IOutlookCalendar;
+    notifications: INotifications;
+    emailSettings: IEmailSettings;
+    defaultTimezone: string;
+    defaultDuration: number;
+    defaultLocation: IDefaultLocation;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const userProfileSchema = new mongoose.Schema<IUserProfile>({
     userId: { type: String, required: true, unique: true, index: true },
     email: { type: String, required: true },
 
@@ -108,6 +178,6 @@ userProfileSchema.pre("save", async function (next) {
     next();
 });
 
-const UserProfile = mongoose.models.UserProfile || mongoose.model("UserProfile", userProfileSchema);
+const UserProfile = mongoose.models.UserProfile || mongoose.model<IUserProfile>("UserProfile", userProfileSchema);
 
 export default UserProfile;

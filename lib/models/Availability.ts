@@ -1,22 +1,59 @@
 import mongoose from "mongoose";
 
-const timeRangeSchema = new mongoose.Schema({
+// Type definitions for nested objects
+export interface ITimeRange {
+    start: string; // "09:00"
+    end: string; // "17:00"
+}
+
+export interface IWeeklySchedule {
+    enabled: boolean;
+    timeRanges: ITimeRange[];
+}
+
+export interface IDateOverride {
+    date: string; // "2025-12-20"
+    isBlocked: boolean;
+    timeRanges: ITimeRange[];
+}
+
+export interface IAvailability extends mongoose.Document {
+    userId: string;
+    timezone: string;
+    weeklySchedule: {
+        sunday: IWeeklySchedule;
+        monday: IWeeklySchedule;
+        tuesday: IWeeklySchedule;
+        wednesday: IWeeklySchedule;
+        thursday: IWeeklySchedule;
+        friday: IWeeklySchedule;
+        saturday: IWeeklySchedule;
+    };
+    dateOverrides: IDateOverride[];
+    bufferBetweenMeetings: number;
+    minimumNotice: number;
+    schedulingWindow: number;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const timeRangeSchema = new mongoose.Schema<ITimeRange>({
     start: { type: String, required: true }, // "09:00"
     end: { type: String, required: true }, // "17:00"
 });
 
-const weeklyScheduleSchema = new mongoose.Schema({
+const weeklyScheduleSchema = new mongoose.Schema<IWeeklySchedule>({
     enabled: { type: Boolean, default: true },
     timeRanges: [timeRangeSchema],
 });
 
-const dateOverrideSchema = new mongoose.Schema({
+const dateOverrideSchema = new mongoose.Schema<IDateOverride>({
     date: { type: String, required: true }, // "2025-12-20"
     isBlocked: { type: Boolean, default: false }, // If true, completely unavailable
     timeRanges: [timeRangeSchema], // Custom hours for this day
 });
 
-const availabilitySchema = new mongoose.Schema({
+const availabilitySchema = new mongoose.Schema<IAvailability>({
     userId: { type: String, required: true, unique: true, index: true },
     timezone: { type: String, default: "Asia/Kolkata" },
 
@@ -52,6 +89,6 @@ availabilitySchema.pre("save", function (next) {
     next();
 });
 
-const Availability = mongoose.models.Availability || mongoose.model("Availability", availabilitySchema);
+const Availability = mongoose.models.Availability || mongoose.model<IAvailability>("Availability", availabilitySchema);
 
 export default Availability;
