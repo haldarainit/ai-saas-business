@@ -1,4 +1,4 @@
-import EmailService from "../../../lib/email/EmailService.js";
+import EmailService from "../../../lib/email/EmailService";
 import { getAuthenticatedUser } from "../../../lib/get-auth-user";
 
 export async function POST(request) {

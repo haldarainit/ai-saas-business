@@ -1,4 +1,4 @@
-import EmailService from "../../../lib/email/EmailService.js";
+import EmailService from "../../../lib/email/EmailService";
 
 export async function POST(request) {
   try {
@@ -75,9 +75,8 @@ export async function POST(request) {
         baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000",
         trackingId: result.trackingId,
         expectedPixelUrl: result.trackingId
-          ? `${
-              process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
-            }/api/track/pixel/${result.trackingId}`
+          ? `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+          }/api/track/pixel/${result.trackingId}`
           : "N/A",
         message:
           "Check the email HTML source to see the tracking pixel at the bottom (before </body> tag)",
@@ -151,8 +150,8 @@ export async function GET() {
       .replace(
         /&lt;img src="[^"]*" width="1" height="1" style="display:none;" alt="" \/&gt;/g,
         '<span class="highlight">&lt;img src="' +
-          pixelUrl +
-          '" width="1" height="1" style="display:none;" alt="" /&gt;</span>'
+        pixelUrl +
+        '" width="1" height="1" style="display:none;" alt="" /&gt;</span>'
       )}</pre>
 
     <h2>Tracking Pixel Details:</h2>
@@ -165,9 +164,9 @@ export async function GET() {
 
     <h2>Rendered Email:</h2>
     <iframe srcdoc="${finalHtml.replace(
-      /"/g,
-      "&quot;"
-    )}" style="width: 100%; height: 400px; border: 1px solid #ddd; border-radius: 5px;"></iframe>
+        /"/g,
+        "&quot;"
+      )}" style="width: 100%; height: 400px; border: 1px solid #ddd; border-radius: 5px;"></iframe>
   </div>
 </body>
 </html>`,
