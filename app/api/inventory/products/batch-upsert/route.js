@@ -7,7 +7,7 @@ import { getAuthenticatedUser } from '@/lib/get-auth-user';
  * POST /api/inventory/products/batch-upsert
  * 
  * Atomically processes multiple products - creates new ones or updates existing ones.
- * This prevents race conditions when processing multiple items from an invoice scan.
+ * Uses MongoDB's findOneAndUpdate with upsert:true for truly atomic operations.
  * 
  * Request body:
  * {
@@ -92,73 +92,95 @@ export async function POST(request) {
         const skus = Object.keys(consolidatedItems);
         console.log(`Processing ${skus.length} unique SKUs from ${items.length} items`);
 
-        // Fetch all existing products with these SKUs in one query
-        const existingProducts = await Product.find({
-            userId,
-            sku: { $in: skus }
-        });
-
-        // Create a map for quick lookup
-        const existingMap = {};
-        for (const product of existingProducts) {
-            existingMap[product.sku] = product;
-        }
-
         const results = [];
         const errors = [];
         let createdCount = 0;
         let updatedCount = 0;
 
-        // Process each consolidated item
+        // Process each consolidated item using atomic findOneAndUpdate with upsert
         for (const sku of skus) {
             const itemData = consolidatedItems[sku];
 
             try {
-                if (existingMap[sku]) {
-                    // Product exists - UPDATE (add to quantity)
-                    const existingProduct = existingMap[sku];
-                    const newQuantity = existingProduct.quantity + itemData.quantity;
+                // Build the $set object dynamically to avoid undefined values
+                const setFields = {
+                    updatedAt: new Date()
+                };
 
-                    const updatedProduct = await Product.findByIdAndUpdate(
-                        existingProduct._id,
-                        {
-                            quantity: newQuantity,
-                            // Update cost/price if new values are provided and valid
-                            cost: itemData.cost > 0 ? itemData.cost : existingProduct.cost,
-                            price: itemData.price > 0 ? itemData.price : existingProduct.price,
-                            // Update supplier info if provided
-                            supplier: itemData.supplier || existingProduct.supplier,
-                            updatedAt: new Date()
+                // Only set these if they have valid values
+                if (itemData.price > 0) {
+                    setFields.price = itemData.price;
+                }
+                if (itemData.cost > 0) {
+                    setFields.cost = itemData.cost;
+                }
+                if (itemData.supplier) {
+                    setFields.supplier = itemData.supplier;
+                }
+                if (itemData.hsnCode) {
+                    setFields.hsnCode = itemData.hsnCode;
+                }
+                if (itemData.expiryDate) {
+                    setFields.expiryDate = itemData.expiryDate;
+                }
+                // Also update name if provided (in case product name changed)
+                if (itemData.name) {
+                    setFields.name = itemData.name;
+                }
+
+                // Use findOneAndUpdate with upsert for atomic operation
+                // This prevents race conditions completely
+                const result = await Product.findOneAndUpdate(
+                    { userId, sku },
+                    {
+                        $setOnInsert: {
+                            userId,
+                            sku,
+                            description: itemData.description,
+                            category: itemData.category,
+                            shelf: itemData.shelf,
+                            createdAt: new Date()
                         },
-                        { new: true }
-                    );
+                        $set: setFields,
+                        $inc: {
+                            quantity: itemData.quantity
+                        }
+                    },
+                    {
+                        upsert: true,
+                        new: true,
+                        runValidators: true,
+                        setDefaultsOnInsert: true
+                    }
+                );
 
-                    results.push({
-                        sku,
-                        action: 'updated',
-                        product: updatedProduct,
-                        previousQuantity: existingProduct.quantity,
-                        addedQuantity: itemData.quantity,
-                        newQuantity: newQuantity
-                    });
-                    updatedCount++;
-                    console.log(`Updated SKU ${sku}: ${existingProduct.quantity} + ${itemData.quantity} = ${newQuantity}`);
-                } else {
-                    // Product doesn't exist - CREATE
-                    const newProduct = new Product({
-                        userId,
-                        ...itemData
-                    });
+                // Determine if this was a create or update by checking if quantity equals what we just added
+                // If product was newly created, its quantity will exactly match itemData.quantity
+                // If updated, quantity will be higher (existing + added)
+                const wasCreated = result.quantity === itemData.quantity;
 
-                    const savedProduct = await newProduct.save();
-
+                if (wasCreated) {
+                    // This was a new product
                     results.push({
                         sku,
                         action: 'created',
-                        product: savedProduct
+                        product: result
                     });
                     createdCount++;
-                    console.log(`Created new product with SKU ${sku}`);
+                    console.log(`Created new product with SKU ${sku}, quantity: ${result.quantity}`);
+                } else {
+                    // This was an update (quantity was incremented)
+                    const previousQuantity = result.quantity - itemData.quantity;
+                    results.push({
+                        sku,
+                        action: 'updated',
+                        product: result,
+                        previousQuantity: previousQuantity,
+                        addedQuantity: itemData.quantity,
+                        newQuantity: result.quantity
+                    });
+                    updatedCount++;
+                    console.log(`Updated SKU ${sku}: ${previousQuantity} + ${itemData.quantity} = ${result.quantity}`);
                 }
             } catch (error) {
                 console.error(`Error processing SKU ${sku}:`, error);
