@@ -3,6 +3,7 @@
 ## What Was Fixed
 Fixed the issue where uploading a new CSV would delete previous email history. Now all email campaigns and their logs are preserved.
 
+
 ## How It Works Now
 
 ### Before the Fix:
