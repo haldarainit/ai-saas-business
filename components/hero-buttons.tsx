@@ -31,7 +31,7 @@ export default function HeroButtons() {
                     >
                         <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0 dark:opacity-30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform translate-x-[-100%] group-hover:translate-x-[100%]"></div>
                         <Zap className="h-5 w-5 text-white relative z-10" />
-                        <span className="text-[15px] font-medium relative z-10">Get Started</span>
+                        <span className="text-[15px] font-medium relative z-10">Explore</span>
                     </Button>
                 ) : (
                     <Button

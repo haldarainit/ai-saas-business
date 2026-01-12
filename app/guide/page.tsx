@@ -135,15 +135,9 @@ export default function GuidePage() {
                             <StepList steps={[
                                 { step: 1, title: "Create Account", description: "Click 'Join' in the navbar and sign up with your email or Google account." },
                                 { step: 2, title: "Complete Profile", description: "Add your business details to personalize your experience." },
-                                { step: 3, title: "Explore Features", description: "Click 'Get Started' to see all available tools and select the one you need." },
+                                { step: 3, title: "Explore Features", description: "Click 'Explore' to see all available tools and select the one you need." },
                             ]} />
-                            <div className="mt-6">
-                                <Link href="/get-started">
-                                    <Button className="gap-2">
-                                        Explore All Features <ArrowRight className="w-4 h-4" />
-                                    </Button>
-                                </Link>
-                            </div>
+
                         </GuideSection>
 
                         {/* Inventory Management */}
@@ -171,13 +165,7 @@ export default function GuidePage() {
                                 { step: 2, title: "Add Products", description: "Enter your products with cost prices, selling prices, and stock quantities." },
                                 { step: 3, title: "Track Operations", description: "Record purchases, sales, and monitor profit margins in real-time." },
                             ]} />
-                            <div className="mt-6">
-                                <Link href="/inventory-management">
-                                    <Button className="gap-2">
-                                        Open Inventory <ArrowRight className="w-4 h-4" />
-                                    </Button>
-                                </Link>
-                            </div>
+
                         </GuideSection>
 
                         {/* Landing Page Builder */}
@@ -196,13 +184,7 @@ export default function GuidePage() {
                                 { step: 5, title: "Use Version History", description: "Undo/redo changes and switch between different versions of your design." },
                                 { step: 6, title: "Export & Deploy", description: "Download the code or deploy directly to your hosting." },
                             ]} />
-                            <div className="mt-6">
-                                <Link href="/landing-page-builder">
-                                    <Button className="gap-2">
-                                        Try Page Builder <ArrowRight className="w-4 h-4" />
-                                    </Button>
-                                </Link>
-                            </div>
+
                         </GuideSection>
 
                         {/* Email Automation */}
@@ -221,18 +203,7 @@ export default function GuidePage() {
                                 { step: 5, title: "Start Campaign", description: "Launch your campaign. Emails are sent at optimal intervals (max 50/day for deliverability)." },
                                 { step: 6, title: "Track Analytics", description: "Monitor open rates, clicks, and campaign performance in the analytics dashboard." },
                             ]} />
-                            <div className="mt-6 flex gap-3 flex-wrap">
-                                <Link href="/get-started/email-automation">
-                                    <Button className="gap-2">
-                                        Start Campaign <ArrowRight className="w-4 h-4" />
-                                    </Button>
-                                </Link>
-                                <Link href="/email-analytics">
-                                    <Button variant="outline" className="gap-2">
-                                        View Analytics
-                                    </Button>
-                                </Link>
-                            </div>
+
                         </GuideSection>
 
                         {/* Employee Management */}
@@ -266,13 +237,7 @@ export default function GuidePage() {
                                 { step: 3, title: "Mark Attendance", description: "Employees use their link to check-in/out daily - no app installation needed." },
                                 { step: 4, title: "Monitor Dashboard", description: "View attendance reports, approve leave requests, and track locations in real-time." },
                             ]} />
-                            <div className="mt-6">
-                                <Link href="/employee-management">
-                                    <Button className="gap-2">
-                                        Manage Employees <ArrowRight className="w-4 h-4" />
-                                    </Button>
-                                </Link>
-                            </div>
+
                         </GuideSection>
 
                         {/* Accounting */}
@@ -301,13 +266,7 @@ export default function GuidePage() {
                                 { step: 3, title: "Customize", description: "Add your logo, terms, and adjust the layout as needed." },
                                 { step: 4, title: "Generate & Share", description: "Download as PDF or send directly to your client." },
                             ]} />
-                            <div className="mt-6">
-                                <Link href="/accounting">
-                                    <Button className="gap-2">
-                                        Create Invoice <ArrowRight className="w-4 h-4" />
-                                    </Button>
-                                </Link>
-                            </div>
+
                         </GuideSection>
 
                         {/* AI Presentations */}
@@ -324,13 +283,7 @@ export default function GuidePage() {
                                 { step: 3, title: "Review & Edit", description: "Customize the content, reorder slides, or regenerate specific sections." },
                                 { step: 4, title: "Export to PowerPoint", description: "Download your presentation as a .pptx file ready to present." },
                             ]} />
-                            <div className="mt-6">
-                                <Link href="/presentations">
-                                    <Button className="gap-2">
-                                        Create Presentation <ArrowRight className="w-4 h-4" />
-                                    </Button>
-                                </Link>
-                            </div>
+
                         </GuideSection>
 
                         {/* Marketing AI */}
@@ -346,13 +299,7 @@ export default function GuidePage() {
                                 { step: 2, title: "AI Generates Strategy", description: "Get a complete marketing plan with channel recommendations and content ideas." },
                                 { step: 3, title: "Execute & Track", description: "Implement the suggestions and monitor performance." },
                             ]} />
-                            <div className="mt-6">
-                                <Link href="/marketing-ai">
-                                    <Button className="gap-2">
-                                        Plan Campaign <ArrowRight className="w-4 h-4" />
-                                    </Button>
-                                </Link>
-                            </div>
+
                         </GuideSection>
 
                         {/* Appointment Scheduling */}
@@ -369,20 +316,14 @@ export default function GuidePage() {
                                 { step: 3, title: "Share Booking Link", description: "Give clients your booking link for self-scheduling." },
                                 { step: 4, title: "Automatic Reminders", description: "Both you and your clients receive reminders before appointments." },
                             ]} />
-                            <div className="mt-6">
-                                <Link href="/appointment-scheduling">
-                                    <Button className="gap-2">
-                                        Setup Scheduling <ArrowRight className="w-4 h-4" />
-                                    </Button>
-                                </Link>
-                            </div>
+
                         </GuideSection>
 
                     </div>
                 </section>
 
                 {/* CTA Section */}
-                <section className="py-20 bg-muted/30">
+                {/* <section className="py-20 bg-muted/30">
                     <div className="container px-4 md:px-6">
                         <motion.div
                             initial={{ opacity: 0, y: 30 }}
@@ -395,15 +336,10 @@ export default function GuidePage() {
                             <p className="text-muted-foreground mb-8">
                                 Explore all our AI-powered business tools and transform the way you work.
                             </p>
-                            <Link href="/get-started">
-                                <Button size="lg" className="gap-2">
-                                    <Zap className="w-5 h-5" />
-                                    Explore All Features
-                                </Button>
-                            </Link>
+
                         </motion.div>
                     </div>
-                </section>
+                </section> */}
             </main>
 
             <Footer />

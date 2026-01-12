@@ -42,7 +42,7 @@ export default function Home() {
                 Click <span className="font-semibold text-foreground">Join</span> to create your account
                 <span className="mx-2">→</span>
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-medium">2</span>
-                Then click <span className="font-semibold text-foreground">Get Started</span> to access all services
+                Then click <span className="font-semibold text-foreground">Explore</span> to access all services
               </p>
             </div>
           </div>
