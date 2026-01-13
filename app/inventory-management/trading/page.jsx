@@ -5,10 +5,11 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine, Filter, X, ChevronDown, FileText, Loader2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine, Filter, X, ChevronDown, FileText, Loader2, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -40,6 +41,7 @@ export default function TradingInventory() {
     // Select and bulk delete state
     const [selectedProducts, setSelectedProducts] = useState([]);
     const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
 
     // Filter state
     const [showFilters, setShowFilters] = useState(false);
@@ -1913,6 +1915,14 @@ export default function TradingInventory() {
                                             Add to Sale ({selectedProducts.length})
                                         </Button>
                                         <Button
+                                            size="sm"
+                                            onClick={() => setShowDetailsModal(true)}
+                                            className="gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all"
+                                        >
+                                            <Eye className="h-4 w-4" />
+                                            Show Details ({selectedProducts.length})
+                                        </Button>
+                                        <Button
                                             variant="destructive"
                                             size="sm"
                                             onClick={() => setBulkDeleteDialogOpen(true)}
@@ -2143,6 +2153,317 @@ export default function TradingInventory() {
                         </Button>
                         <Button variant="destructive" onClick={confirmBulkDelete}>
                             Delete All ({selectedProducts.length})
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Product Details Modal */}
+            <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+                <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-hidden flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
+                        <DialogTitle className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                            <Eye className="h-5 w-5" />
+                            Product Details ({selectedProducts.length} {selectedProducts.length === 1 ? 'Product' : 'Products'})
+                        </DialogTitle>
+                        <DialogDescription>
+                            Viewing comprehensive details of selected products
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto max-h-[60vh] pr-4">
+                        <div className="space-y-6 py-4">
+                            {products
+                                .filter(p => selectedProducts.includes(p._id))
+                                .map((product, index) => {
+                                    // Calculate expiry info
+                                    const expiryDate = product.expiryDate ? new Date(product.expiryDate) : null;
+                                    const today = new Date();
+                                    const daysUntilExpiry = expiryDate ? Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24)) : null;
+                                    const isExpired = daysUntilExpiry !== null && daysUntilExpiry < 0;
+                                    const isExpiringSoon = daysUntilExpiry !== null && daysUntilExpiry >= 0 && daysUntilExpiry <= 15;
+
+                                    // Calculate profit
+                                    const unitProfit = (product.price || 0) - (product.cost || 0);
+                                    const totalProfit = unitProfit * (product.quantity || 0);
+                                    const profitMargin = product.price > 0 ? ((unitProfit / product.price) * 100) : 0;
+
+                                    return (
+                                        <Card
+                                            key={product._id}
+                                            className={`overflow-hidden border-l-4 ${isExpired ? 'border-l-red-500 bg-red-50/50 dark:bg-red-950/20' :
+                                                isExpiringSoon ? 'border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20' :
+                                                    'border-l-indigo-500'
+                                                }`}
+                                        >
+                                            <CardHeader className="pb-3">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex-1">
+                                                        <CardTitle className="text-lg flex items-center gap-2">
+                                                            <span className="text-muted-foreground text-sm font-normal">#{index + 1}</span>
+                                                            {product.name}
+                                                        </CardTitle>
+                                                        {product.description && (
+                                                            <CardDescription className="mt-1">{product.description}</CardDescription>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex gap-2 flex-wrap justify-end">
+                                                        {product.quantity <= 0 && (
+                                                            <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400">
+                                                                Out of Stock
+                                                            </Badge>
+                                                        )}
+                                                        {product.quantity > 0 && product.quantity <= 10 && (
+                                                            <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400">
+                                                                Low Stock
+                                                            </Badge>
+                                                        )}
+                                                        {isExpired && (
+                                                            <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400">
+                                                                Expired
+                                                            </Badge>
+                                                        )}
+                                                        {isExpiringSoon && !isExpired && (
+                                                            <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400">
+                                                                Expires in {daysUntilExpiry} days
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                                {/* Basic Info Grid */}
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                    <div className="space-y-1 min-w-0">
+                                                        <p className="text-xs text-muted-foreground uppercase tracking-wide">SKU</p>
+                                                        <p className="font-medium text-sm break-all">{product.sku || 'N/A'}</p>
+                                                    </div>
+                                                    <div className="space-y-1 min-w-0">
+                                                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Category</p>
+                                                        <p className="font-medium text-sm break-words">{product.category || 'Uncategorized'}</p>
+                                                    </div>
+                                                    <div className="space-y-1 min-w-0">
+                                                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Shelf Location</p>
+                                                        <p className="font-medium text-sm">
+                                                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary border border-primary/20">
+                                                                {product.shelf || 'Default'}
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                    <div className="space-y-1 min-w-0">
+                                                        <p className="text-xs text-muted-foreground uppercase tracking-wide">In Stock</p>
+                                                        <p className={`font-bold text-sm ${product.quantity <= 0 ? 'text-red-600' : product.quantity <= 10 ? 'text-amber-600' : 'text-green-600'}`}>
+                                                            {product.quantity || 0} units
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Pricing Info */}
+                                                <div className="bg-muted/50 rounded-lg p-4">
+                                                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                                        <DollarSign className="h-4 w-4 text-green-600" />
+                                                        Pricing Information
+                                                    </h4>
+                                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                                        <div className="space-y-1 min-w-0">
+                                                            <p className="text-xs text-muted-foreground">Cost Price</p>
+                                                            <p className="font-semibold text-sm">₹{(product.cost || 0).toFixed(2)}</p>
+                                                        </div>
+                                                        <div className="space-y-1 min-w-0">
+                                                            <p className="text-xs text-muted-foreground">Selling Price</p>
+                                                            <p className="font-semibold text-sm">₹{(product.price || 0).toFixed(2)}</p>
+                                                        </div>
+                                                        <div className="space-y-1 min-w-0">
+                                                            <p className="text-xs text-muted-foreground">Unit Profit</p>
+                                                            <p className={`font-semibold text-sm ${unitProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                {unitProfit >= 0 ? '+' : ''}₹{unitProfit.toFixed(2)}
+                                                            </p>
+                                                        </div>
+                                                        <div className="space-y-1 min-w-0">
+                                                            <p className="text-xs text-muted-foreground">Total Profit</p>
+                                                            <p className={`font-semibold text-sm ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                {totalProfit >= 0 ? '+' : ''}₹{totalProfit.toFixed(2)}
+                                                            </p>
+                                                        </div>
+                                                        <div className="space-y-1 min-w-0">
+                                                            <p className="text-xs text-muted-foreground">Profit Margin</p>
+                                                            <p className={`font-semibold text-sm ${profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                {profitMargin.toFixed(1)}%
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="mt-3 pt-3 border-t border-muted">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-sm text-muted-foreground">Total Stock Value</span>
+                                                            <span className="font-bold text-lg text-primary">
+                                                                ₹{((product.price || 0) * (product.quantity || 0)).toFixed(2)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Supplier & Tax Info */}
+                                                {(product.supplier || product.hsnCode || product.gstPercentage > 0) && (
+                                                    <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-4">
+                                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                                            <FileText className="h-4 w-4 text-blue-600" />
+                                                            Supplier & Tax Information
+                                                        </h4>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            {product.supplier && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">Supplier</p>
+                                                                    <p className="font-medium text-sm break-words">{product.supplier}</p>
+                                                                </div>
+                                                            )}
+                                                            {product.supplierContact && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">Supplier Contact</p>
+                                                                    <p className="font-medium text-sm break-all">{product.supplierContact}</p>
+                                                                </div>
+                                                            )}
+                                                            {product.hsnCode && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">HSN Code</p>
+                                                                    <Badge variant="outline" className="text-xs">
+                                                                        {product.hsnCode}
+                                                                    </Badge>
+                                                                </div>
+                                                            )}
+                                                            {product.gstPercentage > 0 && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">GST Rate</p>
+                                                                    <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400">
+                                                                        {product.gstPercentage}%
+                                                                    </Badge>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Expiry Info */}
+                                                {expiryDate && (
+                                                    <div className={`rounded-lg p-4 ${isExpired ? 'bg-red-50 dark:bg-red-950/30' :
+                                                        isExpiringSoon ? 'bg-amber-50 dark:bg-amber-950/30' :
+                                                            'bg-green-50 dark:bg-green-950/30'
+                                                        }`}>
+                                                        <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                                                            <AlertTriangle className={`h-4 w-4 ${isExpired ? 'text-red-600' :
+                                                                isExpiringSoon ? 'text-amber-600' :
+                                                                    'text-green-600'
+                                                                }`} />
+                                                            Expiry Information
+                                                        </h4>
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <p className="text-xs text-muted-foreground">Expiry Date</p>
+                                                                <p className="font-medium">{expiryDate.toLocaleDateString('en-IN', {
+                                                                    day: '2-digit',
+                                                                    month: 'short',
+                                                                    year: 'numeric'
+                                                                })}</p>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className={`text-lg font-bold ${isExpired ? 'text-red-600' :
+                                                                    isExpiringSoon ? 'text-amber-600' :
+                                                                        'text-green-600'
+                                                                    }`}>
+                                                                    {isExpired
+                                                                        ? `Expired ${Math.abs(daysUntilExpiry)} days ago`
+                                                                        : `${daysUntilExpiry} days remaining`
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Timestamps */}
+                                                <div className="flex justify-between text-xs text-muted-foreground pt-2 border-t">
+                                                    {product.createdAt && (
+                                                        <span>
+                                                            Created: {new Date(product.createdAt).toLocaleDateString('en-IN', {
+                                                                day: '2-digit',
+                                                                month: 'short',
+                                                                year: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}
+                                                        </span>
+                                                    )}
+                                                    {product.updatedAt && (
+                                                        <span>
+                                                            Last Updated: {new Date(product.updatedAt).toLocaleDateString('en-IN', {
+                                                                day: '2-digit',
+                                                                month: 'short',
+                                                                year: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
+                        </div>
+                    </div>
+
+                    {/* Summary Footer */}
+                    <div className="flex-shrink-0 pt-4 border-t bg-muted/30 -mx-6 px-6 -mb-6 pb-6 rounded-b-lg">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase">Total Products</p>
+                                <p className="text-xl font-bold text-primary">{selectedProducts.length}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase">Total Stock</p>
+                                <p className="text-xl font-bold text-blue-600">
+                                    {products
+                                        .filter(p => selectedProducts.includes(p._id))
+                                        .reduce((sum, p) => sum + (p.quantity || 0), 0)} units
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase">Total Value</p>
+                                <p className="text-xl font-bold text-green-600">
+                                    ₹{products
+                                        .filter(p => selectedProducts.includes(p._id))
+                                        .reduce((sum, p) => sum + ((p.price || 0) * (p.quantity || 0)), 0)
+                                        .toFixed(2)}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase">Total Profit</p>
+                                <p className={`text-xl font-bold ${products
+                                    .filter(p => selectedProducts.includes(p._id))
+                                    .reduce((sum, p) => sum + (((p.price || 0) - (p.cost || 0)) * (p.quantity || 0)), 0) >= 0
+                                    ? 'text-emerald-600' : 'text-red-600'
+                                    }`}>
+                                    ₹{products
+                                        .filter(p => selectedProducts.includes(p._id))
+                                        .reduce((sum, p) => sum + (((p.price || 0) - (p.cost || 0)) * (p.quantity || 0)), 0)
+                                        .toFixed(2)}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button variant="outline" onClick={() => setShowDetailsModal(false)}>
+                            Close
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setShowDetailsModal(false);
+                                addSelectedToSale();
+                            }}
+                            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                        >
+                            <ShoppingCart className="h-4 w-4 mr-2" />
+                            Add to Sale
                         </Button>
                     </div>
                 </DialogContent>

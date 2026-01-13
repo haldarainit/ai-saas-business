@@ -95,6 +95,7 @@ export default function ManufacturingInventory() {
     const [selectedManufacturingProducts, setSelectedManufacturingProducts] = useState([]);
     const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
     const [bulkDeleteType, setBulkDeleteType] = useState(''); // 'raw-material' or 'product'
+    const [showRawMaterialsDetailsModal, setShowRawMaterialsDetailsModal] = useState(false);
 
     // Payment confirmation state
     const [showPaymentConfirmDialog, setShowPaymentConfirmDialog] = useState(false);
@@ -1511,14 +1512,24 @@ export default function ManufacturingInventory() {
                                 Add Raw Material
                             </Button>
                             {selectedRawMaterials.length > 0 && (
-                                <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => openBulkDeleteDialog('raw-material')}
-                                >
-                                    <Trash2 className="h-4 w-4 mr-1" />
-                                    Delete ({selectedRawMaterials.length})
-                                </Button>
+                                <>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => setShowRawMaterialsDetailsModal(true)}
+                                        className="gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all"
+                                    >
+                                        <Eye className="h-4 w-4" />
+                                        Show Details ({selectedRawMaterials.length})
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => openBulkDeleteDialog('raw-material')}
+                                    >
+                                        <Trash2 className="h-4 w-4 mr-1" />
+                                        Delete ({selectedRawMaterials.length})
+                                    </Button>
+                                </>
                             )}
                         </div>
                     </div>
@@ -3355,6 +3366,289 @@ export default function ManufacturingInventory() {
                             Close
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Raw Materials Details Modal */}
+            <Dialog open={showRawMaterialsDetailsModal} onOpenChange={setShowRawMaterialsDetailsModal}>
+                <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-hidden flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
+                        <DialogTitle className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                            <Eye className="h-5 w-5" />
+                            Raw Material Details ({selectedRawMaterials.length} {selectedRawMaterials.length === 1 ? 'Material' : 'Materials'})
+                        </DialogTitle>
+                        <DialogDescription>
+                            Viewing comprehensive details of selected raw materials
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto max-h-[60vh] pr-4">
+                        <div className="space-y-6 py-4">
+                            {rawMaterials
+                                .filter(m => selectedRawMaterials.includes(m._id))
+                                .map((material, index) => {
+                                    // Calculate expiry info
+                                    const expiryDate = material.expiryDate ? new Date(material.expiryDate) : null;
+                                    const today = new Date();
+                                    const daysUntilExpiry = expiryDate ? Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24)) : null;
+                                    const isExpired = daysUntilExpiry !== null && daysUntilExpiry < 0;
+                                    const isExpiringSoon = daysUntilExpiry !== null && daysUntilExpiry >= 0 && daysUntilExpiry <= 15;
+
+                                    // Calculate stock status
+                                    const isLowStock = material.quantity <= material.minimumStock;
+                                    const isOutOfStock = material.quantity <= 0;
+
+                                    // Calculate value
+                                    const totalValue = (material.costPerUnit || 0) * (material.quantity || 0);
+
+                                    return (
+                                        <Card
+                                            key={material._id}
+                                            className={`overflow-hidden border-l-4 ${isExpired ? 'border-l-red-500 bg-red-50/50 dark:bg-red-950/20' :
+                                                isExpiringSoon ? 'border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20' :
+                                                    isOutOfStock ? 'border-l-red-500 bg-red-50/50 dark:bg-red-950/20' :
+                                                        isLowStock ? 'border-l-orange-500 bg-orange-50/50 dark:bg-orange-950/20' :
+                                                            'border-l-indigo-500'
+                                                }`}
+                                        >
+                                            <CardHeader className="pb-3">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex-1">
+                                                        <CardTitle className="text-lg flex items-center gap-2">
+                                                            <span className="text-muted-foreground text-sm font-normal">#{index + 1}</span>
+                                                            {material.name}
+                                                        </CardTitle>
+                                                        {material.description && (
+                                                            <CardDescription className="mt-1">{material.description}</CardDescription>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex gap-2 flex-wrap justify-end">
+                                                        {isOutOfStock && (
+                                                            <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400">
+                                                                Out of Stock
+                                                            </Badge>
+                                                        )}
+                                                        {!isOutOfStock && isLowStock && (
+                                                            <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:text-orange-400">
+                                                                Low Stock
+                                                            </Badge>
+                                                        )}
+                                                        {isExpired && (
+                                                            <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400">
+                                                                Expired
+                                                            </Badge>
+                                                        )}
+                                                        {isExpiringSoon && !isExpired && (
+                                                            <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400">
+                                                                Expires in {daysUntilExpiry} days
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                                {/* Basic Info Grid */}
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                    <div className="space-y-1 min-w-0">
+                                                        <p className="text-xs text-muted-foreground uppercase tracking-wide">SKU</p>
+                                                        <p className="font-medium text-sm break-all">{material.sku || 'N/A'}</p>
+                                                    </div>
+                                                    <div className="space-y-1 min-w-0">
+                                                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Category</p>
+                                                        <p className="font-medium text-sm break-words">{material.category || 'Uncategorized'}</p>
+                                                    </div>
+                                                    <div className="space-y-1 min-w-0">
+                                                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Shelf Location</p>
+                                                        <p className="font-medium text-sm">
+                                                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary border border-primary/20">
+                                                                {material.shelf || 'Default'}
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                    <div className="space-y-1 min-w-0">
+                                                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Unit</p>
+                                                        <p className="font-medium text-sm">{material.unit || 'pcs'}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Stock & Pricing Info */}
+                                                <div className="bg-muted/50 rounded-lg p-4">
+                                                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                                        <DollarSign className="h-4 w-4 text-green-600" />
+                                                        Stock & Pricing Information
+                                                    </h4>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        <div className="space-y-1 min-w-0">
+                                                            <p className="text-xs text-muted-foreground">Cost Per Unit</p>
+                                                            <p className="font-semibold text-sm">₹{(material.costPerUnit || 0).toFixed(2)}</p>
+                                                        </div>
+                                                        <div className="space-y-1 min-w-0">
+                                                            <p className="text-xs text-muted-foreground">In Stock</p>
+                                                            <p className={`font-bold text-sm ${isOutOfStock ? 'text-red-600' : isLowStock ? 'text-orange-600' : 'text-green-600'}`}>
+                                                                {material.quantity || 0} {material.unit}
+                                                            </p>
+                                                        </div>
+                                                        <div className="space-y-1 min-w-0">
+                                                            <p className="text-xs text-muted-foreground">Minimum Stock</p>
+                                                            <p className="font-medium text-sm">{material.minimumStock || 10} {material.unit}</p>
+                                                        </div>
+                                                        <div className="space-y-1 min-w-0">
+                                                            <p className="text-xs text-muted-foreground">Total Value</p>
+                                                            <p className="font-bold text-sm text-primary">₹{totalValue.toFixed(2)}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Supplier & Tax Info */}
+                                                {(material.supplier || material.hsnCode || material.gstPercentage > 0) && (
+                                                    <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-4">
+                                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                                            <Factory className="h-4 w-4 text-blue-600" />
+                                                            Supplier & Tax Information
+                                                        </h4>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            {material.supplier && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">Supplier</p>
+                                                                    <p className="font-medium text-sm break-words">{material.supplier}</p>
+                                                                </div>
+                                                            )}
+                                                            {material.supplierContact && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">Supplier Contact</p>
+                                                                    <p className="font-medium text-sm break-all">{material.supplierContact}</p>
+                                                                </div>
+                                                            )}
+                                                            {material.hsnCode && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">HSN Code</p>
+                                                                    <Badge variant="outline" className="text-xs">
+                                                                        {material.hsnCode}
+                                                                    </Badge>
+                                                                </div>
+                                                            )}
+                                                            {material.gstPercentage > 0 && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">GST Rate</p>
+                                                                    <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400">
+                                                                        {material.gstPercentage}%
+                                                                    </Badge>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Expiry Info */}
+                                                {expiryDate && (
+                                                    <div className={`rounded-lg p-4 ${isExpired ? 'bg-red-50 dark:bg-red-950/30' :
+                                                        isExpiringSoon ? 'bg-amber-50 dark:bg-amber-950/30' :
+                                                            'bg-green-50 dark:bg-green-950/30'
+                                                        }`}>
+                                                        <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                                                            <AlertTriangle className={`h-4 w-4 ${isExpired ? 'text-red-600' :
+                                                                isExpiringSoon ? 'text-amber-600' :
+                                                                    'text-green-600'
+                                                                }`} />
+                                                            Expiry Information
+                                                        </h4>
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <p className="text-xs text-muted-foreground">Expiry Date</p>
+                                                                <p className="font-medium">{expiryDate.toLocaleDateString('en-IN', {
+                                                                    day: '2-digit',
+                                                                    month: 'short',
+                                                                    year: 'numeric'
+                                                                })}</p>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className={`text-lg font-bold ${isExpired ? 'text-red-600' :
+                                                                    isExpiringSoon ? 'text-amber-600' :
+                                                                        'text-green-600'
+                                                                    }`}>
+                                                                    {isExpired
+                                                                        ? `Expired ${Math.abs(daysUntilExpiry)} days ago`
+                                                                        : `${daysUntilExpiry} days remaining`
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Timestamps */}
+                                                <div className="flex justify-between text-xs text-muted-foreground pt-2 border-t">
+                                                    {material.createdAt && (
+                                                        <span>
+                                                            Created: {new Date(material.createdAt).toLocaleDateString('en-IN', {
+                                                                day: '2-digit',
+                                                                month: 'short',
+                                                                year: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}
+                                                        </span>
+                                                    )}
+                                                    {material.updatedAt && (
+                                                        <span>
+                                                            Last Updated: {new Date(material.updatedAt).toLocaleDateString('en-IN', {
+                                                                day: '2-digit',
+                                                                month: 'short',
+                                                                year: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
+                        </div>
+                    </div>
+
+                    {/* Summary Footer */}
+                    <div className="flex-shrink-0 pt-4 border-t bg-muted/30 -mx-6 px-6 -mb-6 pb-6 rounded-b-lg">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase">Total Materials</p>
+                                <p className="text-xl font-bold text-primary">{selectedRawMaterials.length}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase">Total Stock</p>
+                                <p className="text-xl font-bold text-blue-600">
+                                    {rawMaterials
+                                        .filter(m => selectedRawMaterials.includes(m._id))
+                                        .reduce((sum, m) => sum + (m.quantity || 0), 0).toFixed(2)}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase">Total Value</p>
+                                <p className="text-xl font-bold text-green-600">
+                                    ₹{rawMaterials
+                                        .filter(m => selectedRawMaterials.includes(m._id))
+                                        .reduce((sum, m) => sum + ((m.costPerUnit || 0) * (m.quantity || 0)), 0)
+                                        .toFixed(2)}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase">Low Stock Items</p>
+                                <p className="text-xl font-bold text-orange-600">
+                                    {rawMaterials
+                                        .filter(m => selectedRawMaterials.includes(m._id))
+                                        .filter(m => m.quantity <= m.minimumStock)
+                                        .length}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button variant="outline" onClick={() => setShowRawMaterialsDetailsModal(false)}>
+                            Close
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
 
