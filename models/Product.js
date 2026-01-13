@@ -57,6 +57,26 @@ const productSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  supplierContact: {
+    type: String,
+    default: ''
+  },
+  hsnCode: {
+    type: String,
+    default: ''
+  },
+  gstPercentage: {
+    type: Number,
+    default: 0
+  },
+  invoiceNumber: {
+    type: String,
+    default: ''
+  },
+  invoiceDate: {
+    type: Date,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -72,12 +92,12 @@ const productSchema = new mongoose.Schema({
 });
 
 // Calculate profit (virtual field)
-productSchema.virtual('profit').get(function() {
+productSchema.virtual('profit').get(function () {
   return (this.price - this.cost) * this.quantity;
 });
 
 // Virtual for checking if product is about to expire
-productSchema.virtual('isAboutToExpire').get(function() {
+productSchema.virtual('isAboutToExpire').get(function () {
   if (!this.expiryDate) return false;
   const expiry = new Date(this.expiryDate);
   const today = new Date();
@@ -86,7 +106,7 @@ productSchema.virtual('isAboutToExpire').get(function() {
 });
 
 // Virtual for checking if product is expired
-productSchema.virtual('isExpired').get(function() {
+productSchema.virtual('isExpired').get(function () {
   if (!this.expiryDate) return false;
   return new Date(this.expiryDate) < new Date();
 });
@@ -97,13 +117,13 @@ productSchema.index({ userId: 1 });
 productSchema.index({ name: 'text', description: 'text' });
 
 // Middleware for validation
-productSchema.pre('save', function(next) {
+productSchema.pre('save', function (next) {
   console.log('Saving product:', this);
   next();
 });
 
 // Error handling middleware
-productSchema.post('save', function(error, doc, next) {
+productSchema.post('save', function (error, doc, next) {
   if (error.name === 'MongoServerError' && error.code === 11000) {
     next(new Error('A product with this SKU already exists'));
   } else {
@@ -112,13 +132,13 @@ productSchema.post('save', function(error, doc, next) {
 });
 
 // Static method to find products expiring soon for a specific user
-productSchema.statics.findExpiringSoon = function(userId, days = 15) {
+productSchema.statics.findExpiringSoon = function (userId, days = 15) {
   const futureDate = new Date();
   futureDate.setDate(futureDate.getDate() + days);
   return this.find({
     userId: userId,
-    expiryDate: { 
-      $exists: true, 
+    expiryDate: {
+      $exists: true,
       $ne: null,
       $gte: new Date(),
       $lte: futureDate
@@ -146,7 +166,7 @@ if (process.env.NODE_ENV === 'development') {
     try {
       await dbConnect();
       console.log('Product model connected to MongoDB');
-      
+
       // Test query to verify the model works
       const count = await Product.countDocuments();
       console.log(`Product model test: Found ${count} products in the database`);

@@ -365,6 +365,7 @@ export default function ManufacturingInventory() {
                 supplier: supplierInfo?.name || item.supplier || '',
                 supplierContact: supplierInfo?.contact || item.supplierContact || '',
                 hsnCode: item.hsnCode || '',
+                gstPercentage: parseFloat(item.gstPercentage) || 0,
                 expiryDate: item.expiryDate || null
             };
         });
@@ -1579,6 +1580,18 @@ export default function ManufacturingInventory() {
                                                     {material.supplier && (
                                                         <div className="text-xs text-muted-foreground">Supplier: {material.supplier}</div>
                                                     )}
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {material.hsnCode && (
+                                                            <Badge variant="outline" className="text-[10px] px-1 py-0 font-normal">
+                                                                HSN: {material.hsnCode}
+                                                            </Badge>
+                                                        )}
+                                                        {material.gstPercentage > 0 && (
+                                                            <Badge variant="outline" className="text-[10px] px-1 py-0 font-normal text-amber-600 border-amber-300">
+                                                                GST: {material.gstPercentage}%
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-center">{material.sku}</TableCell>

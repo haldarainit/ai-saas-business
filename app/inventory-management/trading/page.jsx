@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine, Filter, X, ChevronDown, FileText, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -752,6 +753,21 @@ export default function TradingInventory() {
                                 <TableCell className="font-medium">
                                     <div className="flex flex-col">
                                         <span>{product.name}</span>
+                                        {product.supplier && (
+                                            <span className="text-xs text-muted-foreground">Supplier: {product.supplier}</span>
+                                        )}
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {product.hsnCode && (
+                                                <Badge variant="outline" className="text-[10px] px-1 py-0 font-normal">
+                                                    HSN: {product.hsnCode}
+                                                </Badge>
+                                            )}
+                                            {product.gstPercentage > 0 && (
+                                                <Badge variant="outline" className="text-[10px] px-1 py-0 font-normal text-amber-600 border-amber-300">
+                                                    GST: {product.gstPercentage}%
+                                                </Badge>
+                                            )}
+                                        </div>
                                         {renderExpiryBadge(product)}
                                     </div>
                                 </TableCell>
@@ -1157,7 +1173,9 @@ export default function TradingInventory() {
                 quantity: parseInt(item.quantity, 10) || 0,
                 shelf: item.shelf || 'Default',
                 supplier: supplierInfo?.name || item.supplier || '',
+                supplierContact: supplierInfo?.contact || item.supplierContact || '',
                 hsnCode: item.hsnCode || '',
+                gstPercentage: parseFloat(item.gstPercentage) || 0,
                 expiryDate: item.expiryDate || null
             };
         });

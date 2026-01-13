@@ -83,7 +83,9 @@ export async function POST(request) {
                     quantity: parseInt(item.quantity, 10) || 0,
                     shelf: item.shelf || 'Default',
                     supplier: item.supplier ? String(item.supplier).trim() : '',
+                    supplierContact: item.supplierContact ? String(item.supplierContact).trim() : '',
                     hsnCode: item.hsnCode ? String(item.hsnCode).trim() : '',
+                    gstPercentage: parseFloat(item.gstPercentage) || 0,
                     expiryDate: item.expiryDate ? new Date(item.expiryDate) : null
                 };
             }
@@ -117,8 +119,14 @@ export async function POST(request) {
                 if (itemData.supplier) {
                     setFields.supplier = itemData.supplier;
                 }
+                if (itemData.supplierContact) {
+                    setFields.supplierContact = itemData.supplierContact;
+                }
                 if (itemData.hsnCode) {
                     setFields.hsnCode = itemData.hsnCode;
+                }
+                if (itemData.gstPercentage > 0) {
+                    setFields.gstPercentage = itemData.gstPercentage;
                 }
                 if (itemData.expiryDate) {
                     setFields.expiryDate = itemData.expiryDate;

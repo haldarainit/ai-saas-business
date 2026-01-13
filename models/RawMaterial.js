@@ -66,6 +66,22 @@ const rawMaterialSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    hsnCode: {
+        type: String,
+        default: ''
+    },
+    gstPercentage: {
+        type: Number,
+        default: 0
+    },
+    invoiceNumber: {
+        type: String,
+        default: ''
+    },
+    invoiceDate: {
+        type: Date,
+        default: null
+    },
     lastPurchaseDate: {
         type: Date,
         default: null
