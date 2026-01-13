@@ -6,6 +6,7 @@ This project now supports triggering email campaign processing via an external H
 
 - Internal cron via `node-cron` is disabled by default on Vercel.
 - A secure HTTP endpoint is available at `/api/cron/email-campaign`.
+- 
 - Use `cron-job.org` (or any scheduler) to call this endpoint on a schedule.
 
 ## Environment Variables Setup
