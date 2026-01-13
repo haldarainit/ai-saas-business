@@ -55,6 +55,8 @@ USER INPUT
     ▼
 GENERATE STRATEGIES API
     │
+
+
     ├─► For each URL:
     │   │
     │   ├─► SCRAPE WEBSITE API
