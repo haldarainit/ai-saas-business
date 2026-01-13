@@ -89,7 +89,11 @@ export async function POST(request) {
                     supplierContact: item.supplierContact ? String(item.supplierContact).trim() : '',
                     hsnCode: item.hsnCode ? String(item.hsnCode).trim() : '',
                     gstPercentage: parseFloat(item.gstPercentage) || 0,
-                    expiryDate: item.expiryDate ? new Date(item.expiryDate) : null
+                    expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
+                    invoiceNumber: item.invoiceNumber ? String(item.invoiceNumber).trim() : '',
+                    invoiceDate: item.invoiceDate ? new Date(item.invoiceDate) : null,
+                    lastPurchaseDate: new Date(),
+                    lastPurchasePrice: parseFloat(item.costPerUnit) || 0
                 };
             }
         }
@@ -136,6 +140,12 @@ export async function POST(request) {
                             // Update HSN code and GST percentage if provided
                             hsnCode: itemData.hsnCode || existingMaterial.hsnCode,
                             gstPercentage: itemData.gstPercentage > 0 ? itemData.gstPercentage : existingMaterial.gstPercentage,
+                            // Update invoice info if provided
+                            invoiceNumber: itemData.invoiceNumber || existingMaterial.invoiceNumber,
+                            invoiceDate: itemData.invoiceDate || existingMaterial.invoiceDate,
+                            // Update purchase tracking
+                            lastPurchaseDate: new Date(),
+                            lastPurchasePrice: itemData.costPerUnit > 0 ? itemData.costPerUnit : existingMaterial.lastPurchasePrice,
                             updatedAt: new Date()
                         },
                         { new: true }

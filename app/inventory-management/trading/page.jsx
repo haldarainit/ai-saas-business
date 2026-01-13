@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine, Filter, X, ChevronDown, FileText, Loader2, Eye } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign, TrendingUp, Activity, Upload, Factory, ShoppingCart, ArrowLeft, ScanLine, Filter, X, ChevronDown, FileText, Loader2, Eye, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -1178,7 +1178,9 @@ export default function TradingInventory() {
                 supplierContact: supplierInfo?.contact || item.supplierContact || '',
                 hsnCode: item.hsnCode || '',
                 gstPercentage: parseFloat(item.gstPercentage) || 0,
-                expiryDate: item.expiryDate || null
+                expiryDate: item.expiryDate || null,
+                invoiceNumber: supplierInfo?.invoiceNumber || '',
+                invoiceDate: supplierInfo?.invoiceDate || null
             };
         });
 
@@ -2303,7 +2305,7 @@ export default function TradingInventory() {
                                                 </div>
 
                                                 {/* Supplier & Tax Info */}
-                                                {(product.supplier || product.hsnCode || product.gstPercentage > 0) && (
+                                                {(product.supplier || product.supplierContact || product.hsnCode || product.gstPercentage > 0) && (
                                                     <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-4">
                                                         <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                                                             <FileText className="h-4 w-4 text-blue-600" />
@@ -2325,7 +2327,7 @@ export default function TradingInventory() {
                                                             {product.hsnCode && (
                                                                 <div className="space-y-1 min-w-0">
                                                                     <p className="text-xs text-muted-foreground">HSN Code</p>
-                                                                    <Badge variant="outline" className="text-xs">
+                                                                    <Badge variant="outline" className="text-xs bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600">
                                                                         {product.hsnCode}
                                                                     </Badge>
                                                                 </div>
@@ -2333,9 +2335,41 @@ export default function TradingInventory() {
                                                             {product.gstPercentage > 0 && (
                                                                 <div className="space-y-1 min-w-0">
                                                                     <p className="text-xs text-muted-foreground">GST Rate</p>
-                                                                    <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400">
+                                                                    <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-400 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-600">
                                                                         {product.gstPercentage}%
                                                                     </Badge>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Invoice Info */}
+                                                {(product.invoiceNumber || product.invoiceDate) && (
+                                                    <div className="bg-purple-50/50 dark:bg-purple-950/20 rounded-lg p-4">
+                                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                                            <Receipt className="h-4 w-4 text-purple-600" />
+                                                            Invoice Information
+                                                        </h4>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            {product.invoiceNumber && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">Invoice Number</p>
+                                                                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-400">
+                                                                        {product.invoiceNumber}
+                                                                    </Badge>
+                                                                </div>
+                                                            )}
+                                                            {product.invoiceDate && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">Invoice Date</p>
+                                                                    <p className="font-medium text-sm">
+                                                                        {new Date(product.invoiceDate).toLocaleDateString('en-IN', {
+                                                                            day: '2-digit',
+                                                                            month: 'short',
+                                                                            year: 'numeric'
+                                                                        })}
+                                                                    </p>
                                                                 </div>
                                                             )}
                                                         </div>

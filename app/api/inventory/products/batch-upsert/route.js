@@ -86,7 +86,9 @@ export async function POST(request) {
                     supplierContact: item.supplierContact ? String(item.supplierContact).trim() : '',
                     hsnCode: item.hsnCode ? String(item.hsnCode).trim() : '',
                     gstPercentage: parseFloat(item.gstPercentage) || 0,
-                    expiryDate: item.expiryDate ? new Date(item.expiryDate) : null
+                    expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
+                    invoiceNumber: item.invoiceNumber ? String(item.invoiceNumber).trim() : '',
+                    invoiceDate: item.invoiceDate ? new Date(item.invoiceDate) : null
                 };
             }
         }
@@ -130,6 +132,12 @@ export async function POST(request) {
                 }
                 if (itemData.expiryDate) {
                     setFields.expiryDate = itemData.expiryDate;
+                }
+                if (itemData.invoiceNumber) {
+                    setFields.invoiceNumber = itemData.invoiceNumber;
+                }
+                if (itemData.invoiceDate) {
+                    setFields.invoiceDate = itemData.invoiceDate;
                 }
                 // Also update name if provided (in case product name changed)
                 if (itemData.name) {

@@ -367,7 +367,9 @@ export default function ManufacturingInventory() {
                 supplierContact: supplierInfo?.contact || item.supplierContact || '',
                 hsnCode: item.hsnCode || '',
                 gstPercentage: parseFloat(item.gstPercentage) || 0,
-                expiryDate: item.expiryDate || null
+                expiryDate: item.expiryDate || null,
+                invoiceNumber: supplierInfo?.invoiceNumber || '',
+                invoiceDate: supplierInfo?.invoiceDate || null
             };
         });
 
@@ -3500,7 +3502,7 @@ export default function ManufacturingInventory() {
                                                 </div>
 
                                                 {/* Supplier & Tax Info */}
-                                                {(material.supplier || material.hsnCode || material.gstPercentage > 0) && (
+                                                {(material.supplier || material.supplierContact || material.hsnCode || material.gstPercentage > 0) && (
                                                     <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-4">
                                                         <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                                                             <Factory className="h-4 w-4 text-blue-600" />
@@ -3533,6 +3535,58 @@ export default function ManufacturingInventory() {
                                                                     <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400">
                                                                         {material.gstPercentage}%
                                                                     </Badge>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Invoice & Purchase Info */}
+                                                {(material.invoiceNumber || material.invoiceDate || material.lastPurchaseDate || material.lastPurchasePrice > 0) && (
+                                                    <div className="bg-purple-50/50 dark:bg-purple-950/20 rounded-lg p-4">
+                                                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                                            <Receipt className="h-4 w-4 text-purple-600" />
+                                                            Invoice & Purchase Information
+                                                        </h4>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            {material.invoiceNumber && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">Invoice Number</p>
+                                                                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-400">
+                                                                        {material.invoiceNumber}
+                                                                    </Badge>
+                                                                </div>
+                                                            )}
+                                                            {material.invoiceDate && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">Invoice Date</p>
+                                                                    <p className="font-medium text-sm">
+                                                                        {new Date(material.invoiceDate).toLocaleDateString('en-IN', {
+                                                                            day: '2-digit',
+                                                                            month: 'short',
+                                                                            year: 'numeric'
+                                                                        })}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                            {material.lastPurchaseDate && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">Last Purchase Date</p>
+                                                                    <p className="font-medium text-sm">
+                                                                        {new Date(material.lastPurchaseDate).toLocaleDateString('en-IN', {
+                                                                            day: '2-digit',
+                                                                            month: 'short',
+                                                                            year: 'numeric'
+                                                                        })}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                            {material.lastPurchasePrice > 0 && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">Last Purchase Price</p>
+                                                                    <p className="font-semibold text-sm text-purple-600 dark:text-purple-400">
+                                                                        ₹{material.lastPurchasePrice.toFixed(2)} / {material.unit}
+                                                                    </p>
                                                                 </div>
                                                             )}
                                                         </div>

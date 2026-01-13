@@ -319,7 +319,13 @@ export default function InvoiceScanner({
 
     const handleConfirm = () => {
         if (editedItems.length > 0) {
-            onProductsConfirmed(editedItems, scanResult?.supplier);
+            // Pass supplier info along with invoice details
+            const supplierInfo = {
+                ...scanResult?.supplier,
+                invoiceNumber: scanResult?.invoiceNumber || '',
+                invoiceDate: scanResult?.invoiceDate || null
+            };
+            onProductsConfirmed(editedItems, supplierInfo);
             handleClose();
         }
     };
