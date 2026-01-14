@@ -66,6 +66,10 @@ const rawMaterialSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    gstin: {
+        type: String,
+        default: ''
+    },
     hsnCode: {
         type: String,
         default: ''

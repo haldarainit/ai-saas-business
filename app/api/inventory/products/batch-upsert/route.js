@@ -84,6 +84,7 @@ export async function POST(request) {
                     shelf: item.shelf || 'Default',
                     supplier: item.supplier ? String(item.supplier).trim() : '',
                     supplierContact: item.supplierContact ? String(item.supplierContact).trim() : '',
+                    gstin: item.gstin ? String(item.gstin).trim() : '',
                     hsnCode: item.hsnCode ? String(item.hsnCode).trim() : '',
                     gstPercentage: parseFloat(item.gstPercentage) || 0,
                     expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
@@ -129,6 +130,9 @@ export async function POST(request) {
                 }
                 if (itemData.gstPercentage > 0) {
                     setFields.gstPercentage = itemData.gstPercentage;
+                }
+                if (itemData.gstin) {
+                    setFields.gstin = itemData.gstin;
                 }
                 if (itemData.expiryDate) {
                     setFields.expiryDate = itemData.expiryDate;

@@ -87,6 +87,7 @@ export async function POST(request) {
                     shelf: item.shelf || 'Default',
                     supplier: item.supplier ? String(item.supplier).trim() : '',
                     supplierContact: item.supplierContact ? String(item.supplierContact).trim() : '',
+                    gstin: item.gstin ? String(item.gstin).trim() : '',
                     hsnCode: item.hsnCode ? String(item.hsnCode).trim() : '',
                     gstPercentage: parseFloat(item.gstPercentage) || 0,
                     expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
@@ -137,6 +138,8 @@ export async function POST(request) {
                             // Update supplier info if provided
                             supplier: itemData.supplier || existingMaterial.supplier,
                             supplierContact: itemData.supplierContact || existingMaterial.supplierContact,
+                            // Update GSTIN if provided
+                            gstin: itemData.gstin || existingMaterial.gstin,
                             // Update HSN code and GST percentage if provided
                             hsnCode: itemData.hsnCode || existingMaterial.hsnCode,
                             gstPercentage: itemData.gstPercentage > 0 ? itemData.gstPercentage : existingMaterial.gstPercentage,

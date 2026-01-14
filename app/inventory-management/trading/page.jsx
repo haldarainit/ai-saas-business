@@ -1153,6 +1153,8 @@ export default function TradingInventory() {
         }
 
         // Prepare items for batch upsert with calculated prices
+        console.log('handleScannedProducts - supplierInfo:', supplierInfo);
+        console.log('handleScannedProducts - supplierInfo.gstin:', supplierInfo?.gstin);
         const preparedItems = validItems.map(item => {
             // Calculate cost price from basePrice + gstAmount if available
             const basePrice = parseFloat(item.basePrice) || 0;
@@ -1176,6 +1178,7 @@ export default function TradingInventory() {
                 shelf: item.shelf || 'Default',
                 supplier: supplierInfo?.name || item.supplier || '',
                 supplierContact: supplierInfo?.contact || item.supplierContact || '',
+                gstin: supplierInfo?.gstin || item.gstin || '',
                 hsnCode: item.hsnCode || '',
                 gstPercentage: parseFloat(item.gstPercentage) || 0,
                 expiryDate: item.expiryDate || null,
@@ -2305,7 +2308,7 @@ export default function TradingInventory() {
                                                 </div>
 
                                                 {/* Supplier & Tax Info */}
-                                                {(product.supplier || product.supplierContact || product.hsnCode || product.gstPercentage > 0) && (
+                                                {(product.supplier || product.supplierContact || product.gstin || product.hsnCode || product.gstPercentage > 0) && (
                                                     <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-4">
                                                         <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                                                             <FileText className="h-4 w-4 text-blue-600" />
@@ -2322,6 +2325,14 @@ export default function TradingInventory() {
                                                                 <div className="space-y-1 min-w-0">
                                                                     <p className="text-xs text-muted-foreground">Supplier Contact</p>
                                                                     <p className="font-medium text-sm break-all">{product.supplierContact}</p>
+                                                                </div>
+                                                            )}
+                                                            {product.gstin && (
+                                                                <div className="space-y-1 min-w-0">
+                                                                    <p className="text-xs text-muted-foreground">GSTIN</p>
+                                                                    <Badge variant="outline" className="text-xs font-mono bg-green-50 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-600">
+                                                                        {product.gstin}
+                                                                    </Badge>
                                                                 </div>
                                                             )}
                                                             {product.hsnCode && (
