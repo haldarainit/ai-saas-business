@@ -185,6 +185,10 @@ export default function TradingInventory() {
 
     // Add selected products to sale cart and open modal
     const addSelectedToSale = () => {
+        console.log('=== addSelectedToSale DEBUG ===');
+        console.log('Selected product IDs:', selectedProducts);
+        console.log('Total products in state:', products.length);
+
         if (selectedProducts.length === 0) {
             toast({ title: '⚠️ No products selected', description: 'Please select products to add to sale', variant: 'destructive' });
             return;
@@ -192,29 +196,23 @@ export default function TradingInventory() {
 
         // Get the selected products with their full data
         const selectedProductsData = products.filter(p => selectedProducts.includes(p._id));
+        console.log('Matched selected products:', selectedProductsData.length);
+        console.log('Selected products data:', selectedProductsData.map(p => ({ id: p._id, name: p.name, quantity: p.quantity })));
 
-        // Filter out products that are out of stock
-        const availableProducts = selectedProductsData.filter(p => p.quantity > 0);
-        const outOfStockProducts = selectedProductsData.filter(p => p.quantity <= 0);
-
-        if (outOfStockProducts.length > 0) {
-            toast({
-                title: '⚠️ Some products skipped',
-                description: `${outOfStockProducts.length} product(s) are out of stock and were not added`,
-                variant: 'warning'
-            });
-        }
-
-        if (availableProducts.length === 0) {
-            toast({ title: '❌ All selected products are out of stock', description: 'Please select products with available stock', variant: 'destructive' });
+        if (selectedProductsData.length === 0) {
+            toast({ title: '❌ No matching products found', description: 'Could not find the selected products', variant: 'destructive' });
             return;
         }
 
-        // Create cart items from selected products (quantity 1 each)
-        const cartItems = availableProducts.map(product => ({
+        // Create cart items from ALL selected products (quantity 1 each)
+        // Stock validation will happen at checkout time
+        const cartItems = selectedProductsData.map(product => ({
             product,
             quantity: 1
         }));
+
+        console.log('Cart items created:', cartItems.length);
+        console.log('=== END DEBUG ===');
 
         // Reset and open the sell modal with pre-filled cart
         setSellCart(cartItems);
@@ -229,7 +227,7 @@ export default function TradingInventory() {
 
         toast({
             title: '✅ Products added to cart',
-            description: `${availableProducts.length} product(s) added to sale cart`,
+            description: `${cartItems.length} product(s) added to sale cart`,
         });
     };
 
