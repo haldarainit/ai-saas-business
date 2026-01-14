@@ -303,110 +303,60 @@ export default function TradingInventory() {
         ).slice(0, 5);
     }, [products, debouncedProductSearch]);
 
-    // Handle complete sale
+    // Handle complete sale - shows quotation dialog FIRST before completing sale
+    // Sale is ONLY completed when user chooses "No, Skip" (no quotation wanted)
+    // If user wants quotation, only quotation is created (no sale, no stock reduction)
     const handleSell = async () => {
+        console.log('=== handleSell DEBUG ===');
+        console.log('Cart length:', sellCart.length);
+        console.log('Cart items:', sellCart.map(i => ({ name: i.product.name, qty: i.quantity, stock: i.product.quantity })));
+
         if (sellCart.length === 0) {
             toast({ title: '❌ Empty Cart', description: 'Add products to sell first.', variant: 'destructive' });
             return;
         }
 
-        // Validate stock for all items
-        for (const item of sellCart) {
-            if (item.quantity > item.product.quantity) {
-                toast({
-                    title: '❌ Insufficient Stock',
-                    description: `${item.product.name}: Only ${item.product.quantity} available.`,
-                    variant: 'destructive'
-                });
-                return;
-            }
-        }
+        // Store pending sale data with full product details for quotation
+        // This includes all details shown in the product details page
+        setCompletedSaleData({
+            items: sellCart.map(item => ({
+                productId: item.product._id,
+                name: item.product.name,
+                sku: item.product.sku,
+                quantity: item.quantity,
+                price: item.product.price,
+                cost: item.product.cost || 0,
+                total: item.product.price * item.quantity,
+                // Additional details from product details page
+                category: item.product.category || 'Uncategorized',
+                supplier: item.product.supplier || '',
+                supplierContact: item.product.supplierContact || '',
+                hsnCode: item.product.hsnCode || '',
+                gstPercentage: item.product.gstPercentage || 0,
+                gstin: item.product.gstin || '',
+                expiryDate: item.product.expiryDate || null,
+                shelf: item.product.shelf || 'Default',
+                description: item.product.description || '',
+                invoiceNumber: item.product.invoiceNumber || '',
+                invoiceDate: item.product.invoiceDate || null
+            })),
+            customer: sellCustomer.name ? sellCustomer : { name: 'Walk-in Customer' },
+            total: cartSubtotal,
+            profit: cartProfit,
+            paymentMethod: sellPaymentMethod,
+            notes: sellNotes
+        });
 
-        try {
-            setSellingLoading(true);
-            const response = await fetch('/api/inventory/sales', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                    items: sellCart.map(item => ({
-                        productId: item.product._id,
-                        productName: item.product.name,
-                        quantity: item.quantity,
-                        sellingPrice: item.product.price,
-                    })),
-                    customer: sellCustomer.name ? sellCustomer : { name: 'Walk-in Customer' },
-                    paymentMethod: sellPaymentMethod,
-                    notes: sellNotes,
-                    amountPaid: cartSubtotal,
-                }),
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.message || 'Sale failed');
-            }
-
-            toast({
-                title: '✅ Sale Completed!',
-                description: `Sold ${cartItemCount} items for ₹${cartSubtotal.toFixed(2)}. Profit: ₹${result.summary.profit.toFixed(2)}`,
-                duration: 5000,
-            });
-
-            // Store sale data for potential quotation
-            setCompletedSaleData({
-                items: sellCart.map(item => ({
-                    name: item.product.name,
-                    sku: item.product.sku,
-                    quantity: item.quantity,
-                    price: item.product.price,
-                    total: item.product.price * item.quantity
-                })),
-                customer: sellCustomer.name ? sellCustomer : { name: 'Walk-in Customer' },
-                total: cartSubtotal,
-                profit: result.summary.profit,
-                paymentMethod: sellPaymentMethod,
-                notes: sellNotes,
-                saleId: result.sale?._id
-            });
-
-            setIsSellModalOpen(false);
-            setSellCart([]);
-
-            // Show quotation dialog
-            setShowQuotationDialog(true);
-
-            // Refresh products to show updated stock
-            const fetchProducts = async () => {
-                const res = await fetch('/api/inventory/products', { credentials: 'include' });
-                if (res.ok) {
-                    const data = await res.json();
-                    setProducts(Array.isArray(data) ? data : []);
-                }
-            };
-            fetchProducts();
-            fetchSales();
-
-        } catch (error) {
-            toast({
-                title: '❌ Sale Failed',
-                description: error.message,
-                variant: 'destructive',
-            });
-        } finally {
-            setSellingLoading(false);
-        }
+        // Close sell modal and show quotation dialog
+        // The actual sale will only be completed if user clicks "No, Skip"
+        setIsSellModalOpen(false);
+        setShowQuotationDialog(true);
     };
 
-    // Handle quotation choice after sale completion
+    // Handle quotation choice - decides whether to create quotation or complete sale
+    // wantsQuotation = true: Only create quotation (NO sale, NO stock reduction)
+    // wantsQuotation = false: Complete the actual sale (WITH stock reduction)
     const handleQuotationChoice = async (wantsQuotation) => {
-        if (!wantsQuotation) {
-            setShowQuotationDialog(false);
-            setCompletedSaleData(null);
-            return;
-        }
-
         if (!completedSaleData) {
             toast({
                 title: '❌ Error',
@@ -417,6 +367,64 @@ export default function TradingInventory() {
             return;
         }
 
+        // If user clicks "No, Skip" - Complete the actual sale (with stock reduction)
+        if (!wantsQuotation) {
+            setCreatingQuotation(true);
+            try {
+                const response = await fetch('/api/inventory/sales', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        items: completedSaleData.items.map(item => ({
+                            productId: item.productId,
+                            productName: item.name,
+                            quantity: item.quantity,
+                            sellingPrice: item.price,
+                        })),
+                        customer: completedSaleData.customer,
+                        paymentMethod: completedSaleData.paymentMethod,
+                        notes: completedSaleData.notes,
+                        amountPaid: completedSaleData.total,
+                    }),
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message || 'Sale failed');
+                }
+
+                toast({
+                    title: '✅ Sale Completed!',
+                    description: `Sold ${completedSaleData.items.length} items for ₹${completedSaleData.total.toFixed(2)}. Profit: ₹${result.summary.profit.toFixed(2)}`,
+                    duration: 5000,
+                });
+
+                // Refresh products to show updated stock
+                const res = await fetch('/api/inventory/products', { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    setProducts(Array.isArray(data) ? data : []);
+                }
+                fetchSales();
+
+            } catch (error) {
+                toast({
+                    title: '❌ Sale Failed',
+                    description: error.message,
+                    variant: 'destructive',
+                });
+            } finally {
+                setCreatingQuotation(false);
+                setShowQuotationDialog(false);
+                setSellCart([]);
+                setCompletedSaleData(null);
+            }
+            return;
+        }
+
+        // User wants quotation - create quotation ONLY (no sale, no stock reduction)
         setCreatingQuotation(true);
 
         try {
@@ -426,26 +434,57 @@ export default function TradingInventory() {
                 year: 'numeric'
             });
 
-            // Build table data for products
-            const tableHeaders = ['S.No', 'Product Name', 'SKU', 'Quantity', 'Unit Price (₹)', 'Total (₹)'];
+            // Build enhanced table data for products with more details
+            // Include HSN, GST, Supplier, Category as shown in product details page
+            console.log("DEBUG: Generating Quotation with enhanced headers");
+            const tableHeaders = ['S.No', 'Product Name', 'SKU', 'HSN', 'Category', 'Qty', 'GST%', 'Unit Price (₹)', 'Total (₹)'];
+            console.log("DEBUG: Headers:", tableHeaders);
+
             const tableRows = completedSaleData.items.map((item, idx) => [
                 String(idx + 1),
                 item.name,
-                item.sku,
+                item.sku || '-',
+                item.hsnCode || '-',
+                item.category || '-',
                 String(item.quantity),
+                item.gstPercentage ? `${item.gstPercentage}%` : '0%',
                 item.price.toFixed(2),
                 item.total.toFixed(2)
             ]);
 
-            // Add total row
+            // Calculate GST totals
+            const totalBeforeGst = completedSaleData.total;
+            const gstAmount = completedSaleData.items.reduce((sum, item) => {
+                const gstPct = item.gstPercentage || 0;
+                const itemGst = (item.total * gstPct) / (100 + gstPct);
+                return sum + itemGst;
+            }, 0);
+
+            // Add subtotal and GST rows
             tableRows.push([
-                '',
-                '',
-                '',
-                '',
+                '', '', '', '', '', '', '',
+                'Subtotal:',
+                `₹${(totalBeforeGst - gstAmount).toFixed(2)}`
+            ]);
+            tableRows.push([
+                '', '', '', '', '', '', '',
+                'GST:',
+                `₹${gstAmount.toFixed(2)}`
+            ]);
+            tableRows.push([
+                '', '', '', '', '', '', '',
                 'Grand Total:',
                 `₹${completedSaleData.total.toFixed(2)}`
             ]);
+
+            // Build supplier information section
+            const suppliers = [...new Set(completedSaleData.items.filter(item => item.supplier).map(item => item.supplier))];
+            const supplierInfo = suppliers.length > 0
+                ? suppliers.map(s => {
+                    const supplierItem = completedSaleData.items.find(item => item.supplier === s);
+                    return `${s}${supplierItem?.supplierContact ? ` (${supplierItem.supplierContact})` : ''}${supplierItem?.gstin ? ` | GSTIN: ${supplierItem.gstin}` : ''}`;
+                }).join('\n')
+                : 'Not specified';
 
             // Build content blocks for the quotation
             const contentBlocks = [
@@ -470,17 +509,29 @@ export default function TradingInventory() {
                 {
                     id: 'block-4',
                     type: 'paragraph',
-                    content: `Name: ${completedSaleData.customer.name || 'Walk-in Customer'}${completedSaleData.customer.phone ? `\nPhone: ${completedSaleData.customer.phone}` : ''}`,
+                    content: `Name: ${completedSaleData.customer.name || 'Walk-in Customer'}${completedSaleData.customer.phone ? `\nPhone: ${completedSaleData.customer.phone}` : ''}${completedSaleData.customer.email ? `\nEmail: ${completedSaleData.customer.email}` : ''}`,
                     style: { fontSize: 11, textAlign: 'left' }
                 },
                 {
                     id: 'block-5',
                     type: 'heading',
-                    content: 'Product Details',
+                    content: 'Supplier Information',
                     style: { fontSize: 12, fontWeight: 'bold', textAlign: 'left' }
                 },
                 {
                     id: 'block-6',
+                    type: 'paragraph',
+                    content: supplierInfo,
+                    style: { fontSize: 10, textAlign: 'left' }
+                },
+                {
+                    id: 'block-7',
+                    type: 'heading',
+                    content: 'Product Details',
+                    style: { fontSize: 12, fontWeight: 'bold', textAlign: 'left' }
+                },
+                {
+                    id: 'block-8',
                     type: 'table',
                     tableData: {
                         headers: tableHeaders,
@@ -492,28 +543,28 @@ export default function TradingInventory() {
                             borderWidth: 1,
                             textColor: '#1a1a1a',
                             alternateRowColor: '#f9fafb',
-                            fontSize: 10
+                            fontSize: 9
                         }
                     }
                 },
                 {
-                    id: 'block-7',
+                    id: 'block-9',
                     type: 'heading',
                     content: 'Payment Information',
                     style: { fontSize: 12, fontWeight: 'bold', textAlign: 'left' }
                 },
                 {
-                    id: 'block-8',
+                    id: 'block-10',
                     type: 'paragraph',
                     content: `Payment Method: ${completedSaleData.paymentMethod.charAt(0).toUpperCase() + completedSaleData.paymentMethod.slice(1).replace('_', ' ')}${completedSaleData.notes ? `\nNotes: ${completedSaleData.notes}` : ''}`,
                     style: { fontSize: 11, textAlign: 'left' }
                 }
             ];
 
-            // Prepare items for Bill of Quantities text field backup
+            // Prepare detailed items for Bill of Quantities text field backup
             const itemsBoq = completedSaleData.items.map((item, idx) =>
-                `${idx + 1}. ${item.name} (SKU: ${item.sku}) - Qty: ${item.quantity} × ₹${item.price.toFixed(2)} = ₹${item.total.toFixed(2)}`
-            ).join('\n');
+                `${idx + 1}. ${item.name}\n   SKU: ${item.sku || '-'} | HSN: ${item.hsnCode || '-'} | Category: ${item.category || '-'}\n   Supplier: ${item.supplier || '-'}${item.gstin ? ` | GSTIN: ${item.gstin}` : ''}\n   Qty: ${item.quantity} × ₹${item.price.toFixed(2)} = ₹${item.total.toFixed(2)}${item.gstPercentage ? ` (GST: ${item.gstPercentage}%)` : ''}`
+            ).join('\n\n');
 
             // Create quotation via API
             const response = await fetch('/api/techno-quotation', {
@@ -528,6 +579,7 @@ export default function TradingInventory() {
                         name: completedSaleData.customer.name || 'Walk-in Customer',
                         company: completedSaleData.customer.name || 'Walk-in Customer',
                         contact: completedSaleData.customer.phone || '',
+                        email: completedSaleData.customer.email || '',
                         address: ''
                     },
                     contentBlocks: contentBlocks,
@@ -535,7 +587,7 @@ export default function TradingInventory() {
                         client_name: completedSaleData.customer.name || 'Walk-in Customer',
                         client_contact: completedSaleData.customer.phone || '',
                         project_subject: `Sales Quotation - ${completedSaleData.items.length} item(s)`,
-                        items_boq: itemsBoq + `\n\n--- TOTAL: ₹${completedSaleData.total.toFixed(2)} ---`,
+                        items_boq: itemsBoq + `\n\n========================================\nSubtotal: ₹${(totalBeforeGst - gstAmount).toFixed(2)}\nGST: ₹${gstAmount.toFixed(2)}\nGRAND TOTAL: ₹${completedSaleData.total.toFixed(2)}\n========================================`,
                         terms_conditions: `Payment Method: ${completedSaleData.paymentMethod.toUpperCase()}\n${completedSaleData.notes ? `Notes: ${completedSaleData.notes}` : ''}`,
                     },
                 }),
@@ -553,8 +605,8 @@ export default function TradingInventory() {
 
             toast({
                 title: '✅ Quotation Created!',
-                description: 'Quotation opened in a new tab.',
-                duration: 3000,
+                description: 'Detailed quotation opened in a new tab. Stock was NOT reduced.',
+                duration: 4000,
             });
 
         } catch (error) {
@@ -567,6 +619,7 @@ export default function TradingInventory() {
         } finally {
             setCreatingQuotation(false);
             setShowQuotationDialog(false);
+            setSellCart([]);
             setCompletedSaleData(null);
         }
     };
@@ -2734,10 +2787,11 @@ export default function TradingInventory() {
             <Dialog open={showQuotationDialog} onOpenChange={(open) => {
                 if (!open && !creatingQuotation) {
                     setShowQuotationDialog(false);
+                    setSellCart([]);
                     setCompletedSaleData(null);
                 }
             }}>
-                <DialogContent className="sm:max-w-[450px]">
+                <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                             <FileText className="h-5 w-5" />
@@ -2749,7 +2803,7 @@ export default function TradingInventory() {
                     </DialogHeader>
 
                     {completedSaleData && (
-                        <div className="py-4">
+                        <div className="py-4 space-y-4">
                             <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
@@ -2766,7 +2820,20 @@ export default function TradingInventory() {
                                     </div>
                                 </div>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-3">
+
+                            {/* Info boxes explaining the options */}
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                    <div className="font-semibold text-blue-700 dark:text-blue-300 mb-1">📄 Create Quotation</div>
+                                    <p className="text-blue-600 dark:text-blue-400">Only generates a quotation. <strong>Stock will NOT be reduced.</strong></p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+                                    <div className="font-semibold text-orange-700 dark:text-orange-300 mb-1">🛒 Skip & Complete Sale</div>
+                                    <p className="text-orange-600 dark:text-orange-400">Completes the sale. <strong>Stock WILL be reduced.</strong></p>
+                                </div>
+                            </div>
+
+                            <p className="text-xs text-muted-foreground">
                                 A quotation will be created and opened in a new tab for review and customization.
                             </p>
                         </div>
@@ -2777,8 +2844,19 @@ export default function TradingInventory() {
                             variant="outline"
                             onClick={() => handleQuotationChoice(false)}
                             disabled={creatingQuotation}
+                            className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-700 dark:text-orange-400 dark:hover:bg-orange-900/20"
                         >
-                            No, Skip
+                            {creatingQuotation ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Processing...
+                                </>
+                            ) : (
+                                <>
+                                    <ShoppingCart className="h-4 w-4 mr-2" />
+                                    No, Skip & Complete Sale
+                                </>
+                            )}
                         </Button>
                         <Button
                             onClick={() => handleQuotationChoice(true)}

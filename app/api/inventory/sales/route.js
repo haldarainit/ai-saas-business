@@ -129,18 +129,10 @@ export async function POST(request) {
                 );
             }
 
+            // Note: Stock validation removed to allow sales with insufficient stock (for pre-orders/backorders)
+            // Stock can go negative - this should be monitored
             if (product.quantity < item.quantity) {
-                return NextResponse.json(
-                    {
-                        message: `Insufficient stock for ${product.name}`,
-                        insufficientStock: {
-                            productName: product.name,
-                            available: product.quantity,
-                            requested: item.quantity
-                        }
-                    },
-                    { status: 400 }
-                );
+                console.warn(`Warning: Selling ${item.quantity} of ${product.name} but only ${product.quantity} in stock. Stock will go negative.`);
             }
 
             const sellingPrice = item.sellingPrice || product.price;
