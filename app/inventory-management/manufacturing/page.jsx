@@ -44,7 +44,10 @@ export default function ManufacturingInventory() {
         shelf: 'Default',
         expiryDate: '',
         supplier: '',
-        supplierContact: ''
+        supplierContact: '',
+        gstPercentage: '',
+        gstin: '',
+        hsnCode: ''
     });
 
     // Manufacturing Products State
@@ -223,7 +226,10 @@ export default function ManufacturingInventory() {
             shelf: 'Default',
             expiryDate: '',
             supplier: '',
-            supplierContact: ''
+            supplierContact: '',
+            gstPercentage: '',
+            gstin: '',
+            hsnCode: ''
         });
         setEditingRawMaterial(null);
     };
@@ -246,7 +252,8 @@ export default function ManufacturingInventory() {
                     ...rawMaterialForm,
                     costPerUnit: parseFloat(rawMaterialForm.costPerUnit),
                     quantity: parseFloat(rawMaterialForm.quantity),
-                    minimumStock: parseInt(rawMaterialForm.minimumStock, 10)
+                    minimumStock: parseInt(rawMaterialForm.minimumStock, 10),
+                    gstPercentage: parseFloat(rawMaterialForm.gstPercentage) || 0
                 })
             });
 
@@ -288,7 +295,10 @@ export default function ManufacturingInventory() {
             shelf: material.shelf || 'Default',
             expiryDate: material.expiryDate ? new Date(material.expiryDate).toISOString().split('T')[0] : '',
             supplier: material.supplier || '',
-            supplierContact: material.supplierContact || ''
+            supplierContact: material.supplierContact || '',
+            gstPercentage: material.gstPercentage?.toString() || '',
+            gstin: material.gstin || '',
+            hsnCode: material.hsnCode || ''
         });
         setIsRawMaterialModalOpen(true);
     };
@@ -2074,7 +2084,50 @@ export default function ManufacturingInventory() {
                                     value={rawMaterialForm.supplier}
                                     onChange={(e) => setRawMaterialForm({ ...rawMaterialForm, supplier: e.target.value })}
                                     className="col-span-3"
+                                    placeholder="Supplier name"
                                 />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">Supplier Contact</Label>
+                                <Input
+                                    value={rawMaterialForm.supplierContact}
+                                    onChange={(e) => setRawMaterialForm({ ...rawMaterialForm, supplierContact: e.target.value })}
+                                    className="col-span-3"
+                                    placeholder="Phone or email"
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">GSTIN</Label>
+                                <Input
+                                    value={rawMaterialForm.gstin}
+                                    onChange={(e) => setRawMaterialForm({ ...rawMaterialForm, gstin: e.target.value })}
+                                    className="col-span-3"
+                                    placeholder="15-digit GSTIN"
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">HSN Code</Label>
+                                <Input
+                                    value={rawMaterialForm.hsnCode}
+                                    onChange={(e) => setRawMaterialForm({ ...rawMaterialForm, hsnCode: e.target.value })}
+                                    className="col-span-3"
+                                    placeholder="Product HSN code"
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">GST Rate %</Label>
+                                <div className="col-span-3 relative">
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        max="100"
+                                        value={rawMaterialForm.gstPercentage}
+                                        onChange={(e) => setRawMaterialForm({ ...rawMaterialForm, gstPercentage: e.target.value })}
+                                        placeholder="e.g., 18 for 18%"
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                                </div>
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label className="text-right">Expiry Date</Label>
@@ -3505,7 +3558,7 @@ export default function ManufacturingInventory() {
                                                 </div>
 
                                                 {/* Supplier & Tax Info */}
-                                                {(material.supplier || material.supplierContact || material.gstin || material.hsnCode || material.gstPercentage > 0) && (
+                                                {(material.supplier || material.supplierContact || material.gstin || material.hsnCode || material.gstPercentage !== undefined) && (
                                                     <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-4">
                                                         <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                                                             <Factory className="h-4 w-4 text-blue-600" />
@@ -3540,14 +3593,14 @@ export default function ManufacturingInventory() {
                                                                     </Badge>
                                                                 </div>
                                                             )}
-                                                            {material.gstPercentage > 0 && (
+                                                            {(material.gstPercentage !== undefined && material.gstPercentage !== null) ? (
                                                                 <div className="space-y-1 min-w-0">
                                                                     <p className="text-xs text-muted-foreground">GST Rate</p>
-                                                                    <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400">
+                                                                    <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500 dark:bg-amber-500/30 dark:text-amber-300 dark:border-amber-500">
                                                                         {material.gstPercentage}%
                                                                     </Badge>
                                                                 </div>
-                                                            )}
+                                                            ) : null}
                                                         </div>
                                                     </div>
                                                 )}

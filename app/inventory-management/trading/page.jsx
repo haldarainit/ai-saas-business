@@ -2308,7 +2308,7 @@ export default function TradingInventory() {
                                                 </div>
 
                                                 {/* Supplier & Tax Info */}
-                                                {(product.supplier || product.supplierContact || product.gstin || product.hsnCode || product.gstPercentage > 0) && (
+                                                {(product.supplier || product.supplierContact || product.gstin || product.hsnCode || product.gstPercentage !== undefined) && (
                                                     <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-4">
                                                         <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                                                             <FileText className="h-4 w-4 text-blue-600" />
@@ -2343,14 +2343,14 @@ export default function TradingInventory() {
                                                                     </Badge>
                                                                 </div>
                                                             )}
-                                                            {product.gstPercentage > 0 && (
+                                                            {(product.gstPercentage !== undefined && product.gstPercentage !== null) ? (
                                                                 <div className="space-y-1 min-w-0">
                                                                     <p className="text-xs text-muted-foreground">GST Rate</p>
-                                                                    <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-400 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-600">
+                                                                    <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500 dark:bg-amber-500/30 dark:text-amber-300 dark:border-amber-500">
                                                                         {product.gstPercentage}%
                                                                     </Badge>
                                                                 </div>
-                                                            )}
+                                                            ) : null}
                                                         </div>
                                                     </div>
                                                 )}
