@@ -1601,26 +1601,9 @@ export default function ManufacturingInventory() {
                                                 />
                                             </TableCell>
                                             <TableCell className="font-medium">
-                                                <div>
-                                                    <div>{material.name}</div>
-                                                    {material.supplier && (
-                                                        <div className="text-xs text-muted-foreground">Supplier: {material.supplier}</div>
-                                                    )}
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                        {material.hsnCode && (
-                                                            <Badge variant="outline" className="text-[10px] px-1 py-0 font-normal">
-                                                                HSN: {material.hsnCode}
-                                                            </Badge>
-                                                        )}
-                                                        {material.gstPercentage > 0 && (
-                                                            <Badge variant="outline" className="text-[10px] px-1 py-0 font-normal text-amber-600 border-amber-300">
-                                                                GST: {material.gstPercentage}%
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                </div>
+                                                {material.name}
                                             </TableCell>
-                                            <TableCell className="text-center">{material.sku}</TableCell>
+                                            <TableCell className="text-center font-mono text-sm">{material.sku}</TableCell>
                                             <TableCell className="text-center">{material.category}</TableCell>
                                             <TableCell className="text-center">₹{material.costPerUnit?.toFixed(2)} / {material.unit}</TableCell>
                                             <TableCell className="text-center font-medium">{material.quantity} {material.unit}</TableCell>
