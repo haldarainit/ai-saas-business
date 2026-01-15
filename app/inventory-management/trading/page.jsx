@@ -197,16 +197,31 @@ export default function TradingInventory() {
         // Get the selected products with their full data
         const selectedProductsData = products.filter(p => selectedProducts.includes(p._id));
         console.log('Matched selected products:', selectedProductsData.length);
-        console.log('Selected products data:', selectedProductsData.map(p => ({ id: p._id, name: p.name, quantity: p.quantity })));
 
         if (selectedProductsData.length === 0) {
             toast({ title: '❌ No matching products found', description: 'Could not find the selected products', variant: 'destructive' });
             return;
         }
 
-        // Create cart items from ALL selected products (quantity 1 each)
-        // Stock validation will happen at checkout time
-        const cartItems = selectedProductsData.map(product => ({
+        // Separate in-stock and out-of-stock products
+        const inStockProducts = selectedProductsData.filter(p => p.quantity > 0);
+        const outOfStockProducts = selectedProductsData.filter(p => p.quantity <= 0);
+
+        // Warn if validation fails
+        if (outOfStockProducts.length > 0) {
+            const outOfStockNames = outOfStockProducts.map(p => p.name).join(', ');
+            toast({
+                title: '⚠️ Some items skipped',
+                description: `Out of stock: ${outOfStockNames}`,
+                variant: 'destructive',
+                duration: 5000
+            });
+            // If ONLY out of stock items were selected, stop here
+            if (inStockProducts.length === 0) return;
+        }
+
+        // Create cart items from validation PASSED products
+        const cartItems = inStockProducts.map(product => ({
             product,
             quantity: 1
         }));
@@ -316,6 +331,19 @@ export default function TradingInventory() {
             return;
         }
 
+        // Validate stock availability
+        const outOfStockItems = sellCart.filter(item => item.quantity > item.product.quantity);
+        if (outOfStockItems.length > 0) {
+            const names = outOfStockItems.map(i => i.product.name).join(', ');
+            toast({
+                title: '❌ Stock Validation Failed',
+                description: `Insufficient stock for: ${names}. Available: ${outOfStockItems[0].product.quantity}`,
+                variant: 'destructive',
+                duration: 5000
+            });
+            return;
+        }
+
         // Store pending sale data with full product details for quotation
         // This includes all details shown in the product details page
         setCompletedSaleData({
@@ -353,10 +381,10 @@ export default function TradingInventory() {
         setShowQuotationDialog(true);
     };
 
-    // Handle quotation choice - decides whether to create quotation or complete sale
-    // wantsQuotation = true: Only create quotation (NO sale, NO stock reduction)
-    // wantsQuotation = false: Complete the actual sale (WITH stock reduction)
-    const handleQuotationChoice = async (wantsQuotation) => {
+    // Handle quotation/invoice choice
+    // choice = 'quotation': Create quotation ONLY (no sale, no stock reduction)
+    // choice = 'invoice': Create invoice AND Complete sale (WITH stock reduction)
+    const handleQuotationChoice = async (choice) => {
         if (!completedSaleData) {
             toast({
                 title: '❌ Error',
@@ -367,11 +395,82 @@ export default function TradingInventory() {
             return;
         }
 
-        // If user clicks "No, Skip" - Complete the actual sale (with stock reduction)
-        if (!wantsQuotation) {
+        // Handle Invoice Creation + Sale Completion
+        if (choice === 'invoice') {
             setCreatingQuotation(true);
             try {
-                const response = await fetch('/api/inventory/sales', {
+                const currentDate = new Date();
+                const invoiceDateStr = currentDate.toISOString();
+
+                // 1. Prepare Invoice Data
+                // Calculate tax-exclusive values for the invoice model
+                const invoiceItems = completedSaleData.items.map((item, idx) => {
+                    const gstPct = item.gstPercentage || 0;
+                    const inclusivePrice = item.price;
+                    const quantity = item.quantity;
+                    const totalInclusive = inclusivePrice * quantity;
+
+                    // Back-calculate basic values (assuming price is inclusive as per existing logic)
+                    const taxAmount = (totalInclusive * gstPct) / (100 + gstPct);
+                    const totalBasic = totalInclusive - taxAmount;
+                    const basicRate = totalBasic / quantity;
+
+                    const cgst = taxAmount / 2;
+                    const sgst = taxAmount / 2;
+
+                    return {
+                        id: (idx + 1).toString(),
+                        description: `${item.name}${item.sku ? ` (SKU: ${item.sku})` : ''}`,
+                        quantity: quantity,
+                        rate: Number(basicRate.toFixed(2)),
+                        discount: 0,
+                        taxRate: gstPct,
+                        cgstPercent: gstPct / 2,
+                        sgstPercent: gstPct / 2,
+                        cgst: Number(cgst.toFixed(2)),
+                        sgst: Number(sgst.toFixed(2)),
+                        totalGst: Number(taxAmount.toFixed(2)),
+                        hsnsac: item.hsnCode || ""
+                    };
+                });
+
+                const invoiceBody = {
+                    title: "TAX INVOICE",
+                    clientDetails: {
+                        name: completedSaleData.customer.name || 'Walk-in Customer',
+                        phone: completedSaleData.customer.phone || '',
+                        email: completedSaleData.customer.email || '',
+                        address: '', // Could add if available
+                        gstin: '', // Could add if available
+                    },
+                    items: invoiceItems,
+                    invoiceDate: invoiceDateStr,
+                    financials: {
+                        shippingCharges: 0,
+                        otherCharges: 0
+                    },
+                    terms: {
+                        notes: completedSaleData.notes || '',
+                        termsConditions: "1. Goods once sold will not be taken back.\n2. Interest @ 18% p.a. will be charged if the payment is not made within the stipulated time."
+                    }
+                };
+
+                // 2. Create Invoice via API
+                const invResponse = await fetch('/api/invoice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(invoiceBody),
+                });
+
+                if (!invResponse.ok) {
+                    throw new Error('Failed to create invoice');
+                }
+
+                const invResult = await invResponse.json();
+
+                // 3. Complete Sale (Reduce Stock)
+                const saleResponse = await fetch('/api/inventory/sales', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -386,22 +485,25 @@ export default function TradingInventory() {
                         paymentMethod: completedSaleData.paymentMethod,
                         notes: completedSaleData.notes,
                         amountPaid: completedSaleData.total,
+                        invoiceId: invResult.invoice._id // Link sale to invoice if possible (optional depending on schema)
                     }),
                 });
 
-                const result = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(result.message || 'Sale failed');
+                if (!saleResponse.ok) {
+                    throw new Error('Invoice created but failed to record sale/reduce stock. Please check inventory.');
                 }
+                const saleResult = await saleResponse.json();
 
                 toast({
-                    title: '✅ Sale Completed!',
-                    description: `Sold ${completedSaleData.items.length} items for ₹${completedSaleData.total.toFixed(2)}. Profit: ₹${result.summary.profit.toFixed(2)}`,
+                    title: '✅ Sale Completed & Invoice Created!',
+                    description: `Invoice ${invResult.invoice.invoiceNumber} created. Profit: ₹${saleResult.summary.profit.toFixed(2)}`,
                     duration: 5000,
                 });
 
-                // Refresh products to show updated stock
+                // 4. Open Invoice in New Tab
+                window.open(`/accounting/invoice/${invResult.invoice._id}`, '_blank');
+
+                // 5. Refresh Data
                 const res = await fetch('/api/inventory/products', { credentials: 'include' });
                 if (res.ok) {
                     const data = await res.json();
@@ -410,8 +512,9 @@ export default function TradingInventory() {
                 fetchSales();
 
             } catch (error) {
+                console.error('Error in invoice/sale process:', error);
                 toast({
-                    title: '❌ Sale Failed',
+                    title: '❌ Error',
                     description: error.message,
                     variant: 'destructive',
                 });
@@ -424,7 +527,9 @@ export default function TradingInventory() {
             return;
         }
 
-        // User wants quotation - create quotation ONLY (no sale, no stock reduction)
+        // Handle Quotation Creation (Existing Logic)
+        if (choice !== 'quotation') return;
+
         setCreatingQuotation(true);
 
         try {
@@ -2783,7 +2888,7 @@ export default function TradingInventory() {
                 </DialogContent>
             </Dialog>
 
-            {/* Quotation Confirmation Dialog */}
+            {/* Documentation Choice Dialog */}
             <Dialog open={showQuotationDialog} onOpenChange={(open) => {
                 if (!open && !creatingQuotation) {
                     setShowQuotationDialog(false);
@@ -2791,20 +2896,20 @@ export default function TradingInventory() {
                     setCompletedSaleData(null);
                 }
             }}>
-                <DialogContent className="sm:max-w-[500px]">
+                <DialogContent className="sm:max-w-[550px]">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                        <DialogTitle className="flex items-center gap-2 text-primary">
                             <FileText className="h-5 w-5" />
-                            Generate Quotation?
+                            Sale Confirmation & Documentation
                         </DialogTitle>
                         <DialogDescription>
-                            Would you like to create a quotation for this sale?
+                            How would you like to process this sale?
                         </DialogDescription>
                     </DialogHeader>
 
                     {completedSaleData && (
                         <div className="py-4 space-y-4">
-                            <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                            <div className="p-4 rounded-lg bg-muted/50 border">
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <span className="text-muted-foreground">Customer:</span>
@@ -2816,64 +2921,54 @@ export default function TradingInventory() {
                                     </div>
                                     <div className="flex justify-between text-sm font-semibold border-t pt-2 mt-2">
                                         <span className="text-muted-foreground">Total:</span>
-                                        <span className="text-emerald-600 dark:text-emerald-400">₹{completedSaleData.total.toFixed(2)}</span>
+                                        <span className="text-green-600 dark:text-green-400">₹{completedSaleData.total.toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Info boxes explaining the options */}
-                            <div className="grid grid-cols-2 gap-3 text-xs">
-                                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                                    <div className="font-semibold text-blue-700 dark:text-blue-300 mb-1">📄 Create Quotation</div>
-                                    <p className="text-blue-600 dark:text-blue-400">Only generates a quotation. <strong>Stock will NOT be reduced.</strong></p>
-                                </div>
-                                <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
-                                    <div className="font-semibold text-orange-700 dark:text-orange-300 mb-1">🛒 Skip & Complete Sale</div>
-                                    <p className="text-orange-600 dark:text-orange-400">Completes the sale. <strong>Stock WILL be reduced.</strong></p>
-                                </div>
-                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* Option 1: Invoice */}
+                                <button
+                                    onClick={() => handleQuotationChoice('invoice')}
+                                    disabled={creatingQuotation}
+                                    className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-cyan-100 bg-cyan-50/50 hover:bg-cyan-100/80 hover:border-cyan-300 dark:border-cyan-900/50 dark:bg-cyan-950/20 dark:hover:bg-cyan-900/40 transition-all group text-center h-full"
+                                >
+                                    <div className="p-3 rounded-full bg-cyan-100 text-cyan-600 mb-3 group-hover:scale-110 transition-transform dark:bg-cyan-900 dark:text-cyan-400">
+                                        <Receipt className="h-6 w-6" />
+                                    </div>
+                                    <h3 className="font-semibold text-cyan-900 dark:text-cyan-100 mb-1">Create Invoice</h3>
+                                    <p className="text-xs text-cyan-700/70 dark:text-cyan-300/70 mb-2">Complete Sale & Reduce Stock</p>
+                                    {creatingQuotation ? (
+                                        <Loader2 className="h-4 w-4 animate-spin text-cyan-600" />
+                                    ) : (
+                                        <span className="text-xs font-medium text-cyan-600 dark:text-cyan-400 group-hover:underline">Select &rarr;</span>
+                                    )}
+                                </button>
 
-                            <p className="text-xs text-muted-foreground">
-                                A quotation will be created and opened in a new tab for review and customization.
-                            </p>
+                                {/* Option 2: Quotation */}
+                                <button
+                                    onClick={() => handleQuotationChoice('quotation')}
+                                    disabled={creatingQuotation}
+                                    className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-emerald-100 bg-emerald-50/50 hover:bg-emerald-100/80 hover:border-emerald-300 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:hover:bg-emerald-900/40 transition-all group text-center h-full"
+                                >
+                                    <div className="p-3 rounded-full bg-emerald-100 text-emerald-600 mb-3 group-hover:scale-110 transition-transform dark:bg-emerald-900 dark:text-emerald-400">
+                                        <FileText className="h-6 w-6" />
+                                    </div>
+                                    <h3 className="font-semibold text-emerald-900 dark:text-emerald-100 mb-1">Create Quotation</h3>
+                                    <p className="text-xs text-emerald-700/70 dark:text-emerald-300/70 mb-2">Proposal Only (No Stock Change)</p>
+                                    {creatingQuotation ? (
+                                        <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+                                    ) : (
+                                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 group-hover:underline">Select &rarr;</span>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     )}
 
-                    <div className="flex justify-end gap-3">
-                        <Button
-                            variant="outline"
-                            onClick={() => handleQuotationChoice(false)}
-                            disabled={creatingQuotation}
-                            className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-700 dark:text-orange-400 dark:hover:bg-orange-900/20"
-                        >
-                            {creatingQuotation ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Processing...
-                                </>
-                            ) : (
-                                <>
-                                    <ShoppingCart className="h-4 w-4 mr-2" />
-                                    No, Skip & Complete Sale
-                                </>
-                            )}
-                        </Button>
-                        <Button
-                            onClick={() => handleQuotationChoice(true)}
-                            disabled={creatingQuotation}
-                            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
-                        >
-                            {creatingQuotation ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Creating...
-                                </>
-                            ) : (
-                                <>
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    Yes, Create Quotation
-                                </>
-                            )}
+                    <div className="flex justify-center mt-2">
+                        <Button variant="ghost" size="sm" onClick={() => setShowQuotationDialog(false)} className="text-muted-foreground">
+                            Cancel
                         </Button>
                     </div>
                 </DialogContent>

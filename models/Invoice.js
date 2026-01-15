@@ -109,7 +109,8 @@ const InvoiceSchema = new mongoose.Schema({
         sgstPercent: Number,
         cgst: Number,
         sgst: Number,
-        totalGst: Number
+        totalGst: Number,
+        hsnsac: String
     }],
 
     // Financials

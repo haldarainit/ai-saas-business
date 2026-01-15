@@ -39,6 +39,7 @@ interface InvoiceItem {
     cgst: number // Editable CGST amount
     sgst: number // Editable SGST amount
     totalGst: number // Editable Total GST amount
+    hsnsac?: string
 }
 
 interface InvoiceData {
@@ -200,7 +201,7 @@ const defaultInvoiceData: InvoiceData = {
     destination: "",
     termsOfDelivery: "",
 
-    items: [{ id: "1", description: "", quantity: 1, rate: 0, discount: 0, taxRate: 18, cgstPercent: 9, sgstPercent: 9, cgst: 0, sgst: 0, totalGst: 0 }],
+    items: [{ id: "1", description: "", quantity: 1, rate: 0, discount: 0, taxRate: 18, cgstPercent: 9, sgstPercent: 9, cgst: 0, sgst: 0, totalGst: 0, hsnsac: "" }],
 
     shippingCharges: 0,
     otherCharges: 0,
@@ -586,6 +587,7 @@ export default function InvoicePage() {
             cgst: 0,
             sgst: 0,
             totalGst: 0,
+            hsnsac: "",
         }
         setInvoiceData(prev => ({ ...prev, items: [...prev.items, newItem] }))
     }
@@ -951,15 +953,19 @@ export default function InvoicePage() {
                                     {invoiceData.items.map((item, index) => (
                                         <div key={item.id} className="p-3 bg-muted/30 rounded border relative group">
                                             <div className="grid grid-cols-12 gap-2 mb-2">
-                                                <div className="col-span-12 md:col-span-6">
+                                                <div className="col-span-12 md:col-span-5">
                                                     <Label className="text-xs">Description</Label>
                                                     <Input className="h-8 text-sm" value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} placeholder="Item name" />
+                                                </div>
+                                                <div className="col-span-4 md:col-span-2">
+                                                    <Label className="text-xs">HSN/SAC</Label>
+                                                    <Input className="h-8 text-sm" value={item.hsnsac || ''} onChange={e => updateItem(item.id, 'hsnsac', e.target.value)} placeholder="HSN" />
                                                 </div>
                                                 <div className="col-span-4 md:col-span-2">
                                                     <Label className="text-xs">Qty</Label>
                                                     <Input className="h-8 text-sm" type="number" min="0" value={item.quantity} onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} />
                                                 </div>
-                                                <div className="col-span-4 md:col-span-4">
+                                                <div className="col-span-4 md:col-span-3">
                                                     <Label className="text-xs">Rate</Label>
                                                     <Input className="h-8 text-sm" type="number" min="0" value={item.rate} onChange={e => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)} />
                                                 </div>
@@ -1568,7 +1574,7 @@ export default function InvoicePage() {
                                         <tr key={item.id} className="table-row border-b border-slate-200">
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{index + 1}</td>
                                             <td className="p-2 border-r border-slate-300 text-left font-medium align-top break-words" style={{ wordWrap: 'break-word', whiteSpace: 'normal', maxWidth: '200px' }}>{item.description}</td>
-                                            <td className="p-2 border-r border-slate-300 text-center align-top">{invoiceData.hsnsac || "-"}</td>
+                                            <td className="p-2 border-r border-slate-300 text-center align-top">{item.hsnsac || invoiceData.hsnsac || "-"}</td>
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{item.quantity}</td>
                                             <td className="p-2 border-r border-slate-300 text-center align-top">{item.rate.toFixed(2)}</td>
                                             {(invoiceData.showDiscount && calculations.hasDiscount) && (
