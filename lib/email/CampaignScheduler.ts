@@ -577,9 +577,6 @@ class CampaignScheduler {
             "* * * * *",
             async () => {
                 await this.processNextEmail();
-            },
-            {
-                scheduled: false,
             }
         );
 
@@ -1030,14 +1027,13 @@ class CampaignScheduler {
 
                 if (mutableCsvData.data && Array.isArray(mutableCsvData.data)) {
                     const validEmails = new Set(emails.map((e) => e.toLowerCase()));
+                    const filteredData = mutableCsvData.data!.filter(
+                        (row) => row.email && validEmails.has(row.email.toLowerCase())
+                    );
                     mutableCsvData = {
                         ...mutableCsvData,
-                        data: mutableCsvData.data.filter(
-                            (row) => row.email && validEmails.has(row.email.toLowerCase())
-                        ),
-                        totalRows: mutableCsvData.data.filter(
-                            (row) => row.email && validEmails.has(row.email.toLowerCase())
-                        ).length
+                        data: filteredData,
+                        totalRows: filteredData.length
                     };
                     console.log(
                         `💾 Optimized CSV data: ${mutableCsvData.data.length} rows with valid emails`

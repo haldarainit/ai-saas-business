@@ -1,4 +1,18 @@
-export function generateEmployeeWelcomeEmail(employeeData) {
+// Types for employee email data
+interface EmployeeWelcomeData {
+    name: string;
+    employeeId: string;
+    tempPassword: string;
+    verificationLink: string;
+    portalLink: string;
+}
+
+interface VerificationSuccessData {
+    name: string;
+    portalLink: string;
+}
+
+export function generateEmployeeWelcomeEmail(employeeData: EmployeeWelcomeData): string {
     const { name, employeeId, tempPassword, verificationLink, portalLink } = employeeData;
 
     return `
@@ -205,7 +219,7 @@ export function generateEmployeeWelcomeEmail(employeeData) {
   `;
 }
 
-export function generateVerificationSuccessEmail(employeeData) {
+export function generateVerificationSuccessEmail(employeeData: VerificationSuccessData): string {
     const { name, portalLink } = employeeData;
 
     return `

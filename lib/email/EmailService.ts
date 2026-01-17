@@ -195,7 +195,7 @@ class EmailService {
     ): Promise<SendEmailResult> {
         try {
             let finalHtml = htmlContent;
-            let trackingDoc: { _id: { toString(): string } } | null = null;
+            let trackingId: string | undefined;
 
             if (options.enableTracking) {
                 await dbConnect();
@@ -220,17 +220,19 @@ class EmailService {
                     sentAt: new Date(),
                     status: "sent",
                 });
-                trackingDoc = await tracking.save();
+                const savedTracking = await tracking.save();
+                const currentTrackingId = savedTracking._id.toString();
+                trackingId = currentTrackingId;
 
                 // Rewrite links and append pixel
                 finalHtml = rewriteLinksForClickTracking(
                     finalHtml,
-                    trackingDoc._id.toString(),
+                    currentTrackingId,
                     baseUrl
                 );
                 finalHtml = appendOpenPixel(
                     finalHtml,
-                    trackingDoc._id.toString(),
+                    currentTrackingId,
                     baseUrl
                 );
             }
@@ -249,7 +251,7 @@ class EmailService {
                 success: true,
                 messageId: result.messageId,
                 recipient: to,
-                trackingId: trackingDoc ? trackingDoc._id.toString() : undefined,
+                trackingId,
             };
         } catch (error) {
             console.error(`Failed to send email to ${to}:`, error);

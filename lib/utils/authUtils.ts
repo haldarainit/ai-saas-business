@@ -3,10 +3,10 @@ import bcrypt from 'bcryptjs';
 
 /**
  * Generate a secure random password
- * @param {number} length - Length of password (default 12)
- * @returns {string} Generated password
+ * @param length - Length of password (default 12)
+ * @returns Generated password
  */
-export function generatePassword(length = 12) {
+export function generatePassword(length: number = 12): string {
     const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const lowercase = 'abcdefghijklmnopqrstuvwxyz';
     const numbers = '0123456789';
@@ -32,54 +32,54 @@ export function generatePassword(length = 12) {
 
 /**
  * Hash a password using bcrypt
- * @param {string} password - Plain text password
- * @returns {Promise<string>} Hashed password
+ * @param password - Plain text password
+ * @returns Hashed password
  */
-export async function hashPassword(password) {
+export async function hashPassword(password: string): Promise<string> {
     const salt = await bcrypt.genSalt(10);
     return bcrypt.hash(password, salt);
 }
 
 /**
  * Compare password with hash
- * @param {string} password - Plain text password
- * @param {string} hash - Hashed password
- * @returns {Promise<boolean>} True if passwords match
+ * @param password - Plain text password
+ * @param hash - Hashed password
+ * @returns True if passwords match
  */
-export async function comparePassword(password, hash) {
+export async function comparePassword(password: string, hash: string): Promise<boolean> {
     return bcrypt.compare(password, hash);
 }
 
 /**
  * Generate a unique verification token
- * @returns {string} Random token
+ * @returns Random token
  */
-export function generateVerificationToken() {
+export function generateVerificationToken(): string {
     return crypto.randomBytes(32).toString('hex');
 }
 
 /**
  * Generate a unique attendance token (shorter, URL-friendly)
- * @returns {string} Random token
+ * @returns Random token
  */
-export function generateAttendanceToken() {
+export function generateAttendanceToken(): string {
     return crypto.randomBytes(16).toString('hex');
 }
 
 /**
  * Generate token expiry time
- * @param {number} hours - Hours until expiry (default 24)
- * @returns {Date} Expiry date
+ * @param hours - Hours until expiry (default 24)
+ * @returns Expiry date
  */
-export function generateTokenExpiry(hours = 24) {
+export function generateTokenExpiry(hours: number = 24): Date {
     return new Date(Date.now() + hours * 60 * 60 * 1000);
 }
 
 /**
  * Check if token has expired
- * @param {Date} expiryDate - Token expiry date
- * @returns {boolean} True if expired
+ * @param expiryDate - Token expiry date
+ * @returns True if expired
  */
-export function isTokenExpired(expiryDate) {
+export function isTokenExpired(expiryDate: Date | string): boolean {
     return new Date() > new Date(expiryDate);
 }

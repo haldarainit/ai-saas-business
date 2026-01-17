@@ -474,9 +474,9 @@ class CampaignStorage {
             let effectiveUserId = emailData.userId || this.userId;
             if (!effectiveUserId && emailData.campaignId) {
                 try {
-                    const owningCampaign = await Campaign.findById(emailData.campaignId).select("userId").lean();
-                    if (owningCampaign && (owningCampaign as { userId?: string }).userId) {
-                        effectiveUserId = (owningCampaign as { userId: string }).userId;
+                    const owningCampaign = await Campaign.findById(emailData.campaignId).select("userId").lean() as unknown as { userId?: string } | null;
+                    if (owningCampaign?.userId) {
+                        effectiveUserId = owningCampaign.userId;
                     }
                 } catch (_) {
                     // fallback
@@ -533,9 +533,9 @@ class CampaignStorage {
                 let resolvedUserId = emailData.userId || this.userId;
                 if (!resolvedUserId && emailData.campaignId) {
                     try {
-                        const owningCampaign = await Campaign.findById(emailData.campaignId).select("userId").lean();
-                        if (owningCampaign && (owningCampaign as { userId?: string }).userId) {
-                            resolvedUserId = (owningCampaign as { userId: string }).userId;
+                        const owningCampaign = await Campaign.findById(emailData.campaignId).select("userId").lean() as unknown as { userId?: string } | null;
+                        if (owningCampaign?.userId) {
+                            resolvedUserId = owningCampaign.userId;
                         }
                     } catch (_) {
                         // ignore
@@ -616,9 +616,9 @@ class CampaignStorage {
             let effectiveUserId = userId || this.userId;
             if (!effectiveUserId && campaignId) {
                 try {
-                    const owningCampaign = await Campaign.findById(campaignId).select("userId").lean();
-                    if (owningCampaign && (owningCampaign as { userId?: string }).userId) {
-                        effectiveUserId = (owningCampaign as { userId: string }).userId;
+                    const owningCampaign = await Campaign.findById(campaignId).select("userId").lean() as unknown as { userId?: string } | null;
+                    if (owningCampaign?.userId) {
+                        effectiveUserId = owningCampaign.userId;
                     }
                 } catch (_) {
                     // ignore
