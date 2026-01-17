@@ -1,6 +1,45 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model, Schema } from 'mongoose';
 
-const MessageSchema = new mongoose.Schema({
+// Interface for attachments
+export interface IAttachment {
+    type: 'image' | 'video' | 'audio' | 'document';
+    url: string;
+    publicId?: string;
+    name?: string;
+    mimeType?: string;
+}
+
+// Interface for messages
+export interface IMessage {
+    role: string;
+    content: string;
+    attachments?: IAttachment[];
+}
+
+// Interface for history entries
+export interface IHistoryEntry {
+    code?: unknown;
+    timestamp?: number;
+    source?: 'ai' | 'user';
+    label?: string;
+    version?: string;
+    messages?: IMessage[];
+    userPrompt?: string;
+}
+
+// Main Workspace interface
+export interface IWorkspace extends Document {
+    name: string;
+    subdomain?: string;
+    userId: string;
+    messages: IMessage[];
+    fileData: Record<string, unknown>;
+    history: IHistoryEntry[];
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const MessageSchema = new Schema<IMessage>({
     role: {
         type: String,
         required: true
@@ -25,8 +64,8 @@ const MessageSchema = new mongoose.Schema({
     }]
 }, { _id: false });
 
-const HistoryEntrySchema = new mongoose.Schema({
-    code: mongoose.Schema.Types.Mixed,
+const HistoryEntrySchema = new Schema<IHistoryEntry>({
+    code: Schema.Types.Mixed,
     timestamp: Number,
     source: { type: String, enum: ['ai', 'user'] },
     label: String,
@@ -35,7 +74,7 @@ const HistoryEntrySchema = new mongoose.Schema({
     userPrompt: String
 }, { _id: false });
 
-const WorkspaceSchema = new mongoose.Schema({
+const WorkspaceSchema = new Schema<IWorkspace>({
     name: {
         type: String,
         required: true,
@@ -58,7 +97,7 @@ const WorkspaceSchema = new mongoose.Schema({
         default: []
     },
     fileData: {
-        type: mongoose.Schema.Types.Mixed,
+        type: Schema.Types.Mixed,
         default: {}
     },
     history: {
@@ -72,4 +111,6 @@ const WorkspaceSchema = new mongoose.Schema({
 // Index for faster queries
 WorkspaceSchema.index({ userId: 1, createdAt: -1 });
 
-export default mongoose.models.Workspace || mongoose.model('Workspace', WorkspaceSchema);
+const Workspace: Model<IWorkspace> = mongoose.models.Workspace || mongoose.model<IWorkspace>('Workspace', WorkspaceSchema);
+
+export default Workspace;

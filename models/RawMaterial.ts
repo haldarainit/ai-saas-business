@@ -1,9 +1,45 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model, Schema } from 'mongoose';
 
 console.log('RawMaterial model loading...');
 
+// Main RawMaterial interface
+export interface IRawMaterial extends Document {
+    userId: string;
+    name: string;
+    description: string;
+    sku: string;
+    category: string;
+    unit: string;
+    costPerUnit: number;
+    quantity: number;
+    minimumStock: number;
+    shelf: string;
+    expiryDate?: Date;
+    supplier: string;
+    supplierContact: string;
+    gstin: string;
+    hsnCode: string;
+    gstPercentage: number;
+    invoiceNumber: string;
+    invoiceDate: Date | null;
+    lastPurchaseDate: Date | null;
+    lastPurchasePrice: number;
+    createdAt: Date;
+    updatedAt: Date;
+    // Virtuals
+    totalValue: number;
+    isLowStock: boolean;
+    isExpired: boolean;
+    isAboutToExpire: boolean;
+}
+
+// Interface for static methods
+export interface IRawMaterialModel extends Model<IRawMaterial> {
+    findLowStock(userId: string): Promise<IRawMaterial[]>;
+}
+
 // Schema definition for Raw Materials
-const rawMaterialSchema = new mongoose.Schema({
+const rawMaterialSchema = new Schema<IRawMaterial, IRawMaterialModel>({
     userId: {
         type: String,
         required: true
@@ -109,27 +145,27 @@ const rawMaterialSchema = new mongoose.Schema({
 });
 
 // Virtual for total value of stock
-rawMaterialSchema.virtual('totalValue').get(function () {
+rawMaterialSchema.virtual('totalValue').get(function (this: IRawMaterial) {
     return this.costPerUnit * this.quantity;
 });
 
 // Virtual for checking if stock is low
-rawMaterialSchema.virtual('isLowStock').get(function () {
+rawMaterialSchema.virtual('isLowStock').get(function (this: IRawMaterial) {
     return this.quantity <= this.minimumStock;
 });
 
 // Virtual for checking if expired
-rawMaterialSchema.virtual('isExpired').get(function () {
+rawMaterialSchema.virtual('isExpired').get(function (this: IRawMaterial) {
     if (!this.expiryDate) return false;
     return new Date(this.expiryDate) < new Date();
 });
 
 // Virtual for checking if about to expire (15 days)
-rawMaterialSchema.virtual('isAboutToExpire').get(function () {
+rawMaterialSchema.virtual('isAboutToExpire').get(function (this: IRawMaterial) {
     if (!this.expiryDate) return false;
     const expiry = new Date(this.expiryDate);
     const today = new Date();
-    const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+    const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return daysUntilExpiry <= 15 && daysUntilExpiry >= 0;
 });
 
@@ -138,7 +174,7 @@ rawMaterialSchema.index({ userId: 1, sku: 1 }, { unique: true });
 rawMaterialSchema.index({ name: 'text', description: 'text' });
 
 // Error handling for duplicate SKU
-rawMaterialSchema.post('save', function (error, doc, next) {
+rawMaterialSchema.post('save', function (error: Error & { code?: number }, doc: IRawMaterial, next: (err?: Error) => void) {
     if (error.name === 'MongoServerError' && error.code === 11000) {
         next(new Error('A raw material with this SKU already exists'));
     } else {
@@ -147,7 +183,7 @@ rawMaterialSchema.post('save', function (error, doc, next) {
 });
 
 // Static method to find low stock materials
-rawMaterialSchema.statics.findLowStock = function (userId) {
+rawMaterialSchema.statics.findLowStock = function (userId: string) {
     return this.find({
         userId: userId,
         $expr: { $lte: ['$quantity', '$minimumStock'] }
@@ -155,13 +191,14 @@ rawMaterialSchema.statics.findLowStock = function (userId) {
 };
 
 // Check if model exists to prevent recompilation
-let RawMaterial;
+let RawMaterial: IRawMaterialModel;
 try {
-    RawMaterial = mongoose.model('RawMaterial');
+    RawMaterial = mongoose.model<IRawMaterial, IRawMaterialModel>('RawMaterial');
 } catch (e) {
-    if (e.name === 'MissingSchemaError') {
+    const error = e as Error;
+    if (error.name === 'MissingSchemaError') {
         console.log('Creating new RawMaterial model...');
-        RawMaterial = mongoose.model('RawMaterial', rawMaterialSchema);
+        RawMaterial = mongoose.model<IRawMaterial, IRawMaterialModel>('RawMaterial', rawMaterialSchema);
     } else {
         console.error('Error creating RawMaterial model:', e);
         throw e;

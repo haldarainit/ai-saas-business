@@ -5,22 +5,116 @@
  * NOTE: All functions gracefully handle AI quota errors by returning fallback responses
  */
 
-import { generateAIResponse } from "../../utils/gemini.js";
+import { generateAIResponse } from "../../utils/gemini";
+
+// Types for booking and event data
+interface Booking {
+    title?: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    status?: string;
+    attendee?: {
+        name?: string;
+        email?: string;
+    };
+    attendeeNotes?: string;
+    meetingLink?: string;
+    notes?: string;
+    locationType?: string;
+}
+
+interface EventType {
+    name: string;
+    duration: number;
+    isActive?: boolean;
+}
+
+interface InsightsItem {
+    type: 'trend' | 'suggestion' | 'warning' | 'success' | 'info';
+    title: string;
+    message: string;
+}
+
+interface TimeSlotSuggestion {
+    dayOfWeek: string;
+    timeSlot: string;
+    reason: string;
+}
+
+interface BusySlot {
+    startTime: string;
+    endTime: string;
+}
+
+interface AlternativeSlot {
+    date: string;
+    time: string;
+    reason: string;
+}
+
+interface FollowUpEmail {
+    subject: string;
+    content: string;
+}
+
+// Result types
+interface DescriptionResult {
+    success: boolean;
+    description: string;
+    fallback?: boolean;
+}
+
+interface TimeSlotResult {
+    success: boolean;
+    suggestions: TimeSlotSuggestion[];
+    fallback?: boolean;
+}
+
+interface MeetingPrepResult {
+    success: boolean;
+    prep: string;
+    fallback?: boolean;
+}
+
+interface FollowUpEmailResult {
+    success: boolean;
+    email: FollowUpEmail;
+    fallback?: boolean;
+}
+
+interface InsightsResult {
+    success: boolean;
+    insights: InsightsItem[];
+    fallback?: boolean;
+}
+
+interface WelcomeMessageResult {
+    success: boolean;
+    message: string;
+    fallback?: boolean;
+}
+
+interface AlternativeSlotsResult {
+    success: boolean;
+    alternatives: AlternativeSlot[];
+    fallback?: boolean;
+}
 
 // Fallback responses when AI is unavailable
 const FALLBACKS = {
-    eventDescription: (eventName, duration) =>
+    eventDescription: (eventName: string, duration: number): string =>
         `Schedule a ${duration}-minute ${eventName} session. This is a great opportunity to discuss your needs and get personalized attention.`,
-    welcomeMessage: (hostName) =>
+    welcomeMessage: (hostName: string): string =>
         `Welcome! I'm ${hostName}. Select an available time slot to book an appointment with me.`,
-    meetingPrep: () =>
+    meetingPrep: (): string =>
         `• Review attendee information\n• Prepare relevant materials\n• Test your video/audio connection\n• Have your calendar ready for follow-up scheduling`,
-    followUpEmail: (booking, hostName) => ({
+    followUpEmail: (booking: Booking, hostName: string): FollowUpEmail => ({
         subject: `Thank you for meeting with ${hostName}`,
         content: `<p>Thank you for your time today. It was great connecting with you.</p><p>If you have any questions or would like to schedule a follow-up, please don't hesitate to reach out.</p><p>Best regards,<br>${hostName}</p>`
     }),
     insights: [
-        { type: "info", title: "Getting Started", message: "Keep booking appointments to unlock AI-powered insights about your scheduling patterns." }
+        { type: "info" as const, title: "Getting Started", message: "Keep booking appointments to unlock AI-powered insights about your scheduling patterns." }
     ],
     timeSlots: [
         { dayOfWeek: "Weekdays", timeSlot: "10:00 AM - 12:00 PM", reason: "Morning slots are typically preferred" },
@@ -31,7 +125,7 @@ const FALLBACKS = {
 /**
  * Safely call AI and return null on any error (caller uses fallback)
  */
-async function safeAICall(prompt) {
+async function safeAICall(prompt: string): Promise<string | null> {
     try {
         const response = await generateAIResponse(prompt);
         // Return null if no response or error-like response
@@ -48,7 +142,11 @@ async function safeAICall(prompt) {
 /**
  * Generate AI-powered event description based on event name
  */
-export async function generateEventDescription(eventName, duration, locationType) {
+export async function generateEventDescription(
+    eventName: string,
+    duration: number,
+    locationType: string
+): Promise<DescriptionResult> {
     const prompt = `You are a professional scheduling assistant. Generate a concise, professional description for an appointment event type.
 
 Event Name: ${eventName}
@@ -79,7 +177,11 @@ Return ONLY the description text, no quotes or extra formatting.`;
 /**
  * Generate smart time slot suggestions based on booking patterns
  */
-export async function suggestOptimalTimeSlots(bookings, eventType, preferences) {
+export async function suggestOptimalTimeSlots(
+    bookings: Booking[],
+    eventType: EventType,
+    preferences?: string
+): Promise<TimeSlotResult> {
     const prompt = `You are an AI scheduling assistant. Analyze the booking patterns and suggest optimal time slots.
 
 Current Bookings Pattern:
@@ -119,7 +221,11 @@ Return as JSON array:
 /**
  * Generate AI meeting agenda/prep notes based on booking details
  */
-export async function generateMeetingPrep(booking, eventType, attendeeInfo) {
+export async function generateMeetingPrep(
+    booking: Booking,
+    eventType: EventType,
+    attendeeInfo: { name: string; email: string }
+): Promise<MeetingPrepResult> {
     const prompt = `You are a professional meeting preparation assistant. Generate a brief meeting prep note.
 
 Meeting Details:
@@ -149,7 +255,11 @@ Format as clean, readable text with bullet points. Keep it under 200 words.`;
 /**
  * Generate AI-powered follow-up email after meeting
  */
-export async function generateFollowUpEmail(booking, eventType, hostName) {
+export async function generateFollowUpEmail(
+    booking: Booking,
+    eventType: EventType,
+    hostName: string
+): Promise<FollowUpEmailResult> {
     const prompt = `You are a professional email writer. Generate a brief follow-up email after a meeting.
 
 Meeting Details:
@@ -189,7 +299,10 @@ Return as JSON:
 /**
  * Analyze booking patterns and provide insights
  */
-export async function analyzeBookingPatterns(bookings, eventTypes) {
+export async function analyzeBookingPatterns(
+    bookings: Booking[],
+    eventTypes: EventType[]
+): Promise<InsightsResult> {
     if (!bookings || bookings.length < 3) {
         return {
             success: true,
@@ -238,7 +351,7 @@ Types can be: trend, suggestion, warning, success`;
     }
 
     // Generate basic insights from data without AI
-    const basicInsights = [
+    const basicInsights: InsightsItem[] = [
         {
             type: "info",
             title: "Booking Overview",
@@ -257,7 +370,11 @@ Types can be: trend, suggestion, warning, success`;
 /**
  * Generate personalized welcome message for booking page
  */
-export async function generateWelcomeMessage(hostName, businessType, tone = "professional") {
+export async function generateWelcomeMessage(
+    hostName: string,
+    businessType?: string,
+    tone: string = "professional"
+): Promise<WelcomeMessageResult> {
     const prompt = `Generate a short, engaging welcome message for a booking page.
 
 Host Name: ${hostName}
@@ -287,7 +404,12 @@ Return ONLY the welcome message text, no quotes.`;
 /**
  * Smart rescheduling suggestions when a slot is busy
  */
-export async function suggestAlternativeSlots(requestedDate, requestedTime, busySlots, duration) {
+export async function suggestAlternativeSlots(
+    requestedDate: string,
+    requestedTime: string,
+    busySlots: BusySlot[],
+    duration: number
+): Promise<AlternativeSlotsResult> {
     const prompt = `You are a scheduling AI. The requested time slot is unavailable. Suggest 3 alternative slots.
 
 Requested: ${requestedDate} at ${requestedTime}
@@ -319,7 +441,7 @@ Return as JSON:
     }
 
     // Generate simple alternatives
-    const alternatives = [
+    const alternatives: AlternativeSlot[] = [
         { date: requestedDate, time: "10:00", reason: "Morning slot" },
         { date: requestedDate, time: "14:00", reason: "Afternoon slot" },
         { date: requestedDate, time: "16:00", reason: "Late afternoon slot" }

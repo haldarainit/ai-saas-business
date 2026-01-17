@@ -1,11 +1,57 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
 console.log('ProductionLog model loading...');
 
+// Interface for consumed material record
+export interface IConsumedMaterial {
+    rawMaterialId: Types.ObjectId;
+    rawMaterialName: string;
+    rawMaterialSku: string;
+    quantityConsumed: number;
+    unit: string;
+    costPerUnit: number;
+    totalCost: number;
+}
+
+// Main ProductionLog interface
+export interface IProductionLog extends Document {
+    userId: string;
+    productId: Types.ObjectId;
+    productName: string;
+    productSku: string;
+    quantityProduced: number;
+    batchNumber: string;
+    materialsConsumed: IConsumedMaterial[];
+    totalRawMaterialCost: number;
+    manufacturingCost: number;
+    totalProductionCost: number;
+    costPerUnit: number;
+    status: 'completed' | 'cancelled' | 'partial';
+    notes: string;
+    productionDate: Date;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+// Interface for production summary result
+export interface IProductionSummary {
+    _id: Types.ObjectId;
+    productName: string;
+    totalProduced: number;
+    totalCost: number;
+    avgCostPerUnit: number;
+    batches: number;
+}
+
+// Interface for static methods
+export interface IProductionLogModel extends Model<IProductionLog> {
+    getProductionSummary(userId: string, startDate: Date, endDate: Date): Promise<IProductionSummary[]>;
+}
+
 // Consumed material record
-const consumedMaterialSchema = new mongoose.Schema({
+const consumedMaterialSchema = new Schema<IConsumedMaterial>({
     rawMaterialId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'RawMaterial',
         required: true
     },
@@ -39,14 +85,14 @@ const consumedMaterialSchema = new mongoose.Schema({
 }, { _id: false });
 
 // Production Log Schema - tracks each production batch
-const productionLogSchema = new mongoose.Schema({
+const productionLogSchema = new Schema<IProductionLog, IProductionLogModel>({
     userId: {
         type: String,
         required: true,
         index: true
     },
     productId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'ManufacturingProduct',
         required: true
     },
@@ -126,7 +172,7 @@ productionLogSchema.index({ productionDate: -1 });
 productionLogSchema.index({ userId: 1, productionDate: -1 });
 
 // Static methods for reporting
-productionLogSchema.statics.getProductionSummary = function (userId, startDate, endDate) {
+productionLogSchema.statics.getProductionSummary = function (userId: string, startDate: Date, endDate: Date) {
     return this.aggregate([
         {
             $match: {
@@ -149,13 +195,14 @@ productionLogSchema.statics.getProductionSummary = function (userId, startDate, 
 };
 
 // Check if model exists to prevent recompilation
-let ProductionLog;
+let ProductionLog: IProductionLogModel;
 try {
-    ProductionLog = mongoose.model('ProductionLog');
+    ProductionLog = mongoose.model<IProductionLog, IProductionLogModel>('ProductionLog');
 } catch (e) {
-    if (e.name === 'MissingSchemaError') {
+    const error = e as Error;
+    if (error.name === 'MissingSchemaError') {
         console.log('Creating new ProductionLog model...');
-        ProductionLog = mongoose.model('ProductionLog', productionLogSchema);
+        ProductionLog = mongoose.model<IProductionLog, IProductionLogModel>('ProductionLog', productionLogSchema);
     } else {
         console.error('Error creating ProductionLog model:', e);
         throw e;

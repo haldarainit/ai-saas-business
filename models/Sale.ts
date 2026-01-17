@@ -1,9 +1,61 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
 console.log('Sale model loading...');
 
+// Interface for customer
+export interface ISaleCustomer {
+    name: string;
+    phone: string;
+    email: string;
+    address: string;
+    gstin: string;
+}
+
+// Interface for sale items
+export interface ISaleItem {
+    productId: Types.ObjectId;
+    productName: string;
+    productSku: string;
+    quantity: number;
+    unit: string;
+    costPrice: number;
+    sellingPrice: number;
+    discount: number;
+    tax: number;
+    totalPrice: number;
+}
+
+// Main Sale interface
+export interface ISale extends Document {
+    userId: string;
+    invoiceNumber: string;
+    customer: ISaleCustomer;
+    items: ISaleItem[];
+    subtotal: number;
+    totalDiscount: number;
+    totalTax: number;
+    grandTotal: number;
+    totalCost: number;
+    profit: number;
+    profitMargin: number;
+    paymentMethod: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'credit' | 'cheque' | 'other';
+    paymentStatus: 'paid' | 'partial' | 'pending' | 'refunded';
+    amountPaid: number;
+    amountDue: number;
+    saleDate: Date;
+    notes: string;
+    status: 'completed' | 'cancelled' | 'returned';
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+// Interface for static methods
+export interface ISaleModel extends Model<ISale> {
+    generateInvoiceNumber(userId: string): Promise<string>;
+}
+
 // Schema definition for Sales
-const saleSchema = new mongoose.Schema({
+const saleSchema = new Schema<ISale, ISaleModel>({
     userId: {
         type: String,
         required: true
@@ -24,7 +76,7 @@ const saleSchema = new mongoose.Schema({
     },
     // Items Sold
     items: [{
-        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+        productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
         productName: { type: String, required: true },
         productSku: { type: String, required: true },
         quantity: { type: Number, required: true, min: 1 },
@@ -140,7 +192,7 @@ saleSchema.pre('save', function (next) {
 });
 
 // Generate unique invoice number
-saleSchema.statics.generateInvoiceNumber = async function (userId) {
+saleSchema.statics.generateInvoiceNumber = async function (userId: string): Promise<string> {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
     const count = await this.countDocuments({
@@ -153,6 +205,6 @@ saleSchema.statics.generateInvoiceNumber = async function (userId) {
     return `INV-${dateStr}-${String(count + 1).padStart(4, '0')}`;
 };
 
-const Sale = mongoose.models.Sale || mongoose.model('Sale', saleSchema);
+const Sale: ISaleModel = mongoose.models.Sale as ISaleModel || mongoose.model<ISale, ISaleModel>('Sale', saleSchema);
 
 export default Sale;

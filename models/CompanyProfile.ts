@@ -1,6 +1,39 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model, Schema } from 'mongoose';
 
-const CompanyProfileSchema = new mongoose.Schema({
+// Interface for CompanyProfile document
+export interface ICompanyProfile extends Document {
+    userId: string;
+    name: string;
+    address1?: string;
+    address2?: string;
+    phone?: string;
+    email?: string;
+    logo?: string;
+    gstin?: string;
+    pan?: string;
+    website?: string;
+    // Bank Details
+    bankName?: string;
+    bankAccountNo?: string;
+    bankIFSC?: string;
+    bankBranch?: string;
+    // Signature/Footer
+    authorizedSignatory?: string;
+    signatoryDesignation?: string;
+    footerLine1?: string;
+    footerLine2?: string;
+    footerLine3?: string;
+    // Header styling
+    headerLineColor: string;
+    headerValueColor: string;
+    footerLineColor: string;
+    footerTextColor: string;
+    isDefault: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const CompanyProfileSchema = new Schema<ICompanyProfile>({
     userId: {
         type: String,
         required: true,
@@ -62,6 +95,6 @@ if (mongoose.models.CompanyProfile) {
     delete mongoose.models.CompanyProfile;
 }
 
-export default mongoose.models.CompanyProfile || mongoose.model('CompanyProfile', CompanyProfileSchema);
+const CompanyProfile: Model<ICompanyProfile> = mongoose.models.CompanyProfile || mongoose.model<ICompanyProfile>('CompanyProfile', CompanyProfileSchema);
 
-
+export default CompanyProfile;

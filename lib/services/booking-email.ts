@@ -3,12 +3,86 @@
  * Sends confirmation emails, notifications, and reminders for appointments
  */
 
-import nodemailer from "nodemailer";
+import nodemailer, { Transporter } from "nodemailer";
+import { SentMessageInfo } from "nodemailer";
+
+// Types for email settings
+interface EmailSettings {
+    emailUser?: string;
+    emailPassword?: string;
+    emailProvider?: string;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpSecure?: boolean;
+    fromName?: string;
+    sendConfirmationToAttendee?: boolean;
+    sendNotificationToHost?: boolean;
+    sendReminders?: boolean;
+}
+
+// Types for booking data
+interface Attendee {
+    name?: string;
+    email?: string;
+}
+
+interface Booking {
+    title?: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    meetingLink?: string;
+    locationType?: string;
+    attendee?: Attendee;
+    notes?: string;
+}
+
+interface EventType {
+    name?: string;
+    duration?: number;
+}
+
+interface Host {
+    displayName?: string;
+    email?: string;
+    emailSettings?: EmailSettings;
+    notifications?: {
+        notificationEmail?: string;
+    };
+}
+
+// Email result types
+interface EmailResult {
+    sent: boolean;
+    messageId?: string;
+    reason?: string;
+    error?: string;
+}
+
+interface BookingEmailsResult {
+    attendeeEmail: EmailResult;
+    hostEmail: EmailResult;
+}
+
+// Provider configuration type
+interface ProviderConfig {
+    host: string;
+    port: number;
+    secure: boolean;
+    name: string;
+}
+
+interface ProviderInfo {
+    id: string;
+    name: string;
+    host: string;
+    port: number;
+}
 
 /**
  * Email provider SMTP presets
  */
-const EMAIL_PROVIDERS = {
+const EMAIL_PROVIDERS: Record<string, ProviderConfig> = {
     gmail: {
         host: "smtp.gmail.com",
         port: 587,
@@ -50,14 +124,14 @@ const EMAIL_PROVIDERS = {
 /**
  * Get SMTP config for a provider
  */
-export function getEmailProviderConfig(provider) {
+export function getEmailProviderConfig(provider: string): ProviderConfig {
     return EMAIL_PROVIDERS[provider] || EMAIL_PROVIDERS.custom;
 }
 
 /**
  * Get all available email providers
  */
-export function getEmailProviders() {
+export function getEmailProviders(): ProviderInfo[] {
     return Object.entries(EMAIL_PROVIDERS).map(([key, value]) => ({
         id: key,
         name: value.name,
@@ -69,7 +143,7 @@ export function getEmailProviders() {
 /**
  * Create a nodemailer transporter with user's email settings
  */
-function createTransporter(emailSettings) {
+function createTransporter(emailSettings: EmailSettings): Transporter<SentMessageInfo> {
     if (!emailSettings?.emailUser || !emailSettings?.emailPassword) {
         throw new Error("Email settings not configured. Please add your email credentials in Settings.");
     }
@@ -90,7 +164,7 @@ function createTransporter(emailSettings) {
     return nodemailer.createTransport({
         host: host,
         port: port,
-        secure: secure,
+        secure: secure || false,
         auth: {
             user: emailSettings.emailUser,
             pass: emailSettings.emailPassword,
@@ -101,7 +175,7 @@ function createTransporter(emailSettings) {
 /**
  * Format date for display
  */
-function formatDate(dateStr) {
+function formatDate(dateStr: string): string {
     const date = new Date(dateStr);
     return date.toLocaleDateString("en-US", {
         weekday: "long",
@@ -114,7 +188,7 @@ function formatDate(dateStr) {
 /**
  * Format time for display
  */
-function formatTime(timeStr) {
+function formatTime(timeStr: string): string {
     const [hours, minutes] = timeStr.split(":");
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? "PM" : "AM";
@@ -125,7 +199,12 @@ function formatTime(timeStr) {
 /**
  * Send confirmation email to attendee after booking
  */
-export async function sendBookingConfirmationToAttendee(booking, eventType, host, emailSettings) {
+export async function sendBookingConfirmationToAttendee(
+    booking: Booking,
+    eventType: EventType,
+    host: Host,
+    emailSettings: EmailSettings
+): Promise<EmailResult> {
     if (!emailSettings?.sendConfirmationToAttendee) {
         console.log("Attendee confirmation email disabled");
         return { sent: false, reason: "disabled" };
@@ -133,10 +212,6 @@ export async function sendBookingConfirmationToAttendee(booking, eventType, host
 
     try {
         const transporter = createTransporter(emailSettings);
-
-        const meetingInfo = booking.meetingLink
-            ? `<p><strong>Meeting Link:</strong> <a href="${booking.meetingLink}" style="color: #6366f1;">${booking.meetingLink}</a></p>`
-            : "";
 
         const emailHtml = `
 <!DOCTYPE html>
@@ -220,15 +295,21 @@ export async function sendBookingConfirmationToAttendee(booking, eventType, host
         console.log("Confirmation email sent to attendee:", booking.attendee?.email);
         return { sent: true, messageId: result.messageId };
     } catch (error) {
+        const err = error as Error;
         console.error("Error sending confirmation email to attendee:", error);
-        return { sent: false, error: error.message };
+        return { sent: false, error: err.message };
     }
 }
 
 /**
  * Send notification email to host when someone books
  */
-export async function sendBookingNotificationToHost(booking, eventType, host, emailSettings) {
+export async function sendBookingNotificationToHost(
+    booking: Booking,
+    eventType: EventType,
+    host: Host,
+    emailSettings: EmailSettings
+): Promise<EmailResult> {
     if (!emailSettings?.sendNotificationToHost) {
         console.log("Host notification email disabled");
         return { sent: false, reason: "disabled" };
@@ -306,15 +387,22 @@ export async function sendBookingNotificationToHost(booking, eventType, host, em
         console.log("Notification email sent to host:", hostEmail);
         return { sent: true, messageId: result.messageId };
     } catch (error) {
+        const err = error as Error;
         console.error("Error sending notification email to host:", error);
-        return { sent: false, error: error.message };
+        return { sent: false, error: err.message };
     }
 }
 
 /**
  * Send reminder email to attendee before appointment
  */
-export async function sendReminderEmail(booking, eventType, host, emailSettings, hoursUntilMeeting) {
+export async function sendReminderEmail(
+    booking: Booking,
+    eventType: EventType,
+    host: Host,
+    emailSettings: EmailSettings,
+    hoursUntilMeeting: number
+): Promise<EmailResult> {
     if (!emailSettings?.sendReminders) {
         console.log("Reminder emails disabled");
         return { sent: false, reason: "disabled" };
@@ -380,20 +468,28 @@ export async function sendReminderEmail(booking, eventType, host, emailSettings,
         console.log("Reminder email sent:", booking.attendee?.email);
         return { sent: true, messageId: result.messageId };
     } catch (error) {
+        const err = error as Error;
         console.error("Error sending reminder email:", error);
-        return { sent: false, error: error.message };
+        return { sent: false, error: err.message };
     }
 }
 
 /**
  * Send all booking emails (confirmation to attendee + notification to host)
  */
-export async function sendBookingEmails(booking, eventType, host) {
+export async function sendBookingEmails(
+    booking: Booking,
+    eventType: EventType,
+    host: Host
+): Promise<BookingEmailsResult> {
     const emailSettings = host.emailSettings;
 
     if (!emailSettings?.emailUser || !emailSettings?.emailPassword) {
         console.log("Email settings not configured, skipping booking emails");
-        return { attendeeEmail: { sent: false, reason: "not_configured" }, hostEmail: { sent: false, reason: "not_configured" } };
+        return {
+            attendeeEmail: { sent: false, reason: "not_configured" },
+            hostEmail: { sent: false, reason: "not_configured" }
+        };
     }
 
     const [attendeeResult, hostResult] = await Promise.all([

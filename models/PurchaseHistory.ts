@@ -1,9 +1,61 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model, Schema } from 'mongoose';
 
 console.log('PurchaseHistory model loading...');
 
+// Interface for purchase items
+export interface IPurchaseItem {
+    name: string;
+    sku: string;
+    quantity: number;
+    unit: string;
+    basePrice: number;
+    costPerUnit: number;
+    gstPercentage: number;
+    gstAmount: number;
+    totalCost: number;
+    category: string;
+    hsnCode: string;
+}
+
+// Interface for payment details
+export interface IPaymentDetails {
+    method: 'cash' | 'card' | 'upi' | 'bank' | 'cheque';
+    transactionId: string;
+    bankName: string;
+    accountNumber: string;
+    chequeNumber: string;
+    chequeDate: Date | null;
+    upiId: string;
+    notes: string;
+}
+
+// Interface for supplier info
+export interface ISupplierInfo {
+    name: string;
+    gstin: string;
+    contact: string;
+    address: string;
+}
+
+// Main PurchaseHistory interface
+export interface IPurchaseHistory extends Document {
+    userId: string;
+    purchaseType: 'manufacturing' | 'trading';
+    items: IPurchaseItem[];
+    itemCount: number;
+    totalValue: number;
+    supplier: ISupplierInfo;
+    isPaid: boolean;
+    paymentDetails?: IPaymentDetails;
+    invoiceNumber: string;
+    invoiceDate: Date | null;
+    notes: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
 // Schema for individual purchase items
-const purchaseItemSchema = new mongoose.Schema({
+const purchaseItemSchema = new Schema<IPurchaseItem>({
     name: {
         type: String,
         required: true
@@ -51,7 +103,7 @@ const purchaseItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 // Schema for payment details
-const paymentDetailsSchema = new mongoose.Schema({
+const paymentDetailsSchema = new Schema<IPaymentDetails>({
     method: {
         type: String,
         enum: ['cash', 'card', 'upi', 'bank', 'cheque'],
@@ -88,7 +140,7 @@ const paymentDetailsSchema = new mongoose.Schema({
 }, { _id: false });
 
 // Schema for supplier info
-const supplierInfoSchema = new mongoose.Schema({
+const supplierInfoSchema = new Schema<ISupplierInfo>({
     name: {
         type: String,
         default: ''
@@ -108,7 +160,7 @@ const supplierInfoSchema = new mongoose.Schema({
 }, { _id: false });
 
 // Main Purchase History Schema
-const purchaseHistorySchema = new mongoose.Schema({
+const purchaseHistorySchema = new Schema<IPurchaseHistory>({
     userId: {
         type: String,
         required: true,
@@ -162,13 +214,14 @@ purchaseHistorySchema.index({ userId: 1, purchaseType: 1 });
 purchaseHistorySchema.index({ userId: 1, isPaid: 1 });
 
 // Check if model exists to prevent recompilation
-let PurchaseHistory;
+let PurchaseHistory: Model<IPurchaseHistory>;
 try {
-    PurchaseHistory = mongoose.model('PurchaseHistory');
+    PurchaseHistory = mongoose.model<IPurchaseHistory>('PurchaseHistory');
 } catch (e) {
-    if (e.name === 'MissingSchemaError') {
+    const error = e as Error;
+    if (error.name === 'MissingSchemaError') {
         console.log('Creating new PurchaseHistory model...');
-        PurchaseHistory = mongoose.model('PurchaseHistory', purchaseHistorySchema);
+        PurchaseHistory = mongoose.model<IPurchaseHistory>('PurchaseHistory', purchaseHistorySchema);
     } else {
         console.error('Error creating PurchaseHistory model:', e);
         throw e;

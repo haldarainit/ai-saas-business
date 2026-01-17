@@ -1,11 +1,54 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model, Schema, Types } from 'mongoose';
+
+// Interface for BOM (Bill of Materials) Item
+export interface IBOMItem {
+    rawMaterialId: Types.ObjectId;
+    rawMaterialName: string;
+    rawMaterialSku: string;
+    quantityRequired: number;
+    unit: string;
+    costPerUnit: number;
+}
+
+// Main ManufacturingProduct interface
+export interface IManufacturingProduct extends Document {
+    userId: string;
+    name: string;
+    description: string;
+    sku: string;
+    category: string;
+    billOfMaterials: IBOMItem[];
+    rawMaterialCost: number;
+    manufacturingCost: number;
+    totalCost: number;
+    sellingPrice: number;
+    finishedQuantity: number;
+    minimumStock: number;
+    shelf: string;
+    lastProductionDate: Date | null;
+    totalProduced: number;
+    totalSold: number;
+    createdAt: Date;
+    updatedAt: Date;
+    // Virtuals
+    profitPerUnit: number;
+    totalProfit: number;
+    profitMargin: number;
+    stockValue: number;
+    isLowStock: boolean;
+}
+
+// Interface for static methods
+export interface IManufacturingProductModel extends Model<IManufacturingProduct> {
+    findLowStock(userId: string): Promise<IManufacturingProduct[]>;
+}
 
 console.log('ManufacturingProduct model loading...');
 
 // BOM (Bill of Materials) Item Schema - ingredients for a product
-const bomItemSchema = new mongoose.Schema({
+const bomItemSchema = new Schema<IBOMItem>({
     rawMaterialId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'RawMaterial',
         required: true
     },
@@ -35,7 +78,7 @@ const bomItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 // Manufacturing Product Schema
-const manufacturingProductSchema = new mongoose.Schema({
+const manufacturingProductSchema = new Schema<IManufacturingProduct, IManufacturingProductModel>({
     userId: {
         type: String,
         required: true,
@@ -138,35 +181,35 @@ const manufacturingProductSchema = new mongoose.Schema({
 });
 
 // Virtual for profit per unit
-manufacturingProductSchema.virtual('profitPerUnit').get(function () {
+manufacturingProductSchema.virtual('profitPerUnit').get(function (this: IManufacturingProduct) {
     return this.sellingPrice - this.totalCost;
 });
 
 // Virtual for total profit on current stock
-manufacturingProductSchema.virtual('totalProfit').get(function () {
+manufacturingProductSchema.virtual('totalProfit').get(function (this: IManufacturingProduct) {
     return (this.sellingPrice - this.totalCost) * this.finishedQuantity;
 });
 
 // Virtual for profit margin percentage
-manufacturingProductSchema.virtual('profitMargin').get(function () {
+manufacturingProductSchema.virtual('profitMargin').get(function (this: IManufacturingProduct) {
     if (this.sellingPrice === 0) return 0;
     return ((this.sellingPrice - this.totalCost) / this.sellingPrice) * 100;
 });
 
 // Virtual for stock value
-manufacturingProductSchema.virtual('stockValue').get(function () {
+manufacturingProductSchema.virtual('stockValue').get(function (this: IManufacturingProduct) {
     return this.sellingPrice * this.finishedQuantity;
 });
 
 // Virtual for checking if stock is low
-manufacturingProductSchema.virtual('isLowStock').get(function () {
+manufacturingProductSchema.virtual('isLowStock').get(function (this: IManufacturingProduct) {
     return this.finishedQuantity <= this.minimumStock;
 });
 
 // Pre-save hook to calculate costs
 manufacturingProductSchema.pre('save', function (next) {
     // Calculate raw material cost from BOM
-    this.rawMaterialCost = this.billOfMaterials.reduce((total, item) => {
+    this.rawMaterialCost = this.billOfMaterials.reduce((total: number, item: IBOMItem) => {
         return total + (item.quantityRequired * item.costPerUnit);
     }, 0);
 
@@ -183,7 +226,7 @@ manufacturingProductSchema.index({ userId: 1 });
 manufacturingProductSchema.index({ name: 'text', description: 'text' });
 
 // Error handling for duplicate SKU
-manufacturingProductSchema.post('save', function (error, doc, next) {
+manufacturingProductSchema.post('save', function (error: Error & { code?: number }, doc: IManufacturingProduct, next: (err?: Error) => void) {
     if (error.name === 'MongoServerError' && error.code === 11000) {
         next(new Error('A manufacturing product with this SKU already exists'));
     } else {
@@ -192,7 +235,7 @@ manufacturingProductSchema.post('save', function (error, doc, next) {
 });
 
 // Static method to find low stock products
-manufacturingProductSchema.statics.findLowStock = function (userId) {
+manufacturingProductSchema.statics.findLowStock = function (userId: string) {
     return this.find({
         userId: userId,
         $expr: { $lte: ['$finishedQuantity', '$minimumStock'] }
@@ -200,13 +243,14 @@ manufacturingProductSchema.statics.findLowStock = function (userId) {
 };
 
 // Check if model exists to prevent recompilation
-let ManufacturingProduct;
+let ManufacturingProduct: IManufacturingProductModel;
 try {
-    ManufacturingProduct = mongoose.model('ManufacturingProduct');
+    ManufacturingProduct = mongoose.model<IManufacturingProduct, IManufacturingProductModel>('ManufacturingProduct');
 } catch (e) {
-    if (e.name === 'MissingSchemaError') {
+    const error = e as Error;
+    if (error.name === 'MissingSchemaError') {
         console.log('Creating new ManufacturingProduct model...');
-        ManufacturingProduct = mongoose.model('ManufacturingProduct', manufacturingProductSchema);
+        ManufacturingProduct = mongoose.model<IManufacturingProduct, IManufacturingProductModel>('ManufacturingProduct', manufacturingProductSchema);
     } else {
         console.error('Error creating ManufacturingProduct model:', e);
         throw e;

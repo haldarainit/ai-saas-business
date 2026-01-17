@@ -5,11 +5,87 @@
  * Supports user-specific Google API credentials.
  */
 
+// Types for OAuth credentials
+interface OAuthCredentials {
+    accessToken?: string;
+    refreshToken?: string;
+    clientId?: string;
+    clientSecret?: string;
+    redirectUri?: string;
+}
+
+interface OAuthClient {
+    clientId: string;
+    clientSecret: string;
+    redirectUri: string;
+    accessToken?: string;
+    refreshToken?: string;
+}
+
+// Types for attendee
+interface Attendee {
+    email: string;
+    name?: string;
+}
+
+// Types for meeting creation options
+interface CreateMeetEventOptions {
+    accessToken: string;
+    refreshToken?: string;
+    clientId?: string;
+    clientSecret?: string;
+    title: string;
+    description?: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    timezone?: string;
+    attendees?: Attendee[];
+}
+
+// Result types
+interface MeetEventResult {
+    success: boolean;
+    eventId: string;
+    meetingLink?: string;
+    htmlLink: string;
+    conferenceId?: string;
+    provider: string;
+    joinInstructions: string;
+}
+
+interface CalendarConnectionResult {
+    connected: boolean;
+    email?: string;
+    summary?: string;
+    error?: string;
+}
+
+interface TokenExchangeResult {
+    accessToken: string;
+    refreshToken?: string;
+    expiresAt: number;
+    email?: string | null;
+}
+
+interface RefreshTokenResult {
+    accessToken: string;
+    expiresAt: number;
+}
+
+// Error response type from Google API
+interface GoogleAPIError {
+    error?: {
+        message?: string;
+    };
+    error_description?: string;
+}
+
 /**
  * Create OAuth2 client for Google APIs
  * Uses user-specific credentials if provided, otherwise falls back to env vars
  */
-function getOAuth2Client(options = {}) {
+function getOAuth2Client(options: OAuthCredentials = {}): OAuthClient {
     const { accessToken, refreshToken, clientId, clientSecret, redirectUri } = options;
 
     // Use user's credentials if provided, otherwise use env vars
@@ -34,10 +110,10 @@ function getOAuth2Client(options = {}) {
 /**
  * Create a Google Calendar event with Google Meet link
  * 
- * @param {Object} options - Meeting options
- * @returns {Promise<Object>} - Created event with meeting link
+ * @param options - Meeting options
+ * @returns Promise<MeetEventResult> - Created event with meeting link
  */
-export async function createGoogleMeetEvent(options) {
+export async function createGoogleMeetEvent(options: CreateMeetEventOptions): Promise<MeetEventResult> {
     const {
         accessToken,
         refreshToken,
@@ -105,11 +181,24 @@ export async function createGoogleMeetEvent(options) {
         );
 
         if (!response.ok) {
-            const error = await response.json();
+            const error = await response.json() as GoogleAPIError;
             throw new Error(error.error?.message || "Failed to create calendar event");
         }
 
-        const createdEvent = await response.json();
+        interface CalendarEventResponse {
+            id: string;
+            htmlLink: string;
+            hangoutLink?: string;
+            conferenceData?: {
+                conferenceId?: string;
+                entryPoints?: Array<{
+                    entryPointType: string;
+                    uri: string;
+                }>;
+            };
+        }
+
+        const createdEvent = await response.json() as CalendarEventResponse;
         const meetingLink = createdEvent.conferenceData?.entryPoints?.find(
             ep => ep.entryPointType === "video"
         )?.uri || createdEvent.hangoutLink;
@@ -124,9 +213,10 @@ export async function createGoogleMeetEvent(options) {
             joinInstructions: "Click the meeting link to join via Google Meet."
         };
     } catch (error) {
+        const err = error as Error;
         console.error("Error creating Google Calendar event:", error);
 
-        if (error.message?.includes("invalid_grant") || error.message?.includes("401")) {
+        if (err.message?.includes("invalid_grant") || err.message?.includes("401")) {
             throw new Error("Google Calendar access expired. Please reconnect in Settings.");
         }
 
@@ -137,7 +227,7 @@ export async function createGoogleMeetEvent(options) {
 /**
  * Check if Google Calendar is connected
  */
-export async function checkGoogleCalendarConnection(accessToken) {
+export async function checkGoogleCalendarConnection(accessToken?: string): Promise<CalendarConnectionResult> {
     if (!accessToken) {
         return { connected: false, error: "No access token" };
     }
@@ -156,16 +246,22 @@ export async function checkGoogleCalendarConnection(accessToken) {
             return { connected: false, error: "Token expired or invalid" };
         }
 
-        const data = await response.json();
+        interface CalendarListResponse {
+            id: string;
+            summary: string;
+        }
+
+        const data = await response.json() as CalendarListResponse;
         return {
             connected: true,
             email: data.id,
             summary: data.summary
         };
     } catch (error) {
+        const err = error as Error;
         return {
             connected: false,
-            error: error.message || "Failed to verify connection"
+            error: err.message || "Failed to verify connection"
         };
     }
 }
@@ -174,8 +270,8 @@ export async function checkGoogleCalendarConnection(accessToken) {
  * Generate Google OAuth URL for calendar access
  * Uses user-specific credentials
  */
-export function getGoogleCalendarAuthUrl(options = {}) {
-    const { clientId, clientSecret, state = "" } = options;
+export function getGoogleCalendarAuthUrl(options: { clientId?: string; clientSecret?: string; state?: string } = {}): string {
+    const { clientId, state = "" } = options;
 
     const googleClientId = clientId || process.env.GOOGLE_CLIENT_ID;
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar/google/callback`;
@@ -207,7 +303,10 @@ export function getGoogleCalendarAuthUrl(options = {}) {
  * Exchange authorization code for tokens
  * Uses user-specific credentials
  */
-export async function exchangeCodeForTokens(code, options = {}) {
+export async function exchangeCodeForTokens(
+    code: string,
+    options: { clientId?: string; clientSecret?: string } = {}
+): Promise<TokenExchangeResult> {
     const { clientId, clientSecret } = options;
 
     const googleClientId = clientId || process.env.GOOGLE_CLIENT_ID;
@@ -233,14 +332,20 @@ export async function exchangeCodeForTokens(code, options = {}) {
     });
 
     if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json() as GoogleAPIError;
         throw new Error(error.error_description || "Failed to exchange code for tokens");
     }
 
-    const tokens = await response.json();
+    interface TokenResponse {
+        access_token: string;
+        refresh_token?: string;
+        expires_in: number;
+    }
+
+    const tokens = await response.json() as TokenResponse;
 
     // Get user email
-    let email = null;
+    let email: string | null = null;
     try {
         const userInfoResponse = await fetch(
             "https://www.googleapis.com/oauth2/v2/userinfo",
@@ -251,7 +356,10 @@ export async function exchangeCodeForTokens(code, options = {}) {
             }
         );
         if (userInfoResponse.ok) {
-            const userInfo = await userInfoResponse.json();
+            interface UserInfoResponse {
+                email: string;
+            }
+            const userInfo = await userInfoResponse.json() as UserInfoResponse;
             email = userInfo.email;
         }
     } catch (e) {
@@ -270,7 +378,10 @@ export async function exchangeCodeForTokens(code, options = {}) {
  * Refresh access token using refresh token
  * Uses user-specific credentials
  */
-export async function refreshAccessToken(refreshToken, options = {}) {
+export async function refreshAccessToken(
+    refreshToken: string,
+    options: { clientId?: string; clientSecret?: string } = {}
+): Promise<RefreshTokenResult> {
     const { clientId, clientSecret } = options;
 
     const googleClientId = clientId || process.env.GOOGLE_CLIENT_ID;
@@ -294,11 +405,16 @@ export async function refreshAccessToken(refreshToken, options = {}) {
     });
 
     if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json() as GoogleAPIError;
         throw new Error(error.error_description || "Failed to refresh token");
     }
 
-    const tokens = await response.json();
+    interface RefreshTokenResponse {
+        access_token: string;
+        expires_in: number;
+    }
+
+    const tokens = await response.json() as RefreshTokenResponse;
 
     return {
         accessToken: tokens.access_token,

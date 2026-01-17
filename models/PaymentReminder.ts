@@ -1,12 +1,47 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model, Schema, Types } from 'mongoose';
+
+// Interface for reminder items
+export interface IPaymentReminderItem {
+    name?: string;
+    sku?: string;
+    quantity?: number;
+    unit?: string;
+    costPerUnit?: number;
+    basePrice?: number;
+    totalCost?: number;
+}
+
+// Interface for supplier info
+export interface IPaymentReminderSupplier {
+    name?: string;
+    gstin?: string;
+}
+
+// Main PaymentReminder interface
+export interface IPaymentReminder extends Document {
+    purchaseId: Types.ObjectId;
+    userId: string;
+    recipientEmail: string;
+    recipientName: string;
+    items: IPaymentReminderItem[];
+    supplier: IPaymentReminderSupplier;
+    totalValue: number;
+    purchaseDate: Date;
+    nextReminderDate: Date;
+    reminderCount: number;
+    lastReminderSent: Date | null;
+    status: 'active' | 'completed' | 'cancelled';
+    createdAt: Date;
+    updatedAt: Date;
+}
 
 console.log('PaymentReminder model loading...');
 
 // Schema for tracking payment reminders
-const paymentReminderSchema = new mongoose.Schema({
+const paymentReminderSchema = new Schema<IPaymentReminder>({
     // Reference to the purchase history
     purchaseId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'PurchaseHistory',
         required: true,
         index: true
@@ -83,13 +118,14 @@ paymentReminderSchema.index({ status: 1, nextReminderDate: 1 });
 paymentReminderSchema.index({ purchaseId: 1, status: 1 });
 
 // Check if model exists to prevent recompilation
-let PaymentReminder;
+let PaymentReminder: Model<IPaymentReminder>;
 try {
-    PaymentReminder = mongoose.model('PaymentReminder');
+    PaymentReminder = mongoose.model<IPaymentReminder>('PaymentReminder');
 } catch (e) {
-    if (e.name === 'MissingSchemaError') {
+    const error = e as Error;
+    if (error.name === 'MissingSchemaError') {
         console.log('Creating new PaymentReminder model...');
-        PaymentReminder = mongoose.model('PaymentReminder', paymentReminderSchema);
+        PaymentReminder = mongoose.model<IPaymentReminder>('PaymentReminder', paymentReminderSchema);
     } else {
         console.error('Error creating PaymentReminder model:', e);
         throw e;
