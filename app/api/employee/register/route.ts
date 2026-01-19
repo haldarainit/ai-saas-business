@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Employee from '@/lib/models/Employee';
 import EmailService from '@/lib/email/EmailService';
@@ -12,7 +12,24 @@ import {
 } from '@/lib/utils/authUtils';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
-export async function POST(request) {
+interface WorkSchedule {
+    startTime: string;
+    endTime: string;
+    workingDays: number[];
+}
+
+interface RegisterEmployeeRequest {
+    employeeId: string;
+    name: string;
+    email: string;
+    phone?: string;
+    department?: string;
+    position?: string;
+    profileImage?: string;
+    workSchedule?: WorkSchedule;
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         await dbConnect();
 
@@ -25,7 +42,7 @@ export async function POST(request) {
             );
         }
 
-        const body = await request.json();
+        const body: RegisterEmployeeRequest = await request.json();
         const {
             employeeId,
             name,
@@ -135,11 +152,12 @@ export async function POST(request) {
         });
 
     } catch (error) {
+        const err = error as Error;
         console.error('Employee registration error:', error);
         return NextResponse.json(
             {
                 success: false,
-                error: error.message || 'Failed to register employee',
+                error: err.message || 'Failed to register employee',
             },
             { status: 500 }
         );

@@ -1,13 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Employee from '@/lib/models/Employee';
 
+interface DebugVerifyRequest {
+    employeeId: string;
+}
+
 // Debug endpoint to manually verify employee (REMOVE IN PRODUCTION)
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         await dbConnect();
 
-        const body = await request.json();
+        const body: DebugVerifyRequest = await request.json();
         const { employeeId } = body;
 
         if (!employeeId) {

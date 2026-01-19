@@ -1,9 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Attendance from '@/lib/models/Attendance';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
-export async function GET(request) {
+interface AttendanceQuery {
+    userId: string;
+    date?: string;
+    employeeId?: string;
+}
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         await dbConnect();
 
@@ -21,7 +27,7 @@ export async function GET(request) {
         const employeeId = searchParams.get('employeeId');
 
         // Build query with userId filter for data isolation
-        const query = { userId };
+        const query: AttendanceQuery = { userId };
 
         if (date) {
             query.date = date;

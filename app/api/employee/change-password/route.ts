@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Employee from '@/lib/models/Employee';
 import { comparePassword, hashPassword } from '@/lib/utils/authUtils';
@@ -6,7 +6,19 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
-export async function POST(request) {
+interface DecodedToken {
+    employeeId: string;
+    userId: string;
+    email: string;
+    name: string;
+}
+
+interface ChangePasswordRequest {
+    currentPassword: string;
+    newPassword: string;
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         await dbConnect();
 
@@ -22,17 +34,17 @@ export async function POST(request) {
         const token = authHeader.substring(7);
 
         // Verify token
-        let decoded;
+        let decoded: DecodedToken;
         try {
-            decoded = jwt.verify(token, JWT_SECRET);
-        } catch (err) {
+            decoded = jwt.verify(token, JWT_SECRET) as DecodedToken;
+        } catch {
             return NextResponse.json(
                 { success: false, error: 'Invalid or expired token' },
                 { status: 401 }
             );
         }
 
-        const body = await request.json();
+        const body: ChangePasswordRequest = await request.json();
         const { currentPassword, newPassword } = body;
 
         if (!currentPassword || !newPassword) {

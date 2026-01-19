@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Employee from '@/lib/models/Employee';
 import { isTokenExpired } from '@/lib/utils/authUtils';
 
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         await dbConnect();
 

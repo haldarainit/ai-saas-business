@@ -1,11 +1,18 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Employee from '@/lib/models/Employee';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
-export async function GET(request) {
+interface DecodedToken {
+    employeeId: string;
+    userId: string;
+    email: string;
+    name: string;
+}
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         await dbConnect();
 
@@ -21,10 +28,10 @@ export async function GET(request) {
         const token = authHeader.substring(7);
 
         // Verify token
-        let decoded;
+        let decoded: DecodedToken;
         try {
-            decoded = jwt.verify(token, JWT_SECRET);
-        } catch (err) {
+            decoded = jwt.verify(token, JWT_SECRET) as DecodedToken;
+        } catch {
             return NextResponse.json(
                 { success: false, error: 'Invalid or expired token' },
                 { status: 401 }

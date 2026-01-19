@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Employee from '@/lib/models/Employee';
 import { comparePassword } from '@/lib/utils/authUtils';
@@ -7,11 +7,24 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 const JWT_EXPIRES_IN = '7d'; // 7 days
 
-export async function POST(request) {
+interface LoginRequest {
+    employeeId: string;
+    password: string;
+}
+
+interface JWTPayload {
+    employeeId: string;
+    userId: string;
+    email: string;
+    name: string;
+    attendanceToken: string;
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         await dbConnect();
 
-        const body = await request.json();
+        const body: LoginRequest = await request.json();
         const { employeeId, password } = body;
 
         if (!employeeId || !password) {
@@ -80,17 +93,15 @@ export async function POST(request) {
         await employee.save();
 
         // Generate JWT token
-        const token = jwt.sign(
-            {
-                employeeId: employee.employeeId,
-                userId: employee.userId, // Add userId for data isolation
-                email: employee.email,
-                name: employee.name,
-                attendanceToken: employee.attendanceToken,
-            },
-            JWT_SECRET,
-            { expiresIn: JWT_EXPIRES_IN }
-        );
+        const payload: JWTPayload = {
+            employeeId: employee.employeeId,
+            userId: employee.userId, // Add userId for data isolation
+            email: employee.email,
+            name: employee.name,
+            attendanceToken: employee.attendanceToken,
+        };
+
+        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
         return NextResponse.json({
             success: true,
