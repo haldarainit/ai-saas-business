@@ -1,11 +1,45 @@
 import dbConnect from '@/lib/mongodb';
 import ManufacturingProduct from '@/models/ManufacturingProduct';
 import RawMaterial from '@/models/RawMaterial';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
+interface RouteParams {
+    params: Promise<{ id: string }>;
+}
+
+interface BOMItemInput {
+    rawMaterialId: string;
+    quantityRequired: number | string;
+}
+
+interface ProcessedBOMItem {
+    rawMaterialId: string;
+    rawMaterialName: string;
+    rawMaterialSku: string;
+    quantityRequired: number;
+    unit: string;
+    costPerUnit: number;
+}
+
+interface UpdateManufacturingProductData {
+    name?: string;
+    description?: string;
+    sku?: string;
+    category?: string;
+    billOfMaterials?: BOMItemInput[];
+    manufacturingCost?: number | string;
+    sellingPrice?: number | string;
+    finishedQuantity?: number | string;
+    minimumStock?: number | string;
+    shelf?: string;
+}
+
 // GET /api/inventory/manufacturing-products/[id]
-export async function GET(request, { params }) {
+export async function GET(
+    request: NextRequest,
+    { params }: RouteParams
+): Promise<NextResponse> {
     try {
         const { userId } = await getAuthenticatedUser(request);
 
@@ -31,16 +65,20 @@ export async function GET(request, { params }) {
 
         return NextResponse.json(product);
     } catch (error) {
+        const err = error as Error;
         console.error('Error in GET /api/inventory/manufacturing-products/[id]:', error);
         return NextResponse.json(
-            { message: 'Failed to fetch manufacturing product', error: error.message },
+            { message: 'Failed to fetch manufacturing product', error: err.message },
             { status: 500 }
         );
     }
 }
 
 // PUT /api/inventory/manufacturing-products/[id]
-export async function PUT(request, { params }) {
+export async function PUT(
+    request: NextRequest,
+    { params }: RouteParams
+): Promise<NextResponse> {
     try {
         const { userId } = await getAuthenticatedUser(request);
 
@@ -52,7 +90,7 @@ export async function PUT(request, { params }) {
         }
 
         const { id } = await params;
-        const data = await request.json();
+        const data: UpdateManufacturingProductData = await request.json();
 
         await dbConnect();
 
@@ -77,7 +115,7 @@ export async function PUT(request, { params }) {
         }
 
         // Process Bill of Materials if provided
-        let billOfMaterials = existing.billOfMaterials;
+        let billOfMaterials: ProcessedBOMItem[] = existing.billOfMaterials;
         if (data.billOfMaterials && Array.isArray(data.billOfMaterials)) {
             billOfMaterials = [];
             for (const item of data.billOfMaterials) {
@@ -93,7 +131,7 @@ export async function PUT(request, { params }) {
                     rawMaterialId: rawMaterial._id,
                     rawMaterialName: rawMaterial.name,
                     rawMaterialSku: rawMaterial.sku,
-                    quantityRequired: parseFloat(item.quantityRequired),
+                    quantityRequired: parseFloat(String(item.quantityRequired)),
                     unit: rawMaterial.unit,
                     costPerUnit: rawMaterial.costPerUnit
                 });
@@ -106,7 +144,7 @@ export async function PUT(request, { params }) {
         }, 0);
 
         const manufacturingCost = data.manufacturingCost !== undefined
-            ? parseFloat(data.manufacturingCost)
+            ? parseFloat(String(data.manufacturingCost))
             : existing.manufacturingCost;
 
         // Update fields
@@ -119,9 +157,9 @@ export async function PUT(request, { params }) {
             rawMaterialCost,
             manufacturingCost,
             totalCost: rawMaterialCost + manufacturingCost,
-            sellingPrice: data.sellingPrice !== undefined ? parseFloat(data.sellingPrice) : existing.sellingPrice,
-            finishedQuantity: data.finishedQuantity !== undefined ? parseInt(data.finishedQuantity, 10) : existing.finishedQuantity,
-            minimumStock: data.minimumStock !== undefined ? parseInt(data.minimumStock, 10) : existing.minimumStock,
+            sellingPrice: data.sellingPrice !== undefined ? parseFloat(String(data.sellingPrice)) : existing.sellingPrice,
+            finishedQuantity: data.finishedQuantity !== undefined ? parseInt(String(data.finishedQuantity), 10) : existing.finishedQuantity,
+            minimumStock: data.minimumStock !== undefined ? parseInt(String(data.minimumStock), 10) : existing.minimumStock,
             shelf: data.shelf || existing.shelf,
             updatedAt: new Date()
         };
@@ -130,16 +168,20 @@ export async function PUT(request, { params }) {
 
         return NextResponse.json(updatedProduct);
     } catch (error) {
+        const err = error as Error;
         console.error('Error in PUT /api/inventory/manufacturing-products/[id]:', error);
         return NextResponse.json(
-            { message: 'Failed to update manufacturing product', error: error.message },
+            { message: 'Failed to update manufacturing product', error: err.message },
             { status: 500 }
         );
     }
 }
 
 // DELETE /api/inventory/manufacturing-products/[id]
-export async function DELETE(request, { params }) {
+export async function DELETE(
+    request: NextRequest,
+    { params }: RouteParams
+): Promise<NextResponse> {
     try {
         const { userId } = await getAuthenticatedUser(request);
 
@@ -165,9 +207,10 @@ export async function DELETE(request, { params }) {
 
         return NextResponse.json({ message: 'Manufacturing product deleted successfully' });
     } catch (error) {
+        const err = error as Error;
         console.error('Error in DELETE /api/inventory/manufacturing-products/[id]:', error);
         return NextResponse.json(
-            { message: 'Failed to delete manufacturing product', error: error.message },
+            { message: 'Failed to delete manufacturing product', error: err.message },
             { status: 500 }
         );
     }

@@ -1,7 +1,64 @@
 import dbConnect from '@/lib/mongodb';
 import Product from '@/models/Product';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
+
+interface ProductItem {
+    name?: string;
+    sku?: string;
+    price?: number | string;
+    cost?: number | string;
+    quantity?: number | string;
+    description?: string;
+    category?: string;
+    shelf?: string;
+    supplier?: string;
+    supplierContact?: string;
+    gstin?: string;
+    hsnCode?: string;
+    gstPercentage?: number | string;
+    expiryDate?: string | Date;
+    invoiceNumber?: string;
+    invoiceDate?: string | Date;
+}
+
+interface BatchUpsertRequest {
+    items: ProductItem[];
+}
+
+interface ConsolidatedItem {
+    name: string;
+    description: string;
+    sku: string;
+    category: string;
+    price: number;
+    cost: number;
+    quantity: number;
+    shelf: string;
+    supplier: string;
+    supplierContact: string;
+    gstin: string;
+    hsnCode: string;
+    gstPercentage: number;
+    expiryDate: Date | null;
+    invoiceNumber: string;
+    invoiceDate: Date | null;
+}
+
+interface UpsertResult {
+    sku: string;
+    action: 'created' | 'updated';
+    product: unknown;
+    previousQuantity?: number;
+    addedQuantity?: number;
+    newQuantity?: number;
+}
+
+interface UpsertError {
+    sku: string;
+    name: string;
+    message: string;
+}
 
 /**
  * POST /api/inventory/products/batch-upsert
@@ -37,7 +94,7 @@ import { getAuthenticatedUser } from '@/lib/get-auth-user';
  *   results: [{ sku: string, action: 'created' | 'updated', product: object }]
  * }
  */
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     console.log('POST /api/inventory/products/batch-upsert - Request received');
 
     try {
@@ -50,7 +107,7 @@ export async function POST(request) {
             );
         }
 
-        const { items } = await request.json();
+        const { items }: BatchUpsertRequest = await request.json();
 
         if (!items || !Array.isArray(items) || items.length === 0) {
             return NextResponse.json(
@@ -62,7 +119,7 @@ export async function POST(request) {
         await dbConnect();
 
         // First, consolidate items with the same SKU in the request
-        const consolidatedItems = {};
+        const consolidatedItems: Record<string, ConsolidatedItem> = {};
         for (const item of items) {
             const sku = item.sku?.trim();
             if (!sku) {
@@ -71,22 +128,22 @@ export async function POST(request) {
 
             if (consolidatedItems[sku]) {
                 // Same SKU in this batch - add quantities
-                consolidatedItems[sku].quantity += (parseInt(item.quantity, 10) || 0);
+                consolidatedItems[sku].quantity += (parseInt(String(item.quantity), 10) || 0);
             } else {
                 consolidatedItems[sku] = {
                     name: String(item.name || '').trim(),
                     description: item.description ? String(item.description).trim() : '',
                     sku: sku,
                     category: item.category ? String(item.category).trim() : 'Uncategorized',
-                    price: parseFloat(item.price) || 0,  // Selling price
-                    cost: parseFloat(item.cost) || 0,    // Cost price
-                    quantity: parseInt(item.quantity, 10) || 0,
-                    shelf: item.shelf || 'Default',
+                    price: parseFloat(String(item.price)) || 0,  // Selling price
+                    cost: parseFloat(String(item.cost)) || 0,    // Cost price
+                    quantity: parseInt(String(item.quantity), 10) || 0,
+                    shelf: item.shelf ? String(item.shelf) : 'Default',
                     supplier: item.supplier ? String(item.supplier).trim() : '',
                     supplierContact: item.supplierContact ? String(item.supplierContact).trim() : '',
                     gstin: item.gstin ? String(item.gstin).trim() : '',
                     hsnCode: item.hsnCode ? String(item.hsnCode).trim() : '',
-                    gstPercentage: parseFloat(item.gstPercentage) || 0,
+                    gstPercentage: parseFloat(String(item.gstPercentage)) || 0,
                     expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
                     invoiceNumber: item.invoiceNumber ? String(item.invoiceNumber).trim() : '',
                     invoiceDate: item.invoiceDate ? new Date(item.invoiceDate) : null
@@ -97,8 +154,8 @@ export async function POST(request) {
         const skus = Object.keys(consolidatedItems);
         console.log(`Processing ${skus.length} unique SKUs from ${items.length} items`);
 
-        const results = [];
-        const errors = [];
+        const results: UpsertResult[] = [];
+        const errors: UpsertError[] = [];
         let createdCount = 0;
         let updatedCount = 0;
 
@@ -108,7 +165,7 @@ export async function POST(request) {
 
             try {
                 // Build the $set object dynamically to avoid undefined values
-                const setFields = {
+                const setFields: Record<string, unknown> = {
                     updatedAt: new Date()
                 };
 
@@ -203,11 +260,12 @@ export async function POST(request) {
                     console.log(`Updated SKU ${sku}: ${previousQuantity} + ${itemData.quantity} = ${result.quantity}`);
                 }
             } catch (error) {
+                const err = error as Error;
                 console.error(`Error processing SKU ${sku}:`, error);
                 errors.push({
                     sku,
                     name: itemData.name,
-                    message: error.message || 'Unknown error'
+                    message: err.message || 'Unknown error'
                 });
             }
         }
@@ -223,9 +281,10 @@ export async function POST(request) {
             results: results
         });
     } catch (error) {
+        const err = error as Error;
         console.error('Error in POST /api/inventory/products/batch-upsert:', error);
         return NextResponse.json(
-            { message: 'Failed to process batch upsert', error: error.message },
+            { message: 'Failed to process batch upsert', error: err.message },
             { status: 500 }
         );
     }

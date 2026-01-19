@@ -1,11 +1,60 @@
 import dbConnect from '@/lib/mongodb';
 import PurchaseHistory from '@/models/PurchaseHistory';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
+
+interface PurchaseItem {
+    name?: string;
+    sku?: string;
+    quantity?: number;
+    unit?: string;
+    basePrice?: number;
+    costPerUnit?: number;
+    gstPercentage?: number;
+    gstAmount?: number;
+    totalCost?: number;
+    category?: string;
+    hsnCode?: string;
+}
+
+interface Supplier {
+    name?: string;
+    gstin?: string;
+    contact?: string;
+    address?: string;
+}
+
+interface PaymentDetails {
+    method?: string;
+    transactionId?: string;
+    bankName?: string;
+    accountNumber?: string;
+    chequeNumber?: string;
+    chequeDate?: string | Date | null;
+    upiId?: string;
+    notes?: string;
+}
+
+interface PurchaseHistoryData {
+    items: PurchaseItem[];
+    purchaseType?: string;
+    totalValue?: number;
+    supplier?: Supplier;
+    isPaid?: boolean;
+    paymentDetails?: PaymentDetails;
+    invoiceNumber?: string;
+    invoiceDate?: string | Date | null;
+    notes?: string;
+}
+
+interface PurchaseQuery {
+    userId: string;
+    purchaseType?: string;
+}
 
 // GET /api/inventory/purchase-history
 // Get all purchase history for the authenticated user
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     console.log('GET /api/inventory/purchase-history - Request received');
 
     try {
@@ -26,7 +75,7 @@ export async function GET(request) {
         const page = parseInt(searchParams.get('page') || '1', 10);
         const skip = (page - 1) * limit;
 
-        const query = { userId };
+        const query: PurchaseQuery = { userId };
         if (purchaseType !== 'all') {
             query.purchaseType = purchaseType;
         }
@@ -51,9 +100,10 @@ export async function GET(request) {
             }
         });
     } catch (error) {
+        const err = error as Error;
         console.error('Error in GET /api/inventory/purchase-history:', error);
         return NextResponse.json(
-            { message: 'Failed to fetch purchase history', error: error.message },
+            { message: 'Failed to fetch purchase history', error: err.message },
             { status: 500 }
         );
     }
@@ -61,7 +111,7 @@ export async function GET(request) {
 
 // POST /api/inventory/purchase-history
 // Create a new purchase record
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     console.log('POST /api/inventory/purchase-history - Request received');
 
     try {
@@ -74,7 +124,7 @@ export async function POST(request) {
             );
         }
 
-        const data = await request.json();
+        const data: PurchaseHistoryData = await request.json();
 
         // Validate required fields
         if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
@@ -135,9 +185,10 @@ export async function POST(request) {
 
         return NextResponse.json(savedPurchase, { status: 201 });
     } catch (error) {
+        const err = error as Error;
         console.error('Error in POST /api/inventory/purchase-history:', error);
         return NextResponse.json(
-            { message: 'Failed to create purchase record', error: error.message },
+            { message: 'Failed to create purchase record', error: err.message },
             { status: 500 }
         );
     }

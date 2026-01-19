@@ -1,45 +1,91 @@
 import dbConnect from '@/lib/mongodb';
 import RawMaterial from '@/models/RawMaterial';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
+
+interface RawMaterialItem {
+    name?: string;
+    sku?: string;
+    costPerUnit?: number | string;
+    quantity?: number | string;
+    unit?: string;
+    description?: string;
+    category?: string;
+    minimumStock?: number | string;
+    shelf?: string;
+    supplier?: string;
+    supplierContact?: string;
+    gstin?: string;
+    hsnCode?: string;
+    gstPercentage?: number | string;
+    expiryDate?: string | Date;
+    invoiceNumber?: string;
+    invoiceDate?: string | Date;
+}
+
+interface BatchUpsertRequest {
+    items: RawMaterialItem[];
+}
+
+interface ConsolidatedItem {
+    name: string;
+    description: string;
+    sku: string;
+    category: string;
+    unit: string;
+    costPerUnit: number;
+    quantity: number;
+    minimumStock: number;
+    shelf: string;
+    supplier: string;
+    supplierContact: string;
+    gstin: string;
+    hsnCode: string;
+    gstPercentage: number;
+    expiryDate: Date | null;
+    invoiceNumber: string;
+    invoiceDate: Date | null;
+    lastPurchaseDate: Date;
+    lastPurchasePrice: number;
+}
+
+interface UpsertResult {
+    sku: string;
+    action: 'created' | 'updated';
+    material: unknown;
+    previousQuantity?: number;
+    addedQuantity?: number;
+    newQuantity?: number;
+}
+
+interface UpsertError {
+    sku: string;
+    name: string;
+    message: string;
+}
+
+interface ExistingMaterial {
+    _id: string;
+    sku: string;
+    quantity: number;
+    costPerUnit: number;
+    supplier: string;
+    supplierContact: string;
+    gstin: string;
+    hsnCode: string;
+    gstPercentage: number;
+    invoiceNumber: string;
+    invoiceDate: Date | null;
+    lastPurchasePrice: number;
+}
 
 /**
  * POST /api/inventory/raw-materials/batch-upsert
  * 
  * Atomically processes multiple raw materials - creates new ones or updates existing ones.
  * This prevents race conditions when processing multiple items from an invoice scan.
- * 
- * Request body:
- * {
- *   items: [
- *     {
- *       name: string,
- *       sku: string (required),
- *       costPerUnit: number,
- *       quantity: number,
- *       unit: string,
- *       category?: string,
- *       description?: string,
- *       minimumStock?: number,
- *       shelf?: string,
- *       supplier?: string,
- *       supplierContact?: string,
- *       hsnCode?: string,
- *       expiryDate?: string
- *     }
- *   ]
- * }
- * 
- * Response:
- * {
- *   success: boolean,
- *   created: number,
- *   updated: number,
- *   errors: [{ sku: string, message: string }],
- *   results: [{ sku: string, action: 'created' | 'updated', material: object }]
- * }
  */
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     console.log('POST /api/inventory/raw-materials/batch-upsert - Request received');
 
     try {
@@ -52,7 +98,7 @@ export async function POST(request) {
             );
         }
 
-        const { items } = await request.json();
+        const { items }: BatchUpsertRequest = await request.json();
 
         if (!items || !Array.isArray(items) || items.length === 0) {
             return NextResponse.json(
@@ -64,7 +110,7 @@ export async function POST(request) {
         await dbConnect();
 
         // First, consolidate items with the same SKU in the request
-        const consolidatedItems = {};
+        const consolidatedItems: Record<string, ConsolidatedItem> = {};
         for (const item of items) {
             const sku = item.sku?.trim();
             if (!sku) {
@@ -73,7 +119,7 @@ export async function POST(request) {
 
             if (consolidatedItems[sku]) {
                 // Same SKU in this batch - add quantities
-                consolidatedItems[sku].quantity += (parseFloat(item.quantity) || 0);
+                consolidatedItems[sku].quantity += (parseFloat(String(item.quantity)) || 0);
             } else {
                 consolidatedItems[sku] = {
                     name: String(item.name || '').trim(),
@@ -81,20 +127,20 @@ export async function POST(request) {
                     sku: sku,
                     category: item.category ? String(item.category).trim() : 'Uncategorized',
                     unit: (item.unit || 'pcs').toLowerCase().trim(),
-                    costPerUnit: parseFloat(item.costPerUnit) || 0,
-                    quantity: parseFloat(item.quantity) || 0,
-                    minimumStock: item.minimumStock ? parseInt(item.minimumStock, 10) : 10,
-                    shelf: item.shelf || 'Default',
+                    costPerUnit: parseFloat(String(item.costPerUnit)) || 0,
+                    quantity: parseFloat(String(item.quantity)) || 0,
+                    minimumStock: item.minimumStock ? parseInt(String(item.minimumStock), 10) : 10,
+                    shelf: item.shelf ? String(item.shelf) : 'Default',
                     supplier: item.supplier ? String(item.supplier).trim() : '',
                     supplierContact: item.supplierContact ? String(item.supplierContact).trim() : '',
                     gstin: item.gstin ? String(item.gstin).trim() : '',
                     hsnCode: item.hsnCode ? String(item.hsnCode).trim() : '',
-                    gstPercentage: parseFloat(item.gstPercentage) || 0,
+                    gstPercentage: parseFloat(String(item.gstPercentage)) || 0,
                     expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
                     invoiceNumber: item.invoiceNumber ? String(item.invoiceNumber).trim() : '',
                     invoiceDate: item.invoiceDate ? new Date(item.invoiceDate) : null,
                     lastPurchaseDate: new Date(),
-                    lastPurchasePrice: parseFloat(item.costPerUnit) || 0
+                    lastPurchasePrice: parseFloat(String(item.costPerUnit)) || 0
                 };
             }
         }
@@ -109,13 +155,13 @@ export async function POST(request) {
         });
 
         // Create a map for quick lookup
-        const existingMap = {};
+        const existingMap: Record<string, ExistingMaterial> = {};
         for (const material of existingMaterials) {
             existingMap[material.sku] = material;
         }
 
-        const results = [];
-        const errors = [];
+        const results: UpsertResult[] = [];
+        const errors: UpsertError[] = [];
         let createdCount = 0;
         let updatedCount = 0;
 
@@ -182,11 +228,12 @@ export async function POST(request) {
                     console.log(`Created new material with SKU ${sku}`);
                 }
             } catch (error) {
+                const err = error as Error;
                 console.error(`Error processing SKU ${sku}:`, error);
                 errors.push({
                     sku,
                     name: itemData.name,
-                    message: error.message || 'Unknown error'
+                    message: err.message || 'Unknown error'
                 });
             }
         }
@@ -202,9 +249,10 @@ export async function POST(request) {
             results: results
         });
     } catch (error) {
+        const err = error as Error;
         console.error('Error in POST /api/inventory/raw-materials/batch-upsert:', error);
         return NextResponse.json(
-            { message: 'Failed to process batch upsert', error: error.message },
+            { message: 'Failed to process batch upsert', error: err.message },
             { status: 500 }
         );
     }

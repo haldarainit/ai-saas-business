@@ -1,10 +1,47 @@
 import dbConnect from '@/lib/mongodb';
 import RawMaterial from '@/models/RawMaterial';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
+interface RouteParams {
+    params: Promise<{ id: string }>;
+}
+
+interface UpdateRawMaterialData {
+    name?: string;
+    description?: string;
+    sku?: string;
+    category?: string;
+    unit?: string;
+    costPerUnit?: number | string;
+    quantity?: number | string;
+    minimumStock?: number | string;
+    shelf?: string;
+    expiryDate?: string | Date | null;
+    supplier?: string;
+    supplierContact?: string;
+}
+
+interface PatchData {
+    quantity?: number | string;
+    operation?: 'add' | 'subtract' | 'set';
+    lastPurchasePrice?: number | string;
+    lastPurchaseDate?: string | Date;
+}
+
+interface UpdateData {
+    quantity: number;
+    updatedAt: Date;
+    lastPurchasePrice?: number;
+    costPerUnit?: number;
+    lastPurchaseDate?: Date;
+}
+
 // GET /api/inventory/raw-materials/[id]
-export async function GET(request, { params }) {
+export async function GET(
+    request: NextRequest,
+    { params }: RouteParams
+): Promise<NextResponse> {
     try {
         const { userId } = await getAuthenticatedUser(request);
 
@@ -30,16 +67,20 @@ export async function GET(request, { params }) {
 
         return NextResponse.json(material);
     } catch (error) {
+        const err = error as Error;
         console.error('Error in GET /api/inventory/raw-materials/[id]:', error);
         return NextResponse.json(
-            { message: 'Failed to fetch raw material', error: error.message },
+            { message: 'Failed to fetch raw material', error: err.message },
             { status: 500 }
         );
     }
 }
 
 // PUT /api/inventory/raw-materials/[id]
-export async function PUT(request, { params }) {
+export async function PUT(
+    request: NextRequest,
+    { params }: RouteParams
+): Promise<NextResponse> {
     try {
         const { userId } = await getAuthenticatedUser(request);
 
@@ -51,7 +92,7 @@ export async function PUT(request, { params }) {
         }
 
         const { id } = await params;
-        const data = await request.json();
+        const data: UpdateRawMaterialData = await request.json();
 
         await dbConnect();
 
@@ -82,9 +123,9 @@ export async function PUT(request, { params }) {
             sku: data.sku ? String(data.sku).trim() : existing.sku,
             category: data.category ? String(data.category).trim() : existing.category,
             unit: data.unit || existing.unit,
-            costPerUnit: data.costPerUnit !== undefined ? parseFloat(data.costPerUnit) : existing.costPerUnit,
-            quantity: data.quantity !== undefined ? parseFloat(data.quantity) : existing.quantity,
-            minimumStock: data.minimumStock !== undefined ? parseInt(data.minimumStock, 10) : existing.minimumStock,
+            costPerUnit: data.costPerUnit !== undefined ? parseFloat(String(data.costPerUnit)) : existing.costPerUnit,
+            quantity: data.quantity !== undefined ? parseFloat(String(data.quantity)) : existing.quantity,
+            minimumStock: data.minimumStock !== undefined ? parseInt(String(data.minimumStock), 10) : existing.minimumStock,
             shelf: data.shelf || existing.shelf,
             expiryDate: data.expiryDate !== undefined ? (data.expiryDate ? new Date(data.expiryDate) : null) : existing.expiryDate,
             supplier: data.supplier !== undefined ? String(data.supplier).trim() : existing.supplier,
@@ -96,16 +137,20 @@ export async function PUT(request, { params }) {
 
         return NextResponse.json(updatedMaterial);
     } catch (error) {
+        const err = error as Error;
         console.error('Error in PUT /api/inventory/raw-materials/[id]:', error);
         return NextResponse.json(
-            { message: 'Failed to update raw material', error: error.message },
+            { message: 'Failed to update raw material', error: err.message },
             { status: 500 }
         );
     }
 }
 
 // DELETE /api/inventory/raw-materials/[id]
-export async function DELETE(request, { params }) {
+export async function DELETE(
+    request: NextRequest,
+    { params }: RouteParams
+): Promise<NextResponse> {
     try {
         const { userId } = await getAuthenticatedUser(request);
 
@@ -131,16 +176,20 @@ export async function DELETE(request, { params }) {
 
         return NextResponse.json({ message: 'Raw material deleted successfully' });
     } catch (error) {
+        const err = error as Error;
         console.error('Error in DELETE /api/inventory/raw-materials/[id]:', error);
         return NextResponse.json(
-            { message: 'Failed to delete raw material', error: error.message },
+            { message: 'Failed to delete raw material', error: err.message },
             { status: 500 }
         );
     }
 }
 
 // PATCH /api/inventory/raw-materials/[id] - for updating quantity (stock adjustments)
-export async function PATCH(request, { params }) {
+export async function PATCH(
+    request: NextRequest,
+    { params }: RouteParams
+): Promise<NextResponse> {
     try {
         const { userId } = await getAuthenticatedUser(request);
 
@@ -152,7 +201,7 @@ export async function PATCH(request, { params }) {
         }
 
         const { id } = await params;
-        const { quantity, operation, lastPurchasePrice, lastPurchaseDate } = await request.json();
+        const { quantity, operation, lastPurchasePrice, lastPurchaseDate }: PatchData = await request.json();
 
         await dbConnect();
 
@@ -167,22 +216,22 @@ export async function PATCH(request, { params }) {
         let newQuantity = material.quantity;
 
         if (operation === 'add') {
-            newQuantity = material.quantity + parseFloat(quantity);
+            newQuantity = material.quantity + parseFloat(String(quantity));
         } else if (operation === 'subtract') {
-            newQuantity = Math.max(0, material.quantity - parseFloat(quantity));
+            newQuantity = Math.max(0, material.quantity - parseFloat(String(quantity)));
         } else if (operation === 'set') {
-            newQuantity = parseFloat(quantity);
+            newQuantity = parseFloat(String(quantity));
         }
 
-        const updateData = {
+        const updateData: UpdateData = {
             quantity: newQuantity,
             updatedAt: new Date()
         };
 
         // Update purchase info if provided (for restocking)
         if (lastPurchasePrice !== undefined) {
-            updateData.lastPurchasePrice = parseFloat(lastPurchasePrice);
-            updateData.costPerUnit = parseFloat(lastPurchasePrice); // Update cost to latest price
+            updateData.lastPurchasePrice = parseFloat(String(lastPurchasePrice));
+            updateData.costPerUnit = parseFloat(String(lastPurchasePrice)); // Update cost to latest price
         }
         if (lastPurchaseDate) {
             updateData.lastPurchaseDate = new Date(lastPurchaseDate);
@@ -192,9 +241,10 @@ export async function PATCH(request, { params }) {
 
         return NextResponse.json(updatedMaterial);
     } catch (error) {
+        const err = error as Error;
         console.error('Error in PATCH /api/inventory/raw-materials/[id]:', error);
         return NextResponse.json(
-            { message: 'Failed to update raw material quantity', error: error.message },
+            { message: 'Failed to update raw material quantity', error: err.message },
             { status: 500 }
         );
     }

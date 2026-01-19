@@ -1,11 +1,30 @@
 import dbConnect from '@/lib/mongodb';
 import RawMaterial from '@/models/RawMaterial';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
+
+interface RawMaterialData {
+    name: string;
+    sku: string;
+    costPerUnit: number | string;
+    quantity: number | string;
+    unit: string;
+    description?: string;
+    category?: string;
+    minimumStock?: number | string;
+    shelf?: string;
+    expiryDate?: string | Date;
+    supplier?: string;
+    supplierContact?: string;
+}
+
+interface MongoError extends Error {
+    code?: number;
+}
 
 // GET /api/inventory/raw-materials
 // Get all raw materials for the authenticated user
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     console.log('GET /api/inventory/raw-materials - Request received');
 
     try {
@@ -25,9 +44,10 @@ export async function GET(request) {
 
         return NextResponse.json(materials);
     } catch (error) {
+        const err = error as Error;
         console.error('Error in GET /api/inventory/raw-materials:', error);
         return NextResponse.json(
-            { message: 'Failed to fetch raw materials', error: error.message },
+            { message: 'Failed to fetch raw materials', error: err.message },
             { status: 500 }
         );
     }
@@ -35,7 +55,7 @@ export async function GET(request) {
 
 // POST /api/inventory/raw-materials
 // Create a new raw material
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     console.log('POST /api/inventory/raw-materials - Request received');
 
     try {
@@ -48,10 +68,10 @@ export async function POST(request) {
             );
         }
 
-        const data = await request.json();
+        const data: RawMaterialData = await request.json();
 
         // Validate required fields
-        const requiredFields = ['name', 'sku', 'costPerUnit', 'quantity', 'unit'];
+        const requiredFields: (keyof RawMaterialData)[] = ['name', 'sku', 'costPerUnit', 'quantity', 'unit'];
         const missingFields = requiredFields.filter(field => !data[field] && data[field] !== 0);
 
         if (missingFields.length > 0) {
@@ -79,9 +99,9 @@ export async function POST(request) {
             sku: String(data.sku).trim(),
             category: data.category ? String(data.category).trim() : 'Uncategorized',
             unit: data.unit || 'pcs',
-            costPerUnit: parseFloat(data.costPerUnit),
-            quantity: parseFloat(data.quantity),
-            minimumStock: data.minimumStock ? parseInt(data.minimumStock, 10) : 10,
+            costPerUnit: parseFloat(String(data.costPerUnit)),
+            quantity: parseFloat(String(data.quantity)),
+            minimumStock: data.minimumStock ? parseInt(String(data.minimumStock), 10) : 10,
             shelf: data.shelf || 'Default',
             expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
             supplier: data.supplier ? String(data.supplier).trim() : '',
@@ -93,9 +113,10 @@ export async function POST(request) {
 
         return NextResponse.json(savedMaterial, { status: 201 });
     } catch (error) {
+        const err = error as MongoError;
         console.error('Error in POST /api/inventory/raw-materials:', error);
 
-        if (error.code === 11000) {
+        if (err.code === 11000) {
             return NextResponse.json(
                 { message: 'A raw material with this SKU already exists' },
                 { status: 400 }
@@ -103,7 +124,7 @@ export async function POST(request) {
         }
 
         return NextResponse.json(
-            { message: 'Failed to create raw material', error: error.message },
+            { message: 'Failed to create raw material', error: err.message },
             { status: 500 }
         );
     }

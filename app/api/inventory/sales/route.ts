@@ -1,12 +1,77 @@
 import dbConnect from '@/lib/mongodb';
 import Sale from '@/models/Sale';
 import Product from '@/models/Product';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
+
+interface Customer {
+    name?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+}
+
+interface SaleItem {
+    productId: string;
+    productName?: string;
+    sellingPrice?: number;
+    quantity: number;
+    discount?: number;
+    tax?: number;
+}
+
+interface SaleData {
+    items: SaleItem[];
+    customer?: Customer;
+    invoiceNumber?: string;
+    paymentMethod?: string;
+    amountPaid?: number;
+    saleDate?: string | Date;
+    notes?: string;
+}
+
+interface ProcessedSaleItem {
+    productId: string;
+    productName: string;
+    productSku: string;
+    quantity: number;
+    unit: string;
+    costPrice: number;
+    sellingPrice: number;
+    discount: number;
+    tax: number;
+    totalPrice: number;
+}
+
+interface StockUpdate {
+    productId: string;
+    deductQuantity: number;
+}
+
+interface SaleDocument {
+    saleDate: Date;
+    grandTotal: number;
+    profit: number;
+    paymentStatus: string;
+    amountDue: number;
+}
+
+interface DateQuery {
+    $gte?: Date;
+    $lte?: Date;
+}
+
+interface SalesQuery {
+    userId: string;
+    saleDate?: DateQuery;
+    status?: string;
+    paymentStatus?: string;
+    $or?: Array<Record<string, { $regex: string; $options: string }>>;
+}
 
 // GET /api/inventory/sales
 // Get all sales with optional filters
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     console.log('GET /api/inventory/sales - Request received');
 
     try {
@@ -29,7 +94,7 @@ export async function GET(request) {
 
         await dbConnect();
 
-        let query = { userId };
+        const query: SalesQuery = { userId };
 
         // Date range filter
         if (startDate || endDate) {
@@ -56,7 +121,7 @@ export async function GET(request) {
             .limit(limit);
 
         // Calculate summary stats
-        const allSales = await Sale.find({ userId, status: 'completed' });
+        const allSales: SaleDocument[] = await Sale.find({ userId, status: 'completed' });
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
@@ -77,9 +142,10 @@ export async function GET(request) {
 
         return NextResponse.json({ sales, summary });
     } catch (error) {
+        const err = error as Error;
         console.error('Error in GET /api/inventory/sales:', error);
         return NextResponse.json(
-            { message: 'Failed to fetch sales', error: error.message },
+            { message: 'Failed to fetch sales', error: err.message },
             { status: 500 }
         );
     }
@@ -87,7 +153,7 @@ export async function GET(request) {
 
 // POST /api/inventory/sales
 // Create a new sale
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     console.log('POST /api/inventory/sales - Request received');
 
     try {
@@ -100,7 +166,7 @@ export async function POST(request) {
             );
         }
 
-        const data = await request.json();
+        const data: SaleData = await request.json();
 
         // Validate required fields
         if (!data.items || data.items.length === 0) {
@@ -116,8 +182,8 @@ export async function POST(request) {
         const invoiceNumber = data.invoiceNumber || await Sale.generateInvoiceNumber(userId);
 
         // Validate stock availability and build items array
-        const saleItems = [];
-        const stockUpdates = [];
+        const saleItems: ProcessedSaleItem[] = [];
+        const stockUpdates: StockUpdate[] = [];
 
         for (const item of data.items) {
             const product = await Product.findOne({ _id: item.productId, userId });
@@ -226,9 +292,10 @@ export async function POST(request) {
             }
         }, { status: 201 });
     } catch (error) {
+        const err = error as Error;
         console.error('Error in POST /api/inventory/sales:', error);
         return NextResponse.json(
-            { message: 'Failed to create sale', error: error.message },
+            { message: 'Failed to create sale', error: err.message },
             { status: 500 }
         );
     }

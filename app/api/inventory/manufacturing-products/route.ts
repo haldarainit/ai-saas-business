@@ -1,12 +1,43 @@
 import dbConnect from '@/lib/mongodb';
 import ManufacturingProduct from '@/models/ManufacturingProduct';
 import RawMaterial from '@/models/RawMaterial';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
+
+interface BOMItemInput {
+    rawMaterialId: string;
+    quantityRequired: number | string;
+}
+
+interface ProcessedBOMItem {
+    rawMaterialId: string;
+    rawMaterialName: string;
+    rawMaterialSku: string;
+    quantityRequired: number;
+    unit: string;
+    costPerUnit: number;
+}
+
+interface ManufacturingProductData {
+    name: string;
+    sku: string;
+    sellingPrice: number | string;
+    description?: string;
+    category?: string;
+    billOfMaterials?: BOMItemInput[];
+    manufacturingCost?: number | string;
+    finishedQuantity?: number | string;
+    minimumStock?: number | string;
+    shelf?: string;
+}
+
+interface MongoError extends Error {
+    code?: number;
+}
 
 // GET /api/inventory/manufacturing-products
 // Get all manufacturing products for the authenticated user
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     console.log('GET /api/inventory/manufacturing-products - Request received');
 
     try {
@@ -26,9 +57,10 @@ export async function GET(request) {
 
         return NextResponse.json(products);
     } catch (error) {
+        const err = error as Error;
         console.error('Error in GET /api/inventory/manufacturing-products:', error);
         return NextResponse.json(
-            { message: 'Failed to fetch manufacturing products', error: error.message },
+            { message: 'Failed to fetch manufacturing products', error: err.message },
             { status: 500 }
         );
     }
@@ -36,7 +68,7 @@ export async function GET(request) {
 
 // POST /api/inventory/manufacturing-products
 // Create a new manufacturing product with Bill of Materials
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     console.log('POST /api/inventory/manufacturing-products - Request received');
 
     try {
@@ -49,10 +81,10 @@ export async function POST(request) {
             );
         }
 
-        const data = await request.json();
+        const data: ManufacturingProductData = await request.json();
 
         // Validate required fields
-        const requiredFields = ['name', 'sku', 'sellingPrice'];
+        const requiredFields: (keyof ManufacturingProductData)[] = ['name', 'sku', 'sellingPrice'];
         const missingFields = requiredFields.filter(field => !data[field] && data[field] !== 0);
 
         if (missingFields.length > 0) {
@@ -74,7 +106,7 @@ export async function POST(request) {
         }
 
         // Process Bill of Materials if provided
-        let billOfMaterials = [];
+        const billOfMaterials: ProcessedBOMItem[] = [];
         if (data.billOfMaterials && Array.isArray(data.billOfMaterials)) {
             // Fetch current costs from raw materials
             for (const item of data.billOfMaterials) {
@@ -90,7 +122,7 @@ export async function POST(request) {
                     rawMaterialId: rawMaterial._id,
                     rawMaterialName: rawMaterial.name,
                     rawMaterialSku: rawMaterial.sku,
-                    quantityRequired: parseFloat(item.quantityRequired),
+                    quantityRequired: parseFloat(String(item.quantityRequired)),
                     unit: rawMaterial.unit,
                     costPerUnit: rawMaterial.costPerUnit
                 });
@@ -104,10 +136,10 @@ export async function POST(request) {
             sku: String(data.sku).trim(),
             category: data.category ? String(data.category).trim() : 'Uncategorized',
             billOfMaterials,
-            manufacturingCost: data.manufacturingCost ? parseFloat(data.manufacturingCost) : 0,
-            sellingPrice: parseFloat(data.sellingPrice),
-            finishedQuantity: data.finishedQuantity ? parseInt(data.finishedQuantity, 10) : 0,
-            minimumStock: data.minimumStock ? parseInt(data.minimumStock, 10) : 10,
+            manufacturingCost: data.manufacturingCost ? parseFloat(String(data.manufacturingCost)) : 0,
+            sellingPrice: parseFloat(String(data.sellingPrice)),
+            finishedQuantity: data.finishedQuantity ? parseInt(String(data.finishedQuantity), 10) : 0,
+            minimumStock: data.minimumStock ? parseInt(String(data.minimumStock), 10) : 10,
             shelf: data.shelf || 'Default'
         });
 
@@ -116,9 +148,10 @@ export async function POST(request) {
 
         return NextResponse.json(savedProduct, { status: 201 });
     } catch (error) {
+        const err = error as MongoError;
         console.error('Error in POST /api/inventory/manufacturing-products:', error);
 
-        if (error.code === 11000) {
+        if (err.code === 11000) {
             return NextResponse.json(
                 { message: 'A manufacturing product with this SKU already exists' },
                 { status: 400 }
@@ -126,7 +159,7 @@ export async function POST(request) {
         }
 
         return NextResponse.json(
-            { message: 'Failed to create manufacturing product', error: error.message },
+            { message: 'Failed to create manufacturing product', error: err.message },
             { status: 500 }
         );
     }

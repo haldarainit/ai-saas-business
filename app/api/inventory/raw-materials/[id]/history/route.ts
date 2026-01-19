@@ -2,12 +2,106 @@ import dbConnect from '@/lib/mongodb';
 import ProductionLog from '@/models/ProductionLog';
 import ManufacturingProduct from '@/models/ManufacturingProduct';
 import RawMaterial from '@/models/RawMaterial';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
+
+interface RouteParams {
+    params: Promise<{ id: string }>;
+}
+
+interface MaterialConsumed {
+    rawMaterialId: { toString(): string };
+    quantityConsumed: number;
+    unit: string;
+    costPerUnit: number;
+    totalCost: number;
+}
+
+interface ProductionLogDoc {
+    _id: string;
+    productId: { toString(): string };
+    productName: string;
+    productSku: string;
+    batchNumber: string;
+    quantityProduced: number;
+    totalProductionCost: number;
+    status: string;
+    notes: string;
+    productionDate: Date;
+    createdAt: Date;
+    materialsConsumed: MaterialConsumed[];
+}
+
+interface BillOfMaterialItem {
+    rawMaterialId: { toString(): string };
+    quantityRequired: number;
+    unit: string;
+}
+
+interface ManufacturingProductDoc {
+    _id: string;
+    name: string;
+    sku: string;
+    category: string;
+    sellingPrice: number;
+    totalCost: number;
+    finishedQuantity: number;
+    billOfMaterials: BillOfMaterialItem[];
+}
+
+interface UsageHistoryItem {
+    _id: string;
+    type: string;
+    productId: { toString(): string };
+    productName: string;
+    productSku: string;
+    batchNumber: string;
+    quantityConsumed: number;
+    unit: string;
+    costPerUnit: number;
+    totalCost: number;
+    productQuantityProduced: number;
+    totalProductionCost: number;
+    status: string;
+    notes: string;
+    productionDate: Date;
+    createdAt: Date;
+}
+
+interface ProductUsageData {
+    productId: { toString(): string };
+    productName: string;
+    productSku: string;
+    totalQuantityUsed: number;
+    totalCost: number;
+    batches: number;
+    lastUsed: Date;
+}
+
+interface MonthlyTrendData {
+    month: string;
+    quantityUsed: number;
+    cost: number;
+    batches: number;
+}
+
+interface DateQuery {
+    $gte?: Date;
+    $lte?: Date;
+}
+
+interface LogQuery {
+    userId: string;
+    'materialsConsumed.rawMaterialId': string;
+    productionDate?: DateQuery;
+}
 
 // GET /api/inventory/raw-materials/[id]/history
 // Get complete usage history of a specific raw material
-export async function GET(request, { params }) {
+export async function GET(
+    request: NextRequest,
+    { params }: RouteParams
+): Promise<NextResponse> {
     console.log('GET /api/inventory/raw-materials/[id]/history - Request received');
 
     try {
@@ -47,7 +141,7 @@ export async function GET(request, { params }) {
         const endDate = searchParams.get('endDate');
 
         // Build query for production logs that consumed this material
-        let logQuery = {
+        const logQuery: LogQuery = {
             userId,
             'materialsConsumed.rawMaterialId': id
         };
@@ -59,18 +153,18 @@ export async function GET(request, { params }) {
         }
 
         // Fetch production logs where this material was consumed
-        const productionLogs = await ProductionLog.find(logQuery)
+        const productionLogs: ProductionLogDoc[] = await ProductionLog.find(logQuery)
             .sort({ productionDate: -1 })
             .limit(limit);
 
         // Get all products that use this material in their BOM
-        const productsUsingMaterial = await ManufacturingProduct.find({
+        const productsUsingMaterial: ManufacturingProductDoc[] = await ManufacturingProduct.find({
             userId,
             'billOfMaterials.rawMaterialId': id
         }).select('name sku category billOfMaterials sellingPrice totalCost finishedQuantity');
 
         // Process the logs to extract only this material's consumption data
-        const usageHistory = productionLogs.map(log => {
+        const usageHistory: UsageHistoryItem[] = productionLogs.map(log => {
             const materialConsumed = log.materialsConsumed.find(
                 m => m.rawMaterialId.toString() === id
             );
@@ -102,7 +196,7 @@ export async function GET(request, { params }) {
         const totalBatches = usageHistory.length;
 
         // Get product usage breakdown
-        const productUsageBreakdown = {};
+        const productUsageBreakdown: Record<string, ProductUsageData> = {};
         usageHistory.forEach(h => {
             const prodKey = h.productId.toString();
             if (!productUsageBreakdown[prodKey]) {
@@ -129,7 +223,7 @@ export async function GET(request, { params }) {
             .sort((a, b) => b.totalQuantityUsed - a.totalQuantityUsed);
 
         // Build monthly usage trend (last 12 months)
-        const monthlyTrend = {};
+        const monthlyTrend: Record<string, MonthlyTrendData> = {};
         const now = new Date();
         for (let i = 11; i >= 0; i--) {
             const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -189,9 +283,10 @@ export async function GET(request, { params }) {
             usageHistory
         });
     } catch (error) {
+        const err = error as Error;
         console.error('Error in GET /api/inventory/raw-materials/[id]/history:', error);
         return NextResponse.json(
-            { message: 'Failed to fetch raw material history', error: error.message },
+            { message: 'Failed to fetch raw material history', error: err.message },
             { status: 500 }
         );
     }

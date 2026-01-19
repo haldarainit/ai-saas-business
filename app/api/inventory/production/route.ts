@@ -2,12 +2,55 @@ import dbConnect from '@/lib/mongodb';
 import ManufacturingProduct from '@/models/ManufacturingProduct';
 import RawMaterial from '@/models/RawMaterial';
 import ProductionLog from '@/models/ProductionLog';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
+
+interface DateQuery {
+    $gte?: Date;
+    $lte?: Date;
+}
+
+interface ProductionQuery {
+    userId: string;
+    productId?: string;
+    productionDate?: DateQuery;
+}
+
+interface ProductionData {
+    productId: string;
+    quantityToProduce: number | string;
+    batchNumber?: string;
+    notes?: string;
+    productionDate?: string | Date;
+}
+
+interface BOMItem {
+    rawMaterialId: string;
+    rawMaterialName: string;
+    quantityRequired: number;
+}
+
+interface MaterialConsumed {
+    rawMaterialId: string;
+    rawMaterialName: string;
+    rawMaterialSku: string;
+    quantityConsumed: number;
+    unit: string;
+    costPerUnit: number;
+    totalCost: number;
+}
+
+interface InsufficientMaterial {
+    name: string;
+    required: number;
+    available: number;
+    shortage: number;
+    unit: string;
+}
 
 // GET /api/inventory/production
 // Get production logs with optional filters
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     console.log('GET /api/inventory/production - Request received');
 
     try {
@@ -28,7 +71,7 @@ export async function GET(request) {
 
         await dbConnect();
 
-        let query = { userId };
+        const query: ProductionQuery = { userId };
 
         if (productId) {
             query.productId = productId;
@@ -48,9 +91,10 @@ export async function GET(request) {
 
         return NextResponse.json(logs);
     } catch (error) {
+        const err = error as Error;
         console.error('Error in GET /api/inventory/production:', error);
         return NextResponse.json(
-            { message: 'Failed to fetch production logs', error: error.message },
+            { message: 'Failed to fetch production logs', error: err.message },
             { status: 500 }
         );
     }
@@ -58,7 +102,7 @@ export async function GET(request) {
 
 // POST /api/inventory/production
 // Record a new production - consumes raw materials and produces finished goods
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     console.log('POST /api/inventory/production - Request received');
 
     try {
@@ -71,7 +115,7 @@ export async function POST(request) {
             );
         }
 
-        const data = await request.json();
+        const data: ProductionData = await request.json();
 
         // Validate required fields
         if (!data.productId || !data.quantityToProduce) {
@@ -81,7 +125,7 @@ export async function POST(request) {
             );
         }
 
-        const quantityToProduce = parseInt(data.quantityToProduce, 10);
+        const quantityToProduce = parseInt(String(data.quantityToProduce), 10);
         if (quantityToProduce < 1) {
             return NextResponse.json(
                 { message: 'Quantity to produce must be at least 1' },
@@ -108,10 +152,10 @@ export async function POST(request) {
         }
 
         // Check if we have enough raw materials
-        const materialsConsumed = [];
-        const insufficientMaterials = [];
+        const materialsConsumed: MaterialConsumed[] = [];
+        const insufficientMaterials: InsufficientMaterial[] = [];
 
-        for (const bomItem of product.billOfMaterials) {
+        for (const bomItem of product.billOfMaterials as BOMItem[]) {
             const rawMaterial = await RawMaterial.findOne({ _id: bomItem.rawMaterialId, userId });
 
             if (!rawMaterial) {
@@ -229,9 +273,10 @@ export async function POST(request) {
             }
         }, { status: 201 });
     } catch (error) {
+        const err = error as Error;
         console.error('Error in POST /api/inventory/production:', error);
         return NextResponse.json(
-            { message: 'Failed to complete production', error: error.message },
+            { message: 'Failed to complete production', error: err.message },
             { status: 500 }
         );
     }
