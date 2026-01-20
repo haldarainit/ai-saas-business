@@ -1,13 +1,60 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import dbConnect from "@/lib/mongodb";
 import EmailAutomationSettings from "@/lib/models/EmailAutomationSettings";
 import { getAuthenticatedUser } from "@/lib/get-auth-user";
 
+// Type definitions
+interface EmailProvider {
+    host: string;
+    port: number;
+    secure: boolean;
+    name: string;
+    helpUrl?: string;
+    instructions: string;
+}
+
+interface EmailProviders {
+    [key: string]: EmailProvider;
+}
+
+interface EmailSettingsBody {
+    emailProvider?: string;
+    emailUser?: string;
+    emailPassword?: string;
+    fromName?: string;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpSecure?: boolean;
+    action?: string;
+}
+
+interface SafeSettings {
+    emailProvider: string;
+    emailUser: string;
+    hasPassword: boolean;
+    fromName: string;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpSecure?: boolean;
+    isConfigured: boolean;
+    verificationStatus: string;
+    lastVerifiedAt?: Date;
+}
+
+interface ProviderInfo {
+    id: string;
+    name: string;
+    host: string;
+    port: number;
+    helpUrl?: string;
+    instructions: string;
+}
+
 /**
  * Email provider SMTP presets
  */
-const EMAIL_PROVIDERS = {
+const EMAIL_PROVIDERS: EmailProviders = {
     gmail: {
         host: "smtp.gmail.com",
         port: 587,
@@ -58,7 +105,7 @@ const EMAIL_PROVIDERS = {
 /**
  * GET - Retrieve user's email automation settings
  */
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         const authResult = await getAuthenticatedUser(request);
 
@@ -72,10 +119,10 @@ export async function GET(request) {
         await dbConnect();
 
         // Get user's email settings
-        let settings = await EmailAutomationSettings.findOne({ userId: authResult.userId });
+        const settings = await EmailAutomationSettings.findOne({ userId: authResult.userId });
 
         // Return providers list along with user settings
-        const providers = Object.entries(EMAIL_PROVIDERS).map(([key, value]) => ({
+        const providers: ProviderInfo[] = Object.entries(EMAIL_PROVIDERS).map(([key, value]) => ({
             id: key,
             name: value.name,
             host: value.host,
@@ -96,7 +143,7 @@ export async function GET(request) {
         }
 
         // Don't send password back to client
-        const safeSettings = {
+        const safeSettings: SafeSettings = {
             emailProvider: settings.emailProvider,
             emailUser: settings.emailUser,
             hasPassword: !!settings.emailPassword,
@@ -130,7 +177,7 @@ export async function GET(request) {
 /**
  * POST - Save or update user's email automation settings
  */
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         const authResult = await getAuthenticatedUser(request);
 
@@ -143,7 +190,7 @@ export async function POST(request) {
 
         await dbConnect();
 
-        const body = await request.json();
+        const body: EmailSettingsBody = await request.json();
         const {
             emailProvider,
             emailUser,
@@ -227,7 +274,7 @@ export async function POST(request) {
 /**
  * DELETE - Remove user's email automation settings
  */
-export async function DELETE(request) {
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
     try {
         const authResult = await getAuthenticatedUser(request);
 
@@ -259,11 +306,11 @@ export async function DELETE(request) {
 /**
  * Verify SMTP connection
  */
-async function verifySmtpConnection(userId, settings) {
+async function verifySmtpConnection(userId: string, settings: EmailSettingsBody): Promise<NextResponse> {
     try {
         await dbConnect();
 
-        let userSettings = await EmailAutomationSettings.findOne({ userId });
+        const userSettings = await EmailAutomationSettings.findOne({ userId });
 
         // Get SMTP config
         const provider = settings.emailProvider || userSettings?.emailProvider || "gmail";
@@ -335,21 +382,24 @@ async function verifySmtpConnection(userId, settings) {
                 userSettings.verificationStatus = "failed";
                 await userSettings.save();
             }
-        } catch (e) {
+        } catch {
             // Ignore update errors
         }
+
+        // Type guard for error handling
+        const err = error as { code?: string; message?: string };
 
         // Return user-friendly error messages
         let errorMessage = "SMTP connection failed";
 
-        if (error.code === "EAUTH") {
+        if (err.code === "EAUTH") {
             errorMessage = "Authentication failed. Please check your email and password. For Gmail, make sure you're using an App Password.";
-        } else if (error.code === "ESOCKET" || error.code === "ECONNECTION") {
+        } else if (err.code === "ESOCKET" || err.code === "ECONNECTION") {
             errorMessage = "Could not connect to SMTP server. Please check the host and port settings.";
-        } else if (error.code === "ETIMEDOUT") {
+        } else if (err.code === "ETIMEDOUT") {
             errorMessage = "Connection timed out. The SMTP server might be blocking the connection.";
-        } else if (error.message) {
-            errorMessage = error.message;
+        } else if (err.message) {
+            errorMessage = err.message;
         }
 
         return NextResponse.json(

@@ -1,9 +1,64 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Availability from "@/lib/models/Availability";
 
+// Type definitions
+interface TimeRange {
+    start: string;
+    end: string;
+}
+
+interface DaySchedule {
+    enabled: boolean;
+    timeRanges: TimeRange[];
+}
+
+interface WeeklySchedule {
+    sunday: DaySchedule;
+    monday: DaySchedule;
+    tuesday: DaySchedule;
+    wednesday: DaySchedule;
+    thursday: DaySchedule;
+    friday: DaySchedule;
+    saturday: DaySchedule;
+}
+
+interface DateOverride {
+    date: string;
+    isBlocked: boolean;
+    timeRanges: TimeRange[];
+}
+
+interface AvailabilityData {
+    userId: string;
+    timezone: string;
+    weeklySchedule: WeeklySchedule;
+    dateOverrides: DateOverride[];
+    bufferBetweenMeetings: number;
+    minimumNotice: number;
+    schedulingWindow: number;
+}
+
+interface AvailabilityBody {
+    userId: string;
+    timezone?: string;
+    weeklySchedule?: WeeklySchedule;
+    dateOverrides?: DateOverride[];
+    bufferBetweenMeetings?: number;
+    minimumNotice?: number;
+    schedulingWindow?: number;
+}
+
+interface DateOverrideBody {
+    userId: string;
+    date: string;
+    isBlocked?: boolean;
+    timeRanges?: TimeRange[];
+    remove?: boolean;
+}
+
 // GET - Fetch user availability
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         await connectDB();
 
@@ -21,7 +76,7 @@ export async function GET(request) {
 
         // Return default availability if not set
         if (!availability) {
-            availability = {
+            const defaultAvailability: AvailabilityData = {
                 userId,
                 timezone: "Asia/Kolkata",
                 weeklySchedule: {
@@ -38,6 +93,10 @@ export async function GET(request) {
                 minimumNotice: 60,
                 schedulingWindow: 30,
             };
+            return NextResponse.json({
+                success: true,
+                availability: defaultAvailability,
+            });
         }
 
         return NextResponse.json({
@@ -46,19 +105,20 @@ export async function GET(request) {
         });
     } catch (error) {
         console.error("Error fetching availability:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to fetch availability";
         return NextResponse.json(
-            { error: error.message || "Failed to fetch availability" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
 }
 
 // POST/PUT - Create or update availability
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         await connectDB();
 
-        const body = await request.json();
+        const body: AvailabilityBody = await request.json();
         const { userId, ...settings } = body;
 
         if (!userId) {
@@ -81,24 +141,25 @@ export async function POST(request) {
         });
     } catch (error) {
         console.error("Error updating availability:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to update availability";
         return NextResponse.json(
-            { error: error.message || "Failed to update availability" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
 }
 
 // PUT - Same as POST (upsert)
-export async function PUT(request) {
+export async function PUT(request: NextRequest): Promise<NextResponse> {
     return POST(request);
 }
 
 // PATCH - Add or update date override
-export async function PATCH(request) {
+export async function PATCH(request: NextRequest): Promise<NextResponse> {
     try {
         await connectDB();
 
-        const body = await request.json();
+        const body: DateOverrideBody = await request.json();
         const { userId, date, isBlocked, timeRanges, remove } = body;
 
         if (!userId || !date) {
@@ -116,7 +177,7 @@ export async function PATCH(request) {
 
         // Find existing override for this date
         const existingIndex = availability.dateOverrides.findIndex(
-            (o) => o.date === date
+            (o: DateOverride) => o.date === date
         );
 
         if (remove) {
@@ -126,7 +187,7 @@ export async function PATCH(request) {
             }
         } else {
             // Add or update override
-            const override = {
+            const override: DateOverride = {
                 date,
                 isBlocked: isBlocked || false,
                 timeRanges: timeRanges || [],
@@ -148,8 +209,9 @@ export async function PATCH(request) {
         });
     } catch (error) {
         console.error("Error updating date override:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to update date override";
         return NextResponse.json(
-            { error: error.message || "Failed to update date override" },
+            { error: errorMessage },
             { status: 500 }
         );
     }

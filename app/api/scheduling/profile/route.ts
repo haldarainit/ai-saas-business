@@ -1,9 +1,80 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import UserProfile from "@/lib/models/UserProfile";
 
+// Type definitions
+interface GoogleCalendarSettings {
+    connected: boolean;
+    clientId: string;
+    clientSecret: string;
+    connectedEmail: string;
+}
+
+interface OutlookCalendarSettings {
+    connected: boolean;
+}
+
+interface NotificationSettings {
+    [key: string]: unknown;
+}
+
+interface EmailSettings {
+    emailProvider: string;
+    emailUser: string;
+    emailPassword: string;
+    fromName: string;
+    smtpHost: string;
+    smtpPort: number;
+    smtpSecure?: boolean;
+    sendConfirmationToAttendee: boolean;
+    sendNotificationToHost: boolean;
+    sendReminders: boolean;
+    reminderHoursBefore?: number[];
+}
+
+interface ProfileBody {
+    userId: string;
+    email?: string;
+    username?: string;
+    displayName?: string;
+    bio?: string;
+    profileImage?: string;
+    companyName?: string;
+    companyLogo?: string;
+    brandColor?: string;
+    welcomeMessage?: string;
+    googleCalendar?: Partial<GoogleCalendarSettings>;
+    outlookCalendar?: Partial<OutlookCalendarSettings>;
+    notifications?: NotificationSettings;
+    emailSettings?: Partial<EmailSettings>;
+    defaultTimezone?: string;
+    defaultDuration?: number;
+    defaultLocation?: string;
+}
+
+interface ProfileResponse {
+    userId: string;
+    email: string;
+    username: string;
+    displayName: string;
+    bio: string;
+    profileImage: string;
+    companyName: string;
+    companyLogo: string;
+    brandColor: string;
+    welcomeMessage: string;
+    googleCalendar: GoogleCalendarSettings;
+    outlookCalendar: OutlookCalendarSettings;
+    notifications: NotificationSettings;
+    emailSettings: EmailSettings;
+    defaultTimezone: string;
+    defaultDuration: number;
+    defaultLocation: string;
+    bookingLink: string;
+}
+
 // GET - Fetch user profile
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         await connectDB();
 
@@ -35,63 +106,64 @@ export async function GET(request) {
         console.log("🔵 [API] Found profile for user:", userProfile.userId);
         console.log("🔵 [API] Profile emailSettings from DB:", JSON.stringify(userProfile.emailSettings, null, 2));
 
-        const profileResponse = {
-            success: true,
-            profile: {
-                userId: userProfile.userId,
-                email: userProfile.email,
-                username: userProfile.username,
-                displayName: userProfile.displayName,
-                bio: userProfile.bio,
-                profileImage: userProfile.profileImage,
-                companyName: userProfile.companyName,
-                companyLogo: userProfile.companyLogo,
-                brandColor: userProfile.brandColor,
-                welcomeMessage: userProfile.welcomeMessage,
-                googleCalendar: {
-                    connected: userProfile.googleCalendar?.connected || false,
-                    clientId: userProfile.googleCalendar?.clientId || "",
-                    clientSecret: userProfile.googleCalendar?.clientSecret || "",
-                    connectedEmail: userProfile.googleCalendar?.connectedEmail || "",
-                },
-                outlookCalendar: {
-                    connected: userProfile.outlookCalendar?.connected || false,
-                },
-                notifications: userProfile.notifications,
-                emailSettings: {
-                    emailProvider: userProfile.emailSettings?.emailProvider || "gmail",
-                    emailUser: userProfile.emailSettings?.emailUser || "",
-                    emailPassword: userProfile.emailSettings?.emailPassword || "",
-                    fromName: userProfile.emailSettings?.fromName || "",
-                    smtpHost: userProfile.emailSettings?.smtpHost || "",
-                    smtpPort: userProfile.emailSettings?.smtpPort || 587,
-                    sendConfirmationToAttendee: userProfile.emailSettings?.sendConfirmationToAttendee !== false,
-                    sendNotificationToHost: userProfile.emailSettings?.sendNotificationToHost !== false,
-                    sendReminders: userProfile.emailSettings?.sendReminders !== false,
-                },
-                defaultTimezone: userProfile.defaultTimezone,
-                defaultDuration: userProfile.defaultDuration,
-                defaultLocation: userProfile.defaultLocation,
-                bookingLink: `/book/${userProfile.username}`,
+        const profileResponse: ProfileResponse = {
+            userId: userProfile.userId,
+            email: userProfile.email,
+            username: userProfile.username,
+            displayName: userProfile.displayName,
+            bio: userProfile.bio,
+            profileImage: userProfile.profileImage,
+            companyName: userProfile.companyName,
+            companyLogo: userProfile.companyLogo,
+            brandColor: userProfile.brandColor,
+            welcomeMessage: userProfile.welcomeMessage,
+            googleCalendar: {
+                connected: userProfile.googleCalendar?.connected || false,
+                clientId: userProfile.googleCalendar?.clientId || "",
+                clientSecret: userProfile.googleCalendar?.clientSecret || "",
+                connectedEmail: userProfile.googleCalendar?.connectedEmail || "",
             },
+            outlookCalendar: {
+                connected: userProfile.outlookCalendar?.connected || false,
+            },
+            notifications: userProfile.notifications,
+            emailSettings: {
+                emailProvider: userProfile.emailSettings?.emailProvider || "gmail",
+                emailUser: userProfile.emailSettings?.emailUser || "",
+                emailPassword: userProfile.emailSettings?.emailPassword || "",
+                fromName: userProfile.emailSettings?.fromName || "",
+                smtpHost: userProfile.emailSettings?.smtpHost || "",
+                smtpPort: userProfile.emailSettings?.smtpPort || 587,
+                sendConfirmationToAttendee: userProfile.emailSettings?.sendConfirmationToAttendee !== false,
+                sendNotificationToHost: userProfile.emailSettings?.sendNotificationToHost !== false,
+                sendReminders: userProfile.emailSettings?.sendReminders !== false,
+            },
+            defaultTimezone: userProfile.defaultTimezone,
+            defaultDuration: userProfile.defaultDuration,
+            defaultLocation: userProfile.defaultLocation,
+            bookingLink: `/book/${userProfile.username}`,
         };
 
-        return NextResponse.json(profileResponse);
+        return NextResponse.json({
+            success: true,
+            profile: profileResponse,
+        });
     } catch (error) {
         console.error("Error fetching profile:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to fetch profile";
         return NextResponse.json(
-            { error: error.message || "Failed to fetch profile" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
 }
 
 // POST - Create user profile
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         await connectDB();
 
-        const body = await request.json();
+        const body: ProfileBody = await request.json();
         const { userId, email, ...settings } = body;
 
         if (!userId || !email) {
@@ -127,19 +199,20 @@ export async function POST(request) {
         });
     } catch (error) {
         console.error("Error creating profile:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to create profile";
         return NextResponse.json(
-            { error: error.message || "Failed to create profile" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
 }
 
 // PUT - Update user profile
-export async function PUT(request) {
+export async function PUT(request: NextRequest): Promise<NextResponse> {
     try {
         await connectDB();
 
-        const body = await request.json();
+        const body: ProfileBody = await request.json();
         const { userId, ...updates } = body;
 
         if (!userId) {
@@ -165,7 +238,7 @@ export async function PUT(request) {
         }
 
         // Find the profile first
-        let userProfile = await UserProfile.findOne({ userId });
+        const userProfile = await UserProfile.findOne({ userId });
 
         if (!userProfile) {
             return NextResponse.json(
@@ -178,7 +251,7 @@ export async function PUT(request) {
         console.log("🟢 [API] Current emailSettings:", JSON.stringify(userProfile.emailSettings, null, 2));
 
         // Build the update object using MongoDB $set operator
-        const updateOps = {};
+        const updateOps: Record<string, unknown> = {};
 
         // Handle emailSettings separately (nested object) using $set
         if (updates.emailSettings) {
@@ -186,7 +259,6 @@ export async function PUT(request) {
             console.log("🟢 [API] New emailSettings:", JSON.stringify(updates.emailSettings, null, 2));
 
             // Set the entire emailSettings object at once (not dot notation)
-            // This ensures the nested object is created if it doesn't exist
             updateOps["emailSettings"] = {
                 emailProvider: updates.emailSettings.emailProvider || "gmail",
                 emailUser: updates.emailSettings.emailUser || "",
@@ -209,7 +281,7 @@ export async function PUT(request) {
         if (updates.notifications) {
             console.log("🟢 [API] Updating notifications...");
             Object.keys(updates.notifications).forEach(key => {
-                updateOps[`notifications.${key}`] = updates.notifications[key];
+                updateOps[`notifications.${key}`] = updates.notifications![key];
             });
             delete updates.notifications;
         }
@@ -218,7 +290,7 @@ export async function PUT(request) {
         if (updates.googleCalendar) {
             console.log("🟢 [API] Updating googleCalendar...");
             Object.keys(updates.googleCalendar).forEach(key => {
-                updateOps[`googleCalendar.${key}`] = updates.googleCalendar[key];
+                updateOps[`googleCalendar.${key}`] = (updates.googleCalendar as Record<string, unknown>)[key];
             });
             delete updates.googleCalendar;
         }
@@ -247,8 +319,9 @@ export async function PUT(request) {
         });
     } catch (error) {
         console.error("Error updating profile:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to update profile";
         return NextResponse.json(
-            { error: error.message || "Failed to update profile" },
+            { error: errorMessage },
             { status: 500 }
         );
     }

@@ -1,9 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import UserProfile from "@/lib/models/UserProfile";
 import { exchangeCodeForTokens } from "@/lib/services/meeting-link";
 
-export async function GET(request) {
+// Type definitions
+interface TokenResponse {
+    accessToken: string;
+    refreshToken?: string;
+    expiresAt?: number;
+    email?: string;
+}
+
+interface StateData {
+    userId: string;
+}
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
     const state = searchParams.get("state");
@@ -27,13 +39,13 @@ export async function GET(request) {
         await connectDB();
 
         // Decode state to get userId
-        let userId;
+        let userId: string | undefined;
         try {
-            const stateData = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
+            const stateData: StateData = JSON.parse(Buffer.from(state || "", "base64").toString("utf-8"));
             userId = stateData.userId;
-        } catch (e) {
+        } catch {
             // Fallback: state might just be the userId
-            userId = Buffer.from(state, "base64").toString("utf-8");
+            userId = Buffer.from(state || "", "base64").toString("utf-8");
         }
 
         if (!userId) {
@@ -55,7 +67,7 @@ export async function GET(request) {
         }
 
         // Exchange code for tokens using user's credentials
-        const tokens = await exchangeCodeForTokens(code, {
+        const tokens: TokenResponse = await exchangeCodeForTokens(code, {
             clientId,
             clientSecret
         });
@@ -84,10 +96,11 @@ export async function GET(request) {
             `${process.env.NEXT_PUBLIC_APP_URL}/appointment-scheduling/dashboard?tab=settings&calendar=connected`
         );
 
-    } catch (error) {
-        console.error("OAuth Callback Error:", error);
+    } catch (err) {
+        console.error("OAuth Callback Error:", err);
+        const errorMessage = err instanceof Error ? err.message : "Unknown error";
         return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_APP_URL}/appointment-scheduling/dashboard?tab=settings&error=${encodeURIComponent(error.message)}`
+            `${process.env.NEXT_PUBLIC_APP_URL}/appointment-scheduling/dashboard?tab=settings&error=${encodeURIComponent(errorMessage)}`
         );
     }
 }

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
     generateEventDescription,
     generateMeetingPrep,
@@ -8,11 +8,33 @@ import {
     suggestOptimalTimeSlots
 } from "@/lib/services/ai-scheduling";
 
+// Type definitions
+interface AISchedulingParams {
+    action: string;
+    eventName?: string;
+    duration?: number;
+    locationType?: string;
+    hostName?: string;
+    businessType?: string;
+    tone?: string;
+    booking?: Record<string, unknown>;
+    eventType?: Record<string, unknown>;
+    attendeeInfo?: Record<string, unknown>;
+    bookings?: Record<string, unknown>[];
+    eventTypes?: Record<string, unknown>[];
+    preferences?: string;
+}
+
+interface AIResult {
+    success: boolean;
+    [key: string]: unknown;
+}
+
 // POST /api/scheduling/ai
 // AI-powered scheduling features
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        const body = await request.json();
+        const body: AISchedulingParams = await request.json();
         const { action, ...params } = body;
 
         if (!action) {
@@ -22,7 +44,7 @@ export async function POST(request) {
             );
         }
 
-        let result;
+        let result: AIResult;
 
         switch (action) {
             case "generate-description":
@@ -110,8 +132,9 @@ export async function POST(request) {
 
     } catch (error) {
         console.error("AI Scheduling API Error:", error);
+        const errorMessage = error instanceof Error ? error.message : "AI request failed";
         return NextResponse.json(
-            { error: error.message || "AI request failed" },
+            { error: errorMessage },
             { status: 500 }
         );
     }

@@ -1,10 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import UserProfile from "@/lib/models/UserProfile";
 import { getGoogleCalendarAuthUrl, checkGoogleCalendarConnection } from "@/lib/services/meeting-link";
 
+// Type definitions
+interface GoogleCredentialsBody {
+    userId: string;
+    clientId?: string;
+    clientSecret?: string;
+}
+
+interface ConnectionStatus {
+    connected: boolean;
+    email?: string;
+    summary?: string;
+}
+
 // GET - Get Google Calendar connection status or initiate connection
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get("userId");
@@ -60,7 +73,7 @@ export async function GET(request) {
 
         // Verify the connection is still valid
         try {
-            const connectionStatus = await checkGoogleCalendarConnection(
+            const connectionStatus: ConnectionStatus = await checkGoogleCalendarConnection(
                 userProfile.googleCalendar.accessToken
             );
 
@@ -81,7 +94,7 @@ export async function GET(request) {
                     message: "Google Calendar connection expired. Please reconnect."
                 });
             }
-        } catch (error) {
+        } catch {
             return NextResponse.json({
                 success: true,
                 connected: userProfile.googleCalendar.connected,
@@ -93,17 +106,18 @@ export async function GET(request) {
 
     } catch (error) {
         console.error("Error checking Google Calendar connection:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to check connection";
         return NextResponse.json(
-            { error: error.message || "Failed to check connection" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
 }
 
 // POST - Save Google API credentials
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        const body = await request.json();
+        const body: GoogleCredentialsBody = await request.json();
         const { userId, clientId, clientSecret } = body;
 
         if (!userId) {
@@ -163,15 +177,16 @@ export async function POST(request) {
 
     } catch (error) {
         console.error("Error saving Google credentials:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to save credentials";
         return NextResponse.json(
-            { error: error.message || "Failed to save credentials" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
 }
 
 // DELETE - Disconnect Google Calendar
-export async function DELETE(request) {
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
     try {
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get("userId");
@@ -186,7 +201,7 @@ export async function DELETE(request) {
 
         await connectDB();
 
-        const updateData = {
+        const updateData: Record<string, unknown> = {
             "googleCalendar.connected": false,
             "googleCalendar.accessToken": null,
             "googleCalendar.refreshToken": null,
@@ -214,8 +229,9 @@ export async function DELETE(request) {
 
     } catch (error) {
         console.error("Error disconnecting Google Calendar:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to disconnect";
         return NextResponse.json(
-            { error: error.message || "Failed to disconnect" },
+            { error: errorMessage },
             { status: 500 }
         );
     }

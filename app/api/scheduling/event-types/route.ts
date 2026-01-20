@@ -1,10 +1,53 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import EventType from "@/lib/models/EventType";
 import UserProfile from "@/lib/models/UserProfile";
 
+// Type definitions
+interface LocationSettings {
+    type?: string;
+    provider?: string;
+    value?: string;
+}
+
+interface CustomQuestion {
+    id?: string;
+    question: string;
+    type: string;
+    required: boolean;
+    options?: string[];
+}
+
+interface EventTypeBody {
+    userId?: string;
+    id?: string;
+    name?: string;
+    description?: string;
+    duration?: number;
+    color?: string;
+    location?: LocationSettings;
+    customQuestions?: CustomQuestion[];
+    requiresConfirmation?: boolean;
+    allowReschedule?: boolean;
+    allowCancellation?: boolean;
+    maxBookingsPerDay?: number;
+    bufferTimeBefore?: number;
+    bufferTimeAfter?: number;
+    minimumNotice?: number;
+    schedulingWindow?: number;
+    price?: number;
+    currency?: string;
+    email?: string;
+}
+
+interface EventTypeQuery {
+    userId: string;
+    isActive?: boolean;
+    slug?: string;
+}
+
 // Helper to generate unique booking link ID
-function generateBookingLinkId() {
+function generateBookingLinkId(): string {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
     for (let i = 0; i < 10; i++) {
@@ -14,7 +57,7 @@ function generateBookingLinkId() {
 }
 
 // GET - Fetch all event types for a user
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         await connectDB();
 
@@ -29,7 +72,7 @@ export async function GET(request) {
             );
         }
 
-        const query = { userId };
+        const query: EventTypeQuery = { userId };
         if (isActive !== null && isActive !== undefined) {
             query.isActive = isActive === "true";
         }
@@ -51,19 +94,20 @@ export async function GET(request) {
         });
     } catch (error) {
         console.error("Error fetching event types:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to fetch event types";
         return NextResponse.json(
-            { error: error.message || "Failed to fetch event types" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
 }
 
 // POST - Create a new event type
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         await connectDB();
 
-        const body = await request.json();
+        const body: EventTypeBody = await request.json();
         const {
             userId,
             name,
@@ -147,19 +191,20 @@ export async function POST(request) {
         });
     } catch (error) {
         console.error("Error creating event type:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to create event type";
         return NextResponse.json(
-            { error: error.message || "Failed to create event type" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
 }
 
 // PUT - Update an event type
-export async function PUT(request) {
+export async function PUT(request: NextRequest): Promise<NextResponse> {
     try {
         await connectDB();
 
-        const body = await request.json();
+        const body: EventTypeBody = await request.json();
         const { id, ...updates } = body;
 
         if (!id) {
@@ -189,15 +234,16 @@ export async function PUT(request) {
         });
     } catch (error) {
         console.error("Error updating event type:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to update event type";
         return NextResponse.json(
-            { error: error.message || "Failed to update event type" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
 }
 
 // DELETE - Delete an event type
-export async function DELETE(request) {
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
     try {
         await connectDB();
 
@@ -226,8 +272,9 @@ export async function DELETE(request) {
         });
     } catch (error) {
         console.error("Error deleting event type:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to delete event type";
         return NextResponse.json(
-            { error: error.message || "Failed to delete event type" },
+            { error: errorMessage },
             { status: 500 }
         );
     }

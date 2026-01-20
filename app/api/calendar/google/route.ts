@@ -1,11 +1,44 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+
+// Type definitions
+interface Attendee {
+    email: string;
+    name?: string;
+}
+
+interface Appointment {
+    title: string;
+    description?: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    timeZone?: string;
+    attendees?: Attendee[];
+    type?: string;
+    eventId?: string;
+}
+
+interface CalendarRequestBody {
+    action: string;
+    accessToken?: string;
+    appointment?: Appointment;
+    timeMin?: string;
+    timeMax?: string;
+}
+
+interface GoogleErrorResponse {
+    error?: {
+        message?: string;
+    };
+    error_description?: string;
+}
 
 // Google Calendar API Integration
 // Note: In production, you would use OAuth2 for proper authentication
 
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        const body = await request.json();
+        const body: CalendarRequestBody = await request.json();
         const { action, accessToken, appointment } = body;
 
         if (!action) {
@@ -17,19 +50,19 @@ export async function POST(request) {
 
         switch (action) {
             case "list-events":
-                return await listEvents(accessToken);
+                return await listEvents(accessToken!);
 
             case "create-event":
-                return await createEvent(accessToken, appointment);
+                return await createEvent(accessToken!, appointment!);
 
             case "update-event":
-                return await updateEvent(accessToken, appointment);
+                return await updateEvent(accessToken!, appointment!);
 
             case "delete-event":
-                return await deleteEvent(accessToken, appointment.eventId);
+                return await deleteEvent(accessToken!, appointment!.eventId!);
 
             case "get-free-busy":
-                return await getFreeBusy(accessToken, body.timeMin, body.timeMax);
+                return await getFreeBusy(accessToken!, body.timeMin, body.timeMax);
 
             default:
                 return NextResponse.json(
@@ -39,15 +72,16 @@ export async function POST(request) {
         }
     } catch (error) {
         console.error("Google Calendar API Error:", error);
+        const errorMessage = error instanceof Error ? error.message : "Internal server error";
         return NextResponse.json(
-            { error: error.message || "Internal server error" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
 }
 
 // List events from Google Calendar
-async function listEvents(accessToken) {
+async function listEvents(accessToken: string): Promise<NextResponse> {
     const timeMin = new Date().toISOString();
     const timeMax = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -62,7 +96,7 @@ async function listEvents(accessToken) {
     );
 
     if (!response.ok) {
-        const error = await response.json();
+        const error: GoogleErrorResponse = await response.json();
         throw new Error(error.error?.message || "Failed to fetch events");
     }
 
@@ -71,7 +105,7 @@ async function listEvents(accessToken) {
 }
 
 // Create a new event in Google Calendar
-async function createEvent(accessToken, appointment) {
+async function createEvent(accessToken: string, appointment: Appointment): Promise<NextResponse> {
     const event = {
         summary: appointment.title,
         description: appointment.description,
@@ -116,7 +150,7 @@ async function createEvent(accessToken, appointment) {
     );
 
     if (!response.ok) {
-        const error = await response.json();
+        const error: GoogleErrorResponse = await response.json();
         throw new Error(error.error?.message || "Failed to create event");
     }
 
@@ -132,7 +166,7 @@ async function createEvent(accessToken, appointment) {
 }
 
 // Update an existing event
-async function updateEvent(accessToken, appointment) {
+async function updateEvent(accessToken: string, appointment: Appointment): Promise<NextResponse> {
     const event = {
         summary: appointment.title,
         description: appointment.description,
@@ -159,7 +193,7 @@ async function updateEvent(accessToken, appointment) {
     );
 
     if (!response.ok) {
-        const error = await response.json();
+        const error: GoogleErrorResponse = await response.json();
         throw new Error(error.error?.message || "Failed to update event");
     }
 
@@ -167,7 +201,7 @@ async function updateEvent(accessToken, appointment) {
 }
 
 // Delete an event
-async function deleteEvent(accessToken, eventId) {
+async function deleteEvent(accessToken: string, eventId: string): Promise<NextResponse> {
     const response = await fetch(
         `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}?sendUpdates=all`,
         {
@@ -179,7 +213,7 @@ async function deleteEvent(accessToken, eventId) {
     );
 
     if (!response.ok && response.status !== 204) {
-        const error = await response.json();
+        const error: GoogleErrorResponse = await response.json();
         throw new Error(error.error?.message || "Failed to delete event");
     }
 
@@ -187,7 +221,7 @@ async function deleteEvent(accessToken, eventId) {
 }
 
 // Get free/busy information
-async function getFreeBusy(accessToken, timeMin, timeMax) {
+async function getFreeBusy(accessToken: string, timeMin?: string, timeMax?: string): Promise<NextResponse> {
     const requestBody = {
         timeMin: timeMin || new Date().toISOString(),
         timeMax: timeMax || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
@@ -207,7 +241,7 @@ async function getFreeBusy(accessToken, timeMin, timeMax) {
     );
 
     if (!response.ok) {
-        const error = await response.json();
+        const error: GoogleErrorResponse = await response.json();
         throw new Error(error.error?.message || "Failed to get free/busy info");
     }
 
@@ -218,10 +252,9 @@ async function getFreeBusy(accessToken, timeMin, timeMax) {
 }
 
 // Handle GET requests for OAuth callback
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
-    const state = searchParams.get("state");
 
     if (!code) {
         return NextResponse.json(
@@ -247,11 +280,9 @@ export async function GET(request) {
         });
 
         if (!tokenResponse.ok) {
-            const error = await tokenResponse.json();
+            const error: GoogleErrorResponse = await tokenResponse.json();
             throw new Error(error.error_description || "Failed to exchange code");
         }
-
-        const tokens = await tokenResponse.json();
 
         // In a real app, you would store these tokens securely
         // and associate them with the user

@@ -1,11 +1,43 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import EventType from "@/lib/models/EventType";
 import Availability from "@/lib/models/Availability";
 import Booking from "@/lib/models/Booking";
 
+// Type definitions
+interface TimeSlot {
+    time: string;
+    endTime: string;
+    available: boolean;
+    formattedTime: string;
+}
+
+interface TimeRange {
+    start: string;
+    end: string;
+}
+
+interface BookingRecord {
+    startTime: string;
+    endTime: string;
+}
+
+interface DateOverride {
+    date: string;
+    isBlocked: boolean;
+    timeRanges: TimeRange[];
+}
+
+// Helper function to format time
+function formatTime(time24: string): string {
+    const [hours, minutes] = time24.split(":").map(Number);
+    const period = hours >= 12 ? "PM" : "AM";
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
 // GET - Get available time slots for a specific event type and date
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         await connectDB();
 
@@ -35,13 +67,13 @@ export async function GET(request) {
 
         // Get day of week
         const dateObj = new Date(date);
-        const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+        const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
         const dayName = dayNames[dateObj.getDay()];
 
         // Check for date override
-        const dateOverride = availability?.dateOverrides?.find(o => o.date === date);
+        const dateOverride = availability?.dateOverrides?.find((o: DateOverride) => o.date === date);
 
-        let daySchedule;
+        let daySchedule: TimeRange[];
         if (dateOverride) {
             if (dateOverride.isBlocked) {
                 return NextResponse.json({
@@ -67,7 +99,7 @@ export async function GET(request) {
         }
 
         // Get existing bookings for this date
-        const existingBookings = await Booking.find({
+        const existingBookings: BookingRecord[] = await Booking.find({
             userId: eventType.userId,
             date,
             status: { $nin: ["cancelled", "rescheduled"] },
@@ -80,10 +112,10 @@ export async function GET(request) {
         const totalBuffer = Math.max(bufferAfter, bufferBetween);
 
         // Generate time slots
-        const slots = [];
-        const duration = eventType.duration;
+        const slots: TimeSlot[] = [];
+        const duration: number = eventType.duration;
         const now = new Date();
-        const minimumNotice = eventType.minimumNotice || 60;
+        const minimumNotice: number = eventType.minimumNotice || 60;
 
         for (const timeRange of daySchedule) {
             const [startHour, startMin] = timeRange.start.split(":").map(Number);
@@ -115,7 +147,7 @@ export async function GET(request) {
 
                 // Check if slot is in the past or doesn't meet minimum notice
                 const slotDateTime = new Date(`${date}T${slotStart}:00`);
-                const minutesUntilSlot = (slotDateTime - now) / 60000;
+                const minutesUntilSlot = (slotDateTime.getTime() - now.getTime()) / 60000;
 
                 let available = minutesUntilSlot >= minimumNotice;
 
@@ -172,17 +204,10 @@ export async function GET(request) {
         });
     } catch (error) {
         console.error("Error fetching time slots:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to fetch time slots";
         return NextResponse.json(
-            { error: error.message || "Failed to fetch time slots" },
+            { error: errorMessage },
             { status: 500 }
         );
     }
-}
-
-// Helper function to format time
-function formatTime(time24) {
-    const [hours, minutes] = time24.split(":").map(Number);
-    const period = hours >= 12 ? "PM" : "AM";
-    const hours12 = hours % 12 || 12;
-    return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
 }
