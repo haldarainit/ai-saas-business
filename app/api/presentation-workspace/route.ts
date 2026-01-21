@@ -1,10 +1,18 @@
+import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import PresentationWorkspace from '@/models/PresentationWorkspace';
-import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
+// Type definitions
+interface CreatePresentationBody {
+    name: string;
+    prompt?: string;
+    slideCount?: number;
+    theme?: string;
+}
+
 // GET - Get all presentation workspaces for a user
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         const { userId } = await getAuthenticatedUser(request);
 
@@ -30,7 +38,7 @@ export async function GET(request) {
 }
 
 // POST - Create a new presentation workspace
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         const { userId } = await getAuthenticatedUser(request);
 
@@ -41,7 +49,7 @@ export async function POST(request) {
 
         await dbConnect();
 
-        const body = await request.json();
+        const body: CreatePresentationBody = await request.json();
         const { name, prompt, slideCount, theme } = body;
 
         if (!name) {

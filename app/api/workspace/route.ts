@@ -1,10 +1,15 @@
+import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Workspace from '@/models/Workspace';
-import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
+// Type definitions
+interface CreateWorkspaceBody {
+    name: string;
+}
+
 // GET - Get all workspaces for the authenticated user
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         console.log("GET /api/workspace - Connecting to DB...");
         await dbConnect();
@@ -37,7 +42,7 @@ export async function GET(request) {
 }
 
 // POST - Create a new workspace
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         console.log("POST /api/workspace - Connecting to DB...");
         await dbConnect();
@@ -53,7 +58,7 @@ export async function POST(request) {
             );
         }
 
-        const body = await request.json();
+        const body: CreateWorkspaceBody = await request.json();
         const { name } = body;
         console.log("POST /api/workspace - Creating workspace:", { name, userId });
 
