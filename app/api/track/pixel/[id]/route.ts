@@ -1,32 +1,25 @@
+import dbConnect from "@/lib/mongodb";
+import EmailTracking from "@/lib/models/EmailTracking";
+import { broadcast } from "@/lib/realtime/sse";
 import { NextRequest } from "next/server";
-import dbConnect from "../../../../../lib/mongodb";
-import EmailTracking from "../../../../../lib/models/EmailTracking";
-import { broadcast } from "../../../../../lib/realtime/sse";
 
 export const runtime = "nodejs";
 
-// Type definitions
-interface DeviceInfo {
-    type: "mobile" | "tablet" | "desktop" | "unknown";
-    browser: "chrome" | "safari" | "firefox" | "edge" | "unknown";
-    os: "windows" | "macos" | "android" | "linux" | "ios" | "unknown";
+interface UserAgentInfo {
+    type: string;
+    browser: string;
+    os: string;
 }
 
-interface RouteParams {
-    params: Promise<{
-        id: string;
-    }>;
-}
-
-function parseUserAgent(ua: string | null): DeviceInfo {
+function parseUserAgent(ua: string): UserAgentInfo {
     if (!ua) return { type: "unknown", browser: "unknown", os: "unknown" };
     const s = ua.toLowerCase();
-    const type: DeviceInfo["type"] = /mobile|android|iphone|ipad/.test(s)
+    const type = /mobile|android|iphone|ipad/.test(s)
         ? "mobile"
         : /tablet/.test(s)
             ? "tablet"
             : "desktop";
-    const browser: DeviceInfo["browser"] = /chrome\//.test(s)
+    const browser = /chrome\//.test(s)
         ? "chrome"
         : /safari\//.test(s) && !/chrome\//.test(s)
             ? "safari"
@@ -35,7 +28,7 @@ function parseUserAgent(ua: string | null): DeviceInfo {
                 : /edg\//.test(s)
                     ? "edge"
                     : "unknown";
-    const os: DeviceInfo["os"] = /windows/.test(s)
+    const os = /windows/.test(s)
         ? "windows"
         : /mac os x/.test(s)
             ? "macos"
@@ -55,13 +48,11 @@ const pixel = Buffer.from(
     "base64"
 );
 
-export async function GET(
-    _req: NextRequest,
-    { params }: RouteParams
-): Promise<Response> {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
         await dbConnect();
-        const { id: trackingId } = await params;
+        const { id } = await props.params;
+        const trackingId = id;
         console.log("📧 [TRACKING] Pixel loaded for ID:", trackingId);
 
         const headers = _req.headers;
@@ -73,7 +64,6 @@ export async function GET(
         const device = parseUserAgent(userAgent);
 
         // Find by _id first; if invalid, try emailId fallback
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let tracked: any = null;
         try {
             tracked = await EmailTracking.findById(trackingId);
@@ -142,7 +132,6 @@ export async function GET(
             },
         });
     } catch (e) {
-        console.error("❌ [TRACKING] Error:", e);
         return new Response(pixel, {
             status: 200,
             headers: {

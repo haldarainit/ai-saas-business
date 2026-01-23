@@ -1,48 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Workspace from '@/models/Workspace';
+import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
-// Type definitions
-interface RouteParams {
-    params: Promise<{
-        id: string;
-    }>;
-}
-
-interface Message {
-    role: string;
-    content: string;
-    attachments?: Attachment[];
-}
-
-interface Attachment {
-    publicId?: string;
-    url?: string;
-    type?: string;
-}
-
-interface UpdateWorkspaceBody {
-    messages?: Message[];
-    fileData?: Record<string, unknown>;
-    history?: unknown[];
-}
-
-interface WorkspaceDocument {
-    _id: string;
-    userId: string;
-    name: string;
-    messages?: Message[];
-    fileData?: Record<string, unknown>;
-}
-
 // GET - Get a specific workspace by ID (with ownership check)
-export async function GET(
-    request: NextRequest,
-    { params }: RouteParams
-): Promise<NextResponse> {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
-        const { id } = await params;
+        const { id } = await props.params;
         console.log(`GET /api/workspace/${id} - Connecting to DB...`);
         await dbConnect();
         console.log(`GET /api/workspace/${id} - Connected`);
@@ -57,7 +21,7 @@ export async function GET(
             );
         }
 
-        const workspace = await Workspace.findById(id).lean() as WorkspaceDocument | null;
+        const workspace = await Workspace.findById(id).lean();
 
         if (!workspace) {
             console.log(`GET /api/workspace/${id} - Not found`);
@@ -88,12 +52,9 @@ export async function GET(
 }
 
 // PUT - Update workspace (messages and/or files) - with ownership check
-export async function PUT(
-    request: NextRequest,
-    { params }: RouteParams
-): Promise<NextResponse> {
+export async function PUT(request: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
-        const { id } = await params;
+        const { id } = await props.params;
         console.log(`PUT /api/workspace/${id} - Connecting to DB...`);
         await dbConnect();
         console.log(`PUT /api/workspace/${id} - Connected`);
@@ -109,7 +70,7 @@ export async function PUT(
         }
 
         // First, verify ownership
-        const existingWorkspace = await Workspace.findById(id).lean() as WorkspaceDocument | null;
+        const existingWorkspace = await Workspace.findById(id).lean();
         if (!existingWorkspace) {
             return NextResponse.json(
                 { error: 'Workspace not found' },
@@ -123,7 +84,7 @@ export async function PUT(
             );
         }
 
-        let body: UpdateWorkspaceBody;
+        let body;
         try {
             const text = await request.text();
             if (!text) {
@@ -147,7 +108,7 @@ export async function PUT(
         // This maps 'model' -> 'ai' to ensure it passes the old enum validation
         let sanitizedMessages = messages;
         if (messages && Array.isArray(messages)) {
-            sanitizedMessages = messages.map(msg => ({
+            sanitizedMessages = messages.map((msg: any) => ({
                 ...msg,
                 role: msg.role === 'model' ? 'ai' : msg.role
             }));
@@ -161,7 +122,7 @@ export async function PUT(
             historyLength: history?.length
         });
 
-        const updateData: Record<string, unknown> = {};
+        const updateData: any = {};
         if (sanitizedMessages !== undefined) updateData.messages = sanitizedMessages;
         if (fileData !== undefined) updateData.fileData = fileData;
         if (history !== undefined) updateData.history = history;
@@ -204,13 +165,10 @@ export async function PUT(
 }
 
 // DELETE - Delete a workspace - with ownership check
-export async function DELETE(
-    request: NextRequest,
-    { params }: RouteParams
-): Promise<NextResponse> {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
         await dbConnect();
-        const { id } = await params;
+        const { id } = await props.params;
 
         // Get authenticated user
         const { userId } = await getAuthenticatedUser(request);
@@ -243,9 +201,9 @@ export async function DELETE(
         // Collect publicIds from all messages
         const publicIds: string[] = [];
         if (workspace.messages && workspace.messages.length > 0) {
-            workspace.messages.forEach((msg: Message) => {
+            workspace.messages.forEach((msg: any) => {
                 if (msg.attachments && msg.attachments.length > 0) {
-                    msg.attachments.forEach((att: Attachment) => {
+                    msg.attachments.forEach((att: any) => {
                         if (att.publicId) {
                             publicIds.push(att.publicId);
                         }

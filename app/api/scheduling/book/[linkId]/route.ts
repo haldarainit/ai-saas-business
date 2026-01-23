@@ -2,56 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import EventType from "@/lib/models/EventType";
 import Availability from "@/lib/models/Availability";
+// Booking is imported but unused in the original code, but I'll keep it just in case
+import Booking from "@/lib/models/Booking";
 import UserProfile from "@/lib/models/UserProfile";
 
-// Type definitions
-interface RouteContext {
-    params: Promise<{ linkId: string }>;
-}
-
-interface EventTypeResponse {
-    id: string;
-    name: string;
-    description: string;
-    duration: number;
-    color: string;
-    location: Record<string, unknown>;
-    customQuestions: unknown[];
-    minimumNotice: number;
-    schedulingWindow: number;
-    bufferTimeBefore: number;
-    bufferTimeAfter: number;
-    requiresConfirmation: boolean;
-    price: number;
-    currency: string;
-}
-
-interface HostResponse {
-    displayName: string;
-    bio: string;
-    profileImage: string;
-    companyName: string;
-    companyLogo: string;
-    brandColor: string;
-    welcomeMessage: string;
-    timezone: string;
-}
-
-interface AvailabilityResponse {
-    weeklySchedule: Record<string, unknown>;
-    timezone: string;
-}
-
 // GET - Fetch event type data by unique booking link ID
-export async function GET(
-    request: NextRequest,
-    context: RouteContext
-): Promise<NextResponse> {
+export async function GET(request: NextRequest, props: { params: Promise<{ linkId: string }> }) {
     try {
         await connectDB();
 
-        const params = await context.params;
-        const { linkId } = params;
+        const { linkId } = await props.params;
 
         if (!linkId) {
             return NextResponse.json(
@@ -76,50 +36,43 @@ export async function GET(
         // Get availability
         const availability = await Availability.findOne({ userId: eventType.userId });
 
-        const eventTypeResponse: EventTypeResponse = {
-            id: eventType._id.toString(),
-            name: eventType.name,
-            description: eventType.description,
-            duration: eventType.duration,
-            color: eventType.color,
-            location: eventType.location,
-            customQuestions: eventType.customQuestions,
-            minimumNotice: eventType.minimumNotice,
-            schedulingWindow: eventType.schedulingWindow,
-            bufferTimeBefore: eventType.bufferTimeBefore,
-            bufferTimeAfter: eventType.bufferTimeAfter,
-            requiresConfirmation: eventType.requiresConfirmation,
-            price: eventType.price,
-            currency: eventType.currency,
-        };
-
-        const hostResponse: HostResponse = {
-            displayName: userProfile?.displayName || "Host",
-            bio: userProfile?.bio || "",
-            profileImage: userProfile?.profileImage || "",
-            companyName: userProfile?.companyName || "",
-            companyLogo: userProfile?.companyLogo || "",
-            brandColor: userProfile?.brandColor || "#6366f1",
-            welcomeMessage: userProfile?.welcomeMessage || "",
-            timezone: userProfile?.defaultTimezone || "Asia/Kolkata",
-        };
-
-        const availabilityResponse: AvailabilityResponse | null = availability ? {
-            weeklySchedule: availability.weeklySchedule,
-            timezone: availability.timezone,
-        } : null;
-
         return NextResponse.json({
             success: true,
-            eventType: eventTypeResponse,
-            host: hostResponse,
-            availability: availabilityResponse,
+            eventType: {
+                id: eventType._id,
+                name: eventType.name,
+                description: eventType.description,
+                duration: eventType.duration,
+                color: eventType.color,
+                location: eventType.location,
+                customQuestions: eventType.customQuestions,
+                minimumNotice: eventType.minimumNotice,
+                schedulingWindow: eventType.schedulingWindow,
+                bufferTimeBefore: eventType.bufferTimeBefore,
+                bufferTimeAfter: eventType.bufferTimeAfter,
+                requiresConfirmation: eventType.requiresConfirmation,
+                price: eventType.price,
+                currency: eventType.currency,
+            },
+            host: {
+                displayName: userProfile?.displayName || "Host",
+                bio: userProfile?.bio || "",
+                profileImage: userProfile?.profileImage || "",
+                companyName: userProfile?.companyName || "",
+                companyLogo: userProfile?.companyLogo || "",
+                brandColor: userProfile?.brandColor || "#6366f1",
+                welcomeMessage: userProfile?.welcomeMessage || "",
+                timezone: userProfile?.defaultTimezone || "Asia/Kolkata",
+            },
+            availability: availability ? {
+                weeklySchedule: availability.weeklySchedule,
+                timezone: availability.timezone,
+            } : null,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error fetching booking page:", error);
-        const errorMessage = error instanceof Error ? error.message : "Failed to fetch booking page";
         return NextResponse.json(
-            { error: errorMessage },
+            { error: error.message || "Failed to fetch booking page" },
             { status: 500 }
         );
     }

@@ -1,30 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import PresentationWorkspace from '@/models/PresentationWorkspace';
+import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
-// Type definitions
-interface RouteParams {
-    params: Promise<{
-        id: string;
-    }>;
-}
-
-interface UpdatePresentationBody {
-    name?: string;
-    prompt?: string;
-    slideCount?: number;
-    theme?: string;
-    status?: string;
-    outline?: unknown;
-    presentation?: unknown;
-}
-
 // GET - Get a specific presentation workspace by ID
-export async function GET(
-    request: NextRequest,
-    { params }: RouteParams
-): Promise<NextResponse> {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
         const { userId } = await getAuthenticatedUser(request);
 
@@ -32,7 +12,7 @@ export async function GET(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { id } = await params;
+        const { id } = await props.params;
         await dbConnect();
 
         // Find workspace by ID and verify ownership
@@ -59,10 +39,7 @@ export async function GET(
 }
 
 // PUT - Update presentation workspace
-export async function PUT(
-    request: NextRequest,
-    { params }: RouteParams
-): Promise<NextResponse> {
+export async function PUT(request: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
         const { userId } = await getAuthenticatedUser(request);
 
@@ -70,13 +47,13 @@ export async function PUT(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { id } = await params;
+        const { id } = await props.params;
         await dbConnect();
 
-        const body: UpdatePresentationBody = await request.json();
+        const body = await request.json();
         const { name, prompt, slideCount, theme, status, outline, presentation } = body;
 
-        const updateData: Record<string, unknown> = { updatedAt: new Date() };
+        const updateData: any = { updatedAt: new Date() };
         if (name !== undefined) updateData.name = name;
         if (prompt !== undefined) updateData.prompt = prompt;
         if (slideCount !== undefined) updateData.slideCount = slideCount;
@@ -113,10 +90,7 @@ export async function PUT(
 }
 
 // DELETE - Delete a presentation workspace
-export async function DELETE(
-    request: NextRequest,
-    { params }: RouteParams
-): Promise<NextResponse> {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
         const { userId } = await getAuthenticatedUser(request);
 
@@ -124,7 +98,7 @@ export async function DELETE(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { id } = await params;
+        const { id } = await props.params;
         await dbConnect();
 
         // Delete workspace only if user owns it

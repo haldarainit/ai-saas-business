@@ -1,32 +1,61 @@
-import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import User from "@/lib/models/User";
+import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
+import dbConnect from '@/lib/mongodb';
 
-export async function GET() {
+// Test database connection
+export async function GET(): Promise<NextResponse> {
+  console.log('Testing MongoDB connection...');
+
   try {
-    console.log("Test API called");
-    await dbConnect();
+    // Check if already connected
+    if (mongoose.connection.readyState === 1) {
+      return NextResponse.json({
+        status: 'success',
+        message: 'Already connected to MongoDB',
+        connection: {
+          host: mongoose.connection.host,
+          port: mongoose.connection.port,
+          name: mongoose.connection.name,
+          readyState: mongoose.connection.readyState,
+        }
+      });
+    }
 
-    // Get all users
-    const users = await User.find({}, "email name createdAt");
-    const totalUsers = await User.countDocuments();
+    // Try to connect
+    console.log('Attempting to connect to MongoDB...');
+    const isConnected = await dbConnect();
+
+    if (!isConnected) {
+      return NextResponse.json(
+        {
+          status: 'error',
+          message: 'Failed to connect to MongoDB',
+          error: 'Connection attempt failed'
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
-      success: true,
-      totalUsers,
-      users: users.map((user) => ({
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        createdAt: user.createdAt,
-      })),
+      status: 'success',
+      message: 'Successfully connected to MongoDB',
+      connection: {
+        host: mongoose.connection.host,
+        port: mongoose.connection.port,
+        name: mongoose.connection.name,
+        readyState: mongoose.connection.readyState,
+      }
     });
+
   } catch (error) {
-    console.error("Test API error:", error);
+    const err = error as Error;
+    console.error('MongoDB connection test failed:', err);
     return NextResponse.json(
       {
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : String(error),
+        status: 'error',
+        message: 'MongoDB connection test failed',
+        error: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
       },
       { status: 500 }
     );

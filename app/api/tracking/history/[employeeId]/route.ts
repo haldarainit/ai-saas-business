@@ -2,41 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import LocationTracking from '@/lib/models/LocationTracking';
 
-// Type definitions
-interface LocationPoint {
-    latitude: number;
-    longitude: number;
-    timestamp: Date;
-    status: string;
-    activity: string;
-}
-
-interface HistoryRecord {
-    location: {
-        latitude: number;
-        longitude: number;
-    };
-    timestamp: Date;
-    status: string;
-    activity: string;
-    employeeName?: string;
-    speed?: number;
-}
-
-interface RouteParams {
-    params: Promise<{
-        employeeId: string;
-    }>;
-}
-
-export async function GET(
-    request: NextRequest,
-    { params }: RouteParams
-): Promise<NextResponse> {
+export async function GET(request: NextRequest, props: { params: Promise<{ employeeId: string }> }) {
     try {
         await dbConnect();
 
-        const { employeeId } = await params;
+        const { employeeId } = await props.params;
         const { searchParams } = new URL(request.url);
 
         const date = searchParams.get('date');
@@ -49,8 +19,7 @@ export async function GET(
             );
         }
 
-        let startDate: Date;
-        let endDate: Date;
+        let startDate: Date, endDate: Date;
 
         if (date) {
             // Specific date
@@ -64,7 +33,7 @@ export async function GET(
             startDate = new Date(endDate.getTime() - hours * 60 * 60 * 1000);
         }
 
-        const history: HistoryRecord[] = await LocationTracking.getMovementHistory(
+        const history: any[] = await LocationTracking.getMovementHistory(
             employeeId,
             startDate,
             endDate
@@ -73,7 +42,7 @@ export async function GET(
         // Calculate statistics
         let totalDistance = 0;
         let maxSpeed = 0;
-        const locations: LocationPoint[] = [];
+        const locations: any[] = [];
 
         for (let i = 0; i < history.length; i++) {
             const current = history[i];
@@ -102,7 +71,7 @@ export async function GET(
                 totalDistance += distance;
             }
 
-            if (current.speed && current.speed > maxSpeed) {
+            if (current.speed > maxSpeed) {
                 maxSpeed = current.speed;
             }
         }

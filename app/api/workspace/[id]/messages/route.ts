@@ -1,37 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Workspace from '@/models/Workspace';
-
-// Type definitions
-interface RouteParams {
-    params: Promise<{
-        id: string;
-    }>;
-}
-
-interface Message {
-    role: string;
-    content: string;
-}
-
-interface UpdateMessagesBody {
-    messages: Message[];
-}
-
-interface WorkspaceWithMessages {
-    messages?: Message[];
-}
+import { NextRequest, NextResponse } from 'next/server';
 
 // POST - Add messages to a workspace
-export async function POST(
-    request: NextRequest,
-    { params }: RouteParams
-): Promise<NextResponse> {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
         await dbConnect();
 
-        const { id } = await params;
-        const body: UpdateMessagesBody = await request.json();
+        const { id } = await props.params;
+        const body = await request.json();
         const { messages } = body;
 
         if (!messages || !Array.isArray(messages)) {
@@ -45,7 +22,7 @@ export async function POST(
             id,
             { messages },
             { new: true, runValidators: true }
-        ).lean() as WorkspaceWithMessages | null;
+        ).lean();
 
         if (!workspace) {
             return NextResponse.json(

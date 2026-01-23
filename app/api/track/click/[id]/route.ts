@@ -1,32 +1,25 @@
+import dbConnect from "@/lib/mongodb";
+import EmailTracking from "@/lib/models/EmailTracking";
+import { broadcast } from "@/lib/realtime/sse";
 import { NextRequest } from "next/server";
-import dbConnect from "../../../../../lib/mongodb";
-import EmailTracking from "../../../../../lib/models/EmailTracking";
-import { broadcast } from "../../../../../lib/realtime/sse";
 
 export const runtime = "nodejs";
 
-// Type definitions
-interface DeviceInfo {
-    type: "mobile" | "tablet" | "desktop" | "unknown";
-    browser: "chrome" | "safari" | "firefox" | "edge" | "unknown";
-    os: "windows" | "macos" | "android" | "linux" | "ios" | "unknown";
+interface UserAgentInfo {
+    type: string;
+    browser: string;
+    os: string;
 }
 
-interface RouteParams {
-    params: Promise<{
-        id: string;
-    }>;
-}
-
-function parseUserAgent(ua: string | null): DeviceInfo {
+function parseUserAgent(ua: string): UserAgentInfo {
     if (!ua) return { type: "unknown", browser: "unknown", os: "unknown" };
     const s = ua.toLowerCase();
-    const type: DeviceInfo["type"] = /mobile|android|iphone|ipad/.test(s)
+    const type = /mobile|android|iphone|ipad/.test(s)
         ? "mobile"
         : /tablet/.test(s)
             ? "tablet"
             : "desktop";
-    const browser: DeviceInfo["browser"] = /chrome\//.test(s)
+    const browser = /chrome\//.test(s)
         ? "chrome"
         : /safari\//.test(s) && !/chrome\//.test(s)
             ? "safari"
@@ -35,7 +28,7 @@ function parseUserAgent(ua: string | null): DeviceInfo {
                 : /edg\//.test(s)
                     ? "edge"
                     : "unknown";
-    const os: DeviceInfo["os"] = /windows/.test(s)
+    const os = /windows/.test(s)
         ? "windows"
         : /mac os x/.test(s)
             ? "macos"
@@ -49,10 +42,7 @@ function parseUserAgent(ua: string | null): DeviceInfo {
     return { type, browser, os };
 }
 
-export async function GET(
-    request: NextRequest,
-    { params }: RouteParams
-): Promise<Response> {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
     const { searchParams } = new URL(request.url);
     const redirectUrl = searchParams.get("url");
     if (!redirectUrl) {
@@ -61,7 +51,8 @@ export async function GET(
 
     try {
         await dbConnect();
-        const { id: trackingId } = await params;
+        const { id } = await props.params;
+        const trackingId = id;
         console.log(
             "🔗 [TRACKING] Click tracked for ID:",
             trackingId,
@@ -77,7 +68,6 @@ export async function GET(
         const userAgent = headers.get("user-agent") || "";
         const device = parseUserAgent(userAgent);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let tracked: any = null;
         try {
             tracked = await EmailTracking.findById(trackingId);
@@ -130,11 +120,10 @@ export async function GET(
                     "📡 [WEBHOOK] Email click webhook sent:",
                     webhookResponse.ok ? "✅ Success" : "❌ Failed"
                 );
-            } catch (webhookError) {
-                const error = webhookError as Error;
+            } catch (webhookError: any) {
                 console.error(
                     "📡 [WEBHOOK] Failed to send webhook:",
-                    error.message
+                    webhookError.message
                 );
             }
 
@@ -149,9 +138,7 @@ export async function GET(
                         new Date(),
                     status: tracked.status,
                 });
-            } catch (_) {
-                // no-op
-            }
+            } catch (_) { }
         } else {
             console.log("❌ [TRACKING] No tracking record found for ID:", trackingId);
         }

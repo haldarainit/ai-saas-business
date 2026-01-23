@@ -1,37 +1,22 @@
-import dbConnect from "../../../../../lib/mongodb";
-import EmailTracking from "../../../../../lib/models/EmailTracking";
-import { addClient, removeClient } from "../../../../../lib/realtime/sse";
+import dbConnect from "@/lib/mongodb";
+import EmailTracking from "@/lib/models/EmailTracking";
+import { addClient, removeClient } from "@/lib/realtime/sse";
+import { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
-interface SSEData {
-    type: string;
-    tracking?: unknown;
-    t?: number;
-}
-
-interface RouteContext {
-    params: Promise<{ id: string }>;
-}
-
-export async function GET(
-    _req: Request,
-    context: RouteContext
-): Promise<Response> {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     // Set up SSE stream
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
-    const encoder = new TextEncoder();
 
-    const send = async (data: SSEData): Promise<void> => {
+    const send = async (data: any) => {
         try {
-            await writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-        } catch {
-            // Ignore write errors - client may have disconnected
-        }
+            await writer.write(`data: ${JSON.stringify(data)}\n\n`);
+        } catch (_) { }
     };
 
-    const params = await context.params;
     const trackingId = params.id;
     addClient(trackingId, writer);
 
@@ -41,18 +26,14 @@ export async function GET(
         let doc = null;
         try {
             doc = await EmailTracking.findById(trackingId).lean();
-        } catch {
-            // Ignore find errors - try alternate method
-        }
+        } catch (_) { }
         if (!doc) {
             doc = await EmailTracking.findOne({ emailId: trackingId }).lean();
         }
         if (doc) {
             await send({ type: "snapshot", tracking: doc });
         }
-    } catch {
-        // Ignore initial snapshot errors
-    }
+    } catch (_) { }
 
     // Keepalive pings
     const ping = setInterval(async () => {
@@ -66,22 +47,16 @@ export async function GET(
     });
 
     // Close handling
-    const close = async (): Promise<void> => {
+    const close = async () => {
         clearInterval(ping);
         removeClient(trackingId, writer);
         try {
             await writer.close();
-        } catch {
-            // Ignore close errors
-        }
+        } catch (_) { }
     };
 
-    // Add abort listener if available
-    if (_req.signal) {
-        _req.signal.addEventListener("abort", () => {
-            close();
-        });
-    }
+    // There is no direct close event on Request; rely on GC
+    // The runtime will clean up when client disconnects; we also rely on ping failures upstream
 
     return new Response(readable, { headers });
 }
