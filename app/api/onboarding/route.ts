@@ -25,12 +25,12 @@ const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 // Email configuration using Gmail SMTP
 const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: parseInt(process.env.EMAIL_PORT || "587"),
+    secure: process.env.EMAIL_SECURE === "true",
     auth: {
-        user: "haldarainit@gmail.com",
-        pass: "oavt xpvy wkot cjwj",
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
     },
 });
 
@@ -163,13 +163,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             </html>
         `;
 
-        // Send email to admin
-        await transporter.sendMail({
-            from: `"Business AI" <haldarainit@gmail.com>`,
-            to: "haldarainit@gmail.com",
-            subject: `🚀 New User Onboarding: ${fullName}${companyName ? ` from ${companyName}` : ""}`,
-            html: emailHtml,
-        });
+        // Send email to admin (non-blocking)
+        try {
+            await transporter.sendMail({
+                from: `"Business AI" <${process.env.EMAIL_USER}>`,
+                to: "haldarainit@gmail.com",
+                subject: `🚀 New User Onboarding: ${fullName}${companyName ? ` from ${companyName}` : ""}`,
+                html: emailHtml,
+            });
+        } catch (emailError) {
+            console.error("Failed to send onboarding email notification:", emailError);
+            // Continue execution to mark user as onboarded in DB
+        }
 
         // Mark user's onboarding as completed in database
         try {
@@ -211,7 +216,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             }
         } catch (dbError) {
             console.error("Error updating onboarding status in DB:", dbError);
-            // Don't fail the request if DB update fails
+            // Don't fail the request if DB update fails might be risky, but usually we want to return success to client
         }
 
         return NextResponse.json({
@@ -219,10 +224,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             message: "Onboarding data submitted successfully",
         });
     } catch (error) {
-        console.error("Error sending onboarding email:", error);
-        const errorMessage = error instanceof Error ? error.message : "Failed to submit onboarding data";
+        // If the error is not related to email (which is handled above), log it
+        console.error("Error in onboarding process:", error);
         return NextResponse.json(
-            { error: errorMessage },
+            { error: "Failed to process onboarding request" },
             { status: 500 }
         );
     }

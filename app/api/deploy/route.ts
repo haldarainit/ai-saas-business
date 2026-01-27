@@ -21,12 +21,12 @@ interface RequestBody {
 
 // Email configuration using Gmail SMTP
 const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: parseInt(process.env.EMAIL_PORT || "587"),
+    secure: process.env.EMAIL_SECURE === "true",
     auth: {
-        user: "haldarainit@gmail.com",
-        pass: "oavt xpvy wkot cjwj",
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
     },
 });
 
