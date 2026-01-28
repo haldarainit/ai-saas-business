@@ -45,7 +45,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         });
 
         // Import Gemini AI
-        const geminiModule = await import("../../../utils/gemini.js");
+        const geminiModule = await import("../../../utils/gemini");
         const gemini = geminiModule.default || geminiModule;
 
         // Build the conversation context for Gemini

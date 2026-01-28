@@ -46,7 +46,7 @@ export async function POST(request: Request): Promise<Response> {
         });
 
         // Generate the sales script using Gemini AI
-        const geminiModule = await import("../../../utils/gemini.js");
+        const geminiModule = await import("../../../utils/gemini");
         const gemini = geminiModule.default || geminiModule;
 
         const prompt = `

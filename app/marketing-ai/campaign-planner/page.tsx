@@ -66,6 +66,10 @@ export default function CampaignPlannerAI() {
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [actionPlanData, setActionPlanData] = useState<any>(null);
+  // Cache for action plans - persists across modal open/close
+  const [actionPlanCache, setActionPlanCache] = useState<Record<number, any>>({});
+  // Cache for analysis data - persists across modal open/close
+  const [analysisCache, setAnalysisCache] = useState<Record<number, any>>({});
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -203,11 +207,27 @@ export default function CampaignPlannerAI() {
     setActionPlanStrategy(null);
     setActionPlanData(null);
     setActionPlanLoading(false);
+    // Clear caches when starting over
+    setActionPlanCache({});
+    setAnalysisCache({});
   };
 
   const handleReviewSolution = async (strategy: CampaignStrategy) => {
     setSelectedStrategy(strategy);
     setShowModal(true);
+
+    // Check if we already have cached analysis for this strategy
+    const cachedAnalysis = analysisCache[strategy.id];
+    if (cachedAnalysis) {
+      // Set cached data and ensure loading is false
+      setAnalysisData(cachedAnalysis);
+      setAnalysisLoading(false);
+      console.log(`✅ Using cached analysis for strategy: ${strategy.title}`);
+      return;
+    }
+
+    // No cache - fetch from API
+    console.log(`🔄 Fetching analysis for strategy: ${strategy.title}`);
     setAnalysisLoading(true);
     setAnalysisData(null);
 
@@ -228,6 +248,12 @@ export default function CampaignPlannerAI() {
 
       if (data.success && data.analysis) {
         setAnalysisData(data.analysis);
+        // Cache the analysis for this strategy
+        setAnalysisCache(prev => ({
+          ...prev,
+          [strategy.id]: data.analysis
+        }));
+        console.log(`✅ Cached analysis for strategy: ${strategy.title}`);
       } else {
         console.error("Failed to fetch analysis:", data.error);
       }
@@ -241,13 +267,25 @@ export default function CampaignPlannerAI() {
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedStrategy(null);
-    setAnalysisData(null);
+    // Don't clear analysisData - it stays in cache
     setAnalysisLoading(false);
   };
 
   const handleGeneratePlan = async (strategy: CampaignStrategy) => {
     setActionPlanStrategy(strategy);
     setShowActionPlan(true);
+
+    // Check if we already have cached data for this strategy
+    const cachedPlan = actionPlanCache[strategy.id];
+    if (cachedPlan) {
+      setActionPlanData(cachedPlan);
+      setActionPlanLoading(false);
+      console.log(`✅ Using cached action plan for strategy: ${strategy.title}`);
+      return;
+    }
+
+    // No cache - fetch from API
+    console.log(`🔄 Fetching action plan for strategy: ${strategy.title}`);
     setActionPlanLoading(true);
     setActionPlanData(null);
 
@@ -268,6 +306,12 @@ export default function CampaignPlannerAI() {
 
       if (data.success && data.actionPlan) {
         setActionPlanData(data.actionPlan);
+        // Cache the action plan for this strategy
+        setActionPlanCache(prev => ({
+          ...prev,
+          [strategy.id]: data.actionPlan
+        }));
+        console.log(`✅ Cached action plan for strategy: ${strategy.title}`);
       } else {
         console.error("Failed to fetch action plan:", data.error);
       }
@@ -282,7 +326,7 @@ export default function CampaignPlannerAI() {
     setShowActionPlan(false);
     setActionPlanStrategy(null);
     setActionPlanLoading(false);
-    setActionPlanData(null);
+    // Don't clear actionPlanData - it stays in cache
     setEmailSent(false);
     setEmailError(null);
   };
@@ -462,7 +506,7 @@ export default function CampaignPlannerAI() {
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-6 shadow-lg dark:shadow-[0_0_15px_rgba(36,101,237,0.5)]"
                   >
                     <Sparkles className="w-5 h-5 mr-2" />
-                    Unlock Campaign 
+                    Unlock Campaign
                   </Button>
                 </form>
               </Card>
