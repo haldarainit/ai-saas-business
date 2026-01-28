@@ -77,14 +77,41 @@ async function fetchImageAsBase64(url: string): Promise<string | null> {
 // Helper function to clean markdown formatting
 function cleanMarkdown(text: string): string {
     return text
-        .replace(/\*\*([^*]+)\*\*/g, '$1')
-        .replace(/\*([^*]+)\*/g, '$1')
-        .replace(/__([^_]+)__/g, '$1')
-        .replace(/_([^_]+)_/g, '$1')
-        .replace(/`([^`]+)`/g, '$1')
-        .replace(/#+\s*/g, '')
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')  // Bold
+        .replace(/\*([^*]+)\*/g, '$1')       // Italic
+        .replace(/__([^_]+)__/g, '$1')       // Bold alt
+        .replace(/_([^_]+)_/g, '$1')         // Italic alt
+        .replace(/~~([^~]+)~~/g, '$1')       // Strikethrough
+        .replace(/`([^`]+)`/g, '$1')         // Code
+        .replace(/```[\s\S]*?```/g, '')      // Code blocks
+        .replace(/#+\s*/g, '')               // Headers
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')  // Links
+        .replace(/^[-*_]{3,}\s*$/gm, '')     // Horizontal rules
+        .replace(/^\s*[-*+]\s+/gm, '')        // Unordered list markers
+        .replace(/^\s*\d+\.\s+/gm, '')       // Ordered list markers
+        .replace(/\n{3,}/g, '\n\n')          // Multiple newlines
         .trim();
+}
+
+// Helper function to create a light background color from a hex color (for tinted boxes)
+// Takes a hex color and returns a very light tint version
+function getLightBackground(hexColor: string): string {
+    // Remove # if present
+    const hex = hexColor.replace('#', '');
+
+    // Parse RGB
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    // Blend with white (95% white, 5% original color) for very light tint
+    const lightR = Math.round(r * 0.08 + 255 * 0.92);
+    const lightG = Math.round(g * 0.08 + 255 * 0.92);
+    const lightB = Math.round(b * 0.08 + 255 * 0.92);
+
+    // Convert back to hex
+    const toHex = (n: number) => Math.min(255, n).toString(16).padStart(2, '0');
+    return `${toHex(lightR)}${toHex(lightG)}${toHex(lightB)}`;
 }
 
 // Icon to Unicode mapping for PPTX (using simple shapes as fallback)
@@ -140,10 +167,15 @@ export async function POST(req: Request) {
         pptx.defineLayout({ name: 'LAYOUT_16x9', width: 10, height: 5.625 });
         pptx.layout = 'LAYOUT_16x9';
 
-        // Theme colors (Gamma-style pink/purple gradient)
-        const primaryColor = theme?.colors?.primary?.replace('#', '') || 'c026d3'; // Fuchsia
-        const secondaryColor = theme?.colors?.secondary?.replace('#', '') || 'a855f7'; // Purple
-        const accentColor = theme?.colors?.accent?.replace('#', '') || 'ec4899'; // Pink
+        // Theme colors - match frontend themes
+        // Default fallback is now "Warm Coral" theme to match web preview
+        console.log('Theme received:', JSON.stringify(theme, null, 2));
+
+        const primaryColor = theme?.colors?.primary?.replace('#', '') || 'b64b6e'; // Warm Coral primary
+        const secondaryColor = theme?.colors?.secondary?.replace('#', '') || 'd4847c'; // Warm Coral secondary
+        const accentColor = theme?.colors?.accent?.replace('#', '') || 'e8a87c'; // Warm Coral accent
+
+        console.log('Using colors:', { primaryColor, secondaryColor, accentColor });
 
         // Pre-fetch images for slides that need them
         console.log('Fetching images for slides...');
@@ -247,22 +279,24 @@ function createTitleSlide(
     });
 
     // Main Title
-    slide.addText(slideData.title, {
+    slide.addText(cleanMarkdown(slideData.title), {
         x: 0.5, y: 0.8, w: imageBase64 ? 5.5 : 9, h: 1.5,
         fontSize: 36,
         bold: true,
         color: 'FFFFFF',
         fontFace: 'Arial',
         valign: 'top',
+        fit: 'shrink',
     });
 
     // Subtitle if available
     if (slideData.subtitle) {
-        slide.addText(slideData.subtitle, {
+        slide.addText(cleanMarkdown(slideData.subtitle), {
             x: 0.5, y: 2.3, w: imageBase64 ? 5.5 : 9, h: 0.5,
             fontSize: 18,
             color: 'FFFFFF',
             fontFace: 'Arial',
+            fit: 'shrink',
         });
     }
 
@@ -287,17 +321,11 @@ function createTitleSlide(
         });
     }
 
-    // Hero image on right
+    // Hero image on right (no border frame)
     if (imageBase64) {
-        // Image frame
-        slide.addShape('rect', {
-            x: 6.1, y: 0.4, w: 3.5, h: 4.4,
-            fill: { color: secondaryColor },
-        });
         slide.addImage({
             data: imageBase64,
-            x: 6.15, y: 0.45, w: 3.4, h: 4.3,
-            rounding: true,
+            x: 6.1, y: 0.4, w: 3.5, h: 4.4,
         });
     }
 
@@ -318,7 +346,7 @@ function createClosingSlide(
     slide.background = { color: primaryColor };
 
     // Title
-    slide.addText(slideData.title, {
+    slide.addText(cleanMarkdown(slideData.title), {
         x: 0.5, y: 1, w: 9, h: 1.2,
         fontSize: 40,
         bold: true,
@@ -326,6 +354,7 @@ function createClosingSlide(
         fontFace: 'Arial',
         align: 'center',
         valign: 'middle',
+        fit: 'shrink',
     });
 
     // Decorative line
@@ -373,12 +402,13 @@ function createComparisonSlide(
     });
 
     // Title with primary color
-    slide.addText(slideData.title, {
+    slide.addText(cleanMarkdown(slideData.title), {
         x: 0.5, y: 0.3, w: 9, h: 0.8,
         fontSize: 28,
         bold: true,
         color: primaryColor,
         fontFace: 'Arial',
+        fit: 'shrink',
     });
 
     // Subtitle/intro text if content exists
@@ -396,10 +426,10 @@ function createComparisonSlide(
         const startY = 1.7;
         const colWidth = 4.3;
 
-        // Left column - Traditional/Problem (pink tinted)
+        // Left column - Traditional/Problem (tinted with accent color)
         slide.addShape('rect', {
             x: 0.4, y: startY, w: colWidth, h: 3.2,
-            fill: { color: 'fdf2f8' }, // Light pink
+            fill: { color: getLightBackground(accentColor) },
         });
 
         slide.addText(slideData.comparison.left.heading, {
@@ -427,10 +457,10 @@ function createComparisonSlide(
             valign: 'top',
         });
 
-        // Right column - Solution (purple tinted)
+        // Right column - Solution (tinted with primary color)
         slide.addShape('rect', {
             x: 5.3, y: startY, w: colWidth, h: 3.2,
-            fill: { color: 'faf5ff' }, // Light purple
+            fill: { color: getLightBackground(primaryColor) },
         });
 
         slide.addText(slideData.comparison.right.heading, {
@@ -511,12 +541,13 @@ function createFeaturesSlide(
     });
 
     // Title
-    slide.addText(slideData.title, {
+    slide.addText(cleanMarkdown(slideData.title), {
         x: 0.5, y: 0.3, w: 9, h: 0.7,
         fontSize: 26,
         bold: true,
         color: primaryColor,
         fontFace: 'Arial',
+        fit: 'shrink',
     });
 
     // Subtitle from first content item
@@ -536,23 +567,24 @@ function createFeaturesSlide(
         const rows = cardCount <= 3 ? 1 : 2;
         const cardsPerRow = rows === 1 ? cardCount : Math.ceil(cardCount / 2);
 
-        const cardWidth = (9 - (cardsPerRow - 1) * 0.3) / cardsPerRow;
-        const cardHeight = rows === 1 ? 2.8 : 1.6;
-        const startY = 1.6;
+        const cardWidth = (9 - (cardsPerRow - 1) * 0.25) / cardsPerRow;
+        const cardHeight = rows === 1 ? 3.0 : 1.75;
+        const startY = 1.5;
 
+        // Feature card colors - derived from theme colors
         const featureColors = [
-            { bg: 'fdf2f8', icon: accentColor },   // Pink
-            { bg: 'faf5ff', icon: primaryColor },  // Purple
-            { bg: 'eff6ff', icon: '3b82f6' },      // Blue
-            { bg: 'ecfdf5', icon: '10b981' },      // Green
-            { bg: 'fef3c7', icon: 'f59e0b' },      // Amber
+            { bg: getLightBackground(accentColor), icon: accentColor },
+            { bg: getLightBackground(primaryColor), icon: primaryColor },
+            { bg: getLightBackground(secondaryColor), icon: secondaryColor },
+            { bg: 'ecfdf5', icon: '10b981' },      // Green (accent)
+            { bg: 'fef3c7', icon: 'f59e0b' },      // Amber (accent)
         ];
 
         features.forEach((feature, idx) => {
             const row = Math.floor(idx / cardsPerRow);
             const col = idx % cardsPerRow;
-            const x = 0.5 + col * (cardWidth + 0.3);
-            const y = startY + row * (cardHeight + 0.3);
+            const x = 0.5 + col * (cardWidth + 0.25);
+            const y = startY + row * (cardHeight + 0.2);
             const color = featureColors[idx % featureColors.length];
 
             // Card background
@@ -561,38 +593,45 @@ function createFeaturesSlide(
                 fill: { color: color.bg },
             });
 
-            // Icon circle
+            // Icon circle - smaller for 2 rows
+            const iconSize = rows === 1 ? 0.45 : 0.35;
             const iconSymbol = ICON_SYMBOLS[feature.icon] || ICON_SYMBOLS.default;
             slide.addShape('ellipse', {
-                x: x + cardWidth / 2 - 0.25, y: y + 0.2, w: 0.5, h: 0.5,
+                x: x + cardWidth / 2 - iconSize / 2, y: y + 0.15, w: iconSize, h: iconSize,
                 fill: { color: color.icon },
             });
             slide.addText(iconSymbol, {
-                x: x + cardWidth / 2 - 0.25, y: y + 0.18, w: 0.5, h: 0.5,
-                fontSize: 14,
+                x: x + cardWidth / 2 - iconSize / 2, y: y + 0.13, w: iconSize, h: iconSize,
+                fontSize: rows === 1 ? 12 : 10,
                 color: 'FFFFFF',
                 align: 'center',
                 valign: 'middle',
             });
 
-            // Feature title
+            // Feature title - positioned below icon
+            const titleY = y + 0.15 + iconSize + 0.1;
             slide.addText(cleanMarkdown(feature.title), {
-                x: x + 0.15, y: y + 0.8, w: cardWidth - 0.3, h: 0.4,
-                fontSize: 12,
+                x: x + 0.1, y: titleY, w: cardWidth - 0.2, h: 0.35,
+                fontSize: rows === 1 ? 11 : 10,
                 bold: true,
                 color: '1f2937',
                 fontFace: 'Arial',
                 align: 'center',
+                valign: 'top',
+                fit: 'shrink',
             });
 
-            // Feature description
+            // Feature description - fill remaining space with auto-shrink
+            const descY = titleY + 0.35;
+            const descHeight = cardHeight - (descY - y) - 0.1;
             slide.addText(cleanMarkdown(feature.description), {
-                x: x + 0.15, y: y + 1.2, w: cardWidth - 0.3, h: rows === 1 ? 1.3 : 0.6,
-                fontSize: 10,
+                x: x + 0.1, y: descY, w: cardWidth - 0.2, h: descHeight,
+                fontSize: rows === 1 ? 9 : 8,
                 color: '6b7280',
                 fontFace: 'Arial',
                 align: 'center',
                 valign: 'top',
+                fit: 'shrink',
             });
         });
     } else if (slideData.content && slideData.content.length > 1) {
@@ -610,7 +649,7 @@ function createFeaturesSlide(
 
             slide.addShape('rect', {
                 x, y, w: cardWidth, h: 1.5,
-                fill: { color: 'faf5ff' },
+                fill: { color: getLightBackground(primaryColor) },
             });
 
             slide.addText('✓', {
@@ -622,11 +661,12 @@ function createFeaturesSlide(
 
             slide.addText(cleanMarkdown(item), {
                 x: x + 0.1, y: y + 0.6, w: cardWidth - 0.2, h: 0.8,
-                fontSize: 11,
+                fontSize: 10,
                 color: '374151',
                 fontFace: 'Arial',
                 align: 'center',
                 valign: 'top',
+                fit: 'shrink',
             });
         });
     }
@@ -648,19 +688,20 @@ function createMetricsSlide(
 ) {
     slide.background = { color: 'FFFFFF' };
 
-    // Gradient header area
+    // Gradient header area (tinted with primary color)
     slide.addShape('rect', {
         x: 0, y: 0, w: imageBase64 ? 6 : 10, h: 2.2,
-        fill: { color: 'fdf2f8' },
+        fill: { color: getLightBackground(primaryColor) },
     });
 
     // Title
-    slide.addText(slideData.title, {
+    slide.addText(cleanMarkdown(slideData.title), {
         x: 0.5, y: 0.4, w: imageBase64 ? 5 : 9, h: 0.8,
         fontSize: 26,
         bold: true,
         color: primaryColor,
         fontFace: 'Arial',
+        fit: 'shrink',
     });
 
     // Subtitle
@@ -710,16 +751,11 @@ function createMetricsSlide(
         });
     }
 
-    // Image on right if available
+    // Image on right if available (no border frame)
     if (imageBase64) {
-        slide.addShape('rect', {
-            x: 5.9, y: 0.3, w: 3.8, h: 4.8,
-            fill: { color: accentColor },
-        });
         slide.addImage({
             data: imageBase64,
-            x: 5.95, y: 0.35, w: 3.7, h: 4.7,
-            rounding: true,
+            x: 5.9, y: 0.3, w: 3.8, h: 4.8,
         });
     }
 
@@ -757,54 +793,59 @@ function createIconListSlide(
 
     // Slide number
     slide.addShape('rect', {
-        x: 0.3, y: 0.25, w: 0.45, h: 0.45,
+        x: 0.25, y: 0.2, w: 0.4, h: 0.4,
         fill: { color: primaryColor },
     });
     slide.addText(String(slideIndex + 1), {
-        x: 0.3, y: 0.25, w: 0.45, h: 0.45,
-        fontSize: 12, bold: true, color: 'FFFFFF',
+        x: 0.25, y: 0.2, w: 0.4, h: 0.4,
+        fontSize: 11, bold: true, color: 'FFFFFF',
         align: 'center', valign: 'middle',
     });
 
-    // Title
-    slide.addText(slideData.title, {
-        x: 0.9, y: 0.25, w: imageBase64 ? 5 : 8.5, h: 0.55,
-        fontSize: 24,
+    // Calculate content width based on image presence
+    const hasImage = !!imageBase64;
+    const contentWidth = hasImage ? 4.6 : 8.8;
+    const titleWidth = hasImage ? 4.4 : 8.6;
+
+    // Title - positioned after slide number with proper width
+    slide.addText(cleanMarkdown(slideData.title), {
+        x: 0.8, y: 0.15, w: titleWidth, h: 0.85,
+        fontSize: 20,
         bold: true,
         color: primaryColor,
         fontFace: 'Arial',
+        valign: 'top',
+        fit: 'shrink',
     });
 
     // Divider
     slide.addShape('rect', {
-        x: 0.4, y: 0.9, w: imageBase64 ? 5.3 : 9.1, h: 0.015,
+        x: 0.3, y: 1.05, w: hasImage ? 4.9 : 9.4, h: 0.015,
         fill: { color: accentColor },
     });
 
     // Content with icons
     if (slideData.content && slideData.content.length > 0) {
-        const contentWidth = imageBase64 ? 5 : 8.5;
-
         slideData.content.forEach((point, idx) => {
-            const y = 1.1 + idx * 0.7;
+            const y = 1.2 + idx * 0.65;
             const iconColors = [accentColor, primaryColor, secondaryColor, '10b981', 'f59e0b'];
             const color = iconColors[idx % iconColors.length];
 
             // Icon circle
             slide.addShape('ellipse', {
-                x: 0.5, y: y + 0.05, w: 0.35, h: 0.35,
+                x: 0.4, y: y + 0.05, w: 0.3, h: 0.3,
                 fill: { color },
             });
             slide.addText('✓', {
-                x: 0.5, y: y + 0.02, w: 0.35, h: 0.35,
-                fontSize: 10, color: 'FFFFFF',
+                x: 0.4, y: y + 0.02, w: 0.3, h: 0.3,
+                fontSize: 9, color: 'FFFFFF',
                 align: 'center', valign: 'middle',
             });
 
             // Text
             slide.addText(cleanMarkdown(point), {
-                x: 1.0, y: y, w: contentWidth - 0.5, h: 0.5,
-                fontSize: 13,
+                x: 0.85, y: y, w: contentWidth - 0.5, h: 0.55,
+                fontSize: 12,
                 color: '374151',
                 fontFace: 'Arial',
                 valign: 'middle',
@@ -812,29 +853,24 @@ function createIconListSlide(
         });
     }
 
-    // Image on right
-    if (imageBase64) {
-        slide.addShape('rect', {
-            x: 5.65, y: 0.9, w: 3.95, h: 3.8,
-            fill: { color: accentColor },
-        });
+    // Image on right (no border frame)
+    if (hasImage) {
         slide.addImage({
             data: imageBase64,
-            x: 5.7, y: 0.95, w: 3.85, h: 3.7,
-            rounding: true,
+            x: 5.4, y: 1.1, w: 4.2, h: 3.6,
         });
     }
 
     // Bottom accent and footer
     slide.addShape('rect', {
-        x: 0.4, y: 5.1, w: 9.2, h: 0.015,
+        x: 0.3, y: 5.1, w: 9.4, h: 0.015,
         fill: { color: accentColor },
     });
     slide.addText(presentationTitle, {
-        x: 0.5, y: 5.2, w: 6, fontSize: 9, color: secondaryColor, fontFace: 'Arial',
+        x: 0.4, y: 5.15, w: 6, fontSize: 8, color: secondaryColor, fontFace: 'Arial',
     });
     slide.addText(`${slideIndex + 1} / ${totalSlides}`, {
-        x: 8, y: 5.2, w: 1.5, fontSize: 9, color: primaryColor, fontFace: 'Arial', align: 'right', bold: true,
+        x: 8, y: 5.15, w: 1.5, fontSize: 8, color: primaryColor, fontFace: 'Arial', align: 'right', bold: true,
     });
 }
 
@@ -866,78 +902,99 @@ function createImageSlide(
 
     // Slide number
     slide.addShape('rect', {
-        x: 0.3, y: 0.25, w: 0.45, h: 0.45,
+        x: 0.25, y: 0.2, w: 0.4, h: 0.4,
         fill: { color: primaryColor },
     });
     slide.addText(String(slideIndex + 1), {
-        x: 0.3, y: 0.25, w: 0.45, h: 0.45,
-        fontSize: 12, bold: true, color: 'FFFFFF',
+        x: 0.25, y: 0.2, w: 0.4, h: 0.4,
+        fontSize: 11, bold: true, color: 'FFFFFF',
         align: 'center', valign: 'middle',
     });
 
     const hasImage = imageBase64 && slideData.hasImage !== false;
-    const contentX = hasImage && imagePosition === 'left' ? 4.8 : 0.9;
-    const contentWidth = hasImage ? 4.5 : 8.5;
-    const imageX = imagePosition === 'left' ? 0.4 : 5.7;
 
-    // Title
-    slide.addText(slideData.title, {
-        x: contentX, y: 0.25, w: contentWidth, h: 0.55,
-        fontSize: 24,
+    // Calculate layout based on image position
+    // When image is on LEFT: image at 0.3, content starts at 4.5
+    // When image is on RIGHT: content starts at 0.8 (after slide number), image at 5.4
+    const imageWidth = 4.0;
+    const imageHeight = 3.5;
+
+    let contentX: number;
+    let contentWidth: number;
+    let imageX: number;
+
+    if (hasImage) {
+        if (imagePosition === 'left') {
+            imageX = 0.3;
+            contentX = 4.5;
+            contentWidth = 5.2;
+        } else {
+            // Image on right
+            contentX = 0.8;
+            contentWidth = 4.4;
+            imageX = 5.4;
+        }
+    } else {
+        contentX = 0.8;
+        contentWidth = 8.8;
+        imageX = 0;
+    }
+
+    // Title - positioned properly and with proper height for wrapping
+    slide.addText(cleanMarkdown(slideData.title), {
+        x: contentX, y: 0.15, w: contentWidth, h: 0.85,
+        fontSize: 20,
         bold: true,
         color: primaryColor,
         fontFace: 'Arial',
+        valign: 'top',
+        fit: 'shrink',
     });
 
-    // Divider
+    // Divider - positioned below title area
     slide.addShape('rect', {
-        x: 0.4, y: 0.9, w: 9.2, h: 0.015,
+        x: 0.3, y: 1.05, w: 9.4, h: 0.015,
         fill: { color: accentColor },
     });
 
-    // Content bullets
+    // Content bullets - start below divider
     if (slideData.content && slideData.content.length > 0) {
         const textItems = slideData.content.map((text) => ({
             text: cleanMarkdown(text),
             options: {
-                fontSize: 14,
+                fontSize: 13,
                 color: '374151',
                 bullet: { type: 'bullet' as const, color: secondaryColor },
                 breakLine: true,
-                paraSpaceBefore: 8,
-                paraSpaceAfter: 8,
+                paraSpaceBefore: 6,
+                paraSpaceAfter: 6,
             },
         }));
 
         slide.addText(textItems, {
-            x: contentX, y: 1.1, w: contentWidth, h: 3.6,
+            x: contentX, y: 1.15, w: contentWidth, h: 3.5,
             fontFace: 'Arial',
             valign: 'top',
         });
     }
 
-    // Image
+    // Image (no border frame)
     if (hasImage) {
-        slide.addShape('rect', {
-            x: imageX - 0.05, y: 0.95, w: 4, h: 3.85,
-            fill: { color: accentColor },
-        });
         slide.addImage({
             data: imageBase64,
-            x: imageX, y: 1, w: 3.9, h: 3.75,
-            rounding: true,
+            x: imageX, y: 1.15, w: imageWidth, h: imageHeight,
         });
     }
 
     // Bottom accent and footer
     slide.addShape('rect', {
-        x: 0.4, y: 5.1, w: 9.2, h: 0.015,
+        x: 0.3, y: 5.1, w: 9.4, h: 0.015,
         fill: { color: accentColor },
     });
     slide.addText(presentationTitle, {
-        x: 0.5, y: 5.2, w: 6, fontSize: 9, color: secondaryColor, fontFace: 'Arial',
+        x: 0.4, y: 5.15, w: 6, fontSize: 8, color: secondaryColor, fontFace: 'Arial',
     });
     slide.addText(`${slideIndex + 1} / ${totalSlides}`, {
-        x: 8, y: 5.2, w: 1.5, fontSize: 9, color: primaryColor, fontFace: 'Arial', align: 'right', bold: true,
+        x: 8, y: 5.15, w: 1.5, fontSize: 8, color: primaryColor, fontFace: 'Arial', align: 'right', bold: true,
     });
 }
