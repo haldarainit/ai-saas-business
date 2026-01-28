@@ -143,7 +143,7 @@ export async function POST(request: NextRequest): Promise<Response> {
                     });
 
                     // Import using default export for webpack compatibility
-                    const geminiModule = await import("../../../utils/gemini.js");
+                    const geminiModule = await import("../../../utils/gemini");
                     const gemini = geminiModule.default || geminiModule;
 
                     const result: TemplateResult = await gemini.generateEmailTemplate(

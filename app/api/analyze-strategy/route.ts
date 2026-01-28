@@ -56,7 +56,7 @@ export async function POST(request: Request): Promise<Response> {
         console.log("Analyzing strategy:", strategy.title);
 
         // Import Gemini AI
-        const geminiModule = await import("../../../utils/gemini.js");
+        const geminiModule = await import("../../../utils/gemini");
         const gemini = geminiModule.default || geminiModule;
 
         // Create the prompt for analyzing the strategy

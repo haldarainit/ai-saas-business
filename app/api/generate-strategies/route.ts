@@ -113,7 +113,7 @@ export async function POST(request: Request): Promise<Response> {
 
         // STEP 2: Now that scraping is COMPLETE, import Gemini and generate AI response
         console.log("🤖 Starting AI strategy generation...");
-        const geminiModule = await import("../../../utils/gemini.js");
+        const geminiModule = await import("../../../utils/gemini");
         const gemini = geminiModule.default || geminiModule;
 
         // Create the prompt for generating multiple strategies

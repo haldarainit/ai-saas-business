@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     console.log('Generating quotation with answers:', answers);
 
     // Import the Gemini utility (same as other API routes)
-    const geminiModule = await import('../../../utils/gemini.js');
+    const geminiModule = await import('../../../utils/gemini');
     const gemini = geminiModule.default || geminiModule;
 
     const prompt = `You are a professional quotation generator. Based on the following information provided by the user, generate a detailed techno-commercial quotation in JSON format.
