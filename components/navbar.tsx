@@ -22,7 +22,8 @@ import {
   Megaphone,
   Calendar,
   MessageSquare,
-  ArrowRight
+  ArrowRight,
+  Wand2
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthModal } from "@/components/auth-modal";
@@ -33,6 +34,15 @@ import { motion, AnimatePresence } from "framer-motion";
 
 // Products/Services data
 const products = [
+  {
+    icon: Wand2,
+    title: "AI App Builder",
+    description: "Clone & Build with AI",
+    gradient: "from-orange-500 to-pink-600",
+    bgColor: "bg-orange-500/10",
+    iconColor: "text-orange-500",
+    link: "/generation",
+  },
   {
     icon: Receipt,
     title: "Accounting & Finance",
