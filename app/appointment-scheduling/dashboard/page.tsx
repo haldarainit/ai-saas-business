@@ -1516,6 +1516,42 @@ export default function AppointmentDashboard() {
                                 </Select>
                             </div>
                         </div>
+                        {/* Scheduling Window Options */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Minimum Notice</Label>
+                                <Select value={String(newEvent.minimumNotice)} onValueChange={v => setNewEvent({ ...newEvent, minimumNotice: Number(v) })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="0">No minimum</SelectItem>
+                                        <SelectItem value="15">15 minutes</SelectItem>
+                                        <SelectItem value="30">30 minutes</SelectItem>
+                                        <SelectItem value="60">1 hour</SelectItem>
+                                        <SelectItem value="120">2 hours</SelectItem>
+                                        <SelectItem value="240">4 hours</SelectItem>
+                                        <SelectItem value="1440">1 day</SelectItem>
+                                        <SelectItem value="2880">2 days</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">How far in advance must bookings be made</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Booking Window</Label>
+                                <Select value={String(newEvent.schedulingWindow)} onValueChange={v => setNewEvent({ ...newEvent, schedulingWindow: Number(v) })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="7">1 week</SelectItem>
+                                        <SelectItem value="14">2 weeks</SelectItem>
+                                        <SelectItem value="30">1 month</SelectItem>
+                                        <SelectItem value="60">2 months</SelectItem>
+                                        <SelectItem value="90">3 months</SelectItem>
+                                        <SelectItem value="180">6 months</SelectItem>
+                                        <SelectItem value="365">1 year</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">How far into the future bookings can be made</p>
+                            </div>
+                        </div>
                         <div className="space-y-2"><Label>Color</Label><Input type="color" value={newEvent.color} onChange={e => setNewEvent({ ...newEvent, color: e.target.value })} /></div>
                     </div>
                     <DialogFooter>

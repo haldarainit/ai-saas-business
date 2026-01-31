@@ -92,6 +92,8 @@ export default function BookingPage() {
 
     useEffect(() => {
         if (selectedDate && eventType) {
+            // Clear previously selected time when date changes
+            setSelectedTime(null);
             fetchTimeSlots();
         }
     }, [selectedDate]);
@@ -203,8 +205,17 @@ export default function BookingPage() {
     const isDateAvailable = (date: Date) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        // Normalize the date to midnight for comparison
+        const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
         const day = date.getDay();
-        return date >= today && day !== 0 && day !== 6;
+
+        // Calculate max date based on scheduling window
+        const schedulingWindowDays = eventType?.schedulingWindow || 30;
+        const maxDate = new Date(today);
+        maxDate.setDate(maxDate.getDate() + schedulingWindowDays);
+
+        // Must be today or future, not a weekend, and within scheduling window
+        return normalizedDate >= today && normalizedDate <= maxDate && day !== 0 && day !== 6;
     };
 
     const brandColor = host?.brandColor || "#6366f1";

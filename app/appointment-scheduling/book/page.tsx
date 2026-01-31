@@ -89,10 +89,17 @@ export default function BookingPage() {
     const isDateAvailable = (date: Date) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        // Normalize the date to midnight for comparison
+        const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
         const day = date.getDay();
         // Available if it's a weekday and not in the past
-        return date >= today && day !== 0 && day !== 6;
+        return normalizedDate >= today && day !== 0 && day !== 6;
     };
+
+    // Clear selected time when date changes
+    useEffect(() => {
+        setSelectedTime(null);
+    }, [selectedDate]);
 
     const handleBooking = async () => {
         setIsLoading(true);
@@ -250,8 +257,8 @@ export default function BookingPage() {
                                         backgroundColor: step >= s ? "rgb(99, 102, 241)" : "transparent",
                                     }}
                                     className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${step >= s
-                                            ? "bg-indigo-500 text-white"
-                                            : "border-2 border-muted-foreground/30 text-muted-foreground"
+                                        ? "bg-indigo-500 text-white"
+                                        : "border-2 border-muted-foreground/30 text-muted-foreground"
                                         }`}
                                 >
                                     {step > s ? <CheckCircle className="w-5 h-5" /> : s}
@@ -351,12 +358,12 @@ export default function BookingPage() {
                                                                 onClick={() => isAvailable && setSelectedDate(date)}
                                                                 disabled={!isAvailable}
                                                                 className={`aspect-square rounded-lg text-sm font-medium transition-all ${!date
-                                                                        ? "bg-transparent cursor-default"
-                                                                        : isSelected
-                                                                            ? "bg-indigo-500 text-white"
-                                                                            : isAvailable
-                                                                                ? "hover:bg-indigo-500/10 cursor-pointer"
-                                                                                : "text-muted-foreground/30 cursor-not-allowed"
+                                                                    ? "bg-transparent cursor-default"
+                                                                    : isSelected
+                                                                        ? "bg-indigo-500 text-white"
+                                                                        : isAvailable
+                                                                            ? "hover:bg-indigo-500/10 cursor-pointer"
+                                                                            : "text-muted-foreground/30 cursor-not-allowed"
                                                                     }`}
                                                             >
                                                                 {date?.getDate()}
@@ -389,10 +396,10 @@ export default function BookingPage() {
                                                                 }
                                                                 disabled={!slot.available}
                                                                 className={`p-3 rounded-lg text-sm font-medium transition-all ${selectedTime === slot.time
-                                                                        ? "bg-indigo-500 text-white"
-                                                                        : slot.available
-                                                                            ? "bg-muted/50 hover:bg-indigo-500/10 cursor-pointer"
-                                                                            : "bg-muted/20 text-muted-foreground/30 cursor-not-allowed line-through"
+                                                                    ? "bg-indigo-500 text-white"
+                                                                    : slot.available
+                                                                        ? "bg-muted/50 hover:bg-indigo-500/10 cursor-pointer"
+                                                                        : "bg-muted/20 text-muted-foreground/30 cursor-not-allowed line-through"
                                                                     }`}
                                                             >
                                                                 {slot.display}
@@ -448,8 +455,8 @@ export default function BookingPage() {
                                                 >
                                                     <Card
                                                         className={`cursor-pointer transition-all ${selectedType === type.id
-                                                                ? `border-2 ${type.borderColor} ${type.bgColor}`
-                                                                : "border-border/50 hover:border-primary/30"
+                                                            ? `border-2 ${type.borderColor} ${type.bgColor}`
+                                                            : "border-border/50 hover:border-primary/30"
                                                             }`}
                                                         onClick={() => setSelectedType(type.id as "video" | "phone" | "in-person")}
                                                     >
