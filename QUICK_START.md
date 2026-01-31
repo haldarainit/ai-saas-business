@@ -1,4 +1,4 @@
-# 🚀 Quick Start: Web Scraper Feature
+#Quick Start: Web Scraper Feature
 
 ## What's New?
 
