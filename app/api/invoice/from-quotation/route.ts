@@ -298,11 +298,12 @@ ${JSON.stringify(quotationData, null, 2)}
 1. PRESERVE VALUES: Do NOT round off or modify rates and quantities found in tables. Use the EXACT numbers from the quotation.
 2. TABLE MAPPING: Identify headers accurately. 'Particulars', 'Items', 'List', 'Name', 'Service', 'Task' or 'Product' -> description. 'Qty' or 'Nos' -> quantity. 'Unit Price', 'Price', 'Rate' or 'Amount' -> rate.
 3. SMART DESCRIPTION: If a table has only 'List' and 'Price', map 'List' to description and 'Price' to rate. Extract specific item details even if the column header is generic.
-3. SMART GST DETECTION: Look for 'GST %', 'Tax', or separate SGST/CGST columns in tables. If total value is given in quotation, ensure rate * qty = taxable value.
-4. CLIENT DATA: If client address is a single string, parse it into city, state, and pincode.
-5. TAX CALCULATION: If tax is not mentioned per item, use 18% (9% CGST + 9% SGST) as standard for Indian Techno-Commercial invoices, UNLESS the quotation explicitly mentions a different rate.
-6. COMPREHENSIVE TERMS: Scrape 'Terms and Conditions' or 'Payment Terms' from text sections and format them as a numbered list in the invoice.
-7. PLACE OF SUPPLY: Determine the Place of Supply based on the Client's State.
+4. TABLE COMPLETENESS: You MUST extract EVERY single row from every table found in the quotation. Do not truncate, do not skip the last row, and do not summarize. If there are 4 rows, there must be 4 items in the JSON.
+5. PRESERVE PRECISION: Do not modify or round any numbers. If a rate is 400.00, it must be 400 in the JSON.
+6. ROW VERIFICATION: Before finishing, double-check that the VERY LAST row of each table has been correctly mapped with both its description and its rate/price.
+7. CLIENT DATA: If client address is a single string, parse it into city, state, and pincode.
+8. TAX CALCULATION: If tax is not mentioned per item, use 18% (9% CGST + 9% SGST) as standard for Indian Tax Invoices, unless explicitly stated otherwise.
+9. PLACE OF SUPPLY: Determine this based on the Client's State.
 
 Return ONLY the JSON. Verify it is valid JSON before finishing.`;
 
@@ -460,6 +461,24 @@ function enhancedBasicTransformation(quotationData: any, invoiceNumber: string):
                         description = String(v);
                     }
                 });
+
+                // Secondary discovery: if rate is still 0, look for ANY numeric value in the row that isn't the quantity
+                if (rate === 0) {
+                    Object.keys(rowData).forEach(key => {
+                        const v = rowData[key];
+                        const valStr = String(v).replace(/[^\d.]/g, '');
+                        if (valStr && !isNaN(parseFloat(valStr))) {
+                            const num = parseFloat(valStr);
+                            // If it's not the quantity and it's a significant number, assume it's the rate
+                            if (num > 0 && num !== quantity) {
+                                rate = num;
+                            } else if (num > 0 && rate === 0) {
+                                // Last resort: even if it matches quantity, if rate is still 0, take it
+                                rate = num;
+                            }
+                        }
+                    });
+                }
 
                 if (description || rate > 0) {
                     const taxableValue = quantity * rate;
