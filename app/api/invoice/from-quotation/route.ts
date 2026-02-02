@@ -67,28 +67,85 @@ function extractQuotationDataComprehensive(quotation: any) {
         // Company details from quotation
         companyDetails: {
             name: quotation.companyDetails?.name || '',
-            address1: quotation.companyDetails?.address1 || '',
+            address1: quotation.companyDetails?.address || quotation.companyDetails?.address1 || '',
             address2: quotation.companyDetails?.address2 || '',
             phone: quotation.companyDetails?.phone || '',
             email: quotation.companyDetails?.email || '',
-            logo: quotation.companyDetails?.logo || ''
+            logo: quotation.companyDetails?.logo || '',
+            gstin: quotation.companyDetails?.gstin || ''
         },
         // Client details
         clientDetails: quotation.clientDetails || {},
         // Quotation metadata
         title: quotation.title || '',
-        mainTitle: quotation.mainTitle || '',
-        companyId: quotation.companyId || '',
-        companyDate: quotation.companyDate || '',
+        refNo: quotation.refNo || '',
+        date: quotation.date || '',
+        subject: quotation.subject || '',
+        greeting: quotation.greeting || '',
         // Footer info
         footer: quotation.footer || {},
+        // Signature
+        signature: quotation.signature || {},
         // All content
         allSections: [],
         allTables: [],
         rawTextContent: ''
     };
 
-    // Extract everything from pages
+    // Extract from contentBlocks (TechnoQuotation structure)
+    if (quotation.contentBlocks && Array.isArray(quotation.contentBlocks)) {
+        quotation.contentBlocks.forEach((block: any, blockIndex: number) => {
+            // Add all block data
+            const sectionData: any = {
+                blockIndex,
+                type: block.type,
+                content: block.content || '',
+                items: block.items || []
+            };
+
+            // Build raw text for AI analysis
+            if (block.content) {
+                data.rawTextContent += block.content + '\n';
+            }
+            if (block.items && block.items.length > 0) {
+                data.rawTextContent += block.items.join(', ') + '\n';
+            }
+
+            // Handle tables from contentBlocks
+            if (block.type === 'table' && block.tableData) {
+                const tableHeaders = block.tableData.headers || [];
+                const tableRows = block.tableData.rows || [];
+
+                const tableData: any = {
+                    name: block.content || 'Table',
+                    headers: tableHeaders,
+                    rows: tableRows,
+                    rawData: []
+                };
+
+                // Convert table rows to readable format with headers as keys
+                if (tableRows.length > 0 && tableHeaders.length > 0) {
+                    tableRows.forEach((row: string[]) => {
+                        const rowData: any = {};
+                        tableHeaders.forEach((header: string, colIndex: number) => {
+                            if (row[colIndex] !== undefined) {
+                                rowData[header] = row[colIndex];
+                            }
+                        });
+                        tableData.rawData.push(rowData);
+                        // Add to raw text
+                        data.rawTextContent += JSON.stringify(rowData) + '\n';
+                    });
+                }
+
+                data.allTables.push(tableData);
+            }
+
+            data.allSections.push(sectionData);
+        });
+    }
+
+    // Also handle legacy pages structure for backward compatibility
     if (quotation.pages && Array.isArray(quotation.pages)) {
         quotation.pages.forEach((page: any, pageIndex: number) => {
             if (page.sections && Array.isArray(page.sections)) {
@@ -324,13 +381,13 @@ function enhancedBasicTransformation(quotationData: any, invoiceNumber: string):
     const result: any = {
         companyDetails: {
             name: quotationData.companyDetails?.name || '',
-            address: quotationData.companyDetails?.address1 || '',
+            address: quotationData.companyDetails?.address1 || quotationData.companyDetails?.address || '',
             city: '',
             state: '',
             pincode: '',
             email: quotationData.companyDetails?.email || '',
             phone: quotationData.companyDetails?.phone || '',
-            gstin: '',
+            gstin: quotationData.companyDetails?.gstin || '',
             stateCode: ''
         },
         clientDetails: {
@@ -351,7 +408,7 @@ function enhancedBasicTransformation(quotationData: any, invoiceNumber: string):
             authorizedSignatory: quotationData.footer?.line3?.replace('Authorized Submitter:', '').trim() || ''
         },
         orderDetails: {
-            referenceNo: quotationData.companyId || ''
+            referenceNo: quotationData.refNo || quotationData.companyId || ''
         },
         bankDetails: {},
         financials: {
@@ -492,7 +549,7 @@ export async function POST(req: Request) {
         // Merge company details - prefer AI-extracted if available
         const finalCompanyDetails = {
             name: transformedData.companyDetails?.name || quotation.companyDetails?.name || '',
-            address: transformedData.companyDetails?.address || quotation.companyDetails?.address1 || '',
+            address: transformedData.companyDetails?.address || quotation.companyDetails?.address || '',
             city: transformedData.companyDetails?.city || '',
             state: transformedData.companyDetails?.state || '',
             pincode: transformedData.companyDetails?.pincode || '',
