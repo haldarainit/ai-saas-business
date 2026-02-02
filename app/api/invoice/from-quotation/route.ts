@@ -91,6 +91,11 @@ function extractQuotationDataComprehensive(quotation: any) {
     };
 
     // Extract from contentBlocks (TechnoQuotation structure)
+    if (quotation.title) {
+        data.headings.push(quotation.title);
+        data.rawTextContent += `QUOTATION TITLE: ${quotation.title}\n`;
+    }
+
     if (quotation.contentBlocks && Array.isArray(quotation.contentBlocks)) {
         quotation.contentBlocks.forEach((block: any, index: number) => {
             if (block.type === 'heading') {
@@ -291,7 +296,8 @@ ${JSON.stringify(quotationData, null, 2)}
 
 === CRITICAL EXTRACTION RULES ===
 1. PRESERVE VALUES: Do NOT round off or modify rates and quantities found in tables. Use the EXACT numbers from the quotation.
-2. TABLE MAPPING: Identify headers accurately. 'Particulars' or 'Items' -> description. 'Qty' -> quantity. 'Unit Price' or 'Rate' -> rate.
+2. TABLE MAPPING: Identify headers accurately. 'Particulars', 'Items', 'List', 'Name', 'Service', 'Task' or 'Product' -> description. 'Qty' or 'Nos' -> quantity. 'Unit Price', 'Price', 'Rate' or 'Amount' -> rate.
+3. SMART DESCRIPTION: If a table has only 'List' and 'Price', map 'List' to description and 'Price' to rate. Extract specific item details even if the column header is generic.
 3. SMART GST DETECTION: Look for 'GST %', 'Tax', or separate SGST/CGST columns in tables. If total value is given in quotation, ensure rate * qty = taxable value.
 4. CLIENT DATA: If client address is a single string, parse it into city, state, and pincode.
 5. TAX CALCULATION: If tax is not mentioned per item, use 18% (9% CGST + 9% SGST) as standard for Indian Techno-Commercial invoices, UNLESS the quotation explicitly mentions a different rate.
@@ -434,7 +440,7 @@ function enhancedBasicTransformation(quotationData: any, invoiceNumber: string):
                     const k = key.toLowerCase();
                     const v = rowData[key];
 
-                    if (k.includes('desc') || k.includes('item') || k.includes('partic') || k.includes('product')) {
+                    if (k.includes('desc') || k.includes('item') || k.includes('partic') || k.includes('product') || k.includes('list') || k.includes('name') || k.includes('service') || k.includes('task')) {
                         description = String(v);
                     } else if (k.includes('qty') || k.includes('quant') || k.includes('nos')) {
                         quantity = parseFloat(String(v)) || 1;
@@ -448,6 +454,10 @@ function enhancedBasicTransformation(quotationData: any, invoiceNumber: string):
                     } else if ((k.includes('amount') || k.includes('total')) && rate === 0) {
                         const amount = parseFloat(String(v).replace(/[^\d.]/g, '')) || 0;
                         if (quantity > 0) rate = amount / quantity;
+                    } else if (!description && isNaN(parseFloat(String(v)))) {
+                        // Aggressive fallback: if we don't have a description yet and this value isn't a number, 
+                        // it's likely the item name/description (e.g. from a column like "Details" or "S.No" if text)
+                        description = String(v);
                     }
                 });
 
