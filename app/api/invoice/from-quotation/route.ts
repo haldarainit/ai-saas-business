@@ -102,8 +102,13 @@ function extractQuotationDataComprehensive(quotation: any) {
                 data.headings.push(block.content);
                 data.rawTextContent += `HEADING: ${block.content}\n`;
             } else if (block.type === 'paragraph') {
-                data.paragraphs.push(block.content);
-                data.rawTextContent += `${block.content}\n`;
+                // Filter out common placeholders to avoid AI confusion
+                const content = (block.content || '').trim();
+                const placeholders = ["New paragraph text...", "Type your text here", "Enter description"];
+                if (content && !placeholders.includes(content)) {
+                    data.paragraphs.push(content);
+                    data.rawTextContent += `${content}\n`;
+                }
             } else if (block.type === 'list') {
                 data.lists.push(block.items || []);
                 data.rawTextContent += `LIST:\n${(block.items || []).map((i: string) => `- ${i}`).join('\n')}\n`;
@@ -299,17 +304,17 @@ ${JSON.stringify(quotationData, null, 2)}
 
 === CRITICAL EXTRACTION RULES ===
 1. PRESERVE VALUES: Do NOT round off or modify rates and quantities found in tables. Use the EXACT numbers from the quotation.
-2. TABLE MAPPING: Identify headers accurately. 'Particulars', 'Items', 'List', 'Name', 'Service', 'Task' or 'Product' -> description. 'Qty' or 'Nos' -> quantity. 'Unit Price', 'Price', 'Rate' or 'Amount' -> rate.
+2. TABLE MAPPING: Identify headers accurately. 'Particulars', 'Items', 'List', 'Name', 'Service', 'Task', 'Product', 'Device' or 'Devices' -> description. 'Qty' or 'Nos' -> quantity. 'Unit Price', 'Price', 'Rate' or 'Amount' -> rate.
 3. SMART DESCRIPTION: If a table name (heading) appears to be an item name and the table rows are sub-items or just quantities, use the table name as the primary description. If a column is generic like 'List' or 'Details', treat it as a description for the item.
-4. TABLE COMPLETENESS: You MUST extract EVERY single row from every table. If a row has a quantity but no price listed in its specific columns, look at the text around the table (headings/paragraphs) for pricing info. Do not skip the last row!
-5. PRICE DISCOVERY: If a row has a number that looks like a price (e.g., 2000, 450.00) but the column header is generic, ASSUME it is the rate.
-6. PRESERVE PRECISION: Do not modify or round any numbers. If a rate is 400.00, it must be 400 in the JSON.
-7. ROW VERIFICATION: Double-check that the VERY LAST row of EACH table has been captured with its full description and correct rate. Even if the price is low (e.g., 18.00), capture it exactly.
-8. CLIENT DATA: If client address is a single string, parse it into city, state, and pincode.
-9. TAX CALCULATION: Default to 18% (9% split) if not specified.
-10. PLACE OF SUPPLY: Determine based on Client's State.
+4. TABLE COMPLETENESS: You MUST extract EVERY single row from every table. Look for rows at the very bottom like 'Extra', 'Misc', or 'Other Charges'. These are NOT summary rows; they are LINE ITEMS and must have their prices included.
+5. PRICE PRIORITY: If a row has a number (e.g., 8530) and a text (e.g., 'extra'), you MUST map the number to 'rate' and the text to 'description'. Never return a 0 price if a number is present in that row.
+6. IGNORE PLACEHOLDERS: If you see 'New paragraph text...' or generic placeholders in the source, ignore them and look for the actual item names.
+7. ROW VERIFICATION: Before finishing, double-check that the VERY LAST row of EACH table (especially rows named 'extra') has been captured with its full price. If you see SI No. 10 in the source table, you MUST have 10 items in your JSON.
+8. PRESERVE PRECISION: Do not modify or round any numbers.
+9. CLIENT DATA: Parse legal billing details.
+10. TAX CALCULATION: Default to 18% (9% split) if not specified.
 
-Return ONLY the JSON. No conversational text. Verify validity.`;
+Return ONLY valid JSON. Verified items matches source count exactly.`;
 
         const model = genAI.getGenerativeModel({ 
             model: modelName,
@@ -325,10 +330,43 @@ Return ONLY the JSON. No conversational text. Verify validity.`;
             // POST-PROCESSING: Ensure mathematical consistency and exact data preservation
             if (parsed.items && Array.isArray(parsed.items)) {
                 parsed.items = parsed.items.map((item: any, index: number) => {
-                    const qty = parseFloat(item.quantity) || 1;
-                    const rate = parseFloat(item.rate) || 0;
+                    const qty = parseFloat(item.quantity || item.qty || item.quantity) || 1;
+                    let rate = parseFloat(item.rate || item.price || item.unitPrice || item.amount || item.unit_price) || 0;
                     const discount = item.discount !== undefined ? parseFloat(item.discount) : 0;
                     
+                    // SAFETY DISCOVERY: If rate is 0, try to find it in raw table data for the same SI No/Index
+                    if (rate === 0 && quotationData.allTables && quotationData.allTables.length > 0) {
+                        for (const table of quotationData.allTables) {
+                            // Try Index-based match first
+                            const rawRow = table.rawData[index];
+                            if (rawRow) {
+                                Object.values(rawRow).forEach(val => {
+                                    const num = parseFloat(String(val).replace(/[^\d.]/g, ''));
+                                    if (!isNaN(num) && num > 0 && num !== qty && rate === 0) {
+                                        rate = num;
+                                    }
+                                });
+                            }
+                            
+                            // If still 0, try exhaustive search in the entire table for any valid rate
+                            if (rate === 0) {
+                                table.rawData.forEach((r: any) => {
+                                    Object.values(r).forEach(v => {
+                                        const n = parseFloat(String(v).replace(/[^\d.]/g, ''));
+                                        if (!isNaN(n) && n > 0 && n !== qty && rate === 0) {
+                                            // Only take it if this row's strings overlap with item description
+                                            const rowStr = JSON.stringify(r).toLowerCase();
+                                            const itemStr = (item.description || '').toLowerCase();
+                                            if (rowStr.includes(itemStr) || itemStr.includes(rowStr)) {
+                                                rate = n;
+                                            }
+                                        }
+                                    });
+                                });
+                            }
+                        }
+                    }
+
                     // If AI didn't find taxRate, default to 18
                     let taxRate = parseFloat(item.taxRate);
                     if (isNaN(taxRate)) taxRate = 18;
@@ -445,7 +483,7 @@ function enhancedBasicTransformation(quotationData: any, invoiceNumber: string):
                     const k = key.toLowerCase();
                     const v = rowData[key];
 
-                    if (k.includes('desc') || k.includes('item') || k.includes('partic') || k.includes('product') || k.includes('list') || k.includes('name') || k.includes('service') || k.includes('task')) {
+                    if (k.includes('desc') || k.includes('item') || k.includes('partic') || k.includes('product') || k.includes('list') || k.includes('name') || k.includes('service') || k.includes('task') || k.includes('device')) {
                         description = String(v);
                     } else if (k.includes('qty') || k.includes('quant') || k.includes('nos')) {
                         quantity = parseFloat(String(v)) || 1;
