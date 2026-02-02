@@ -198,35 +198,45 @@ export async function POST(req: Request) {
             const imageBase64 = images[i];
             const layoutType = slideData.layoutType || 'imageRight';
 
-            switch (layoutType) {
-                case 'title':
-                    createTitleSlide(slide, slideData, imageBase64, primaryColor, secondaryColor, accentColor);
-                    break;
-                case 'closing':
-                    createClosingSlide(slide, slideData, imageBase64, primaryColor, secondaryColor, accentColor);
-                    break;
-                case 'comparison':
-                    createComparisonSlide(slide, slideData, primaryColor, secondaryColor, accentColor);
-                    break;
-                case 'features':
-                    createFeaturesSlide(slide, slideData, primaryColor, secondaryColor, accentColor);
-                    break;
-                case 'metrics':
-                    createMetricsSlide(slide, slideData, imageBase64, primaryColor, secondaryColor, accentColor);
-                    break;
-                case 'iconList':
-                    createIconListSlide(slide, slideData, imageBase64, primaryColor, secondaryColor, accentColor, i, slides.length, title);
-                    break;
-                case 'imageLeft':
-                    createImageSlide(slide, slideData, imageBase64, primaryColor, secondaryColor, accentColor, 'left', i, slides.length, title);
-                    break;
-                case 'imageRight':
-                case 'textOnly':
-                default:
-                    createImageSlide(slide, slideData, imageBase64, primaryColor, secondaryColor, accentColor, 'right', i, slides.length, title);
-                    break;
+            // Match web preview behavior: first slide is always title, last slide is always closing
+            const isFirstSlide = i === 0;
+            const isLastSlide = i === slides.length - 1;
+
+            // First slide always uses title layout (matching web preview)
+            if (layoutType === 'title' || isFirstSlide) {
+                createTitleSlide(slide, slideData, imageBase64, primaryColor, secondaryColor, accentColor);
+            }
+            // Last slide always uses closing layout (matching web preview)
+            else if (layoutType === 'closing' || isLastSlide) {
+                createClosingSlide(slide, slideData, imageBase64, primaryColor, secondaryColor, accentColor);
+            }
+            // Other layout types
+            else {
+                switch (layoutType) {
+                    case 'comparison':
+                        createComparisonSlide(slide, slideData, primaryColor, secondaryColor, accentColor);
+                        break;
+                    case 'features':
+                        createFeaturesSlide(slide, slideData, primaryColor, secondaryColor, accentColor);
+                        break;
+                    case 'metrics':
+                        createMetricsSlide(slide, slideData, imageBase64, primaryColor, secondaryColor, accentColor);
+                        break;
+                    case 'iconList':
+                        createIconListSlide(slide, slideData, imageBase64, primaryColor, secondaryColor, accentColor, i, slides.length, title);
+                        break;
+                    case 'imageLeft':
+                        createImageSlide(slide, slideData, imageBase64, primaryColor, secondaryColor, accentColor, 'left', i, slides.length, title);
+                        break;
+                    case 'imageRight':
+                    case 'textOnly':
+                    default:
+                        createImageSlide(slide, slideData, imageBase64, primaryColor, secondaryColor, accentColor, 'right', i, slides.length, title);
+                        break;
+                }
             }
         }
+
 
         // Generate the PPTX as base64
         console.log('Generating PPTX file...');
@@ -263,75 +273,86 @@ function createTitleSlide(
     secondaryColor: string,
     accentColor: string
 ) {
-    // Gradient background
-    slide.background = { color: primaryColor };
+    // Light background to match web preview (cream/light gradient feel)
+    slide.background = { color: 'FEF7F0' };
 
-    // Decorative top gradient bar
-    slide.addShape('rect', {
-        x: 0, y: 0, w: 10, h: 0.15,
-        fill: { color: accentColor },
-    });
+    // Calculate content width based on image presence
+    // Web preview: text takes ~60% width, image takes ~40%
+    const hasImage = !!imageBase64;
+    const contentWidth = hasImage ? 5.0 : 9;
+    const contentX = 0.5;
 
-    // Bottom accent line
-    slide.addShape('rect', {
-        x: 0, y: 5.475, w: 10, h: 0.15,
-        fill: { color: secondaryColor },
-    });
+    // Build a combined text array with title, subtitle, and content
+    // This prevents overlap by letting pptxgenjs handle the layout
+    const textParts: Array<{ text: string; options: any }> = [];
 
-    // Main Title
-    slide.addText(cleanMarkdown(slideData.title), {
-        x: 0.5, y: 0.8, w: imageBase64 ? 5.5 : 9, h: 1.5,
-        fontSize: 36,
-        bold: true,
-        color: 'FFFFFF',
-        fontFace: 'Arial',
-        valign: 'top',
-        fit: 'shrink',
+    // Title - large, bold, primary color
+    textParts.push({
+        text: cleanMarkdown(slideData.title),
+        options: {
+            fontSize: 32,
+            bold: true,
+            color: primaryColor,
+            breakLine: true,
+            paraSpaceAfter: 16, // Space after title
+        }
     });
 
     // Subtitle if available
     if (slideData.subtitle) {
-        slide.addText(cleanMarkdown(slideData.subtitle), {
-            x: 0.5, y: 2.3, w: imageBase64 ? 5.5 : 9, h: 0.5,
-            fontSize: 18,
-            color: 'FFFFFF',
-            fontFace: 'Arial',
-            fit: 'shrink',
-        });
-    }
-
-    // Content as clean text
-    if (slideData.content && slideData.content.length > 0) {
-        const textItems = slideData.content.map((text) => ({
-            text: cleanMarkdown(text),
+        textParts.push({
+            text: cleanMarkdown(slideData.subtitle),
             options: {
                 fontSize: 14,
-                color: 'FFFFFF',
-                bullet: false,
+                color: '475569',
                 breakLine: true,
-                paraSpaceBefore: 4,
-                paraSpaceAfter: 4,
-            },
-        }));
-
-        slide.addText(textItems, {
-            x: 0.5, y: slideData.subtitle ? 2.9 : 2.5, w: imageBase64 ? 5.5 : 9, h: 2.2,
-            fontFace: 'Arial',
-            valign: 'top',
+                paraSpaceBefore: 8,
+                paraSpaceAfter: 8,
+            }
         });
     }
 
-    // Hero image on right (no border frame)
-    if (imageBase64) {
+    // Content items
+    if (slideData.content && slideData.content.length > 0) {
+        slideData.content.forEach((text, index) => {
+            textParts.push({
+                text: cleanMarkdown(text),
+                options: {
+                    fontSize: 12,
+                    color: '64748b',
+                    breakLine: true,
+                    paraSpaceBefore: index === 0 ? 8 : 4,
+                    paraSpaceAfter: 4,
+                }
+            });
+        });
+    }
+
+    // Add all text as a single block - this prevents overlap issues
+    slide.addText(textParts, {
+        x: contentX,
+        y: 0.6,
+        w: contentWidth,
+        h: 4.4, // Large height to contain all text
+        fontFace: 'Arial',
+        valign: 'top',
+        fit: 'shrink', // Will shrink if needed
+    });
+
+    // Hero image on right - RECTANGULAR
+    if (hasImage) {
         slide.addImage({
             data: imageBase64,
-            x: 6.1, y: 0.4, w: 3.5, h: 4.4,
+            x: 5.7,
+            y: 0.5,
+            w: 4.0,
+            h: 4.5,
         });
     }
 
-    // Footer
+    // Footer at bottom
     slide.addText("Generated by BusinessAI", {
-        x: 0.5, y: 5.1, w: 4, fontSize: 9, color: 'FFFFFF', fontFace: 'Arial',
+        x: 0.5, y: 5.2, w: 4, fontSize: 9, color: '94a3b8', fontFace: 'Arial',
     });
 }
 
@@ -343,47 +364,74 @@ function createClosingSlide(
     secondaryColor: string,
     accentColor: string
 ) {
-    slide.background = { color: primaryColor };
+    // Light background to match web preview
+    slide.background = { color: 'FEF7F0' };
 
-    // Title
-    slide.addText(cleanMarkdown(slideData.title), {
-        x: 0.5, y: 1, w: 9, h: 1.2,
-        fontSize: 40,
-        bold: true,
-        color: 'FFFFFF',
-        fontFace: 'Arial',
-        align: 'center',
-        valign: 'middle',
-        fit: 'shrink',
+    // Subtle decorative shapes in corners
+    slide.addShape('ellipse', {
+        x: -1, y: -1, w: 2.5, h: 2.5,
+        fill: { color: primaryColor, transparency: 90 },
+    });
+    slide.addShape('ellipse', {
+        x: 8.5, y: 4, w: 2.5, h: 2.5,
+        fill: { color: secondaryColor, transparency: 90 },
     });
 
-    // Decorative line
-    slide.addShape('rect', {
-        x: 3, y: 2.3, w: 4, h: 0.03,
-        fill: { color: accentColor },
+    // Build combined text block with title and content to prevent overlap
+    const textParts: Array<{ text: string; options: any }> = [];
+
+    // Title - centered
+    textParts.push({
+        text: cleanMarkdown(slideData.title),
+        options: {
+            fontSize: 28,
+            bold: true,
+            color: primaryColor,
+            breakLine: true,
+            paraSpaceAfter: 16,
+        }
     });
 
-    // Content
+    // Content items
     if (slideData.content && slideData.content.length > 0) {
-        const textItems = slideData.content.map((text) => ({
-            text: cleanMarkdown(text),
-            options: {
-                fontSize: 14,
-                color: 'FFFFFF',
-                bullet: false,
-                breakLine: true,
-                paraSpaceBefore: 6,
-                paraSpaceAfter: 6,
-            },
-        }));
-
-        slide.addText(textItems, {
-            x: 1, y: 2.7, w: 8, h: 2.5,
-            fontFace: 'Arial',
-            valign: 'top',
-            align: 'center',
+        slideData.content.forEach((text, index) => {
+            textParts.push({
+                text: cleanMarkdown(text),
+                options: {
+                    fontSize: 12,
+                    color: '475569',
+                    breakLine: true,
+                    paraSpaceBefore: index === 0 ? 8 : 4,
+                    paraSpaceAfter: 4,
+                }
+            });
         });
     }
+
+    // Subtitle at the end
+    if (slideData.subtitle) {
+        textParts.push({
+            text: cleanMarkdown(slideData.subtitle),
+            options: {
+                fontSize: 11,
+                color: primaryColor,
+                breakLine: true,
+                paraSpaceBefore: 16,
+            }
+        });
+    }
+
+    // Add all text as a single centered block
+    slide.addText(textParts, {
+        x: 1,
+        y: 1.0,
+        w: 8,
+        h: 4.0,
+        fontFace: 'Arial',
+        valign: 'middle',
+        align: 'center',
+        fit: 'shrink',
+    });
 }
 
 function createComparisonSlide(
@@ -401,25 +449,43 @@ function createComparisonSlide(
         fill: { color: accentColor },
     });
 
-    // Title with primary color
-    slide.addText(cleanMarkdown(slideData.title), {
-        x: 0.5, y: 0.3, w: 9, h: 0.8,
-        fontSize: 28,
-        bold: true,
-        color: primaryColor,
-        fontFace: 'Arial',
-        fit: 'shrink',
+    // Build combined text with title and optional intro
+    const textParts: Array<{ text: string; options: any }> = [];
+
+    // Title
+    textParts.push({
+        text: cleanMarkdown(slideData.title),
+        options: {
+            fontSize: 24,
+            bold: true,
+            color: primaryColor,
+            breakLine: true,
+            paraSpaceAfter: 8,
+        }
     });
 
-    // Subtitle/intro text if content exists
+    // Subtitle/intro text if content exists and no comparison data
     if (slideData.content && slideData.content.length > 0 && !slideData.comparison) {
-        slide.addText(cleanMarkdown(slideData.content[0]), {
-            x: 0.5, y: 1.1, w: 9, h: 0.5,
-            fontSize: 13,
-            color: '6b7280',
-            fontFace: 'Arial',
+        textParts.push({
+            text: cleanMarkdown(slideData.content[0]),
+            options: {
+                fontSize: 12,
+                color: '6b7280',
+                breakLine: true,
+            }
         });
     }
+
+    // Add title block
+    slide.addText(textParts, {
+        x: 0.5,
+        y: 0.2,
+        w: 9,
+        h: 1.2,
+        fontFace: 'Arial',
+        valign: 'top',
+        fit: 'shrink',
+    });
 
     // Comparison columns
     if (slideData.comparison) {
@@ -540,25 +606,43 @@ function createFeaturesSlide(
         fill: { color: accentColor },
     });
 
+    // Build combined text with title and subtitle
+    const textParts: Array<{ text: string; options: any }> = [];
+
     // Title
-    slide.addText(cleanMarkdown(slideData.title), {
-        x: 0.5, y: 0.3, w: 9, h: 0.7,
-        fontSize: 26,
-        bold: true,
-        color: primaryColor,
-        fontFace: 'Arial',
-        fit: 'shrink',
+    textParts.push({
+        text: cleanMarkdown(slideData.title),
+        options: {
+            fontSize: 22,
+            bold: true,
+            color: primaryColor,
+            breakLine: true,
+            paraSpaceAfter: 6,
+        }
     });
 
     // Subtitle from first content item
     if (slideData.content && slideData.content.length > 0) {
-        slide.addText(cleanMarkdown(slideData.content[0]), {
-            x: 0.5, y: 1.0, w: 9, h: 0.5,
-            fontSize: 13,
-            color: '6b7280',
-            fontFace: 'Arial',
+        textParts.push({
+            text: cleanMarkdown(slideData.content[0]),
+            options: {
+                fontSize: 12,
+                color: '6b7280',
+                breakLine: true,
+            }
         });
     }
+
+    // Add title block
+    slide.addText(textParts, {
+        x: 0.5,
+        y: 0.15,
+        w: 9,
+        h: 1.2,
+        fontFace: 'Arial',
+        valign: 'top',
+        fit: 'shrink',
+    });
 
     // Feature cards
     if (slideData.features && slideData.features.length > 0) {
@@ -694,25 +778,44 @@ function createMetricsSlide(
         fill: { color: getLightBackground(primaryColor) },
     });
 
+    // Build combined text with title and subtitle
+    const textParts: Array<{ text: string; options: any }> = [];
+    const contentWidth = imageBase64 ? 5 : 9;
+
     // Title
-    slide.addText(cleanMarkdown(slideData.title), {
-        x: 0.5, y: 0.4, w: imageBase64 ? 5 : 9, h: 0.8,
-        fontSize: 26,
-        bold: true,
-        color: primaryColor,
-        fontFace: 'Arial',
-        fit: 'shrink',
+    textParts.push({
+        text: cleanMarkdown(slideData.title),
+        options: {
+            fontSize: 22,
+            bold: true,
+            color: primaryColor,
+            breakLine: true,
+            paraSpaceAfter: 8,
+        }
     });
 
     // Subtitle
     if (slideData.content && slideData.content.length > 0) {
-        slide.addText(cleanMarkdown(slideData.content[0]), {
-            x: 0.5, y: 1.2, w: imageBase64 ? 5 : 9, h: 0.7,
-            fontSize: 13,
-            color: '6b7280',
-            fontFace: 'Arial',
+        textParts.push({
+            text: cleanMarkdown(slideData.content[0]),
+            options: {
+                fontSize: 12,
+                color: '6b7280',
+                breakLine: true,
+            }
         });
     }
+
+    // Add title block
+    slide.addText(textParts, {
+        x: 0.5,
+        y: 0.2,
+        w: contentWidth,
+        h: 2.0,
+        fontFace: 'Arial',
+        valign: 'top',
+        fit: 'shrink',
+    });
 
     // Metrics
     if (slideData.metrics && slideData.metrics.length > 0) {
@@ -804,54 +907,51 @@ function createIconListSlide(
 
     // Calculate content width based on image presence
     const hasImage = !!imageBase64;
-    const contentWidth = hasImage ? 4.6 : 8.8;
-    const titleWidth = hasImage ? 4.4 : 8.6;
+    const contentWidth = hasImage ? 4.4 : 8.6;
 
-    // Title - positioned after slide number with proper width
-    slide.addText(cleanMarkdown(slideData.title), {
-        x: 0.8, y: 0.15, w: titleWidth, h: 0.85,
-        fontSize: 20,
-        bold: true,
-        color: primaryColor,
+    // Build combined text with title and content to prevent overlap
+    const textParts: Array<{ text: string; options: any }> = [];
+
+    // Title
+    textParts.push({
+        text: cleanMarkdown(slideData.title),
+        options: {
+            fontSize: 18,
+            bold: true,
+            color: primaryColor,
+            breakLine: true,
+            paraSpaceAfter: 10,
+        }
+    });
+
+    // Content items with bullet styling
+    if (slideData.content && slideData.content.length > 0) {
+        const iconColors = [accentColor, primaryColor, secondaryColor, '10b981', 'f59e0b'];
+        slideData.content.forEach((text, index) => {
+            textParts.push({
+                text: cleanMarkdown(text),
+                options: {
+                    fontSize: 12,
+                    color: '374151',
+                    bullet: { type: 'bullet' as const, color: iconColors[index % iconColors.length] },
+                    breakLine: true,
+                    paraSpaceBefore: index === 0 ? 6 : 4,
+                    paraSpaceAfter: 4,
+                }
+            });
+        });
+    }
+
+    // Add all text as a single block
+    slide.addText(textParts, {
+        x: 0.8,
+        y: 0.2,
+        w: contentWidth,
+        h: 4.6,
         fontFace: 'Arial',
         valign: 'top',
         fit: 'shrink',
     });
-
-    // Divider
-    slide.addShape('rect', {
-        x: 0.3, y: 1.05, w: hasImage ? 4.9 : 9.4, h: 0.015,
-        fill: { color: accentColor },
-    });
-
-    // Content with icons
-    if (slideData.content && slideData.content.length > 0) {
-        slideData.content.forEach((point, idx) => {
-            const y = 1.2 + idx * 0.65;
-            const iconColors = [accentColor, primaryColor, secondaryColor, '10b981', 'f59e0b'];
-            const color = iconColors[idx % iconColors.length];
-
-            // Icon circle
-            slide.addShape('ellipse', {
-                x: 0.4, y: y + 0.05, w: 0.3, h: 0.3,
-                fill: { color },
-            });
-            slide.addText('✓', {
-                x: 0.4, y: y + 0.02, w: 0.3, h: 0.3,
-                fontSize: 9, color: 'FFFFFF',
-                align: 'center', valign: 'middle',
-            });
-
-            // Text
-            slide.addText(cleanMarkdown(point), {
-                x: 0.85, y: y, w: contentWidth - 0.5, h: 0.55,
-                fontSize: 12,
-                color: '374151',
-                fontFace: 'Arial',
-                valign: 'middle',
-            });
-        });
-    }
 
     // Image on right (no border frame)
     if (hasImage) {
@@ -940,43 +1040,48 @@ function createImageSlide(
         imageX = 0;
     }
 
-    // Title - positioned properly and with proper height for wrapping
-    slide.addText(cleanMarkdown(slideData.title), {
-        x: contentX, y: 0.15, w: contentWidth, h: 0.85,
-        fontSize: 20,
-        bold: true,
-        color: primaryColor,
+    // Build combined text with title and content to prevent overlap
+    const textParts: Array<{ text: string; options: any }> = [];
+
+    // Title
+    textParts.push({
+        text: cleanMarkdown(slideData.title),
+        options: {
+            fontSize: 18,
+            bold: true,
+            color: primaryColor,
+            breakLine: true,
+            paraSpaceAfter: 12,
+        }
+    });
+
+    // Content items
+    if (slideData.content && slideData.content.length > 0) {
+        slideData.content.forEach((text, index) => {
+            textParts.push({
+                text: cleanMarkdown(text),
+                options: {
+                    fontSize: 12,
+                    color: '374151',
+                    bullet: { type: 'bullet' as const, color: secondaryColor },
+                    breakLine: true,
+                    paraSpaceBefore: index === 0 ? 6 : 4,
+                    paraSpaceAfter: 4,
+                }
+            });
+        });
+    }
+
+    // Add all text as a single block
+    slide.addText(textParts, {
+        x: contentX,
+        y: 0.2,
+        w: contentWidth,
+        h: 4.6,
         fontFace: 'Arial',
         valign: 'top',
         fit: 'shrink',
     });
-
-    // Divider - positioned below title area
-    slide.addShape('rect', {
-        x: 0.3, y: 1.05, w: 9.4, h: 0.015,
-        fill: { color: accentColor },
-    });
-
-    // Content bullets - start below divider
-    if (slideData.content && slideData.content.length > 0) {
-        const textItems = slideData.content.map((text) => ({
-            text: cleanMarkdown(text),
-            options: {
-                fontSize: 13,
-                color: '374151',
-                bullet: { type: 'bullet' as const, color: secondaryColor },
-                breakLine: true,
-                paraSpaceBefore: 6,
-                paraSpaceAfter: 6,
-            },
-        }));
-
-        slide.addText(textItems, {
-            x: contentX, y: 1.15, w: contentWidth, h: 3.5,
-            fontFace: 'Arial',
-            valign: 'top',
-        });
-    }
 
     // Image (no border frame)
     if (hasImage) {
