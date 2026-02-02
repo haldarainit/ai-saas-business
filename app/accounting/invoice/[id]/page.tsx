@@ -455,7 +455,10 @@ export default function InvoicePage() {
                     items: debouncedInvoiceData.items,
                     financials: {
                         shippingCharges: debouncedInvoiceData.shippingCharges,
-                        otherCharges: debouncedInvoiceData.otherCharges
+                        otherCharges: debouncedInvoiceData.otherCharges,
+                        totalTaxable: calculations.totalTaxable,
+                        totalGst: calculations.totalCGST + calculations.totalSGST + calculations.totalIGST,
+                        grandTotal: calculations.grandTotal
                     },
                     bankDetails: {
                         bankName: debouncedInvoiceData.bankName,

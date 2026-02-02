@@ -119,14 +119,17 @@ function extractQuotationDataComprehensive(quotation: any) {
                 };
 
                 // Convert table rows to readable format with headers as keys
-                if (tableRows.length > 0 && tableHeaders.length > 0) {
+                if (tableRows.length > 0) {
                     tableRows.forEach((row: string[]) => {
                         const rowData: any = {};
-                        tableHeaders.forEach((header: string, colIndex: number) => {
+                        // Ensure we have enough headers, or generate generic ones
+                        const maxCols = Math.max(tableHeaders.length, row.length);
+                        for (let colIndex = 0; colIndex < maxCols; colIndex++) {
+                            const header = tableHeaders[colIndex] || `Col-${colIndex + 1}`;
                             if (row[colIndex] !== undefined) {
                                 rowData[header] = row[colIndex];
                             }
-                        });
+                        }
                         tableData.rawData.push(rowData);
                     });
                 }
@@ -297,15 +300,16 @@ ${JSON.stringify(quotationData, null, 2)}
 === CRITICAL EXTRACTION RULES ===
 1. PRESERVE VALUES: Do NOT round off or modify rates and quantities found in tables. Use the EXACT numbers from the quotation.
 2. TABLE MAPPING: Identify headers accurately. 'Particulars', 'Items', 'List', 'Name', 'Service', 'Task' or 'Product' -> description. 'Qty' or 'Nos' -> quantity. 'Unit Price', 'Price', 'Rate' or 'Amount' -> rate.
-3. SMART DESCRIPTION: If a table has only 'List' and 'Price', map 'List' to description and 'Price' to rate. Extract specific item details even if the column header is generic.
-4. TABLE COMPLETENESS: You MUST extract EVERY single row from every table found in the quotation. Do not truncate, do not skip the last row, and do not summarize. If there are 4 rows, there must be 4 items in the JSON.
-5. PRESERVE PRECISION: Do not modify or round any numbers. If a rate is 400.00, it must be 400 in the JSON.
-6. ROW VERIFICATION: Before finishing, double-check that the VERY LAST row of each table has been correctly mapped with both its description and its rate/price.
-7. CLIENT DATA: If client address is a single string, parse it into city, state, and pincode.
-8. TAX CALCULATION: If tax is not mentioned per item, use 18% (9% CGST + 9% SGST) as standard for Indian Tax Invoices, unless explicitly stated otherwise.
-9. PLACE OF SUPPLY: Determine this based on the Client's State.
+3. SMART DESCRIPTION: If a table name (heading) appears to be an item name and the table rows are sub-items or just quantities, use the table name as the primary description. If a column is generic like 'List' or 'Details', treat it as a description for the item.
+4. TABLE COMPLETENESS: You MUST extract EVERY single row from every table. If a row has a quantity but no price listed in its specific columns, look at the text around the table (headings/paragraphs) for pricing info. Do not skip the last row!
+5. PRICE DISCOVERY: If a row has a number that looks like a price (e.g., 2000, 450.00) but the column header is generic, ASSUME it is the rate.
+6. PRESERVE PRECISION: Do not modify or round any numbers. If a rate is 400.00, it must be 400 in the JSON.
+7. ROW VERIFICATION: Double-check that the VERY LAST row of EACH table has been captured with its full description and correct rate. Even if the price is low (e.g., 18.00), capture it exactly.
+8. CLIENT DATA: If client address is a single string, parse it into city, state, and pincode.
+9. TAX CALCULATION: Default to 18% (9% split) if not specified.
+10. PLACE OF SUPPLY: Determine based on Client's State.
 
-Return ONLY the JSON. Verify it is valid JSON before finishing.`;
+Return ONLY the JSON. No conversational text. Verify validity.`;
 
         const model = genAI.getGenerativeModel({ 
             model: modelName,
@@ -461,6 +465,11 @@ function enhancedBasicTransformation(quotationData: any, invoiceNumber: string):
                         description = String(v);
                     }
                 });
+
+                // Final description fallback: if still empty but we have a rate, use the table name/block info
+                if (!description && rate > 0) {
+                    description = table.name || `Item from ${table.blockIndex || 'Table'}`;
+                }
 
                 // Secondary discovery: if rate is still 0, look for ANY numeric value in the row that isn't the quantity
                 if (rate === 0) {
