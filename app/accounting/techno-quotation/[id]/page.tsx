@@ -3642,6 +3642,9 @@ Return the response as JSON with this structure:
                 .quotation-preview .document-title {
                     /* Font size, weight, decoration, align controlled by inline styles */
                     margin: 15px 0;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                    word-break: break-word;
                 }
                 
                 .quotation-preview .ref-section {
@@ -3677,15 +3680,23 @@ Return the response as JSON with this structure:
                 
                 .quotation-preview .content-block {
                     margin: 8px 0;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
                 }
                 
                 .quotation-preview .block-heading {
                     margin: 10px 0 5px 0;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                    word-break: break-word;
                     /* Font size, weight, decoration, align controlled by inline styles */
                 }
                 
                 .quotation-preview .block-paragraph {
                     margin: 5px 0;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                    word-break: break-word;
                     /* text-align controlled by inline styles */
                     /* line-height controlled by inline styles */
                 }
