@@ -3,11 +3,11 @@ import dbConnect from '@/lib/mongodb';
 import Invoice from '@/models/Invoice';
 import TechnoQuotation from '@/models/TechnoQuotation';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
-const { GoogleGenAI } = require("@google/genai");
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Initialize Gemini
 const API_KEY = process.env.GOOGLE_API_KEY;
-const genAI = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
+const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
 
 // Available models in order of preference
 const AVAILABLE_MODELS = [
@@ -22,10 +22,8 @@ async function getWorkingModel() {
 
     for (const modelName of AVAILABLE_MODELS) {
         try {
-            const result = await genAI.models.generateContent({
-                model: modelName,
-                contents: [{ role: "user", parts: [{ text: "Hello" }] }],
-            });
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent("Hello");
             if (result) return modelName;
         } catch (error) {
             continue;
@@ -67,12 +65,11 @@ function extractQuotationDataComprehensive(quotation: any) {
         // Company details from quotation
         companyDetails: {
             name: quotation.companyDetails?.name || '',
-            address1: quotation.companyDetails?.address || quotation.companyDetails?.address1 || '',
-            address2: quotation.companyDetails?.address2 || '',
+            address: quotation.companyDetails?.address || '',
             phone: quotation.companyDetails?.phone || '',
             email: quotation.companyDetails?.email || '',
-            logo: quotation.companyDetails?.logo || '',
-            gstin: quotation.companyDetails?.gstin || ''
+            gstin: quotation.companyDetails?.gstin || '',
+            logo: quotation.companyDetails?.logo || ''
         },
         // Client details
         clientDetails: quotation.clientDetails || {},
@@ -82,44 +79,37 @@ function extractQuotationDataComprehensive(quotation: any) {
         date: quotation.date || '',
         subject: quotation.subject || '',
         greeting: quotation.greeting || '',
-        // Footer info
-        footer: quotation.footer || {},
-        // Signature
-        signature: quotation.signature || {},
-        // All content
+        // Sections and tables
+        headings: [],
+        paragraphs: [],
+        lists: [],
         allSections: [],
         allTables: [],
+        footer: quotation.footer || {},
+        signature: quotation.signature || {},
         rawTextContent: ''
     };
 
     // Extract from contentBlocks (TechnoQuotation structure)
     if (quotation.contentBlocks && Array.isArray(quotation.contentBlocks)) {
-        quotation.contentBlocks.forEach((block: any, blockIndex: number) => {
-            // Add all block data
-            const sectionData: any = {
-                blockIndex,
-                type: block.type,
-                content: block.content || '',
-                items: block.items || []
-            };
-
-            // Build raw text for AI analysis
-            if (block.content) {
-                data.rawTextContent += block.content + '\n';
-            }
-            if (block.items && block.items.length > 0) {
-                data.rawTextContent += block.items.join(', ') + '\n';
-            }
-
-            // Handle tables from contentBlocks
-            if (block.type === 'table' && block.tableData) {
+        quotation.contentBlocks.forEach((block: any, index: number) => {
+            if (block.type === 'heading') {
+                data.headings.push(block.content);
+                data.rawTextContent += `HEADING: ${block.content}\n`;
+            } else if (block.type === 'paragraph') {
+                data.paragraphs.push(block.content);
+                data.rawTextContent += `${block.content}\n`;
+            } else if (block.type === 'list') {
+                data.lists.push(block.items || []);
+                data.rawTextContent += `LIST:\n${(block.items || []).map((i: string) => `- ${i}`).join('\n')}\n`;
+            } else if (block.type === 'table' && block.tableData) {
                 const tableHeaders = block.tableData.headers || [];
                 const tableRows = block.tableData.rows || [];
-
+                
                 const tableData: any = {
+                    blockIndex: index,
                     name: block.content || 'Table',
                     headers: tableHeaders,
-                    rows: tableRows,
                     rawData: []
                 };
 
@@ -133,16 +123,22 @@ function extractQuotationDataComprehensive(quotation: any) {
                             }
                         });
                         tableData.rawData.push(rowData);
-                        // Add to raw text
-                        data.rawTextContent += JSON.stringify(rowData) + '\n';
                     });
                 }
-
+                
                 data.allTables.push(tableData);
+                data.rawTextContent += `TABLE (${tableData.name}):\n${JSON.stringify(tableData.rawData, null, 2)}\n`;
             }
-
-            data.allSections.push(sectionData);
         });
+    }
+
+    // Extract signature and footer
+    if (quotation.footer) {
+        const footerText = [quotation.footer.line1, quotation.footer.line2, quotation.footer.line3].filter(Boolean).join('\n');
+        data.rawTextContent += `FOOTER TERMS:\n${footerText}\n`;
+    }
+    if (quotation.signature) {
+        data.rawTextContent += `SIGNATURE: ${quotation.signature.name} (${quotation.signature.designation})\n`;
     }
 
     // Also handle legacy pages structure for backward compatibility
@@ -218,44 +214,38 @@ async function smartAITransformation(quotationData: any, invoiceNumber: string):
             return enhancedBasicTransformation(quotationData, invoiceNumber);
         }
 
-        const prompt = `You are an EXPERT invoice data extractor and transformer. Your job is to analyze a quotation document and extract EVERY possible piece of information to create a complete, professional invoice.
+        const today = new Date().toISOString().split('T')[0];
+        const prompt = `You are an ELITE Financial Data Analyst and Invoice Architect. Your task is to transform technical quotation data into a professional, precise Tax Invoice.
 
-=== QUOTATION DATA TO ANALYZE ===
-${JSON.stringify(quotationData, null, 2)}
-
-=== YOUR TASK ===
-Analyze the quotation data thoroughly and extract ALL information to fill the invoice fields. Be intelligent - infer missing data from context when possible.
-
-Return a COMPLETE JSON with this EXACT structure (fill every field you can find or logically derive):
-
+=== TARGET INVOICE STRUCTURE (JSON) ===
 {
     "companyDetails": {
-        "name": "Extract company/seller name",
+        "name": "Exact seller name",
         "address": "Full street address",
-        "city": "City name (extract from address if needed)",
-        "state": "State name (extract from address if needed)",
-        "pincode": "Pincode/ZIP (extract from address if needed)",
-        "email": "Company email",
-        "phone": "Company phone number",
-        "gstin": "GST number if found (format: 22AAAAA0000A1Z5)",
-        "stateCode": "State code from GSTIN or derive from state"
+        "city": "City",
+        "state": "State",
+        "pincode": "ZIP/Pincode",
+        "email": "Official email",
+        "phone": "Contact number",
+        "gstin": "GSTIN (verify format)",
+        "stateCode": "2-digit state code"
     },
     "clientDetails": {
-        "name": "Customer/client/buyer name",
-        "address": "Customer full address",
-        "city": "Customer city",
-        "state": "Customer state",
-        "pincode": "Customer pincode",
-        "email": "Customer email",
-        "phone": "Customer phone/mobile/contact",
-        "gstin": "Customer GSTIN if available",
-        "paymentMode": "Payment mode mentioned or 'Online'"
+        "name": "Full legal name of buyer",
+        "address": "Billing address",
+        "city": "Client city",
+        "state": "Client state",
+        "pincode": "Client pincode",
+        "email": "Client email if found",
+        "phone": "Client contact",
+        "gstin": "Client GSTIN if available",
+        "paymentMode": "Inferred or mentioned payment mode"
     },
     "items": [
         {
             "id": "1",
-            "description": "Detailed item description - make it professional and complete",
-            "hsnsac": "HSN/SAC code if mentioned",
+            "description": "Professional description from quotation",
+            "hsnsac": "Extract HSN/SAC code if present",
             "quantity": 1,
             "rate": 0,
             "discount": 0,
@@ -268,101 +258,112 @@ Return a COMPLETE JSON with this EXACT structure (fill every field you can find 
         }
     ],
     "orderDetails": {
-        "placeOfSupply": "State/place of supply",
-        "reverseCharge": "Yes or No",
-        "hsnsac": "Default HSN/SAC",
-        "deliveryNote": "Delivery note if mentioned",
-        "referenceNo": "Reference number from quotation",
-        "termsOfDelivery": "Delivery terms if mentioned",
-        "destination": "Delivery destination if mentioned"
+        "placeOfSupply": "State of supply (important for GST)",
+        "reverseCharge": "Yes/No",
+        "deliveryNote": "Any delivery mention",
+        "referenceNo": "Use Quotation Ref No",
+        "termsOfDelivery": "Extract from sections"
     },
     "bankDetails": {
-        "bankName": "Bank name if mentioned",
-        "accountNumber": "Account number if mentioned",
-        "ifscCode": "IFSC code if mentioned",
-        "branch": "Branch name if mentioned",
-        "upiId": "UPI ID if mentioned"
+        "bankName": "Bank name",
+        "accountNumber": "Account No",
+        "ifscCode": "IFSC",
+        "branch": "Branch",
+        "upiId": "UPI"
     },
     "terms": {
-        "notes": "Any special notes or remarks from the quotation",
-        "termsConditions": "Extract terms and conditions, or create professional ones based on the quotation content",
-        "jurisdictionText": "Jurisdiction clause if mentioned",
-        "authorizedSignatory": "Signatory name from footer if available",
-        "declarationText": "Any declaration text"
+        "notes": "Project summary/notes",
+        "termsConditions": "Extract ALL terms found in quotation",
+        "authorizedSignatory": "Signatory name",
+        "declarationText": "Standard declaration"
     },
     "financials": {
         "shippingCharges": 0,
         "otherCharges": 0
     },
-    "invoiceDate": "Today's date in YYYY-MM-DD format",
-    "dueDate": "30 days from today in YYYY-MM-DD format",
-    "poNumber": "PO number if mentioned",
-    "poDate": "PO date if mentioned"
+    "invoiceDate": "${today}",
+    "dueDate": "30 days from now",
+    "poNumber": "PO number if found"
 }
 
-=== EXTRACTION RULES ===
-1. ITEMS: Look in tables for products/services. Extract description, quantity, rate/price, amount. Calculate GST (9% CGST + 9% SGST = 18% total unless specified otherwise).
-2. CLIENT: Look for "Customer", "Client", "Buyer", "Bill To", "Party", etc. in sections.  
-3. COMPANY: Use the company details provided, but also look for additional info in sections/footer.
-4. PRICING: Parse numbers correctly - remove currency symbols (₹, $), commas. If only total is given, calculate rate from quantity.
-5. GST CALCULATION: For each item, calculate: taxableValue = qty * rate - discount, cgst = taxableValue * 0.09, sgst = taxableValue * 0.09, totalGst = cgst + sgst
-6. DATES: Use format YYYY-MM-DD. Today is ${new Date().toISOString().split('T')[0]}.
-7. INFER: If city/state/pincode are not separate, parse from full address intelligently.
-8. TERMS: If no specific terms found, create professional ones relevant to the quotation content.
-9. REFERENCE: Use quotation reference number, date, or ID as reference in invoice.
+=== QUOTATION SOURCE DATA ===
+${JSON.stringify(quotationData, null, 2)}
 
-Return ONLY valid JSON, no explanations or markdown.`;
+=== CRITICAL EXTRACTION RULES ===
+1. PRESERVE VALUES: Do NOT round off or modify rates and quantities found in tables. Use the EXACT numbers from the quotation.
+2. TABLE MAPPING: Identify headers accurately. 'Particulars' or 'Items' -> description. 'Qty' -> quantity. 'Unit Price' or 'Rate' -> rate.
+3. SMART GST DETECTION: Look for 'GST %', 'Tax', or separate SGST/CGST columns in tables. If total value is given in quotation, ensure rate * qty = taxable value.
+4. CLIENT DATA: If client address is a single string, parse it into city, state, and pincode.
+5. TAX CALCULATION: If tax is not mentioned per item, use 18% (9% CGST + 9% SGST) as standard for Indian Techno-Commercial invoices, UNLESS the quotation explicitly mentions a different rate.
+6. COMPREHENSIVE TERMS: Scrape 'Terms and Conditions' or 'Payment Terms' from text sections and format them as a numbered list in the invoice.
+7. PLACE OF SUPPLY: Determine the Place of Supply based on the Client's State.
 
-        const result = await genAI.models.generateContent({
+Return ONLY the JSON. Verify it is valid JSON before finishing.`;
+
+        const model = genAI.getGenerativeModel({ 
             model: modelName,
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
         });
 
+        const result = await model.generateContent(prompt);
         const text = extractText(result);
 
-        // Extract JSON from response
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            try {
-                const parsed = JSON.parse(jsonMatch[0]);
+        try {
+            const parsed = JSON.parse(text);
 
-                // Ensure all required item fields exist and calculate GST
-                if (parsed.items && Array.isArray(parsed.items)) {
-                    parsed.items = parsed.items.map((item: any, index: number) => {
-                        const qty = parseFloat(item.quantity) || 1;
-                        const rate = parseFloat(item.rate) || 0;
-                        const discount = parseFloat(item.discount) || 0;
-                        const taxRate = parseFloat(item.taxRate) || 18;
+            // POST-PROCESSING: Ensure mathematical consistency and exact data preservation
+            if (parsed.items && Array.isArray(parsed.items)) {
+                parsed.items = parsed.items.map((item: any, index: number) => {
+                    const qty = parseFloat(item.quantity) || 1;
+                    const rate = parseFloat(item.rate) || 0;
+                    const discount = item.discount !== undefined ? parseFloat(item.discount) : 0;
+                    
+                    // If AI didn't find taxRate, default to 18
+                    let taxRate = parseFloat(item.taxRate);
+                    if (isNaN(taxRate)) taxRate = 18;
 
-                        const subtotal = qty * rate;
-                        const discountAmount = (subtotal * discount) / 100;
-                        const taxableValue = subtotal - discountAmount;
+                    const subtotal = qty * rate;
+                    const discountAmount = (subtotal * discount) / 100;
+                    const taxableValue = subtotal - discountAmount;
 
-                        const cgstPercent = taxRate / 2;
-                        const sgstPercent = taxRate / 2;
-                        const cgst = (taxableValue * cgstPercent) / 100;
-                        const sgst = (taxableValue * sgstPercent) / 100;
+                    // Indian GST standard split
+                    const cgstPercent = taxRate / 2;
+                    const sgstPercent = taxRate / 2;
+                    const cgst = (taxableValue * cgstPercent) / 100;
+                    const sgst = (taxableValue * sgstPercent) / 100;
 
-                        return {
-                            id: item.id || String(index + 1),
-                            description: item.description || '',
-                            hsnsac: item.hsnsac || '',
-                            quantity: qty,
-                            rate: rate,
-                            discount: discount,
-                            taxRate: taxRate,
-                            cgstPercent: cgstPercent,
-                            sgstPercent: sgstPercent,
-                            cgst: Math.round(cgst * 100) / 100,
-                            sgst: Math.round(sgst * 100) / 100,
-                            totalGst: Math.round((cgst + sgst) * 100) / 100
-                        };
-                    });
-                }
+                    return {
+                        id: item.id || String(index + 1),
+                        description: item.description || 'Service/Product',
+                        hsnsac: item.hsnsac || '',
+                        quantity: qty,
+                        rate: rate,
+                        discount: discount,
+                        taxRate: taxRate,
+                        cgstPercent: cgstPercent,
+                        sgstPercent: sgstPercent,
+                        cgst: Math.round(cgst * 100) / 100,
+                        sgst: Math.round(sgst * 100) / 100,
+                        totalGst: Math.round((cgst + sgst) * 100) / 100
+                    };
+                });
+            }
 
-                return parsed;
-            } catch (parseError) {
-                console.error('JSON parse error:', parseError);
+            // Defaults for missing critical fields
+            if (!parsed.invoiceDate) parsed.invoiceDate = today;
+            if (!parsed.clientDetails?.name && quotationData.clientDetails?.name) {
+                parsed.clientDetails = { ...parsed.clientDetails, name: quotationData.clientDetails.name };
+            }
+
+            return parsed;
+        } catch (parseError) {
+            console.error('JSON parse error in AI transformation:', parseError, 'Raw text:', text);
+            // Fallback to extraction from markdown if JSON mode failed for some reason
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try {
+                    return JSON.parse(jsonMatch[0]);
+                } catch (_) {}
             }
         }
     } catch (error) {
@@ -381,7 +382,7 @@ function enhancedBasicTransformation(quotationData: any, invoiceNumber: string):
     const result: any = {
         companyDetails: {
             name: quotationData.companyDetails?.name || '',
-            address: quotationData.companyDetails?.address1 || quotationData.companyDetails?.address || '',
+            address: quotationData.companyDetails?.address || '',
             city: '',
             state: '',
             pincode: '',
@@ -403,12 +404,12 @@ function enhancedBasicTransformation(quotationData: any, invoiceNumber: string):
         },
         items: [],
         terms: {
-            notes: `Based on Quotation: ${quotationData.title}`,
+            notes: `Reference Quotation: ${quotationData.refNo || quotationData.title}`,
             termsConditions: '1. Goods once sold will not be taken back.\n2. Interest @ 18% p.a. will be charged if the payment is not made within the stipulated time.\n3. Subject to jurisdiction.',
-            authorizedSignatory: quotationData.footer?.line3?.replace('Authorized Submitter:', '').trim() || ''
+            authorizedSignatory: quotationData.signature?.name || ''
         },
         orderDetails: {
-            referenceNo: quotationData.refNo || quotationData.companyId || ''
+            referenceNo: quotationData.refNo || ''
         },
         bankDetails: {},
         financials: {
@@ -419,79 +420,66 @@ function enhancedBasicTransformation(quotationData: any, invoiceNumber: string):
         dueDate: dueDate.toISOString().split('T')[0]
     };
 
-    // Extract client details from sections
-    quotationData.allSections?.forEach((section: any) => {
-        const heading = section.heading?.toLowerCase() || '';
-        const content = section.content || '';
-
-        if (heading.includes('customer name') || heading.includes('client name') || heading.includes('party name')) {
-            result.clientDetails.name = content;
-        } else if (heading.includes('address')) {
-            result.clientDetails.address = content;
-        } else if (heading.includes('contact') || heading.includes('phone') || heading.includes('mobile')) {
-            result.clientDetails.phone = content;
-        } else if (heading.includes('email')) {
-            result.clientDetails.email = content;
-        } else if (heading.includes('gstin') || heading.includes('gst')) {
-            result.clientDetails.gstin = content;
-        }
-    });
-
-    // Extract items from tables
-    quotationData.allTables?.forEach((table: any, tableIndex: number) => {
+    // Extract items from all processed tables
+    quotationData.allTables?.forEach((table: any) => {
         if (table.rawData && table.rawData.length > 0) {
             table.rawData.forEach((rowData: any, rowIndex: number) => {
-                // Find description, quantity, rate from different possible column names
                 let description = '';
                 let quantity = 1;
                 let rate = 0;
+                let hsnsac = '';
+                let taxRate = 18;
 
                 Object.keys(rowData).forEach(key => {
-                    const keyLower = key.toLowerCase();
-                    const value = rowData[key];
+                    const k = key.toLowerCase();
+                    const v = rowData[key];
 
-                    if (keyLower.includes('description') || keyLower.includes('item') || keyLower.includes('particular') || keyLower.includes('product') || keyLower.includes('service')) {
-                        description = value;
-                    } else if (keyLower.includes('qty') || keyLower.includes('quantity') || keyLower.includes('nos')) {
-                        quantity = parseFloat(value) || 1;
-                    } else if (keyLower.includes('rate') || keyLower.includes('price') || keyLower.includes('unit')) {
-                        rate = parseFloat(String(value).replace(/[₹,$,]/g, '')) || 0;
-                    } else if ((keyLower.includes('amount') || keyLower.includes('total')) && rate === 0) {
-                        const amount = parseFloat(String(value).replace(/[₹,$,]/g, '')) || 0;
-                        if (quantity > 0) {
-                            rate = amount / quantity;
-                        }
+                    if (k.includes('desc') || k.includes('item') || k.includes('partic') || k.includes('product')) {
+                        description = String(v);
+                    } else if (k.includes('qty') || k.includes('quant') || k.includes('nos')) {
+                        quantity = parseFloat(String(v)) || 1;
+                    } else if (k.includes('rate') || k.includes('price') || k.includes('unit')) {
+                        rate = parseFloat(String(v).replace(/[^\d.]/g, '')) || 0;
+                    } else if (k.includes('hsn') || k.includes('sac')) {
+                        hsnsac = String(v);
+                    } else if (k.includes('gst') || k.includes('tax')) {
+                        const tr = parseFloat(String(v).replace(/[^\d.]/g, ''));
+                        if (!isNaN(tr)) taxRate = tr;
+                    } else if ((k.includes('amount') || k.includes('total')) && rate === 0) {
+                        const amount = parseFloat(String(v).replace(/[^\d.]/g, '')) || 0;
+                        if (quantity > 0) rate = amount / quantity;
                     }
                 });
 
                 if (description || rate > 0) {
                     const taxableValue = quantity * rate;
-                    const cgst = taxableValue * 0.09;
-                    const sgst = taxableValue * 0.09;
+                    const cgst = (taxableValue * (taxRate / 2)) / 100;
+                    const sgst = (taxableValue * (taxRate / 2)) / 100;
 
                     result.items.push({
-                        id: `${tableIndex + 1}-${rowIndex + 1}`,
-                        description: description,
-                        quantity: quantity,
-                        rate: rate,
+                        id: `${table.blockIndex}-${rowIndex + 1}`,
+                        description,
+                        quantity,
+                        rate,
                         discount: 0,
-                        taxRate: 18,
-                        cgstPercent: 9,
-                        sgstPercent: 9,
+                        taxRate,
+                        cgstPercent: taxRate / 2,
+                        sgstPercent: taxRate / 2,
                         cgst: Math.round(cgst * 100) / 100,
                         sgst: Math.round(sgst * 100) / 100,
-                        totalGst: Math.round((cgst + sgst) * 100) / 100
+                        totalGst: Math.round((cgst + sgst) * 100) / 100,
+                        hsnsac
                     });
                 }
             });
         }
     });
 
-    // Add default item if no items extracted
-    if (result.items.length === 0) {
+    // Extract more details from text paragraphs if items are still empty
+    if (result.items.length === 0 && quotationData.paragraphs?.length > 0) {
         result.items.push({
             id: "1",
-            description: quotationData.title || "Services as per quotation",
+            description: quotationData.subject || quotationData.title || "Services per quotation",
             quantity: 1,
             rate: 0,
             discount: 0,
@@ -546,7 +534,7 @@ export async function POST(req: Request) {
             transformedData = enhancedBasicTransformation(quotationData, invoiceNumber);
         }
 
-        // Merge company details - prefer AI-extracted if available
+        // Merge company details
         const finalCompanyDetails = {
             name: transformedData.companyDetails?.name || quotation.companyDetails?.name || '',
             address: transformedData.companyDetails?.address || quotation.companyDetails?.address || '',
@@ -560,42 +548,68 @@ export async function POST(req: Request) {
             logo: quotation.companyDetails?.logo || ''
         };
 
-        // Create the invoice with ALL extracted data
+        // Calculate financials for consistent state
+        const items = transformedData.items || [];
+        let totalTaxable = 0;
+        let totalGst = 0;
+        
+        items.forEach((item: any) => {
+            const taxable = (item.quantity * item.rate) - ((item.quantity * item.rate * (item.discount || 0)) / 100);
+            totalTaxable += taxable;
+            totalGst += (item.totalGst || 0);
+        });
+
+        const shippingCharges = parseFloat(transformedData.financials?.shippingCharges) || 0;
+        const otherCharges = parseFloat(transformedData.financials?.otherCharges) || 0;
+        const grandTotal = Math.round(totalTaxable + totalGst + shippingCharges + otherCharges);
+
+        // Determine Tax Type (GST vs IGST)
+        const sellerState = (finalCompanyDetails.state || '').toLowerCase().trim();
+        const buyerState = (transformedData.clientDetails?.state || '').toLowerCase().trim();
+        let autodetectedTaxType: 'GST' | 'IGST' | 'None' = 'GST';
+        
+        if (sellerState && buyerState && sellerState !== buyerState) {
+            autodetectedTaxType = 'IGST';
+        }
+
+        // Create the invoice
         const newInvoice = await Invoice.create({
             userId: userId,
             invoiceNumber: invoiceNumber || `INV-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
-            title: "TAX INVOICE",
+            title: transformedData.title || "TAX INVOICE",
             sourceQuotationId: quotationId,
             invoiceDate: transformedData.invoiceDate ? new Date(transformedData.invoiceDate) : new Date(),
             dueDate: transformedData.dueDate ? new Date(transformedData.dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             poNumber: transformedData.poNumber || '',
             poDate: transformedData.poDate ? new Date(transformedData.poDate) : null,
             companyDetails: finalCompanyDetails,
-            clientDetails: transformedData.clientDetails || {},
+            clientDetails: {
+                ...transformedData.clientDetails,
+                name: transformedData.clientDetails?.name || quotation.clientDetails?.name || '',
+                address: transformedData.clientDetails?.address || quotation.clientDetails?.address || ''
+            },
             shipToDetails: {
+                ...transformedData.shipToDetails,
                 sameAsBillTo: true
             },
-            orderDetails: transformedData.orderDetails || {},
-            items: transformedData.items || [{
-                id: "1",
-                description: "",
-                quantity: 1,
-                rate: 0,
-                discount: 0,
-                taxRate: 18,
-                cgstPercent: 9,
-                sgstPercent: 9,
-                cgst: 0,
-                sgst: 0,
-                totalGst: 0
-            }],
-            financials: transformedData.financials || {
-                shippingCharges: 0,
-                otherCharges: 0
+            orderDetails: {
+                ...transformedData.orderDetails,
+                placeOfSupply: transformedData.orderDetails?.placeOfSupply || transformedData.clientDetails?.state || '',
+                referenceNo: transformedData.orderDetails?.referenceNo || quotation.refNo || ''
+            },
+            items: items,
+            financials: {
+                shippingCharges,
+                otherCharges,
+                totalTaxable,
+                totalGst,
+                grandTotal
             },
             bankDetails: transformedData.bankDetails || {},
-            terms: transformedData.terms || {
-                termsConditions: "1. Goods once sold will not be taken back.\n2. Interest @ 18% p.a. will be charged if the payment is not made within the stipulated time.",
+            terms: {
+                ...(transformedData.terms || {}),
+                termsConditions: transformedData.terms?.termsConditions || "1. Goods once sold will not be taken back.\n2. Interest @ 18% p.a. will be charged if the payment is not made within the stipulated time.",
+                authorizedSignatory: transformedData.terms?.authorizedSignatory || quotation.signature?.name || ''
             },
             settings: {
                 showBankDetails: !!(transformedData.bankDetails?.bankName),
@@ -611,7 +625,7 @@ export async function POST(req: Request) {
                 showHSNSAC: true,
                 currency: 'INR',
                 currencySymbol: '₹',
-                taxType: 'GST',
+                taxType: autodetectedTaxType,
                 gstDisplayMode: 'split'
             }
         });
