@@ -626,14 +626,16 @@ export default function InvoiceDashboard() {
                                             <SelectTrigger className="border-purple-200 focus:border-purple-500 focus:ring-purple-500">
                                                 <SelectValue placeholder="Choose a quotation..." />
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent className="max-w-[400px]">
                                                 {quotations.map((q) => (
                                                     <SelectItem key={q._id} value={q._id}>
-                                                        <div className="flex items-center gap-2">
-                                                            <FileText className="w-4 h-4 text-purple-500" />
-                                                            <div>
-                                                                <span className="font-medium">{q.title}</span>
-                                                                <span className="text-xs text-muted-foreground ml-2">
+                                                        <div className="flex items-center gap-2 max-w-[350px]">
+                                                            <FileText className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                                                            <div className="min-w-0 flex-1">
+                                                                <span className="font-medium block truncate" title={q.title}>
+                                                                    {q.title.length > 40 ? q.title.substring(0, 40) + '...' : q.title}
+                                                                </span>
+                                                                <span className="text-xs text-muted-foreground">
                                                                     ({new Date(q.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })})
                                                                 </span>
                                                             </div>
@@ -652,11 +654,13 @@ export default function InvoiceDashboard() {
                                         animate={{ opacity: 1, height: 'auto' }}
                                         className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800"
                                     >
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Check className="w-4 h-4 text-purple-600" />
-                                            <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Selected: {selectedQuotation.title}</span>
+                                        <div className="flex items-center gap-2 mb-1 min-w-0">
+                                            <Check className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                                            <span className="text-sm font-medium text-purple-700 dark:text-purple-300 truncate" title={selectedQuotation.title}>
+                                                Selected: {selectedQuotation.title.length > 35 ? selectedQuotation.title.substring(0, 35) + '...' : selectedQuotation.title}
+                                            </span>
                                         </div>
-                                        <p className="text-xs text-purple-600/70 dark:text-purple-400/70">
+                                        <p className="text-xs text-purple-600/70 dark:text-purple-400/70 truncate">
                                             {selectedQuotation.companyDetails?.name || 'Company details will be imported'}
                                         </p>
                                     </motion.div>
