@@ -111,6 +111,8 @@ function GenerationPageContent() {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src']));
   const [showSettings, setShowSettings] = useState(false);
   const [streamedContent, setStreamedContent] = useState('');
+  const [previewError, setPreviewError] = useState(false);
+  const [previewRetries, setPreviewRetries] = useState(0);
   
   // Refs
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -167,10 +169,14 @@ function GenerationPageContent() {
     }
   };
   
+  // Counter for unique message IDs
+  const messageIdRef = useRef(0);
+  
   // Add chat message
   const addMessage = (content: string, type: ChatMessage['type'], metadata?: ChatMessage['metadata']) => {
+    messageIdRef.current += 1;
     const message: ChatMessage = {
-      id: Date.now().toString(),
+      id: `msg-${Date.now()}-${messageIdRef.current}`,
       content,
       type,
       timestamp: new Date(),
@@ -195,40 +201,49 @@ function GenerationPageContent() {
     setGenerating(true);
     setStreamedContent('');
     
+    console.log('[Generation] Starting generation for:', input);
+    
     try {
       let prompt = input;
-      let scrapedContent = '';
       
       // If it's a URL, scrape it first
       if (isUrl(input)) {
         addMessage('Analyzing website...', 'system');
+        console.log('[Generation] Detected URL, scraping:', input);
         
-        const scrapeResponse = await fetch('/api/scrape-url-enhanced', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: input })
-        });
-        
-        const scrapeData = await scrapeResponse.json();
-        
-        if (scrapeData.success) {
-          scrapedContent = scrapeData.markdown || scrapeData.content;
-          prompt = `Clone this website and recreate it as a React application with Tailwind CSS. 
+        try {
+          const scrapeResponse = await fetch('/api/scrape-url-enhanced', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: input })
+          });
+          
+          const scrapeData = await scrapeResponse.json();
+          console.log('[Generation] Scrape result:', scrapeData.success ? 'success' : 'failed');
+          
+          if (scrapeData.success) {
+            const scrapedContent = scrapeData.markdown || scrapeData.content || '';
+            prompt = `Clone this website and recreate it as a React application with Tailwind CSS. 
 
 Website URL: ${input}
 Website Title: ${scrapeData.title || 'Unknown'}
 
 Website Content:
-${scrapedContent?.substring(0, 15000)}
+${scrapedContent.substring(0, 15000)}
 
 Create a complete, production-ready React application that replicates this website's design, layout, and functionality.`;
-        } else {
-          addMessage('Could not scrape website, generating based on URL...', 'system');
+          } else {
+            addMessage('Could not scrape website, generating based on URL...', 'system');
+          }
+        } catch (scrapeError) {
+          console.error('[Generation] Scrape error:', scrapeError);
+          addMessage('Scraping failed, generating based on description...', 'system');
         }
       }
       
       // Generate code with AI
       addMessage('Generating code...', 'system');
+      console.log('[Generation] Calling AI with model:', selectedModel);
       
       const response = await fetch('/api/generate-ai-code-stream', {
         method: 'POST',
@@ -240,60 +255,75 @@ Create a complete, production-ready React application that replicates this websi
         })
       });
       
+      console.log('[Generation] API response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error('Failed to generate code');
+        const errorText = await response.text();
+        console.error('[Generation] API error:', errorText);
+        throw new Error(`Failed to generate code: ${response.status}`);
       }
       
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullContent = '';
+      let chunkCount = 0;
+      
+      console.log('[Generation] Starting stream read...');
       
       while (reader) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log('[Generation] Stream complete. Total chunks:', chunkCount);
+          break;
+        }
         
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+        chunkCount++;
+        const chunk = decoder.decode(value, { stream: true });
         
-        for (const line of lines) {
-          if (line.startsWith('0:')) {
-            // Text delta
-            try {
-              const text = JSON.parse(line.slice(2));
-              fullContent += text;
-              setStreamedContent(fullContent);
-            } catch {
-              // Skip parse errors
-            }
-          } else if (line.startsWith('e:')) {
-            // Finish reason
-            console.log('[generation] Stream finished');
-          }
+        // The text stream just returns raw text, not formatted data
+        fullContent += chunk;
+        setStreamedContent(fullContent);
+        
+        // Log every 10th chunk to avoid spam
+        if (chunkCount % 10 === 0) {
+          console.log(`[Generation] Chunk ${chunkCount}, content length: ${fullContent.length}`);
         }
       }
       
+      console.log('[Generation] Stream finished. Total content length:', fullContent.length);
+      
       // Parse and apply the generated code
-      if (fullContent) {
+      if (fullContent && fullContent.length > 0) {
+        console.log('[Generation] Applying generated code...');
+        addMessage(`Code generated! (${fullContent.length} characters)`, 'system');
         await applyGeneratedCode(fullContent);
+      } else {
+        console.warn('[Generation] No content received from stream');
+        addMessage('No code was generated. Please try again.', 'error');
       }
       
     } catch (error) {
-      console.error('[generation] Error:', error);
+      console.error('[Generation] Error:', error);
       addMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
     } finally {
       setGenerating(false);
+      console.log('[Generation] Generation complete');
     }
   };
   
   // Apply generated code to sandbox
   const applyGeneratedCode = async (code: string) => {
+    console.log('[Apply] Starting code application, code length:', code.length);
+    
     if (!sandboxData) {
+      console.warn('[Apply] No sandbox available');
       addMessage('No sandbox available. Creating one...', 'system');
       await createSandbox();
       return;
     }
     
     addMessage('Applying code to sandbox...', 'system');
+    console.log('[Apply] Sending to sandbox:', sandboxData.sandboxId);
     
     try {
       const response = await fetch('/api/apply-ai-code-stream', {
@@ -305,47 +335,80 @@ Create a complete, production-ready React application that replicates this websi
         })
       });
       
+      console.log('[Apply] API response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[Apply] API error:', errorText);
+        addMessage(`Failed to apply code: ${errorText}`, 'error');
+        return;
+      }
+      
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       const appliedFiles: string[] = [];
+      let chunkCount = 0;
+      
+      console.log('[Apply] Reading stream...');
       
       while (reader) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log('[Apply] Stream complete. Chunks:', chunkCount);
+          break;
+        }
         
-        const chunk = decoder.decode(value);
+        chunkCount++;
+        const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\n');
         
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
+              console.log('[Apply] Event:', data.type);
               
               if (data.type === 'file-complete' && data.success) {
                 appliedFiles.push(data.path);
+                console.log('[Apply] File applied:', data.path);
               } else if (data.type === 'complete') {
-                addMessage(`Successfully applied ${data.filesGenerated?.length || appliedFiles.length} files!`, 'system');
+                const fileCount = data.filesGenerated?.length || appliedFiles.length;
+                console.log('[Apply] Complete! Files:', fileCount);
+                addMessage(`Successfully applied ${fileCount} files!`, 'system');
                 
                 // Refresh iframe
                 setTimeout(() => {
                   if (iframeRef.current && sandboxData.url) {
+                    console.log('[Apply] Refreshing iframe');
                     iframeRef.current.src = `${sandboxData.url}?t=${Date.now()}`;
                   }
                 }, 2000);
               } else if (data.type === 'error') {
+                console.error('[Apply] Error event:', data.message);
                 addMessage(`Error: ${data.message}`, 'error');
               }
-            } catch {
-              // Skip parse errors
+            } catch (parseError) {
+              // Skip parse errors but log them
+              if (line.trim()) {
+                console.log('[Apply] Parse skip:', line.substring(0, 50));
+              }
             }
           }
         }
       }
       
+      // If no streaming events, still show success message for applied content
+      if (appliedFiles.length === 0 && chunkCount > 0) {
+        console.log('[Apply] No file events but stream completed');
+        addMessage('Code processed! Check the preview.', 'system');
+      }
+      
       // Fetch updated files
+      console.log('[Apply] Fetching sandbox files...');
       await fetchSandboxFiles();
       
     } catch (error) {
+      console.error('[Apply] Error:', error);
       addMessage(`Failed to apply code: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
     }
   };
@@ -657,13 +720,51 @@ Create a complete, production-ready React application that replicates this websi
             {activeTab === 'preview' ? (
               <div className="absolute inset-0 bg-slate-950">
                 {sandboxData?.url ? (
-                  <iframe
-                    ref={iframeRef}
-                    src={sandboxData.url}
-                    className="w-full h-full border-0"
-                    title="Sandbox Preview"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
-                  />
+                  <>
+                    <iframe
+                      ref={iframeRef}
+                      src={sandboxData.url}
+                      className={`w-full h-full border-0 ${previewError ? 'hidden' : ''}`}
+                      title="Sandbox Preview"
+                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                      onLoad={() => {
+                        console.log('[Preview] Iframe loaded');
+                        setPreviewError(false);
+                        setPreviewRetries(0);
+                      }}
+                      onError={() => {
+                        console.log('[Preview] Iframe error');
+                        setPreviewError(true);
+                        // Auto-retry up to 3 times
+                        if (previewRetries < 3) {
+                          setTimeout(() => {
+                            setPreviewRetries(r => r + 1);
+                            refreshSandbox();
+                          }, 3000);
+                        }
+                      }}
+                    />
+                    {previewError && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-950">
+                        <div className="text-center">
+                          <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+                          <p className="text-slate-400 mb-2">Sandbox is starting up...</p>
+                          <p className="text-slate-500 text-sm mb-4">Retry {previewRetries}/3</p>
+                          <button
+                            onClick={() => {
+                              setPreviewRetries(0);
+                              setPreviewError(false);
+                              refreshSandbox();
+                            }}
+                            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors flex items-center gap-2 mx-auto"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                            Retry
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">

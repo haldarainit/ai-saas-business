@@ -20,6 +20,27 @@ const nextConfig = {
   // Cache and performance configurations
   poweredByHeader: false,
   compress: true,
+  async headers() {
+    return [
+      {
+        source: '/builder/:path*',
+        headers: [
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'credentialless',
+          },
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+          {
+            key: 'Cross-Origin-Resource-Policy',
+            value: 'cross-origin',
+          },
+        ],
+      },
+    ];
+  },
 }
 
 export default nextConfig

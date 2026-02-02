@@ -48,6 +48,33 @@ export async function POST() {
     console.log('[create-ai-sandbox-v2] Setting up Vite React app...');
     await provider.setupViteApp();
     
+    // Wait for Vite server to start
+    console.log('[create-ai-sandbox-v2] Waiting for Vite server...');
+    let isReady = false;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (!isReady && attempts < maxAttempts) {
+      attempts++;
+      try {
+        const response = await fetch(sandboxInfo.url, { 
+          method: 'HEAD',
+          signal: AbortSignal.timeout(5000)
+        });
+        if (response.ok || response.status === 200) {
+          isReady = true;
+          console.log('[create-ai-sandbox-v2] Vite server ready after', attempts, 'attempts');
+        }
+      } catch (e) {
+        console.log('[create-ai-sandbox-v2] Waiting for Vite... attempt', attempts);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
+    if (!isReady) {
+      console.warn('[create-ai-sandbox-v2] Vite server may not be ready yet');
+    }
+    
     // Register with sandbox manager
     sandboxManager.registerSandbox(sandboxInfo.sandboxId, provider);
     
