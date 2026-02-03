@@ -185,59 +185,64 @@ function extractQuotationDataComprehensive(quotation: any) {
         data.rawTextContent += `SIGNATURE: ${quotation.signature.name} (${quotation.signature.designation})\n`;
     }
 
-    // Also handle legacy pages structure for backward compatibility
-    if (quotation.pages && Array.isArray(quotation.pages)) {
+    // Also handle legacy pages structure for backward compatibility (ONLY if no tables were found in contentBlocks)
+    if ((!data.allTables || data.allTables.length === 0) && quotation.pages && Array.isArray(quotation.pages)) {
         quotation.pages.forEach((page: any, pageIndex: number) => {
             if (page.sections && Array.isArray(page.sections)) {
                 page.sections.forEach((section: any) => {
-                    // Add all section data
-                    const sectionData: any = {
-                        pageIndex,
-                        type: section.type,
-                        heading: section.heading || '',
-                        content: section.content || '',
-                        items: section.items || []
-                    };
-
-                    // Build raw text for AI analysis
-                    if (section.heading) {
-                        data.rawTextContent += `\n${section.heading}: `;
-                    }
-                    if (section.content) {
-                        data.rawTextContent += section.content + '\n';
-                    }
-                    if (section.items && section.items.length > 0) {
-                        data.rawTextContent += section.items.join(', ') + '\n';
-                    }
-
-                    // Handle tables specially
+                    // ... (existing section metadata logic)
                     if (section.type === 'table' && section.table) {
+                        const tableHeaders = (section.table.columns || []).map((c: any) => c.name || c.id);
                         const tableData: any = {
+                            blockIndex: 999 + pageIndex, // Higher index for legacy
                             name: section.table.name || section.heading || 'Table',
-                            columns: section.table.columns || [],
-                            rows: section.table.rows || [],
-                            rawData: []
+                            headers: tableHeaders,
+                            rawData: [],
+                            isTechnical: tableHeaders.some((h: string) => 
+                                (h || '').toLowerCase().includes('compliance') || 
+                                (h || '').toLowerCase().includes('parameter') || 
+                                (h || '').toLowerCase().includes('requirement') || 
+                                (h || '').toLowerCase().includes('offered') || 
+                                (h || '').toLowerCase().includes('specification') || 
+                                (h || '').toLowerCase().includes('technical')
+                            ),
+                            hasFinance: tableHeaders.some((h: string) => 
+                                (h || '').toLowerCase().includes('rate') || 
+                                (h || '').toLowerCase().includes('price') || 
+                                (h || '').toLowerCase().includes('amount') || 
+                                (h || '').toLowerCase().includes('cost') ||
+                                (h || '').toLowerCase().includes('value') ||
+                                (h || '').toLowerCase().includes('total')
+                            )
                         };
+                        
+                        tableData.isBillable = !tableData.isTechnical || tableData.hasFinance;
 
                         // Convert table to readable format
-                        if (tableData.rows.length > 0) {
-                            tableData.rows.forEach((row: any) => {
+                        if (section.table.rows && section.table.rows.length > 0) {
+                            section.table.rows.forEach((row: any) => {
                                 const rowData: any = {};
-                                tableData.columns.forEach((col: any) => {
+                                section.table.columns.forEach((col: any) => {
                                     if (row.cells && row.cells[col.id]) {
                                         rowData[col.name || col.id] = row.cells[col.id];
                                     }
                                 });
                                 tableData.rawData.push(rowData);
-                                // Add to raw text
-                                data.rawTextContent += JSON.stringify(rowData) + '\n';
                             });
                         }
 
-                        data.allTables.push(tableData);
-                    }
+                        // Deduplicate: check if we already have this exact table from blocks
+                        const isDuplicate = data.allTables.some((existing: any) => 
+                            existing.name === tableData.name && 
+                            existing.rawData.length === tableData.rawData.length
+                        );
 
-                    data.allSections.push(sectionData);
+                        if (!isDuplicate) {
+                            data.allTables.push(tableData);
+                            data.rawTextContent += `LEGACY TABLE (${tableData.name}):\n${JSON.stringify(tableData.rawData, null, 2)}\n`;
+                        }
+                    }
+                    data.allSections.push({ pageIndex, type: section.type, heading: section.heading });
                 });
             }
         });
