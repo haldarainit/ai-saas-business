@@ -20,6 +20,17 @@ export interface FolderContent {
 export type FileSystemItem = FileContent | FolderContent;
 export type FileMap = Record<string, FileSystemItem | undefined>;
 
+export interface FileHistory {
+  originalContent: string;
+  versions: Array<{
+    content: string;
+    timestamp: number;
+    description?: string;
+  }>;
+}
+
+export type FileHistoryMap = Record<string, FileHistory | undefined>;
+
 export interface PreviewInfo {
   port: number;
   url: string;
@@ -53,6 +64,7 @@ interface WorkbenchState {
   openFiles: string[];
   unsavedFiles: Set<string>;
   expandedFolders: Set<string>;
+  fileHistory: FileHistoryMap;
   
   // Views
   showWorkbench: boolean;
@@ -73,6 +85,7 @@ interface WorkbenchState {
   // Message Parser
   messageParser: StreamingMessageParser | null;
   currentArtifact: ArtifactState | null;
+  generatedFile: string | null;
   
   // Actions
   initWebContainer: () => Promise<WebContainer | null>;
@@ -129,6 +142,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   openFiles: [],
   unsavedFiles: new Set(),
   expandedFolders: new Set(),
+  fileHistory: {},
   
   showWorkbench: false,
   currentView: 'code',
@@ -144,6 +158,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   
   messageParser: null,
   currentArtifact: null,
+  generatedFile: null,
   
   // Initialize WebContainer
   initWebContainer: async () => {
@@ -196,12 +211,39 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
               ? data.action.filePath 
               : `${WORK_DIR}/${data.action.filePath}`;
             
+            // Auto-expand parent folders
+            const foldersToExpand = new Set(get().expandedFolders);
+            let pathBuilder = '';
+            const segments = filePath.split('/');
+            
+            // We want all parents. 
+            for (let i = 0; i < segments.length - 1; i++) {
+               const segment = segments[i];
+               if (segment === '' && i === 0) {
+                 pathBuilder = '/'; // Root
+                 continue;
+               }
+               
+               // Construct path for this level
+               if (pathBuilder === '' || pathBuilder === '/') {
+                 pathBuilder += segment;
+               } else {
+                 pathBuilder += '/' + segment;
+               }
+               
+               if (!foldersToExpand.has(pathBuilder)) {
+                 foldersToExpand.add(pathBuilder);
+               }
+            }
+
             set((state) => ({
               files: {
                 ...state.files,
                 [filePath]: { type: 'file', content: data.action.content },
               },
               selectedFile: filePath,
+              generatedFile: filePath,
+              expandedFolders: foldersToExpand
             }));
             
             // Open the file in editor
@@ -227,6 +269,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
                 ...state.files,
                 [filePath]: { type: 'file', content: data.action.content },
               },
+              generatedFile: null,
             }));
           }
         },
@@ -273,6 +316,15 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
           ? { type: 'file', content } 
           : { type: 'folder' },
       },
+      fileHistory: type === 'file' 
+        ? {
+            ...state.fileHistory,
+            [path]: {
+              originalContent: content,
+              versions: [{ content, timestamp: Date.now(), description: 'Initial version' }]
+            }
+          }
+        : state.fileHistory,
     }));
   },
   
@@ -281,12 +333,25 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       const newUnsavedFiles = new Set(state.unsavedFiles);
       newUnsavedFiles.add(path);
       
+      const history = state.fileHistory[path];
+      const newHistory = history ? {
+        ...history,
+        versions: [...history.versions, { content, timestamp: Date.now() }]
+      } : {
+        originalContent: content,
+        versions: [{ content, timestamp: Date.now() }]
+      };
+
       return {
         files: {
           ...state.files,
           [path]: { type: 'file', content },
         },
         unsavedFiles: newUnsavedFiles,
+        fileHistory: {
+          ...state.fileHistory,
+          [path]: newHistory
+        }
       };
     });
   },
@@ -525,6 +590,8 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       artifacts: {},
       terminalOutput: [],
       currentArtifact: null,
+      fileHistory: {},
+      generatedFile: null,
     });
   },
 }));

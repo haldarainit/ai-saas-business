@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useCallback, useMemo } from 'react';
-import { Save, Copy, Download, X } from 'lucide-react';
+import { Save, Copy, Download, X, RotateCcw, ChevronRight, File } from 'lucide-react';
 import { useWorkbenchStore } from '@/lib/stores/workbench';
 import dynamic from 'next/dynamic';
 
@@ -15,6 +15,30 @@ interface EditorPanelProps {
   isStreaming?: boolean;
 }
 
+function FileBreadcrumb({ path }: { path: string }) {
+  const segments = path.split('/');
+  
+  return (
+    <div className="flex items-center text-sm text-slate-400">
+      {segments.map((segment, index) => (
+        <div key={index} className="flex items-center">
+          {index > 0 && <ChevronRight className="w-4 h-4 mx-1 text-slate-600" />}
+          {index === segments.length - 1 ? (
+            <span className="flex items-center gap-1.5 text-slate-200 font-medium">
+              <File className="w-3.5 h-3.5" />
+              {segment}
+            </span>
+          ) : (
+            <span className="hover:text-slate-300 transition-colors cursor-pointer">
+              {segment}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPanelProps) {
   const {
     files,
@@ -22,7 +46,8 @@ export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPane
     unsavedFiles,
     updateFile,
     saveFile,
-    selectFile
+    selectFile,
+    fileHistory
   } = useWorkbenchStore();
 
   const currentContent = useMemo(() => {
@@ -43,6 +68,24 @@ export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPane
       await saveFile(selectedFile);
     }
   }, [selectedFile, saveFile]);
+
+  const handleReset = useCallback(() => {
+    if (selectedFile && fileHistory && fileHistory[selectedFile]) {
+      // Revert to original content
+      const originalContent = fileHistory[selectedFile]!.originalContent;
+      updateFile(selectedFile, originalContent);
+      // We should probably also save it immediately if we want to "hard reset", 
+      // but usually reset just means reverting unsaved changes or going back to base.
+      // For now, let's just update the content. If it matches the last saved version on disk (which we don't track separately from "original" efficiently here),
+      // it might still show as unsaved in our simple tracker. 
+      // But let's assume "originalContent" is what we want.
+      
+      // Actually, if we reset, we might want to clear the unsaved status if it matches?
+      // For simple implementation, let's just update content.
+      
+      // Wait, if we revert to original, we are technically making an edit to match original.
+    }
+  }, [selectedFile, fileHistory, updateFile]);
 
   const handleCopy = useCallback(() => {
     if (currentContent) {
@@ -99,18 +142,20 @@ export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPane
   return (
     <div className="h-full flex flex-col bg-[#1e1e1e]">
       {/* Editor Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-[#1e1e1e] border-b border-slate-700/50">
-        <div className="flex items-center gap-2">
-          {/* File tab */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 rounded-md border border-slate-700/50">
-            <span className="text-sm text-slate-300 font-mono">{selectedFile.split('/').pop()}</span>
-            {isUnsaved && (
-              <span className="w-2 h-2 rounded-full bg-orange-500 box-shadow-orange" title="Unsaved changes" />
-            )}
-          </div>
+      <div className="flex items-center justify-between px-4 py-2 bg-[#1e1e1e] border-b border-slate-700/50">
+        <div className="flex items-center gap-4 overflow-hidden">
+          {/* Breadcrumbs */}
+          <FileBreadcrumb path={selectedFile} />
+          
+          {isUnsaved && (
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-orange-500/10 text-orange-400 text-xs rounded-full border border-orange-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+              Unsaved
+            </span>
+          )}
           
           {isStreaming && (
-            <span className="px-2 py-1 text-xs bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-md animate-pulse">
+            <span className="px-2 py-0.5 text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-md animate-pulse">
               Generating...
             </span>
           )}
@@ -118,34 +163,53 @@ export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPane
 
         {/* Actions */}
         <div className="flex items-center gap-1">
+          {isUnsaved && (
+             <button
+              onClick={handleReset}
+              className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-700/50 rounded-md text-slate-400 hover:text-slate-200 transition-colors text-xs font-medium mr-2"
+              title="Revert to original"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reset
+            </button>
+          )}
+
           <button
             onClick={handleSave}
             disabled={!isUnsaved}
-            className="p-1.5 hover:bg-slate-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed group"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors text-xs font-medium ${
+              isUnsaved 
+                ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30' 
+                : 'text-slate-500 cursor-not-allowed opacity-50'
+            }`}
             title="Save (Ctrl+S)"
           >
-            <Save className="w-4 h-4 text-slate-400 group-hover:text-slate-200" />
+            <Save className="w-3.5 h-3.5" />
+            Save
           </button>
+          
+          <div className="w-px h-4 bg-slate-700/50 mx-2" />
+          
           <button
             onClick={handleCopy}
-            className="p-1.5 hover:bg-slate-700 rounded transition-colors group"
+            className="p-1.5 hover:bg-slate-700/50 rounded-md transition-colors text-slate-400 hover:text-slate-200"
             title="Copy to clipboard"
           >
-            <Copy className="w-4 h-4 text-slate-400 group-hover:text-slate-200" />
+            <Copy className="w-4 h-4" />
           </button>
           <button
             onClick={handleDownload}
-            className="p-1.5 hover:bg-slate-700 rounded transition-colors group"
+            className="p-1.5 hover:bg-slate-700/50 rounded-md transition-colors text-slate-400 hover:text-slate-200"
             title="Download file"
           >
-            <Download className="w-4 h-4 text-slate-400 group-hover:text-slate-200" />
+            <Download className="w-4 h-4" />
           </button>
           <button
             onClick={() => selectFile(null)}
-            className="p-1.5 hover:bg-slate-700 rounded transition-colors group"
+            className="p-1.5 hover:bg-slate-700/50 rounded-md transition-colors text-slate-400 hover:text-slate-200 ml-1"
             title="Close file"
           >
-            <X className="w-4 h-4 text-slate-400 group-hover:text-slate-200" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>

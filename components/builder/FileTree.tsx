@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Plus,
   Trash2,
+  Loader2,
 } from 'lucide-react';
 import { useWorkbenchStore } from '@/lib/stores/workbench';
 
@@ -71,12 +72,14 @@ function FileTreeNode({ name, path, type, depth, children }: FileTreeNodeProps) 
     expandedFolders, 
     toggleFolder,
     unsavedFiles,
-    deleteFile
+    deleteFile,
+    generatedFile
   } = useWorkbenchStore();
   
   const isExpanded = expandedFolders.has(path);
   const isSelected = selectedFile === path;
   const isUnsaved = unsavedFiles.has(path);
+  const isGenerating = generatedFile === path;
   const [showMenu, setShowMenu] = useState(false);
 
   const handleClick = (e: React.MouseEvent) => {
@@ -134,10 +137,16 @@ function FileTreeNode({ name, path, type, depth, children }: FileTreeNodeProps) 
         {/* Name */}
         <span className="truncate text-sm flex-1">{name}</span>
         
-        {/* Unsaved indicator */}
-        {isUnsaved && (
-          <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
-        )}
+        {/* Status indicators */}
+        <div className="flex items-center gap-2 shrink-0">
+          {isGenerating && (
+            <Loader2 className="w-3.5 h-3.5 text-orange-400 animate-spin" />
+          )}
+          
+          {isUnsaved && (
+            <span className="w-2 h-2 rounded-full bg-orange-500" />
+          )}
+        </div>
         
         {/* Action buttons on hover */}
         <div className="hidden group-hover:flex items-center gap-1 shrink-0">
