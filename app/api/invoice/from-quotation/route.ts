@@ -9,12 +9,12 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const API_KEY = process.env.GOOGLE_API_KEY;
 const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
 
-// Available models in order of preference
+// Available models in order of preference - gemini-2.5-flash is most accurate for data extraction
 const AVAILABLE_MODELS = [
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-exp",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
+    "gemini-2.5-flash",
+    // "gemini-2.0-flash",
+    // "gemini-1.5-flash",
+    // "gemini-1.5-pro",
 ];
 
 async function getWorkingModel() {
@@ -215,110 +215,346 @@ function extractQuotationDataComprehensive(quotation: any) {
     return data;
 }
 
-// Smart AI transformation - extracts EVERYTHING
+// Manual table extraction - DIRECTLY maps table data without AI (most reliable)
+function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
+    const today = new Date();
+    const dueDate = new Date(today);
+    dueDate.setDate(dueDate.getDate() + 30);
+
+    const result: any = {
+        companyDetails: {
+            name: quotationData.companyDetails?.name || '',
+            address: quotationData.companyDetails?.address || '',
+            city: '',
+            state: '',
+            pincode: '',
+            email: quotationData.companyDetails?.email || '',
+            phone: quotationData.companyDetails?.phone || '',
+            gstin: quotationData.companyDetails?.gstin || '',
+            stateCode: ''
+        },
+        clientDetails: {
+            name: quotationData.clientDetails?.name || '',
+            address: quotationData.clientDetails?.address || '',
+            city: '',
+            state: '',
+            pincode: '',
+            email: '',
+            phone: quotationData.clientDetails?.contact || '',
+            gstin: '',
+            paymentMode: 'Online'
+        },
+        items: [],
+        terms: {
+            notes: `Reference Quotation: ${quotationData.refNo || quotationData.title}`,
+            termsConditions: '1. Goods once sold will not be taken back.\n2. Interest @ 18% p.a. will be charged if the payment is not made within the stipulated time.\n3. Subject to jurisdiction.',
+            authorizedSignatory: quotationData.signature?.name || ''
+        },
+        orderDetails: {
+            referenceNo: quotationData.refNo || ''
+        },
+        bankDetails: {},
+        financials: {
+            shippingCharges: 0,
+            otherCharges: 0
+        },
+        invoiceDate: today.toISOString().split('T')[0],
+        dueDate: dueDate.toISOString().split('T')[0]
+    };
+
+    // DIRECT TABLE EXTRACTION - Process each table with header-aware mapping
+    if (quotationData.allTables && Array.isArray(quotationData.allTables)) {
+        quotationData.allTables.forEach((table: any, tableIndex: number) => {
+            const headers = (table.headers || []).map((h: string) => (h || '').toLowerCase().trim());
+            
+            // Identify column indices for description, quantity, and rate/price/amount
+            let descIdx = -1, qtyIdx = -1, rateIdx = -1, amountIdx = -1, hsnIdx = -1, taxIdx = -1;
+            
+            headers.forEach((h: string, idx: number) => {
+                if (h.includes('desc') || h.includes('partic') || h.includes('item') || h.includes('product') || 
+                    h.includes('service') || h.includes('name') || h.includes('detail') || h.includes('list') ||
+                    h.includes('device') || h.includes('task') || h.includes('work')) {
+                    if (descIdx === -1) descIdx = idx;
+                }
+                if (h.includes('qty') || h.includes('quant') || h.includes('nos') || h.includes('no.') || h.includes('unit') && !h.includes('price')) {
+                    if (qtyIdx === -1) qtyIdx = idx;
+                }
+                if (h.includes('rate') || h.includes('price') || h.includes('unit price') || h.includes('unit cost')) {
+                    if (rateIdx === -1) rateIdx = idx;
+                }
+                if (h.includes('amount') || h.includes('total') || h.includes('value')) {
+                    if (amountIdx === -1) amountIdx = idx;
+                }
+                if (h.includes('hsn') || h.includes('sac')) {
+                    if (hsnIdx === -1) hsnIdx = idx;
+                }
+                if (h.includes('gst') || h.includes('tax')) {
+                    if (taxIdx === -1) taxIdx = idx;
+                }
+            });
+
+            // Process each row from rawData
+            if (table.rawData && Array.isArray(table.rawData)) {
+                table.rawData.forEach((row: any, rowIdx: number) => {
+                    const rowValues = Object.values(row);
+                    const rowKeys = Object.keys(row);
+                    
+                    let description = '';
+                    let quantity = 1;
+                    let rate = 0;
+                    let hsnsac = '';
+                    let taxRate = 18;
+
+                    // First pass: Use identified column indices
+                    if (descIdx !== -1 && rowValues[descIdx]) {
+                        description = String(rowValues[descIdx]).trim();
+                    }
+                    if (qtyIdx !== -1 && rowValues[qtyIdx]) {
+                        const qtyStr = String(rowValues[qtyIdx]).replace(/[^0-9.]/g, '');
+                        if (qtyStr) quantity = parseFloat(qtyStr) || 1;
+                    }
+                    if (rateIdx !== -1 && rowValues[rateIdx]) {
+                        const rateStr = String(rowValues[rateIdx]).replace(/[^0-9.]/g, '');
+                        if (rateStr) rate = parseFloat(rateStr) || 0;
+                    }
+                    if (rate === 0 && amountIdx !== -1 && rowValues[amountIdx]) {
+                        const amtStr = String(rowValues[amountIdx]).replace(/[^0-9.]/g, '');
+                        if (amtStr) {
+                            const amount = parseFloat(amtStr) || 0;
+                            rate = quantity > 0 ? amount / quantity : amount;
+                        }
+                    }
+                    if (hsnIdx !== -1 && rowValues[hsnIdx]) {
+                        hsnsac = String(rowValues[hsnIdx]).trim();
+                    }
+                    if (taxIdx !== -1 && rowValues[taxIdx]) {
+                        const taxStr = String(rowValues[taxIdx]).replace(/[^0-9.]/g, '');
+                        if (taxStr) taxRate = parseFloat(taxStr) || 18;
+                    }
+
+                    // Second pass: If we still don't have rate or description, scan by key pattern
+                    rowKeys.forEach((key, keyIdx) => {
+                        const k = key.toLowerCase();
+                        const val = row[key];
+                        
+                        if (!description && (k.includes('desc') || k.includes('item') || k.includes('partic') || 
+                            k.includes('product') || k.includes('service') || k.includes('name') || k.includes('detail') ||
+                            k.includes('device') || k.includes('task') || k.includes('list'))) {
+                            description = String(val).trim();
+                        }
+                        if (quantity === 1 && (k.includes('qty') || k.includes('quant') || k.includes('nos'))) {
+                            const q = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+                            if (!isNaN(q) && q > 0) quantity = q;
+                        }
+                        if (rate === 0 && (k.includes('rate') || k.includes('price') || k.includes('unit'))) {
+                            const r = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+                            if (!isNaN(r) && r > 0) rate = r;
+                        }
+                        if (rate === 0 && (k.includes('amount') || k.includes('total') || k.includes('value'))) {
+                            const a = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+                            if (!isNaN(a) && a > 0) rate = quantity > 0 ? a / quantity : a;
+                        }
+                    });
+
+                    // Third pass: If we STILL have no rate, find any numeric value that's not the quantity
+                    if (rate === 0) {
+                        const numericValues: number[] = [];
+                        rowValues.forEach((val) => {
+                            const numStr = String(val).replace(/[^0-9.]/g, '');
+                            if (numStr) {
+                                const num = parseFloat(numStr);
+                                if (!isNaN(num) && num > 0) {
+                                    numericValues.push(num);
+                                }
+                            }
+                        });
+                        // Find a number that's not the quantity
+                        for (const num of numericValues) {
+                            if (num !== quantity) {
+                                rate = num;
+                                break;
+                            }
+                        }
+                        // If all numbers are same as quantity, still use it as rate
+                        if (rate === 0 && numericValues.length > 0) {
+                            rate = numericValues[numericValues.length - 1]; // Take the last one (often the amount/rate)
+                        }
+                    }
+
+                    // Fourth pass: If no description, use any string value that isn't a pure number
+                    if (!description) {
+                        for (const val of rowValues) {
+                            const strVal = String(val).trim();
+                            if (strVal && isNaN(parseFloat(strVal.replace(/[^0-9.]/g, ''))) && strVal.length > 1) {
+                                // Not just a number, use it as description
+                                description = strVal;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Fallback description: use table name or row index
+                    if (!description && rate > 0) {
+                        description = table.name || `Item ${rowIdx + 1}`;
+                    }
+
+                    // Add item if we have either description or a valid rate
+                    if (description || rate > 0) {
+                        const taxableValue = quantity * rate;
+                        const cgst = (taxableValue * (taxRate / 2)) / 100;
+                        const sgst = (taxableValue * (taxRate / 2)) / 100;
+
+                        result.items.push({
+                            id: `${tableIndex + 1}-${rowIdx + 1}`,
+                            description: description || `Item ${rowIdx + 1}`,
+                            quantity,
+                            rate,
+                            discount: 0,
+                            taxRate,
+                            cgstPercent: taxRate / 2,
+                            sgstPercent: taxRate / 2,
+                            cgst: Math.round(cgst * 100) / 100,
+                            sgst: Math.round(sgst * 100) / 100,
+                            totalGst: Math.round((cgst + sgst) * 100) / 100,
+                            hsnsac
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    // If still no items, try to create a single item from subject/title
+    if (result.items.length === 0 && (quotationData.subject || quotationData.title)) {
+        result.items.push({
+            id: "1",
+            description: quotationData.subject || quotationData.title || "Services per quotation",
+            quantity: 1,
+            rate: 0,
+            discount: 0,
+            taxRate: 18,
+            cgstPercent: 9,
+            sgstPercent: 9,
+            cgst: 0,
+            sgst: 0,
+            totalGst: 0
+        });
+    }
+
+    return result;
+}
+
+// Smart AI transformation - uses Gemini 2.5 Flash with ultra-precise prompting
 async function smartAITransformation(quotationData: any, invoiceNumber: string): Promise<any> {
     if (!genAI) {
-        return enhancedBasicTransformation(quotationData, invoiceNumber);
+        return manualTableExtraction(quotationData, invoiceNumber);
     }
 
     try {
         const modelName = await getWorkingModel();
         if (!modelName) {
-            return enhancedBasicTransformation(quotationData, invoiceNumber);
+            return manualTableExtraction(quotationData, invoiceNumber);
         }
 
         const today = new Date().toISOString().split('T')[0];
-        const prompt = `You are an ELITE Financial Data Analyst and Invoice Architect. Your task is to transform technical quotation data into a professional, precise Tax Invoice.
+        
+        // Build an explicit ROW-BY-ROW mapping of all table data for the prompt
+        let explicitTableRows = '';
+        if (quotationData.allTables && quotationData.allTables.length > 0) {
+            quotationData.allTables.forEach((table: any, tIdx: number) => {
+                explicitTableRows += `\n--- TABLE ${tIdx + 1}: "${table.name || 'Items'}" ---\n`;
+                explicitTableRows += `Headers: ${JSON.stringify(table.headers || [])}\n`;
+                if (table.rawData && table.rawData.length > 0) {
+                    table.rawData.forEach((row: any, rIdx: number) => {
+                        explicitTableRows += `Row ${rIdx + 1}: ${JSON.stringify(row)}\n`;
+                    });
+                }
+            });
+        }
 
-=== TARGET INVOICE STRUCTURE (JSON) ===
+        const prompt = `You are a PRECISION DATA EXTRACTOR. Your ONLY task is to accurately extract invoice line items from a quotation.
+
+=== ABSOLUTE RULES (FOLLOW EXACTLY) ===
+1. EXTRACT EVERY ROW: For each row in the tables below, create ONE item in your response. Do NOT skip any rows.
+2. PRESERVE NUMBERS EXACTLY: Copy quantity and rate/price numbers EXACTLY as they appear. NO rounding, NO modification.
+3. FIND THE RATE: 
+   - Look for columns named: "Rate", "Price", "Unit Price", "Amount", "Value", "Cost"
+   - If "Amount" or "Total" is given and quantity > 1, calculate: rate = amount / quantity
+   - If a row has a single number, that IS the rate
+4. FIND THE QUANTITY:
+   - Look for columns: "Qty", "Quantity", "Nos", "No.", "Units"
+   - Default to 1 if not found
+5. FIND THE DESCRIPTION:
+   - Look for columns: "Description", "Particulars", "Item", "Product", "Service", "Name", "Details", "Device", "Task"
+   - Include the FULL text, not abbreviated
+6. "EXTRA" OR "MISC" ROWS: These are REAL line items with prices. Extract them with their amounts.
+
+=== SOURCE TABLE DATA (EXTRACT FROM THIS) ===
+${explicitTableRows}
+
+=== QUOTATION METADATA ===
+Company: ${JSON.stringify(quotationData.companyDetails || {})}
+Client: ${JSON.stringify(quotationData.clientDetails || {})}
+Reference: ${quotationData.refNo || ''}
+Date: ${quotationData.date || today}
+Subject: ${quotationData.subject || ''}
+
+=== YOUR OUTPUT FORMAT (JSON ONLY) ===
 {
     "companyDetails": {
-        "name": "Exact seller name",
-        "address": "Full street address",
-        "city": "City",
-        "state": "State",
-        "pincode": "ZIP/Pincode",
-        "email": "Official email",
-        "phone": "Contact number",
-        "gstin": "GSTIN (verify format)",
-        "stateCode": "2-digit state code"
+        "name": "exact company name",
+        "address": "full address",
+        "city": "", "state": "", "pincode": "",
+        "email": "email", "phone": "phone",
+        "gstin": "gstin if found", "stateCode": ""
     },
     "clientDetails": {
-        "name": "Full legal name of buyer",
-        "address": "Billing address",
-        "city": "Client city",
-        "state": "Client state",
-        "pincode": "Client pincode",
-        "email": "Client email if found",
-        "phone": "Client contact",
-        "gstin": "Client GSTIN if available",
-        "paymentMode": "Inferred or mentioned payment mode"
+        "name": "client name",
+        "address": "address",
+        "city": "", "state": "", "pincode": "",
+        "email": "", "phone": "", "gstin": "", "paymentMode": ""
     },
     "items": [
         {
             "id": "1",
-            "description": "Professional description from quotation",
-            "hsnsac": "Extract HSN/SAC code if present",
-            "quantity": 1,
-            "rate": 0,
-            "discount": 0,
+            "description": "EXACT description from table",
+            "quantity": EXACT_NUMBER,
+            "rate": EXACT_NUMBER,
+            "hsnsac": "",
             "taxRate": 18,
-            "cgstPercent": 9,
-            "sgstPercent": 9,
-            "cgst": 0,
-            "sgst": 0,
-            "totalGst": 0
+            "discount": 0
         }
     ],
-    "orderDetails": {
-        "placeOfSupply": "State of supply (important for GST)",
-        "reverseCharge": "Yes/No",
-        "deliveryNote": "Any delivery mention",
-        "referenceNo": "Use Quotation Ref No",
-        "termsOfDelivery": "Extract from sections"
-    },
-    "bankDetails": {
-        "bankName": "Bank name",
-        "accountNumber": "Account No",
-        "ifscCode": "IFSC",
-        "branch": "Branch",
-        "upiId": "UPI"
-    },
     "terms": {
-        "notes": "Project summary/notes",
-        "termsConditions": "Extract ALL terms found in quotation",
-        "authorizedSignatory": "Signatory name",
-        "declarationText": "Standard declaration"
+        "notes": "",
+        "termsConditions": "",
+        "authorizedSignatory": ""
     },
-    "financials": {
-        "shippingCharges": 0,
-        "otherCharges": 0
+    "orderDetails": {
+        "referenceNo": "${quotationData.refNo || ''}",
+        "placeOfSupply": ""
     },
+    "bankDetails": {},
+    "financials": { "shippingCharges": 0, "otherCharges": 0 },
     "invoiceDate": "${today}",
-    "dueDate": "30 days from now",
-    "poNumber": "PO number if found"
+    "dueDate": ""
 }
 
-=== QUOTATION SOURCE DATA ===
-${JSON.stringify(quotationData, null, 2)}
+=== VERIFICATION CHECKLIST ===
+Before responding, verify:
+☐ Number of items in my response = Number of rows in source tables
+☐ Each rate is a real number (not 0 unless truly zero in source)
+☐ Each quantity matches source exactly
+☐ "Extra" or "Misc" rows are included with their prices
 
-=== CRITICAL EXTRACTION RULES ===
-1. PRESERVE VALUES: Do NOT round off or modify rates and quantities found in tables. Use the EXACT numbers from the quotation.
-2. TABLE MAPPING: Identify headers accurately. 'Particulars', 'Items', 'List', 'Name', 'Service', 'Task', 'Product', 'Device' or 'Devices' -> description. 'Qty' or 'Nos' -> quantity. 'Unit Price', 'Price', 'Rate' or 'Amount' -> rate.
-3. SMART DESCRIPTION: If a table name (heading) appears to be an item name and the table rows are sub-items or just quantities, use the table name as the primary description. If a column is generic like 'List' or 'Details', treat it as a description for the item.
-4. TABLE COMPLETENESS: You MUST extract EVERY single row from every table. Look for rows at the very bottom like 'Extra', 'Misc', or 'Other Charges'. These are NOT summary rows; they are LINE ITEMS and must have their prices included.
-5. PRICE PRIORITY: If a row has a number (e.g., 8530) and a text (e.g., 'extra'), you MUST map the number to 'rate' and the text to 'description'. Never return a 0 price if a number is present in that row.
-6. IGNORE PLACEHOLDERS: If you see 'New paragraph text...' or generic placeholders in the source, ignore them and look for the actual item names.
-7. ROW VERIFICATION: Before finishing, double-check that the VERY LAST row of EACH table (especially rows named 'extra') has been captured with its full price. If you see SI No. 10 in the source table, you MUST have 10 items in your JSON.
-8. PRESERVE PRECISION: Do not modify or round any numbers.
-9. CLIENT DATA: Parse legal billing details.
-10. TAX CALCULATION: Default to 18% (9% split) if not specified.
-
-Return ONLY valid JSON. Verified items matches source count exactly.`;
+Return ONLY the JSON object, nothing else.`;
 
         const model = genAI.getGenerativeModel({ 
             model: modelName,
-            generationConfig: { responseMimeType: "application/json" }
+            generationConfig: { 
+                responseMimeType: "application/json",
+                temperature: 0.1 // Very low temperature for precision
+            }
         });
 
         const result = await model.generateContent(prompt);
@@ -327,55 +563,63 @@ Return ONLY valid JSON. Verified items matches source count exactly.`;
         try {
             const parsed = JSON.parse(text);
 
-            // POST-PROCESSING: Ensure mathematical consistency and exact data preservation
+            // POST-PROCESSING: Validate and fix items using source data
             if (parsed.items && Array.isArray(parsed.items)) {
                 parsed.items = parsed.items.map((item: any, index: number) => {
-                    const qty = parseFloat(item.quantity || item.qty || item.quantity) || 1;
+                    let qty = parseFloat(item.quantity || item.qty) || 1;
                     let rate = parseFloat(item.rate || item.price || item.unitPrice || item.amount || item.unit_price) || 0;
                     const discount = item.discount !== undefined ? parseFloat(item.discount) : 0;
                     
-                    // SAFETY DISCOVERY: If rate is 0, try to find it in raw table data for the same SI No/Index
+                    // RECOVERY: If AI returned 0 rate, try to find it from source table data
                     if (rate === 0 && quotationData.allTables && quotationData.allTables.length > 0) {
+                        // Try to match by index first
+                        let tableRowIndex = 0;
                         for (const table of quotationData.allTables) {
-                            // Try Index-based match first
-                            const rawRow = table.rawData[index];
-                            if (rawRow) {
-                                Object.values(rawRow).forEach(val => {
-                                    const num = parseFloat(String(val).replace(/[^\d.]/g, ''));
-                                    if (!isNaN(num) && num > 0 && num !== qty && rate === 0) {
-                                        rate = num;
-                                    }
-                                });
-                            }
-                            
-                            // If still 0, try exhaustive search in the entire table for any valid rate
-                            if (rate === 0) {
-                                table.rawData.forEach((r: any) => {
-                                    Object.values(r).forEach(v => {
-                                        const n = parseFloat(String(v).replace(/[^\d.]/g, ''));
-                                        if (!isNaN(n) && n > 0 && n !== qty && rate === 0) {
-                                            // Only take it if this row's strings overlap with item description
-                                            const rowStr = JSON.stringify(r).toLowerCase();
-                                            const itemStr = (item.description || '').toLowerCase();
-                                            if (rowStr.includes(itemStr) || itemStr.includes(rowStr)) {
-                                                rate = n;
-                                            }
+                            if (table.rawData && index < tableRowIndex + table.rawData.length) {
+                                const localIdx = index - tableRowIndex;
+                                const rawRow = table.rawData[localIdx];
+                                if (rawRow) {
+                                    // Find numeric values in this row
+                                    Object.values(rawRow).forEach(val => {
+                                        const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+                                        if (!isNaN(num) && num > 0 && num !== qty && rate === 0) {
+                                            rate = num;
                                         }
                                     });
-                                });
+                                }
+                                break;
+                            }
+                            tableRowIndex += (table.rawData?.length || 0);
+                        }
+                        
+                        // If still 0, try exhaustive search matching description
+                        if (rate === 0) {
+                            const itemDesc = (item.description || '').toLowerCase().trim();
+                            for (const table of quotationData.allTables) {
+                                if (table.rawData) {
+                                    for (const row of table.rawData) {
+                                        const rowStr = JSON.stringify(row).toLowerCase();
+                                        if (itemDesc && rowStr.includes(itemDesc.slice(0, 20))) {
+                                            Object.values(row).forEach(val => {
+                                                const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+                                                if (!isNaN(num) && num > 0 && num !== qty && rate === 0) {
+                                                    rate = num;
+                                                }
+                                            });
+                                            if (rate > 0) break;
+                                        }
+                                    }
+                                }
+                                if (rate > 0) break;
                             }
                         }
                     }
 
-                    // If AI didn't find taxRate, default to 18
-                    let taxRate = parseFloat(item.taxRate);
-                    if (isNaN(taxRate)) taxRate = 18;
-
+                    // Tax calculation
+                    let taxRate = parseFloat(item.taxRate) || 18;
                     const subtotal = qty * rate;
                     const discountAmount = (subtotal * discount) / 100;
                     const taxableValue = subtotal - discountAmount;
-
-                    // Indian GST standard split
                     const cgstPercent = taxRate / 2;
                     const sgstPercent = taxRate / 2;
                     const cgst = (taxableValue * cgstPercent) / 100;
@@ -398,7 +642,30 @@ Return ONLY valid JSON. Verified items matches source count exactly.`;
                 });
             }
 
-            // Defaults for missing critical fields
+            // Verify item count matches source - if not, supplement with manual extraction
+            const sourceRowCount = quotationData.allTables?.reduce((sum: number, t: any) => sum + (t.rawData?.length || 0), 0) || 0;
+            if (parsed.items.length < sourceRowCount) {
+                console.log(`AI returned ${parsed.items.length} items but source has ${sourceRowCount} rows. Supplementing with manual extraction.`);
+                const manualResult = manualTableExtraction(quotationData, invoiceNumber);
+                
+                // Merge: use AI items but add any missing items from manual extraction
+                const aiDescriptions: string[] = parsed.items.map((i: any) => (i.description || '').toLowerCase().trim());
+                manualResult.items.forEach((manualItem: any) => {
+                    const manualDesc = (manualItem.description || '').toLowerCase().trim();
+                    let found = false;
+                    for (const aiDesc of aiDescriptions) {
+                        if (aiDesc.includes(manualDesc) || manualDesc.includes(aiDesc)) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found && (manualItem.rate > 0 || manualItem.description)) {
+                        parsed.items.push(manualItem);
+                    }
+                });
+            }
+
+            // Ensure basic fields
             if (!parsed.invoiceDate) parsed.invoiceDate = today;
             if (!parsed.clientDetails?.name && quotationData.clientDetails?.name) {
                 parsed.clientDetails = { ...parsed.clientDetails, name: quotationData.clientDetails.name };
@@ -406,12 +673,12 @@ Return ONLY valid JSON. Verified items matches source count exactly.`;
 
             return parsed;
         } catch (parseError) {
-            console.error('JSON parse error in AI transformation:', parseError, 'Raw text:', text);
-            // Fallback to extraction from markdown if JSON mode failed for some reason
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            console.error('JSON parse error in AI transformation:', parseError, 'Raw text:', text.slice(0, 500));
+            // Try to extract JSON from markdown code blocks
+            const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) || text.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
                 try {
-                    return JSON.parse(jsonMatch[0]);
+                    return JSON.parse(jsonMatch[1] || jsonMatch[0]);
                 } catch (_) {}
             }
         }
@@ -419,7 +686,8 @@ Return ONLY valid JSON. Verified items matches source count exactly.`;
         console.error('AI transformation failed:', error);
     }
 
-    return enhancedBasicTransformation(quotationData, invoiceNumber);
+    // Fallback to manual extraction (most reliable)
+    return manualTableExtraction(quotationData, invoiceNumber);
 }
 
 // Enhanced basic transformation (fallback)
@@ -583,7 +851,8 @@ export async function POST(req: Request) {
         await dbConnect();
         const body = await req.json();
 
-        const { quotationId, invoiceNumber, useAI = true } = body;
+        const { quotationId, invoiceNumber, useAI = true, extractionMode = 'auto' } = body;
+        // extractionMode options: 'auto' (default, uses AI with fallback), 'manual' (direct table mapping), 'ai' (force AI only)
 
         if (!quotationId) {
             return NextResponse.json({ error: 'Quotation ID is required' }, { status: 400 });
@@ -602,12 +871,22 @@ export async function POST(req: Request) {
         // Extract comprehensive data from quotation
         const quotationData = extractQuotationDataComprehensive(quotation);
 
-        // Transform using Smart AI or enhanced basic method
+        // Transform using the selected extraction mode
         let transformedData;
-        if (useAI && API_KEY) {
+        let extractionMethodUsed = 'manual';
+        
+        if (extractionMode === 'manual') {
+            // Direct table mapping - most reliable for exact values
+            transformedData = manualTableExtraction(quotationData, invoiceNumber);
+            extractionMethodUsed = 'manual';
+        } else if (extractionMode === 'ai' || (useAI && API_KEY)) {
+            // AI-based extraction with automatic fallback
             transformedData = await smartAITransformation(quotationData, invoiceNumber);
+            extractionMethodUsed = 'ai';
         } else {
+            // Fallback to enhanced basic transformation
             transformedData = enhancedBasicTransformation(quotationData, invoiceNumber);
+            extractionMethodUsed = 'basic';
         }
 
         // Merge company details
@@ -708,7 +987,8 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
             invoice: newInvoice,
-            usedAI: useAI && !!API_KEY,
+            usedAI: extractionMethodUsed === 'ai',
+            extractionMethod: extractionMethodUsed, // 'manual', 'ai', or 'basic'
             extractedFields: {
                 companyDetails: !!finalCompanyDetails.name,
                 clientDetails: !!transformedData.clientDetails?.name,
