@@ -1,6 +1,6 @@
 # Web Scraper Architecture & Flow
 
-## System Architecture
+## System Architecture.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
