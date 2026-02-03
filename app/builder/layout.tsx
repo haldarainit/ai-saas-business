@@ -1,3 +1,5 @@
+import '@/styles/builder.css';
+
 export default function BuilderLayout({
   children,
 }: {

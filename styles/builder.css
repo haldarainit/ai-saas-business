@@ -160,3 +160,115 @@
   text-decoration: line-through;
   opacity: 0.7;
 }
+
+/* Workbench Layout Fixes */
+.workbench-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.workbench-main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workbench-sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  min-width: 200px;
+  max-width: 400px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #1e1e1e;
+  border-right: 1px solid rgba(71, 85, 105, 0.5);
+}
+
+.workbench-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.workbench-editor {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.workbench-terminal {
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Activity bar fix */
+.activity-bar {
+  width: 48px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  gap: 16px;
+  background: #0f172a;
+  border-right: 1px solid rgba(71, 85, 105, 0.5);
+}
+
+/* Custom scrollbar for file tree */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+/* Panel group stability */
+[data-panel-group] {
+  display: flex !important;
+  overflow: hidden !important;
+}
+
+[data-panel-group-direction="horizontal"] {
+  flex-direction: row !important;
+}
+
+[data-panel-group-direction="vertical"] {
+  flex-direction: column !important;
+}
+
+[data-panel] {
+  overflow: hidden !important;
+}
+
+/* Separator visual improvement */
+[data-separator] {
+  flex-shrink: 0 !important;
+  transition: background-color 0.15s ease;
+}
+
+[data-separator]:hover,
+[data-separator][data-state="hover"] {
+  background-color: #f97316 !important;
+}
+
+[data-separator][data-state="dragging"] {
+  background-color: #fb923c !important;
+}

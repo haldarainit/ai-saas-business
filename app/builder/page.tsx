@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Panel, Group, Separator } from 'react-resizable-panels';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -73,6 +72,38 @@ function BuilderContent() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [webcontainerSupported, setWebcontainerSupported] = useState(true);
   const messageIdRef = useRef(0);
+  
+  // Chat panel resize state
+  const [chatWidth, setChatWidth] = useState(400);
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Handle chat panel resize
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const newWidth = e.clientX;
+      setChatWidth(Math.max(280, Math.min(600, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
 
   // Check WebContainer support and initialize
   useEffect(() => {
@@ -482,41 +513,44 @@ Create a complete, working application with all necessary files.`;
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        <Group orientation="horizontal" className="h-full">
-          {/* Chat Panel */}
-          {showChat && (
-            <>
-              <Panel
-                defaultSize={35}
-                minSize={25}
-                maxSize={50}
-                className="hidden md:block"
-              >
-                <div className="h-full flex flex-col bg-slate-900/50">
-                  <ChatMessages />
-                  <ChatInput
-                    onSend={handleSend}
-                    onStop={handleStop}
-                    disabled={status === 'booting'}
-                  />
-                </div>
-              </Panel>
+      <div ref={containerRef} className="flex-1 overflow-hidden flex">
+        {/* Chat Panel - Desktop */}
+        {showChat && (
+          <>
+            <div 
+              className="hidden md:flex flex-col bg-slate-900/50 border-r border-slate-700/50 shrink-0 overflow-hidden"
+              style={{ width: `${chatWidth}px` }}
+            >
+              <ChatMessages />
+              <ChatInput
+                onSend={handleSend}
+                onStop={handleStop}
+                disabled={status === 'booting'}
+              />
+            </div>
 
-              <Separator className="hidden md:block w-1 bg-slate-800 hover:bg-orange-500 transition-colors cursor-col-resize" />
-            </>
-          )}
-
-          {/* Workbench Panel */}
-          <Panel defaultSize={showChat ? 65 : 100} minSize={40}>
-            <Workbench
-              sandboxUrl={previews[0]?.url}
-              isStreaming={isStreaming}
-              onDownload={handleDownload}
-              onRefresh={handleRefreshPreview}
+            {/* Resize Handle */}
+            <div 
+              className={`hidden md:block w-1.5 shrink-0 cursor-col-resize transition-colors ${
+                isResizing ? 'bg-orange-500' : 'bg-slate-800 hover:bg-orange-500'
+              }`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsResizing(true);
+              }}
             />
-          </Panel>
-        </Group>
+          </>
+        )}
+
+        {/* Workbench Panel */}
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <Workbench
+            sandboxUrl={previews[0]?.url}
+            isStreaming={isStreaming}
+            onDownload={handleDownload}
+            onRefresh={handleRefreshPreview}
+          />
+        </div>
 
         {/* Mobile Chat (Full Screen Overlay) */}
         <div className="md:hidden fixed inset-x-0 bottom-0 z-40">
