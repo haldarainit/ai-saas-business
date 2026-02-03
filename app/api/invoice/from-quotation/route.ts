@@ -120,8 +120,34 @@ function extractQuotationDataComprehensive(quotation: any) {
                     blockIndex: index,
                     name: block.content || 'Table',
                     headers: tableHeaders,
-                    rawData: []
+                    rawData: [],
+                    isTechnical: tableHeaders.some((h: string) => 
+                        (h || '').toLowerCase().includes('compliance') || 
+                        (h || '').toLowerCase().includes('requirement') || 
+                        (h || '').toLowerCase().includes('offered') || 
+                        (h || '').toLowerCase().includes('parameter') ||
+                        (h || '').toLowerCase().includes('specification') ||
+                        (h || '').toLowerCase().includes('technical') ||
+                        (h || '').toLowerCase().includes('remarks')
+                    ),
+                    hasFinance: tableHeaders.some((h: string) => 
+                        (h || '').toLowerCase().includes('rate') || 
+                        (h || '').toLowerCase().includes('price') || 
+                        (h || '').toLowerCase().includes('amount') || 
+                        (h || '').toLowerCase().includes('cost') ||
+                        (h || '').toLowerCase().includes('value') ||
+                        (h || '').toLowerCase().includes('total')
+                    )
                 };
+                
+                // Extra check: if any row content has technical units like 460V, 900A, reject as technical if no finance headers
+                if (!tableData.hasFinance && tableRows.length > 0) {
+                    const techUnitRegex = /\b\d+\s*(v|a|ma|kv|hz|sqmm|hp|kw|rpm|ip|ph)\b/i;
+                    const hasTechUnits = tableRows.some((row: string[]) => 
+                        row.some(cell => techUnitRegex.test(String(cell)))
+                    );
+                    if (hasTechUnits) tableData.isTechnical = true;
+                }
 
                 // Convert table rows to readable format with headers as keys
                 if (tableRows.length > 0) {
@@ -144,6 +170,9 @@ function extractQuotationDataComprehensive(quotation: any) {
             }
         });
     }
+
+    // Glocal Finance Check: Determine if the entire quotation has ANY financial data
+    data.hasAnyFinance = data.allTables.some((t: any) => t.hasFinance);
 
     // Extract signature and footer
     if (quotation.footer) {
@@ -270,6 +299,22 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
             // Identify column indices for description, quantity, and rate/price/amount
             let descIdx = -1, qtyIdx = -1, rateIdx = -1, amountIdx = -1, hsnIdx = -1, taxIdx = -1;
             
+            // TECHNICAL TABLE DETECTION: Skip tables that look like Compliance, Specification, or Requirements
+            const isTechnicalTable = headers.some((h: string) => 
+                h.includes('compliance') || h.includes('parameter') || h.includes('requirement') || 
+                h.includes('offered') || h.includes('specification') || h.includes('technical')
+            );
+            
+            // If it's a technical table and has NO header for price/rate/amount, skip it for invoice items
+            const hasFinancialHeader = headers.some((h: string) => 
+                h.includes('rate') || h.includes('price') || h.includes('amount') || h.includes('cost') || h.includes('value')
+            );
+
+            if (isTechnicalTable && !hasFinancialHeader) {
+                console.log(`[ManualExtraction] Skipping technical table: "${table.name || 'Table'}"`);
+                return;
+            }
+
             headers.forEach((h: string, idx: number) => {
                 if (h.includes('desc') || h.includes('partic') || h.includes('item') || h.includes('product') || 
                     h.includes('service') || h.includes('name') || h.includes('detail') || h.includes('list') ||
@@ -420,14 +465,21 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
                     });
 
                     // STEP 6: SMART FALLBACK - Find price from numeric columns when header detection fails
-                    // This is CRITICAL for handling rows like "extra" where qty is empty but price exists
-                    if (rate === 0) {
+                    // ONLY if the table was detected to have financial data
+                    if (rate === 0 && (table.hasFinance || hasFinancialHeader)) {
                         // Collect ALL numeric values from the row with their column positions
                         const numericValuesWithPos: { value: number; pos: number }[] = [];
                         const rowValuesArr = Object.values(row);
                         rowValuesArr.forEach((val: any, idx: number) => {
                             if (val !== null && val !== undefined && String(val).trim() !== '') {
-                                const numStr = String(val).replace(/[^0-9.]/g, '');
+                                // 1. Remove text in parentheses (often technical specs like "(900A DC)")
+                                let text = String(val).replace(/\([^)]*\)/g, '');
+                                
+                                // 2. Strip technical units fused with numbers (like 900A, 460VDC, 2.5sqmm)
+                                // We strip the WHOLE thing if it matches a tech unit pattern
+                                text = text.replace(/\b\d+(\.\d+)?\s*(v|a|ma|kv|hz|sqmm|hp|kw|rpm|ip|ph|vdc|vac|v dc|v ac)\b/gi, '');
+                                
+                                const numStr = text.replace(/[^0-9.]/g, '');
                                 if (numStr) {
                                     const num = parseFloat(numStr);
                                     if (!isNaN(num) && num > 0) {
@@ -438,19 +490,22 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
                         });
                         
                         // STRATEGY: The LAST numeric column is usually Price/Amount
-                        // If quantity was empty, the last numeric is definitely the price
-                        if (numericValuesWithPos.length > 0) {
+                        // ONLY PROCEED IF TABLE HAS FINANCE
+                        if (!table.hasFinance && !hasFinancialHeader) {
+                            rate = 0;
+                            console.log(`[ManualExtraction] FORCING rate 0 because table has no finance documentation.`);
+                        } else if (numericValuesWithPos.length > 0) {
                             if (quantityWasEmpty) {
                                 // Quantity was empty, so the LAST numeric value is the price
                                 rate = numericValuesWithPos[numericValuesWithPos.length - 1].value;
                                 console.log(`[ManualExtraction] Using last numeric as price (qty was empty): ${rate}`);
                             } else if (numericValuesWithPos.length === 1) {
                                 // Only one numeric value - it could be either qty or price
-                                // If quantity is already set to something other than 1, this is likely the price
-                                if (quantity !== numericValuesWithPos[0].value) {
-                                    rate = numericValuesWithPos[0].value;
+                                // CRITICAL: If only one number exists and it MATCHES quantity, it is NOT the price
+                                if (numericValuesWithPos[0].value === quantity) {
+                                    rate = 0;
+                                    console.log(`[ManualExtraction] Rejected single number ${numericValuesWithPos[0].value} as rate because it matches quantity.`);
                                 } else {
-                                    // Same value - assume it's the price
                                     rate = numericValuesWithPos[0].value;
                                 }
                             } else if (numericValuesWithPos.length >= 2) {
@@ -462,9 +517,9 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
                                         break;
                                     }
                                 }
-                                // If all are same as quantity, use the last one
-                                if (rate === 0) {
-                                    rate = numericValuesWithPos[numericValuesWithPos.length - 1].value;
+                                // If all are same as quantity, use 0 for safety in a non-finance table
+                                if (rate === 0 || rate === quantity) {
+                                    rate = 0;
                                 }
                             }
                         }
@@ -570,33 +625,31 @@ async function smartAITransformation(quotationData: any, invoiceNumber: string):
         const prompt = `You are a PRECISION DATA EXTRACTOR. Your ONLY task is to accurately extract invoice line items from a quotation.
 
 === ABSOLUTE RULES (FOLLOW EXACTLY) ===
-1. EXTRACT EVERY ROW: For each row in the tables below, create ONE item in your response. Do NOT skip any rows.
-2. PRESERVE NUMBERS EXACTLY: Copy quantity and rate/price numbers EXACTLY as they appear. NO rounding, NO modification.
-3. FIND THE RATE/PRICE: 
-   - Look for columns named: "Rate", "Price", "Unit Price", "Amount", "Value", "Cost"
-   - CRITICAL: The LAST numeric column in a row is usually the PRICE
-   - If "Amount" or "Total" is given and quantity > 1, calculate: rate = amount / quantity
-   - If a row has a single number, that IS the rate
-4. FIND THE QUANTITY:
-   - Look for columns: "Qty", "Quantity", "Nos", "No.", "Units"
-   - IMPORTANT: If quantity column is EMPTY or blank, default to 1, but STILL extract the price from the last column
-5. FIND THE DESCRIPTION:
-   - Look for columns: "Description", "Particulars", "Item", "Product", "Service", "Name", "Details", "Device", "Task"
-   - Include the FULL text, not abbreviated
-6. "EXTRA" OR "MISC" ROWS ARE CRITICAL:
-   - Rows like "extra", "misc", "labour", "installation", "others" are REAL line items 
-   - These often have EMPTY quantity but VALID PRICE in the last column
-   - Example: Product="extra", Quantity=blank, Price=15000 → you MUST output rate=15000, quantity=1
-   - NEVER skip these rows or set their rate to 0
+1. DISTINGUISH BILLABLE VS TECHNICAL: 
+   - IGNORE tables for "Technical Compliance", "Parameter", "Requirement", "Offered", or "Specifications".
+   - ONLY extract line items from tables that represent Products, Services, or Labour.
+   - If a table row says "Complied", "OK", "Suitable", or lists technical settings (460V, 900A, 2.5sqmm, 50Hz, 3Ph, IS 8623), it is NOT a billable item.
+2. PRICE VALIDITY (ZERO HALLUCINATION):
+   - ONLY extract numbers as prices if they are in a column CLEARLY marked "Rate", "Price", "Amount", or "Cost".
+   - NEVER extract prices from "Remarks", "Description", "Specifications", "Parameter", "SI No", or "Qty" columns.
+   - Do NOT treat technical standards, voltages, dates, or ampere ratings (e.g., IS 8623, IEC 60947, 460, 220, 900) as prices.
+   - **CRITICAL**: If a row has Quantity 3 and Price is missing, do NOT set rate to 3.00. Set rate=0.
+   - **CRITICAL**: If no explicit prices exist in the source table, ALL items must have rate: 0. NEVER assume a global price.
+   - If a table has no financial headers, set rate=0 for ALL its items.
+3. EXTRACT EVERY BILLABLE ROW: For each row in the billable tables below, create ONE item. Do NOT skip rows from billable tables.
+4. PRESERVE NUMBERS EXACTLY: Copy quantity and rate/price numbers EXACTLY as they appear.
+5. "EXTRA" OR "MISC" ROWS:
+   - Rows like "extra", "misc", "installation" are REAL line items.
+   - These often have EMPTY quantity but VALID PRICE in the last column.
+   - Give them rate=price and quantity=1.
+6. IF NO PRICES FOUND: Return all items with rate: 0. NEVER create fake prices from quantities, dates, or specs.
 
-=== SOURCE TABLE DATA (EXTRACT FROM THIS) ===
+=== SOURCE TABLE DATA ===
 ${explicitTableRows}
 
 === QUOTATION METADATA ===
 Company: ${JSON.stringify(quotationData.companyDetails || {})}
 Client: ${JSON.stringify(quotationData.clientDetails || {})}
-Reference: ${quotationData.refNo || ''}
-Date: ${quotationData.date || today}
 Subject: ${quotationData.subject || ''}
 
 === YOUR OUTPUT FORMAT (JSON ONLY) ===
@@ -619,7 +672,7 @@ Subject: ${quotationData.subject || ''}
             "id": "1",
             "description": "EXACT description from table",
             "quantity": EXACT_NUMBER_OR_1_IF_EMPTY,
-            "rate": PRICE_FROM_LAST_NUMERIC_COLUMN,
+            "rate": PRICE_ONLY_IF_CLEARLY_A_PRICE_OR_0,
             "hsnsac": "",
             "taxRate": 18,
             "discount": 0
@@ -642,11 +695,11 @@ Subject: ${quotationData.subject || ''}
 
 === VERIFICATION CHECKLIST (CRITICAL) ===
 Before responding, verify:
-☐ Number of items in my response = Number of rows in source tables (MUST MATCH)
-☐ Each rate is a real number from the source (NOT 0 unless truly zero in source)
-☐ Each quantity matches source exactly (or 1 if source was empty/blank)
-☐ "Extra", "Misc", or similar rows are included with their prices from the last column
-☐ I extracted the LAST numeric value in each row as the price if price column wasn't found
+☐ I skipped all Technical Compliance/Specification tables.
+☐ I did NOT turn standard numbers like "IS 8623" or "IEC 60947" into prices.
+☐ If a billable row has no price, I used rate: 0.
+☐ Number of items in my response = Number of billable rows found.
+☐ Each rate is a real number from the source (NOT hallucinated).
 
 Return ONLY the JSON object, nothing else.`;
 
@@ -671,43 +724,54 @@ Return ONLY the JSON object, nothing else.`;
                     let rate = parseFloat(item.rate || item.price || item.unitPrice || item.amount || item.unit_price) || 0;
                     const discount = item.discount !== undefined ? parseFloat(item.discount) : 0;
                     
-                    // RECOVERY: If AI returned 0 rate, try to find it from source table data
-                    if (rate === 0 && quotationData.allTables && quotationData.allTables.length > 0) {
-                        // Try to match by index first
+                    // RECOVERY AND VALIDATION: If AI returned 0 rate, try to find it. 
+                    // ALSO: If AI returned a rate, validate it against technical constraints.
+                    if (quotationData.allTables && quotationData.allTables.length > 0) {
                         let tableRowIndex = 0;
                         for (const table of quotationData.allTables) {
+                            const isStrictlyTechnical = !table.hasFinance || (table.isTechnical && !table.hasFinance);
+                            
                             if (table.rawData && index < tableRowIndex + table.rawData.length) {
-                                const localIdx = index - tableRowIndex;
-                                const rawRow = table.rawData[localIdx];
-                                if (rawRow) {
-                                    // SMART EXTRACTION: Collect all numeric values with their positions
-                                    const numericValues: { val: number; pos: number }[] = [];
-                                    Object.values(rawRow).forEach((val, idx) => {
-                                        if (val !== null && val !== undefined && String(val).trim() !== '') {
-                                            const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
-                                            if (!isNaN(num) && num > 0) {
-                                                numericValues.push({ val: num, pos: idx });
-                                            }
-                                        }
-                                    });
-                                    
-                                    // STRATEGY: Use the LAST numeric value as price (this handles "extra" rows)
-                                    if (numericValues.length > 0) {
-                                        // If only one numeric value, that's the price
-                                        if (numericValues.length === 1) {
-                                            rate = numericValues[0].val;
-                                        } else {
-                                            // Multiple values: last one is usually the price
-                                            // Find one that's NOT the quantity
-                                            for (let i = numericValues.length - 1; i >= 0; i--) {
-                                                if (numericValues[i].val !== qty) {
-                                                    rate = numericValues[i].val;
-                                                    break;
+                                // VALIDATION: If the table is strictly technical, rate MUST be 0
+                                if (isStrictlyTechnical && rate > 0) {
+                                    console.log(`[Validation] Clearing hallucinated rate ${rate} from technical table Row ${index + 1}`);
+                                    rate = 0;
+                                }
+
+                                // RATE = QTY GUARD: If rate matches qty and we are unsure, it's likely a hallucination
+                                if (rate > 0 && rate === qty && isStrictlyTechnical) {
+                                    console.log(`[Validation] Clearing Rate ${rate} because it matches Qty ${qty} in technical context.`);
+                                    rate = 0;
+                                }
+
+                                // RECOVERY: Only if rate is still 0 AND the table HAS finance
+                                if (rate === 0 && table.hasFinance) {
+                                    const localIdx = index - tableRowIndex;
+                                    const rawRow = table.rawData[localIdx];
+                                    if (rawRow) {
+                                        const numericValues: { val: number; pos: number }[] = [];
+                                        Object.values(rawRow).forEach((val, idx) => {
+                                            if (val !== null && val !== undefined && String(val).trim() !== '') {
+                                                let text = String(val).replace(/\([^)]*\)/g, '');
+                                                text = text.replace(/\b\d+(\.\d+)?\s*(v|a|ma|kv|hz|sqmm|hp|kw|rpm|ip|ph|vdc|vac|v dc|v ac)\b/gi, '');
+                                                const num = parseFloat(text.replace(/[^0-9.]/g, ''));
+                                                if (!isNaN(num) && num > 0) {
+                                                    numericValues.push({ val: num, pos: idx });
                                                 }
                                             }
-                                            // If all are same as quantity, use the last one
-                                            if (rate === 0) {
-                                                rate = numericValues[numericValues.length - 1].val;
+                                        });
+                                        
+                                        if (numericValues.length > 0) {
+                                            if (numericValues.length === 1) {
+                                                rate = numericValues[0].val !== qty ? numericValues[0].val : 0;
+                                            } else {
+                                                for (let i = numericValues.length - 1; i >= 0; i--) {
+                                                    if (numericValues[i].val !== qty) {
+                                                        rate = numericValues[i].val;
+                                                        break;
+                                                    }
+                                                }
+                                                if (rate === qty) rate = 0;
                                             }
                                         }
                                     }
@@ -715,36 +779,6 @@ Return ONLY the JSON object, nothing else.`;
                                 break;
                             }
                             tableRowIndex += (table.rawData?.length || 0);
-                        }
-                        
-                        // If STILL 0, try exhaustive search matching description
-                        if (rate === 0) {
-                            const itemDesc = (item.description || '').toLowerCase().trim();
-                            for (const table of quotationData.allTables) {
-                                if (table.rawData) {
-                                    for (const row of table.rawData) {
-                                        const rowStr = JSON.stringify(row).toLowerCase();
-                                        if (itemDesc && rowStr.includes(itemDesc.slice(0, 10))) {
-                                            // Collect ALL numeric values from this row
-                                            const rowNums: number[] = [];
-                                            Object.values(row).forEach(val => {
-                                                if (val !== null && val !== undefined && String(val).trim() !== '') {
-                                                    const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
-                                                    if (!isNaN(num) && num > 0) {
-                                                        rowNums.push(num);
-                                                    }
-                                                }
-                                            });
-                                            // Use the last numeric as the price
-                                            if (rowNums.length > 0) {
-                                                rate = rowNums[rowNums.length - 1];
-                                            }
-                                            if (rate > 0) break;
-                                        }
-                                    }
-                                }
-                                if (rate > 0) break;
-                            }
                         }
                     }
 
