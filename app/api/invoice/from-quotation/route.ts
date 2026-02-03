@@ -295,45 +295,102 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
 
             // Process each row from rawData
             if (table.rawData && Array.isArray(table.rawData)) {
+                // Get the original headers as keys (they determine the row object keys)
+                const headerKeys = table.headers || [];
+                
                 table.rawData.forEach((row: any, rowIdx: number) => {
-                    const rowValues = Object.values(row);
                     const rowKeys = Object.keys(row);
                     
                     let description = '';
-                    let quantity = 1;
+                    let quantity = 1; // Default to 1 if not found
                     let rate = 0;
                     let hsnsac = '';
                     let taxRate = 18;
+                    let quantityWasEmpty = false; // Track if quantity was actually found
 
-                    // First pass: Use identified column indices
-                    if (descIdx !== -1 && rowValues[descIdx]) {
-                        description = String(rowValues[descIdx]).trim();
-                    }
-                    if (qtyIdx !== -1 && rowValues[qtyIdx]) {
-                        const qtyStr = String(rowValues[qtyIdx]).replace(/[^0-9.]/g, '');
-                        if (qtyStr) quantity = parseFloat(qtyStr) || 1;
-                    }
-                    if (rateIdx !== -1 && rowValues[rateIdx]) {
-                        const rateStr = String(rowValues[rateIdx]).replace(/[^0-9.]/g, '');
-                        if (rateStr) rate = parseFloat(rateStr) || 0;
-                    }
-                    if (rate === 0 && amountIdx !== -1 && rowValues[amountIdx]) {
-                        const amtStr = String(rowValues[amountIdx]).replace(/[^0-9.]/g, '');
-                        if (amtStr) {
-                            const amount = parseFloat(amtStr) || 0;
-                            rate = quantity > 0 ? amount / quantity : amount;
+                    // Debug: Log the row structure
+                    console.log(`[ManualExtraction] Row ${rowIdx}: ${JSON.stringify(row)}`);
+                    console.log(`[ManualExtraction] Headers: ${JSON.stringify(headerKeys)}`);
+                    console.log(`[ManualExtraction] Indices - descIdx:${descIdx}, qtyIdx:${qtyIdx}, rateIdx:${rateIdx}`);
+
+                    // STEP 1: Extract description - use header key directly
+                    if (descIdx !== -1 && headerKeys[descIdx]) {
+                        const headerKey = headerKeys[descIdx];
+                        const val = row[headerKey];
+                        if (val !== undefined && val !== null) {
+                            description = String(val).trim();
                         }
                     }
-                    if (hsnIdx !== -1 && rowValues[hsnIdx]) {
-                        hsnsac = String(rowValues[hsnIdx]).trim();
+                    // If descIdx is -1, try first column
+                    if (!description && headerKeys[0] && row[headerKeys[0]]) {
+                        const firstVal = String(row[headerKeys[0]]).trim();
+                        // Check if first column is NOT a number (likely description)
+                        if (firstVal && isNaN(parseFloat(firstVal.replace(/[,₹$]/g, '')))) {
+                            description = firstVal;
+                        }
                     }
-                    if (taxIdx !== -1 && rowValues[taxIdx]) {
-                        const taxStr = String(rowValues[taxIdx]).replace(/[^0-9.]/g, '');
+
+                    // STEP 2: Extract quantity - use header key directly
+                    if (qtyIdx !== -1 && headerKeys[qtyIdx]) {
+                        const headerKey = headerKeys[qtyIdx];
+                        const qtyVal = row[headerKey];
+                        console.log(`[ManualExtraction] Quantity value at "${headerKey}": "${qtyVal}"`);
+                        
+                        if (qtyVal !== null && qtyVal !== undefined && String(qtyVal).trim() !== '') {
+                            const qtyStr = String(qtyVal).replace(/[^0-9.]/g, '');
+                            if (qtyStr) {
+                                const parsedQty = parseFloat(qtyStr);
+                                if (!isNaN(parsedQty) && parsedQty > 0) {
+                                    quantity = parsedQty;
+                                } else {
+                                    quantityWasEmpty = true;
+                                }
+                            } else {
+                                quantityWasEmpty = true;
+                            }
+                        } else {
+                            quantityWasEmpty = true;
+                        }
+                    }
+
+                    // STEP 3: Extract rate/price - use header key directly
+                    if (rateIdx !== -1 && headerKeys[rateIdx]) {
+                        const headerKey = headerKeys[rateIdx];
+                        const rateVal = row[headerKey];
+                        console.log(`[ManualExtraction] Rate value at "${headerKey}": "${rateVal}"`);
+                        
+                        if (rateVal !== null && rateVal !== undefined && String(rateVal).trim() !== '') {
+                            const rateStr = String(rateVal).replace(/[^0-9.]/g, '');
+                            if (rateStr) {
+                                rate = parseFloat(rateStr) || 0;
+                            }
+                        }
+                    }
+                    
+                    // If rate still 0, try amount column using header key
+                    if (rate === 0 && amountIdx !== -1 && headerKeys[amountIdx]) {
+                        const headerKey = headerKeys[amountIdx];
+                        const amtVal = row[headerKey];
+                        if (amtVal !== null && amtVal !== undefined && String(amtVal).trim() !== '') {
+                            const amtStr = String(amtVal).replace(/[^0-9.]/g, '');
+                            if (amtStr) {
+                                const amount = parseFloat(amtStr) || 0;
+                                rate = quantity > 0 ? amount / quantity : amount;
+                            }
+                        }
+                    }
+                    
+                    // STEP 4: HSN/SAC and Tax Rate using header keys
+                    if (hsnIdx !== -1 && headerKeys[hsnIdx] && row[headerKeys[hsnIdx]]) {
+                        hsnsac = String(row[headerKeys[hsnIdx]]).trim();
+                    }
+                    if (taxIdx !== -1 && headerKeys[taxIdx] && row[headerKeys[taxIdx]]) {
+                        const taxStr = String(row[headerKeys[taxIdx]]).replace(/[^0-9.]/g, '');
                         if (taxStr) taxRate = parseFloat(taxStr) || 18;
                     }
 
-                    // Second pass: If we still don't have rate or description, scan by key pattern
-                    rowKeys.forEach((key, keyIdx) => {
+                    // STEP 5: Second pass - scan by key pattern if we don't have values
+                    rowKeys.forEach((key) => {
                         const k = key.toLowerCase();
                         const val = row[key];
                         
@@ -342,63 +399,101 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
                             k.includes('device') || k.includes('task') || k.includes('list'))) {
                             description = String(val).trim();
                         }
-                        if (quantity === 1 && (k.includes('qty') || k.includes('quant') || k.includes('nos'))) {
+                        if (quantity === 1 && !quantityWasEmpty && (k.includes('qty') || k.includes('quant') || k.includes('nos'))) {
                             const q = parseFloat(String(val).replace(/[^0-9.]/g, ''));
                             if (!isNaN(q) && q > 0) quantity = q;
                         }
                         if (rate === 0 && (k.includes('rate') || k.includes('price') || k.includes('unit'))) {
-                            const r = parseFloat(String(val).replace(/[^0-9.]/g, ''));
-                            if (!isNaN(r) && r > 0) rate = r;
+                            // DIRECT KEY MATCH - This is critical for "Price" column
+                            if (val !== null && val !== undefined && String(val).trim() !== '') {
+                                const r = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+                                console.log(`[ManualExtraction] Key "${key}" matched price pattern, value: "${val}", parsed: ${r}`);
+                                if (!isNaN(r) && r > 0) rate = r;
+                            }
                         }
                         if (rate === 0 && (k.includes('amount') || k.includes('total') || k.includes('value'))) {
-                            const a = parseFloat(String(val).replace(/[^0-9.]/g, ''));
-                            if (!isNaN(a) && a > 0) rate = quantity > 0 ? a / quantity : a;
+                            if (val !== null && val !== undefined && String(val).trim() !== '') {
+                                const a = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+                                if (!isNaN(a) && a > 0) rate = quantity > 0 ? a / quantity : a;
+                            }
                         }
                     });
 
-                    // Third pass: If we STILL have no rate, find any numeric value that's not the quantity
+                    // STEP 6: SMART FALLBACK - Find price from numeric columns when header detection fails
+                    // This is CRITICAL for handling rows like "extra" where qty is empty but price exists
                     if (rate === 0) {
-                        const numericValues: number[] = [];
-                        rowValues.forEach((val) => {
-                            const numStr = String(val).replace(/[^0-9.]/g, '');
-                            if (numStr) {
-                                const num = parseFloat(numStr);
-                                if (!isNaN(num) && num > 0) {
-                                    numericValues.push(num);
+                        // Collect ALL numeric values from the row with their column positions
+                        const numericValuesWithPos: { value: number; pos: number }[] = [];
+                        const rowValuesArr = Object.values(row);
+                        rowValuesArr.forEach((val: any, idx: number) => {
+                            if (val !== null && val !== undefined && String(val).trim() !== '') {
+                                const numStr = String(val).replace(/[^0-9.]/g, '');
+                                if (numStr) {
+                                    const num = parseFloat(numStr);
+                                    if (!isNaN(num) && num > 0) {
+                                        numericValuesWithPos.push({ value: num, pos: idx });
+                                    }
                                 }
                             }
                         });
-                        // Find a number that's not the quantity
-                        for (const num of numericValues) {
-                            if (num !== quantity) {
-                                rate = num;
-                                break;
+                        
+                        // STRATEGY: The LAST numeric column is usually Price/Amount
+                        // If quantity was empty, the last numeric is definitely the price
+                        if (numericValuesWithPos.length > 0) {
+                            if (quantityWasEmpty) {
+                                // Quantity was empty, so the LAST numeric value is the price
+                                rate = numericValuesWithPos[numericValuesWithPos.length - 1].value;
+                                console.log(`[ManualExtraction] Using last numeric as price (qty was empty): ${rate}`);
+                            } else if (numericValuesWithPos.length === 1) {
+                                // Only one numeric value - it could be either qty or price
+                                // If quantity is already set to something other than 1, this is likely the price
+                                if (quantity !== numericValuesWithPos[0].value) {
+                                    rate = numericValuesWithPos[0].value;
+                                } else {
+                                    // Same value - assume it's the price
+                                    rate = numericValuesWithPos[0].value;
+                                }
+                            } else if (numericValuesWithPos.length >= 2) {
+                                // Multiple numeric values - find one that's NOT the quantity
+                                // Usually: first numeric = qty, last numeric = price
+                                for (let i = numericValuesWithPos.length - 1; i >= 0; i--) {
+                                    if (numericValuesWithPos[i].value !== quantity) {
+                                        rate = numericValuesWithPos[i].value;
+                                        break;
+                                    }
+                                }
+                                // If all are same as quantity, use the last one
+                                if (rate === 0) {
+                                    rate = numericValuesWithPos[numericValuesWithPos.length - 1].value;
+                                }
                             }
-                        }
-                        // If all numbers are same as quantity, still use it as rate
-                        if (rate === 0 && numericValues.length > 0) {
-                            rate = numericValues[numericValues.length - 1]; // Take the last one (often the amount/rate)
                         }
                     }
 
-                    // Fourth pass: If no description, use any string value that isn't a pure number
+                    // STEP 7: If STILL no description, find any text value
                     if (!description) {
-                        for (const val of rowValues) {
+                        const rowValuesArr = Object.values(row);
+                        for (const val of rowValuesArr) {
                             const strVal = String(val).trim();
-                            if (strVal && isNaN(parseFloat(strVal.replace(/[^0-9.]/g, ''))) && strVal.length > 1) {
-                                // Not just a number, use it as description
-                                description = strVal;
-                                break;
+                            // Accept string if it's not purely numeric and has some substance
+                            if (strVal && strVal.length > 0) {
+                                const numericPart = strVal.replace(/[^0-9.]/g, '');
+                                const isNotJustNumber = numericPart !== strVal || isNaN(parseFloat(numericPart));
+                                if (isNotJustNumber && strVal.length > 0) {
+                                    description = strVal;
+                                    break;
+                                }
                             }
                         }
                     }
 
-                    // Fallback description: use table name or row index
+                    // STEP 8: Fallback description for items with valid rate
                     if (!description && rate > 0) {
                         description = table.name || `Item ${rowIdx + 1}`;
                     }
 
-                    // Add item if we have either description or a valid rate
+                    // STEP 9: Add item if we have either description or a valid rate
+                    // Including items like "extra" with empty qty but valid price
                     if (description || rate > 0) {
                         const taxableValue = quantity * rate;
                         const cgst = (taxableValue * (taxRate / 2)) / 100;
@@ -477,17 +572,22 @@ async function smartAITransformation(quotationData: any, invoiceNumber: string):
 === ABSOLUTE RULES (FOLLOW EXACTLY) ===
 1. EXTRACT EVERY ROW: For each row in the tables below, create ONE item in your response. Do NOT skip any rows.
 2. PRESERVE NUMBERS EXACTLY: Copy quantity and rate/price numbers EXACTLY as they appear. NO rounding, NO modification.
-3. FIND THE RATE: 
+3. FIND THE RATE/PRICE: 
    - Look for columns named: "Rate", "Price", "Unit Price", "Amount", "Value", "Cost"
+   - CRITICAL: The LAST numeric column in a row is usually the PRICE
    - If "Amount" or "Total" is given and quantity > 1, calculate: rate = amount / quantity
    - If a row has a single number, that IS the rate
 4. FIND THE QUANTITY:
    - Look for columns: "Qty", "Quantity", "Nos", "No.", "Units"
-   - Default to 1 if not found
+   - IMPORTANT: If quantity column is EMPTY or blank, default to 1, but STILL extract the price from the last column
 5. FIND THE DESCRIPTION:
    - Look for columns: "Description", "Particulars", "Item", "Product", "Service", "Name", "Details", "Device", "Task"
    - Include the FULL text, not abbreviated
-6. "EXTRA" OR "MISC" ROWS: These are REAL line items with prices. Extract them with their amounts.
+6. "EXTRA" OR "MISC" ROWS ARE CRITICAL:
+   - Rows like "extra", "misc", "labour", "installation", "others" are REAL line items 
+   - These often have EMPTY quantity but VALID PRICE in the last column
+   - Example: Product="extra", Quantity=blank, Price=15000 → you MUST output rate=15000, quantity=1
+   - NEVER skip these rows or set their rate to 0
 
 === SOURCE TABLE DATA (EXTRACT FROM THIS) ===
 ${explicitTableRows}
@@ -518,8 +618,8 @@ Subject: ${quotationData.subject || ''}
         {
             "id": "1",
             "description": "EXACT description from table",
-            "quantity": EXACT_NUMBER,
-            "rate": EXACT_NUMBER,
+            "quantity": EXACT_NUMBER_OR_1_IF_EMPTY,
+            "rate": PRICE_FROM_LAST_NUMERIC_COLUMN,
             "hsnsac": "",
             "taxRate": 18,
             "discount": 0
@@ -540,12 +640,13 @@ Subject: ${quotationData.subject || ''}
     "dueDate": ""
 }
 
-=== VERIFICATION CHECKLIST ===
+=== VERIFICATION CHECKLIST (CRITICAL) ===
 Before responding, verify:
-☐ Number of items in my response = Number of rows in source tables
-☐ Each rate is a real number (not 0 unless truly zero in source)
-☐ Each quantity matches source exactly
-☐ "Extra" or "Misc" rows are included with their prices
+☐ Number of items in my response = Number of rows in source tables (MUST MATCH)
+☐ Each rate is a real number from the source (NOT 0 unless truly zero in source)
+☐ Each quantity matches source exactly (or 1 if source was empty/blank)
+☐ "Extra", "Misc", or similar rows are included with their prices from the last column
+☐ I extracted the LAST numeric value in each row as the price if price column wasn't found
 
 Return ONLY the JSON object, nothing else.`;
 
@@ -579,33 +680,65 @@ Return ONLY the JSON object, nothing else.`;
                                 const localIdx = index - tableRowIndex;
                                 const rawRow = table.rawData[localIdx];
                                 if (rawRow) {
-                                    // Find numeric values in this row
-                                    Object.values(rawRow).forEach(val => {
-                                        const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
-                                        if (!isNaN(num) && num > 0 && num !== qty && rate === 0) {
-                                            rate = num;
+                                    // SMART EXTRACTION: Collect all numeric values with their positions
+                                    const numericValues: { val: number; pos: number }[] = [];
+                                    Object.values(rawRow).forEach((val, idx) => {
+                                        if (val !== null && val !== undefined && String(val).trim() !== '') {
+                                            const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+                                            if (!isNaN(num) && num > 0) {
+                                                numericValues.push({ val: num, pos: idx });
+                                            }
                                         }
                                     });
+                                    
+                                    // STRATEGY: Use the LAST numeric value as price (this handles "extra" rows)
+                                    if (numericValues.length > 0) {
+                                        // If only one numeric value, that's the price
+                                        if (numericValues.length === 1) {
+                                            rate = numericValues[0].val;
+                                        } else {
+                                            // Multiple values: last one is usually the price
+                                            // Find one that's NOT the quantity
+                                            for (let i = numericValues.length - 1; i >= 0; i--) {
+                                                if (numericValues[i].val !== qty) {
+                                                    rate = numericValues[i].val;
+                                                    break;
+                                                }
+                                            }
+                                            // If all are same as quantity, use the last one
+                                            if (rate === 0) {
+                                                rate = numericValues[numericValues.length - 1].val;
+                                            }
+                                        }
+                                    }
                                 }
                                 break;
                             }
                             tableRowIndex += (table.rawData?.length || 0);
                         }
                         
-                        // If still 0, try exhaustive search matching description
+                        // If STILL 0, try exhaustive search matching description
                         if (rate === 0) {
                             const itemDesc = (item.description || '').toLowerCase().trim();
                             for (const table of quotationData.allTables) {
                                 if (table.rawData) {
                                     for (const row of table.rawData) {
                                         const rowStr = JSON.stringify(row).toLowerCase();
-                                        if (itemDesc && rowStr.includes(itemDesc.slice(0, 20))) {
+                                        if (itemDesc && rowStr.includes(itemDesc.slice(0, 10))) {
+                                            // Collect ALL numeric values from this row
+                                            const rowNums: number[] = [];
                                             Object.values(row).forEach(val => {
-                                                const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
-                                                if (!isNaN(num) && num > 0 && num !== qty && rate === 0) {
-                                                    rate = num;
+                                                if (val !== null && val !== undefined && String(val).trim() !== '') {
+                                                    const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+                                                    if (!isNaN(num) && num > 0) {
+                                                        rowNums.push(num);
+                                                    }
                                                 }
                                             });
+                                            // Use the last numeric as the price
+                                            if (rowNums.length > 0) {
+                                                rate = rowNums[rowNums.length - 1];
+                                            }
                                             if (rate > 0) break;
                                         }
                                     }

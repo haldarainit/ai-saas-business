@@ -626,7 +626,12 @@ export default function InvoiceDashboard() {
                                             <SelectTrigger className="border-purple-200 focus:border-purple-500 focus:ring-purple-500">
                                                 <SelectValue placeholder="Choose a quotation..." />
                                             </SelectTrigger>
-                                            <SelectContent className="max-w-[400px]">
+                                            <SelectContent 
+                                                className="max-w-[400px] max-h-[300px] z-[100]" 
+                                                position="popper"
+                                                side="bottom"
+                                                sideOffset={4}
+                                            >
                                                 {quotations.map((q) => (
                                                     <SelectItem key={q._id} value={q._id}>
                                                         <div className="flex items-center gap-2 max-w-[350px]">
