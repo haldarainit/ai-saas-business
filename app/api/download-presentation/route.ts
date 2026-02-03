@@ -598,168 +598,191 @@ function createFeaturesSlide(
     secondaryColor: string,
     accentColor: string
 ) {
-    slide.background = { color: 'FFFFFF' };
+    // Light cream/pink background matching web preview
+    slide.background = { color: 'FEF7F0' };
 
-    // Top accent bar
-    slide.addShape('rect', {
-        x: 0, y: 0, w: 10, h: 0.08,
-        fill: { color: accentColor },
-    });
-
-    // Build combined text with title and subtitle
-    const textParts: Array<{ text: string; options: any }> = [];
-
-    // Title
-    textParts.push({
-        text: cleanMarkdown(slideData.title),
-        options: {
-            fontSize: 22,
-            bold: true,
-            color: primaryColor,
-            breakLine: true,
-            paraSpaceAfter: 6,
-        }
-    });
-
-    // Subtitle from first content item
-    if (slideData.content && slideData.content.length > 0) {
-        textParts.push({
-            text: cleanMarkdown(slideData.content[0]),
-            options: {
-                fontSize: 12,
-                color: '6b7280',
-                breakLine: true,
-            }
-        });
-    }
-
-    // Add title block
-    slide.addText(textParts, {
+    // Title - centered at top, matching web preview
+    slide.addText(cleanMarkdown(slideData.title), {
         x: 0.5,
-        y: 0.15,
+        y: 0.3,
         w: 9,
-        h: 1.2,
+        h: 0.7,
+        fontSize: 24,
+        bold: true,
+        color: primaryColor,
         fontFace: 'Arial',
-        valign: 'top',
-        fit: 'shrink',
+        align: 'center',
+        valign: 'middle',
     });
 
-    // Feature cards
+    // Feature cards - 2x2 grid matching web preview
     if (slideData.features && slideData.features.length > 0) {
-        const features = slideData.features.slice(0, 5); // Max 5 features
-        const cardCount = features.length;
-        const rows = cardCount <= 3 ? 1 : 2;
-        const cardsPerRow = rows === 1 ? cardCount : Math.ceil(cardCount / 2);
+        const features = slideData.features.slice(0, 4); // Max 4 features for 2x2 grid
+        const numFeatures = features.length;
 
-        const cardWidth = (9 - (cardsPerRow - 1) * 0.25) / cardsPerRow;
-        const cardHeight = rows === 1 ? 3.0 : 1.75;
-        const startY = 1.5;
+        // Determine grid layout
+        const cols = numFeatures <= 2 ? numFeatures : 2;
+        const rows = numFeatures <= 2 ? 1 : 2;
 
-        // Feature card colors - derived from theme colors
-        const featureColors = [
-            { bg: getLightBackground(accentColor), icon: accentColor },
-            { bg: getLightBackground(primaryColor), icon: primaryColor },
-            { bg: getLightBackground(secondaryColor), icon: secondaryColor },
-            { bg: 'ecfdf5', icon: '10b981' },      // Green (accent)
-            { bg: 'fef3c7', icon: 'f59e0b' },      // Amber (accent)
-        ];
+        // Card dimensions matching web preview proportions
+        const cardWidth = 4.0;
+        const cardHeight = 1.6;
+        const cardGapX = 0.4;
+        const cardGapY = 0.5;
+        const iconSize = 0.5;
+        const iconOverlap = 0.25; // How much icon overlaps above card
+
+        // Calculate starting positions to center the grid
+        const totalGridWidth = (cardWidth * cols) + (cardGapX * (cols - 1));
+        const totalGridHeight = (cardHeight * rows) + (cardGapY * (rows - 1)) + iconOverlap;
+        const startX = (10 - totalGridWidth) / 2;
+        const startY = 1.2;
+
+        // Use the same light pink background for ALL cards (matching web preview)
+        const cardBgColor = getLightBackground(primaryColor);
+
+        // Icon colors - cycle through theme colors for variety
+        const iconColors = [primaryColor, secondaryColor, accentColor, primaryColor];
 
         features.forEach((feature, idx) => {
-            const row = Math.floor(idx / cardsPerRow);
-            const col = idx % cardsPerRow;
-            const x = 0.5 + col * (cardWidth + 0.25);
-            const y = startY + row * (cardHeight + 0.2);
-            const color = featureColors[idx % featureColors.length];
+            const row = Math.floor(idx / cols);
+            const col = idx % cols;
+            const x = startX + col * (cardWidth + cardGapX);
+            const y = startY + row * (cardHeight + cardGapY + iconOverlap);
+            const iconColor = iconColors[idx % iconColors.length];
 
-            // Card background
-            slide.addShape('rect', {
-                x, y, w: cardWidth, h: cardHeight,
-                fill: { color: color.bg },
+            // Card background - rounded rectangle with light pink fill
+            slide.addShape('roundRect', {
+                x: x,
+                y: y + iconOverlap, // Card starts below icon overlap
+                w: cardWidth,
+                h: cardHeight,
+                fill: { color: cardBgColor },
+                line: { color: primaryColor, width: 0.5, transparency: 85 },
+                rectRadius: 0.1,
             });
 
-            // Icon circle - smaller for 2 rows
-            const iconSize = rows === 1 ? 0.45 : 0.35;
-            const iconSymbol = ICON_SYMBOLS[feature.icon] || ICON_SYMBOLS.default;
+            // Icon circle - positioned ABOVE the card (overlapping top edge)
+            // Matching web preview where icon floats above the card
             slide.addShape('ellipse', {
-                x: x + cardWidth / 2 - iconSize / 2, y: y + 0.15, w: iconSize, h: iconSize,
-                fill: { color: color.icon },
+                x: x + cardWidth / 2 - iconSize / 2,
+                y: y,
+                w: iconSize,
+                h: iconSize,
+                fill: { color: iconColor },
+                shadow: { type: 'outer', blur: 3, offset: 1, angle: 45, opacity: 0.2 },
             });
+
+            // Icon symbol inside the circle
+            const iconSymbol = ICON_SYMBOLS[feature.icon] || ICON_SYMBOLS.default;
             slide.addText(iconSymbol, {
-                x: x + cardWidth / 2 - iconSize / 2, y: y + 0.13, w: iconSize, h: iconSize,
-                fontSize: rows === 1 ? 12 : 10,
+                x: x + cardWidth / 2 - iconSize / 2,
+                y: y,
+                w: iconSize,
+                h: iconSize,
+                fontSize: 14,
                 color: 'FFFFFF',
                 align: 'center',
                 valign: 'middle',
             });
 
-            // Feature title - positioned below icon
-            const titleY = y + 0.15 + iconSize + 0.1;
+            // Feature title - bold, centered, inside card
             slide.addText(cleanMarkdown(feature.title), {
-                x: x + 0.1, y: titleY, w: cardWidth - 0.2, h: 0.35,
-                fontSize: rows === 1 ? 11 : 10,
+                x: x + 0.15,
+                y: y + iconOverlap + 0.35,
+                w: cardWidth - 0.3,
+                h: 0.35,
+                fontSize: 11,
                 bold: true,
                 color: '1f2937',
                 fontFace: 'Arial',
                 align: 'center',
-                valign: 'top',
-                fit: 'shrink',
+                valign: 'middle',
             });
 
-            // Feature description - fill remaining space with auto-shrink
-            const descY = titleY + 0.35;
-            const descHeight = cardHeight - (descY - y) - 0.1;
+            // Feature description - smaller text, centered
             slide.addText(cleanMarkdown(feature.description), {
-                x: x + 0.1, y: descY, w: cardWidth - 0.2, h: descHeight,
-                fontSize: rows === 1 ? 9 : 8,
-                color: '6b7280',
+                x: x + 0.15,
+                y: y + iconOverlap + 0.7,
+                w: cardWidth - 0.3,
+                h: cardHeight - 0.8,
+                fontSize: 9,
+                color: '64748b',
                 fontFace: 'Arial',
                 align: 'center',
                 valign: 'top',
-                fit: 'shrink',
             });
         });
     } else if (slideData.content && slideData.content.length > 1) {
-        // Fallback: create cards from content items
-        const items = slideData.content.slice(1, 6);
-        const cardCount = items.length;
-        const cardsPerRow = Math.min(cardCount, 3);
-        const cardWidth = (9 - (cardsPerRow - 1) * 0.3) / cardsPerRow;
+        // Fallback: create cards from content items (same styling)
+        const items = slideData.content.slice(0, 4);
+        const numItems = items.length;
+        const cols = numItems <= 2 ? numItems : 2;
+
+        const cardWidth = 4.0;
+        const cardHeight = 1.6;
+        const cardGapX = 0.4;
+        const cardGapY = 0.5;
+        const iconSize = 0.5;
+        const iconOverlap = 0.25;
+
+        const totalGridWidth = (cardWidth * cols) + (cardGapX * (cols - 1));
+        const startX = (10 - totalGridWidth) / 2;
+        const startY = 1.2;
+
+        const cardBgColor = getLightBackground(primaryColor);
 
         items.forEach((item, idx) => {
-            const row = Math.floor(idx / cardsPerRow);
-            const col = idx % cardsPerRow;
-            const x = 0.5 + col * (cardWidth + 0.3);
-            const y = 1.7 + row * 1.8;
+            const row = Math.floor(idx / cols);
+            const col = idx % cols;
+            const x = startX + col * (cardWidth + cardGapX);
+            const y = startY + row * (cardHeight + cardGapY + iconOverlap);
 
-            slide.addShape('rect', {
-                x, y, w: cardWidth, h: 1.5,
-                fill: { color: getLightBackground(primaryColor) },
+            // Card background
+            slide.addShape('roundRect', {
+                x: x,
+                y: y + iconOverlap,
+                w: cardWidth,
+                h: cardHeight,
+                fill: { color: cardBgColor },
+                line: { color: primaryColor, width: 0.5, transparency: 85 },
+                rectRadius: 0.1,
+            });
+
+            // Icon circle
+            slide.addShape('ellipse', {
+                x: x + cardWidth / 2 - iconSize / 2,
+                y: y,
+                w: iconSize,
+                h: iconSize,
+                fill: { color: primaryColor },
             });
 
             slide.addText('✓', {
-                x: x + cardWidth / 2 - 0.2, y: y + 0.15, w: 0.4, h: 0.4,
-                fontSize: 18,
-                color: primaryColor,
+                x: x + cardWidth / 2 - iconSize / 2,
+                y: y,
+                w: iconSize,
+                h: iconSize,
+                fontSize: 14,
+                color: 'FFFFFF',
                 align: 'center',
+                valign: 'middle',
             });
 
+            // Content text
             slide.addText(cleanMarkdown(item), {
-                x: x + 0.1, y: y + 0.6, w: cardWidth - 0.2, h: 0.8,
+                x: x + 0.15,
+                y: y + iconOverlap + 0.35,
+                w: cardWidth - 0.3,
+                h: cardHeight - 0.4,
                 fontSize: 10,
                 color: '374151',
                 fontFace: 'Arial',
                 align: 'center',
                 valign: 'top',
-                fit: 'shrink',
             });
         });
     }
-
-    // Bottom accent
-    slide.addShape('rect', {
-        x: 0.5, y: 5.1, w: 9, h: 0.015,
-        fill: { color: accentColor },
-    });
 }
 
 function createMetricsSlide(
@@ -770,102 +793,114 @@ function createMetricsSlide(
     secondaryColor: string,
     accentColor: string
 ) {
-    slide.background = { color: 'FFFFFF' };
+    // Light gradient background matching web preview (cream/pink tones)
+    // Since PPTX doesn't support CSS gradients, use a light cream color
+    slide.background = { color: 'FEF7F0' };
 
-    // Gradient header area (tinted with primary color)
-    slide.addShape('rect', {
-        x: 0, y: 0, w: imageBase64 ? 6 : 10, h: 2.2,
-        fill: { color: getLightBackground(primaryColor) },
-    });
-
-    // Build combined text with title and subtitle
-    const textParts: Array<{ text: string; options: any }> = [];
-    const contentWidth = imageBase64 ? 5 : 9;
-
-    // Title
-    textParts.push({
-        text: cleanMarkdown(slideData.title),
-        options: {
-            fontSize: 22,
-            bold: true,
-            color: primaryColor,
-            breakLine: true,
-            paraSpaceAfter: 8,
-        }
-    });
-
-    // Subtitle
-    if (slideData.content && slideData.content.length > 0) {
-        textParts.push({
-            text: cleanMarkdown(slideData.content[0]),
-            options: {
-                fontSize: 12,
-                color: '6b7280',
-                breakLine: true,
-            }
-        });
-    }
-
-    // Add title block
-    slide.addText(textParts, {
+    // Title - centered at top, matching web preview
+    slide.addText(cleanMarkdown(slideData.title), {
         x: 0.5,
-        y: 0.2,
-        w: contentWidth,
-        h: 2.0,
+        y: 0.5,
+        w: 9,
+        h: 0.8,
+        fontSize: 24,
+        bold: true,
+        color: primaryColor,
         fontFace: 'Arial',
-        valign: 'top',
-        fit: 'shrink',
+        align: 'center',
+        valign: 'middle',
     });
 
-    // Metrics
+    // Metrics cards - centered and matching web preview exactly
     if (slideData.metrics && slideData.metrics.length > 0) {
         const metrics = slideData.metrics.slice(0, 3);
-        const metricWidth = (imageBase64 ? 5.5 : 9) / metrics.length;
-        const startY = 2.6;
+        const numCards = metrics.length;
+
+        // Card dimensions to match web preview proportions
+        const cardWidth = 2.7;
+        const cardHeight = 2.8;
+        const cardGap = 0.25;
+
+        // Calculate total width of all cards and gaps
+        const totalCardsWidth = (cardWidth * numCards) + (cardGap * (numCards - 1));
+
+        // Center cards horizontally on the slide (slide width is 10)
+        const startX = (10 - totalCardsWidth) / 2;
+
+        // Vertically center cards (slide height is 5.625)
+        const startY = 1.5;
+
+        // Use the same light pink/salmon color for all cards matching web preview
+        // The web preview uses rgba versions of theme colors at low opacity
+        const cardBgColor = getLightBackground(primaryColor);
 
         metrics.forEach((metric, idx) => {
-            const x = 0.5 + idx * metricWidth;
+            const x = startX + idx * (cardWidth + cardGap);
 
-            // Large value
-            slide.addText(metric.value, {
-                x, y: startY, w: metricWidth - 0.2, h: 0.9,
-                fontSize: 36,
-                bold: true,
-                color: primaryColor,
-                fontFace: 'Arial',
+            // Determine value color based on position (matching web preview)
+            const valueColor = idx === 0 ? primaryColor : (idx === 1 ? secondaryColor : accentColor);
+
+            // Card background - light tinted with subtle border
+            slide.addShape('roundRect', {
+                x: x,
+                y: startY,
+                w: cardWidth,
+                h: cardHeight,
+                fill: { color: cardBgColor },
+                line: { color: primaryColor, width: 0.5, transparency: 80 },
+                rectRadius: 0.12,
             });
 
-            // Label
+            // Large percentage/value - prominent, centered
+            slide.addText(metric.value, {
+                x: x,
+                y: startY + 0.3,
+                w: cardWidth,
+                h: 0.8,
+                fontSize: 40,
+                bold: true,
+                color: valueColor,
+                fontFace: 'Arial',
+                align: 'center',
+                valign: 'middle',
+            });
+
+            // Label - bold, centered below value
             slide.addText(metric.label, {
-                x, y: startY + 0.9, w: metricWidth - 0.2, h: 0.4,
-                fontSize: 14,
+                x: x + 0.15,
+                y: startY + 1.15,
+                w: cardWidth - 0.3,
+                h: 0.45,
+                fontSize: 12,
                 bold: true,
                 color: '1f2937',
                 fontFace: 'Arial',
+                align: 'center',
+                valign: 'top',
             });
 
-            // Description
+            // Description - smaller text, centered
             slide.addText(cleanMarkdown(metric.description), {
-                x, y: startY + 1.35, w: metricWidth - 0.2, h: 0.6,
-                fontSize: 11,
-                color: '6b7280',
+                x: x + 0.15,
+                y: startY + 1.6,
+                w: cardWidth - 0.3,
+                h: 1.0,
+                fontSize: 9,
+                color: '64748b',
                 fontFace: 'Arial',
+                align: 'center',
+                valign: 'top',
             });
         });
     }
 
-    // Image on right if available (no border frame)
-    if (imageBase64) {
-        slide.addImage({
-            data: imageBase64,
-            x: 5.9, y: 0.3, w: 3.8, h: 4.8,
-        });
-    }
-
-    // Bottom accent
+    // Subtle bottom divider line (matching web preview)
     slide.addShape('rect', {
-        x: 0.5, y: 5.1, w: 9, h: 0.015,
-        fill: { color: accentColor },
+        x: 1,
+        y: 4.7,
+        w: 8,
+        h: 0.01,
+        fill: { color: 'e2e8f0' },
     });
 }
 
