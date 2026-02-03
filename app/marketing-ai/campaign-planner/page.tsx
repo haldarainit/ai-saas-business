@@ -502,29 +502,31 @@ export default function CampaignPlannerAI() {
     }
 
     // Implementation Timeline with detailed phases
-    if (actionPlanData.implementationTimeline) {
-      addSectionTitle("EXECUTION PLAN: IMPLEMENTATION TIMELINE");
+    if (actionPlanData.implementationTimeline || actionPlanData.executionPlan || actionPlanData.executionPhases) {
+      addSectionTitle("EXECUTION PLAN: PHASED IMPLEMENTATION TIMELINE");
       yPosition += 2;
 
-      const timeline = actionPlanData.implementationTimeline;
-      const phases = Array.isArray(timeline) ? timeline : Object.values(timeline);
+      const phases = actionPlanData.executionPhases || actionPlanData.executionPlan || actionPlanData.implementationTimeline;
+      const phaseList = Array.isArray(phases) ? phases : (phases && typeof phases === 'object' ? Object.values(phases) : []);
 
-      phases.forEach((phase: any, index: number) => {
+      phaseList.forEach((phase: any, index: number) => {
         checkPageBreak(12);
         
         if (typeof phase === "object" && phase !== null) {
-          if (phase.phase || phase.name) {
-            const phaseName = phase.phase || phase.name;
-            const duration = phase.duration ? ` (${phase.duration})` : "";
-            addText(`${index + 1}. ${phaseName}${duration}`, { fontSize: 11, isBold: true });
-          }
+          // Handle both phaseNumber and index-based numbering
+          const phaseNum = phase.phaseNumber || (index + 1);
+          const phaseName = phase.title || phase.phase || phase.name || `Phase ${phaseNum}`;
+          const duration = phase.duration ? ` - ${phase.duration}` : "";
+          addText(`${phaseNum}. ${phaseName}${duration}`, { fontSize: 11, isBold: true });
+          yPosition += 1;
 
           if (phase.description) {
-            addText(phase.description, { fontSize: 10 });
+            addText(phase.description, { fontSize: 10, color: [80, 80, 80] });
             yPosition += 2;
           }
 
           if (phase.deliverables && Array.isArray(phase.deliverables)) {
+            checkPageBreak(6);
             addText("Deliverables:", { fontSize: 10, isBold: true });
             phase.deliverables.forEach((item: string) => {
               checkPageBreak(5);
@@ -534,6 +536,7 @@ export default function CampaignPlannerAI() {
           }
 
           if (phase.milestones && Array.isArray(phase.milestones)) {
+            checkPageBreak(6);
             addText("Milestones:", { fontSize: 10, isBold: true });
             phase.milestones.forEach((item: string) => {
               checkPageBreak(5);
