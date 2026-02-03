@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Download,
     Loader2,
-    Sparkles,
+    Lightbulb,
     Presentation,
     ArrowLeft,
     ArrowRight,
@@ -218,7 +218,7 @@ const EXAMPLE_PROMPTS = [
     { icon: Presentation, title: "Startup Pitch Deck", subtitle: "for investors" },
     { icon: LayoutGrid, title: "Product Launch Plan", subtitle: "go-to-market strategy" },
     { icon: Share2, title: "Team Training Session", subtitle: "onboarding program" },
-    { icon: Sparkles, title: "Annual Company Report", subtitle: "achievements & goals" },
+    { icon: Lightbulb, title: "Annual Company Report", subtitle: "achievements & goals" },
 ];
 
 // Helper function to clean up markdown formatting from AI-generated content
@@ -1617,7 +1617,7 @@ function PresentationsContent() {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <Sparkles className="mr-2 h-5 w-5" />
+                                                    <Lightbulb className="mr-2 h-5 w-5" />
                                                     Generate Presentation
                                                 </>
                                             )}

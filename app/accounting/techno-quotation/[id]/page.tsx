@@ -50,8 +50,8 @@ import {
     Link2,
     Unlink2,
     RefreshCw,
-    Sparkles,
-    Wand2,
+    Lightbulb,
+    RefreshCw as RefreshIcon,
     Eraser,
     FileCheck
 } from "lucide-react"
@@ -1623,7 +1623,7 @@ Return the response as JSON with this structure:
                         onClick={() => setIsAIDialogOpen(true)}
                         className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/30"
                     >
-                        <Sparkles className="w-4 h-4" />
+                        <Lightbulb className="w-4 h-4" />
                         AI Generate
                     </Button>
                     {/* Blank Template Button */}
@@ -1651,7 +1651,7 @@ Return the response as JSON with this structure:
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
-                            <Wand2 className="w-5 h-5" />
+                            <RefreshIcon className="w-5 h-5" />
                             AI Quotation Generator
                         </DialogTitle>
                         <DialogDescription>
@@ -1759,7 +1759,7 @@ Return the response as JSON with this structure:
                                 </>
                             ) : (
                                 <>
-                                    <Sparkles className="w-4 h-4" />
+                                    <Lightbulb className="w-4 h-4" />
                                     Generate Quotation
                                 </>
                             )}

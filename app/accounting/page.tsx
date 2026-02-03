@@ -71,9 +71,11 @@ export default function Accounting() {
                                 transition={{ duration: 0.8 }}
                                 className="text-center max-w-4xl mx-auto"
                             >
-                                <div className="inline-flex items-center rounded-full bg-primary/10 border border-primary/20 px-4 py-2 text-sm font-medium text-primary mb-8">
-                                    <Calculator className="w-4 h-4 mr-2" />
-                                    AI-Powered Accounting
+                                <div className="inline-flex items-center gap-2 mb-8">
+                                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-500/10">
+                                        <Calculator className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                                    </div>
+                                    <span className="text-sm font-semibold text-foreground">Financial Management Tools</span>
                                 </div>
 
                                 <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
@@ -88,20 +90,15 @@ export default function Accounting() {
                                     intelligent AI-powered tools designed for modern businesses.
                                 </p>
 
-                                {/* How to Use Steps */}
-                                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 bg-cyan-500/5 border border-cyan-500/20 rounded-2xl px-8 py-4 mb-12">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-cyan-500 text-white font-bold text-sm">
-                                            1
-                                        </div>
-                                        <span className="text-sm font-medium text-foreground">Choose a card below</span>
+                                {/* Feature Highlights */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto mb-12">
+                                    <div className="px-5 py-3 rounded-lg bg-background border border-border/50 hover:border-cyan-500/30 transition-colors">
+                                        <p className="text-sm font-semibold text-foreground mb-1">Create Invoices</p>
+                                        <p className="text-xs text-muted-foreground">Professional templates, instant generation</p>
                                     </div>
-                                    <ArrowRight className="w-4 h-4 text-muted-foreground hidden sm:block" />
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500 text-white font-bold text-sm">
-                                            2
-                                        </div>
-                                        <span className="text-sm font-medium text-foreground">Generate Invoice or Quotation instantly</span>
+                                    <div className="px-5 py-3 rounded-lg bg-background border border-border/50 hover:border-emerald-500/30 transition-colors">
+                                        <p className="text-sm font-semibold text-foreground mb-1">Generate Quotes</p>
+                                        <p className="text-xs text-muted-foreground">Smart pricing, seamless conversion</p>
                                     </div>
                                 </div>
 

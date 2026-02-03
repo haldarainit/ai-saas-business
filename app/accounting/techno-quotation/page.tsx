@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { ArrowLeft, Sparkles, FileEdit, Zap, Plus, Loader2, Trash2, Check } from "lucide-react";
+import { ArrowLeft, Lightbulb, FileEdit, Cpu, Plus, Loader2, Trash2, Check } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from 'next/navigation';
@@ -466,7 +466,7 @@ export default function TechnoQuotationDashboard() {
                             {/* Header */}
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 shadow-lg">
-                                    <Sparkles className="w-6 h-6 text-white animate-pulse" />
+                                    <Lightbulb className="w-6 h-6 text-white animate-pulse" />
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-bold text-white">AI Processing</h3>
@@ -548,7 +548,7 @@ export default function TechnoQuotationDashboard() {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
-                                            <Sparkles className="w-6 h-6" />
+                                            <Lightbulb className="w-6 h-6" />
                                         </div>
                                         <div>
                                             <h2 className="text-xl font-bold">AI Quotation Generator</h2>
@@ -690,7 +690,7 @@ export default function TechnoQuotationDashboard() {
                                         onClick={handleGenerateWithAI}
                                         className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white gap-2"
                                     >
-                                        <Sparkles className="w-4 h-4" />
+                                        <Lightbulb className="w-4 h-4" />
                                         Generate Quotation
                                     </Button>
                                 ) : (
@@ -802,13 +802,13 @@ export default function TechnoQuotationDashboard() {
 
                                     {/* AI Badge */}
                                     <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-xs font-bold flex items-center gap-1">
-                                        <Sparkles className="w-3 h-3" />
+                                        <Lightbulb className="w-3 h-3" />
                                         AI Powered
                                     </div>
 
                                     <div className="relative p-8 flex flex-col h-full">
                                         <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 mb-6 group-hover:scale-110 transition-transform">
-                                            {isCreating ? <Loader2 className="w-8 h-8 text-white animate-spin" /> : <Zap className="w-8 h-8 text-white" />}
+                                            {isCreating ? <Loader2 className="w-8 h-8 text-white animate-spin" /> : <Cpu className="w-8 h-8 text-white" />}
                                         </div>
 
                                         <h3 className="text-2xl font-bold mb-3 text-teal-600">
@@ -839,7 +839,7 @@ export default function TechnoQuotationDashboard() {
                                             size="lg"
                                             disabled={isCreating}
                                         >
-                                            <Sparkles className="w-4 h-4 mr-2" />
+                                            <Lightbulb className="w-4 h-4 mr-2" />
                                             Generate with AI
                                         </Button>
                                     </div>
@@ -900,7 +900,7 @@ export default function TechnoQuotationDashboard() {
                                                 </div>
                                                 {/* Type Badge */}
                                                 <div className={`absolute top-2 right-2 p-1.5 rounded-md shadow-sm ${q.quotationType === 'automated' ? 'bg-teal-500' : 'bg-emerald-500'}`}>
-                                                    {q.quotationType === 'automated' ? <Sparkles className="w-3 h-3 text-white" /> : <FileEdit className="w-3 h-3 text-white" />}
+                                                    {q.quotationType === 'automated' ? <Lightbulb className="w-3 h-3 text-white" /> : <FileEdit className="w-3 h-3 text-white" />}
                                                 </div>
                                             </div>
 
@@ -942,7 +942,7 @@ export default function TechnoQuotationDashboard() {
                     <AlertDialogHeader>
                         <div className="flex items-center gap-3 mb-2">
                             <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500">
-                                <Sparkles className="w-5 h-5 text-white" />
+                                <Lightbulb className="w-5 h-5 text-white" />
                             </div>
                             <AlertDialogTitle className="text-emerald-700 dark:text-emerald-400 text-xl">
                                 Name Your Quotation
