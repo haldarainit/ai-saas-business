@@ -2,19 +2,16 @@
 
 import { useRef, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { 
   User, 
   Bot, 
   AlertCircle, 
-  Copy, 
-  Check,
   Loader2,
   Sparkles
 } from 'lucide-react';
 import { useChatStore, type ChatMessage } from '@/lib/stores/chat';
 import { useState } from 'react';
+import { Markdown } from '@/components/chat/Markdown';
 
 interface MessageProps {
   message: ChatMessage;
@@ -85,59 +82,7 @@ const Message = memo(function Message({ message }: MessageProps) {
             {isUser ? (
               <p className="m-0 whitespace-pre-wrap">{message.content}</p>
             ) : (
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  code: ({ node, className, children, ...props }) => {
-                    const match = /language-(\w+)/.exec(className || '');
-                    const isInline = !match;
-                    
-                    return isInline ? (
-                      <code
-                        className="px-1.5 py-0.5 bg-slate-700/50 rounded text-orange-300 text-sm"
-                        {...props}
-                      >
-                        {children}
-                      </code>
-                    ) : (
-                      <div className="relative group my-3">
-                        <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={handleCopy}
-                            className="p-1.5 bg-slate-700 rounded hover:bg-slate-600 transition-colors"
-                          >
-                            {copied ? (
-                              <Check className="w-3.5 h-3.5 text-green-400" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5 text-slate-400" />
-                            )}
-                          </button>
-                        </div>
-                        <pre className="!bg-[#1e1e1e] !p-4 rounded-lg overflow-x-auto border border-slate-700">
-                          <code className={className} {...props}>
-                            {children}
-                          </code>
-                        </pre>
-                      </div>
-                    );
-                  },
-                  pre: ({ children }) => <>{children}</>,
-                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                  ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
-                  ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
-                  li: ({ children }) => <li className="mb-1">{children}</li>,
-                  a: ({ href, children }) => (
-                    <a href={href} target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:underline">
-                      {children}
-                    </a>
-                  ),
-                  h1: ({ children }) => <h1 className="text-xl font-bold mt-4 mb-2">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-lg font-bold mt-3 mb-2">{children}</h2>,
-                  h3: ({ children }) => <h3 className="text-base font-bold mt-2 mb-1">{children}</h3>,
-                }}
-              >
-                {message.content}
-              </ReactMarkdown>
+              <Markdown html>{message.content}</Markdown>
             )}
           </div>
 

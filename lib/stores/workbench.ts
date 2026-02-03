@@ -1,597 +1,372 @@
-// Workbench Store - Manages the entire workbench state with WebContainer integration
-// Modeled after bolt.diy's workbench store
-
-import { create } from 'zustand';
-import { WebContainer } from '@webcontainer/api';
-import { getWebContainer, isWebContainerReady, WORK_DIR } from '@/lib/webcontainer';
+import { atom, map, computed, type MapStore, type ReadableAtom, type WritableAtom } from 'nanostores';
+import { useStore } from '@nanostores/react';
+import type { EditorDocument, ScrollPosition } from '@/components/editor/codemirror/CodeMirrorEditor';
 import { ActionRunner } from '@/lib/runtime/action-runner';
-import { StreamingMessageParser, ActionCallbackData, ArtifactCallbackData } from '@/lib/runtime/message-parser';
-
-export interface FileContent {
-  type: 'file';
-  content: string;
-  isBinary?: boolean;
-}
-
-export interface FolderContent {
-  type: 'folder';
-}
-
-export type FileSystemItem = FileContent | FolderContent;
-export type FileMap = Record<string, FileSystemItem | undefined>;
-
-export interface FileHistory {
-  originalContent: string;
-  versions: Array<{
-    content: string;
-    timestamp: number;
-    description?: string;
-  }>;
-}
-
-export type FileHistoryMap = Record<string, FileHistory | undefined>;
-
-export interface PreviewInfo {
-  port: number;
-  url: string;
-  ready: boolean;
-}
+import { StreamingMessageParser, type ActionCallbackData, type ArtifactCallbackData } from '@/lib/runtime/message-parser';
+import { webcontainer } from '@/lib/webcontainer';
+import type { BoltAction, DeployAlert } from '@/types/actions';
+import type { BoltArtifactData } from '@/types/artifact';
+import { FilesStore, type FileMap } from './files';
+import { PreviewsStore } from './previews';
+import { TerminalStore } from './terminal';
+import { EditorStore } from './editor';
+import { unreachable } from '@/utils/unreachable';
+import { path } from '@/utils/path';
 
 export interface ArtifactState {
   id: string;
   title: string;
   type?: string;
   closed: boolean;
-  runner?: ActionRunner;
+  runner: ActionRunner;
 }
 
-export type WorkbenchViewType = 'code' | 'preview' | 'diff';
+export type Artifacts = MapStore<Record<string, ArtifactState>>;
 
-export interface TerminalOutput {
-  id: string;
-  content: string;
-  type: 'stdout' | 'stderr' | 'command';
-}
+export type WorkbenchViewType = 'code' | 'preview';
 
-interface WorkbenchState {
-  // WebContainer state
-  webcontainerReady: boolean;
-  webcontainerError: string | null;
-  
-  // Files
-  files: FileMap;
-  selectedFile: string | null;
-  openFiles: string[];
-  unsavedFiles: Set<string>;
-  expandedFolders: Set<string>;
-  fileHistory: FileHistoryMap;
-  
-  // Views
-  showWorkbench: boolean;
-  currentView: WorkbenchViewType;
-  showTerminal: boolean;
-  showChat: boolean;
-  
-  // Preview
-  previews: PreviewInfo[];
-  activePreviewIndex: number;
-  
-  // Artifacts
-  artifacts: Record<string, ArtifactState>;
-  
-  // Terminal
-  terminalOutput: TerminalOutput[];
-  
-  // Message Parser
-  messageParser: StreamingMessageParser | null;
-  currentArtifact: ArtifactState | null;
-  generatedFile: string | null;
-  
-  // Actions
-  initWebContainer: () => Promise<WebContainer | null>;
-  setFiles: (files: FileMap) => void;
-  addFile: (path: string, content: string, type?: 'file' | 'folder') => void;
-  updateFile: (path: string, content: string) => void;
-  deleteFile: (path: string) => void;
-  selectFile: (path: string | null) => void;
-  openFile: (path: string) => void;
-  closeFile: (path: string) => void;
-  saveFile: (path: string) => Promise<void>;
-  saveAllFiles: () => Promise<void>;
-  toggleFolder: (path: string) => void;
-  
-  // Views
-  setShowWorkbench: (show: boolean) => void;
-  setCurrentView: (view: WorkbenchViewType) => void;
-  setShowTerminal: (show: boolean) => void;
-  setShowChat: (show: boolean) => void;
-  
-  // Preview
-  addPreview: (preview: Omit<PreviewInfo, 'ready'> & { ready?: boolean }) => void;
-  removePreview: (port: number) => void;
-  setActivePreview: (index: number) => void;
-  
-  // Artifacts & Actions
-  addArtifact: (data: ArtifactCallbackData) => void;
-  closeArtifact: (id: string) => void;
-  runAction: (data: ActionCallbackData, isStreaming?: boolean) => Promise<void>;
-  
-  // Terminal
-  addTerminalOutput: (output: TerminalOutput) => void;
-  clearTerminal: () => void;
-  runCommand: (command: string) => Promise<void>;
-  
-  // Message parsing
-  parseMessage: (messageId: string, content: string) => string;
-  
-  // Reset
-  reset: () => void;
-}
+export class WorkbenchStore {
+  #previewsStore = new PreviewsStore(webcontainer);
+  #filesStore = new FilesStore(webcontainer);
+  #editorStore = new EditorStore(this.#filesStore);
+  #terminalStore = new TerminalStore(webcontainer);
 
-// Store for WebContainer instance
-let webcontainerInstance: WebContainer | null = null;
-let actionRunner: ActionRunner | null = null;
+  #messageParser = new StreamingMessageParser({
+    callbacks: {
+      onArtifactOpen: (data) => this.addToArtifact(data.artifactId!, data),
+      onActionOpen: (data) => this.addAction(data),
+      onActionStream: (data) => this.runAction(data, true),
+      onActionClose: (data) => this.runAction(data),
+    },
+  });
 
-export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
-  // Initial state
-  webcontainerReady: false,
-  webcontainerError: null,
-  
-  files: {},
-  selectedFile: null,
-  openFiles: [],
-  unsavedFiles: new Set(),
-  expandedFolders: new Set(),
-  fileHistory: {},
-  
-  showWorkbench: false,
-  currentView: 'code',
-  showTerminal: false,
-  showChat: true,
-  
-  previews: [],
-  activePreviewIndex: 0,
-  
-  artifacts: {},
-  
-  terminalOutput: [],
-  
-  messageParser: null,
-  currentArtifact: null,
-  generatedFile: null,
-  
-  // Initialize WebContainer
-  initWebContainer: async () => {
+  /**
+   * Boolean that indicates if the workbench is visible or not.
+   */
+  showWorkbench: WritableAtom<boolean> = atom(false);
+
+  /**
+   * Boolean that indicates if the chat is visible or not.
+   */
+  showChat: WritableAtom<boolean> = atom(true);
+
+  /**
+   * Boolean that indicates if the WebContainer is ready.
+   */
+  webcontainerReady: WritableAtom<boolean> = atom(false);
+
+  /**
+   * Error message if WebContainer fails to initialize.
+   */
+  webcontainerError: WritableAtom<string | undefined> = atom(undefined);
+
+  /**
+   * The current view of the workbench.
+   */
+  currentView: WritableAtom<WorkbenchViewType> = atom('code');
+
+  /**
+   * The list of artifacts that have been created in the current chat.
+   */
+  artifacts: Artifacts = map({});
+
+  /**
+   * A list of all files with unsaved changes.
+   */
+  unsavedFiles: WritableAtom<Set<string>> = atom(new Set<string>());
+
+  /**
+   * Action alert to display errors or information.
+   */
+  actionAlert: WritableAtom<{
+    type: string;
+    title: string;
+    description: string;
+    content: string;
+    source?: 'terminal' | 'preview';
+  } | undefined> = atom(undefined);
+
+  /**
+   * Supabase alert.
+   */
+  supabaseAlert: WritableAtom<{
+    type: string;
+    title: string;
+    description: string;
+    content: string;
+    source?: 'supabase';
+  } | undefined> = atom(undefined);
+
+  /**
+   * Deploy alert.
+   */
+  deployAlert: WritableAtom<DeployAlert | undefined> = atom(undefined);
+
+  constructor() {}
+
+  get previewsStore() {
+    return this.#previewsStore;
+  }
+
+  get filesStore() {
+    return this.#filesStore;
+  }
+
+  get terminalStore() {
+    return this.#terminalStore;
+  }
+
+  get editorStore() {
+    return this.#editorStore;
+  }
+
+  get previews() {
+    return computed(this.#previewsStore.previews, (previews) => 
+      previews.map(p => ({ ...p, url: p.baseUrl }))
+    );
+  }
+
+  get files() {
+    return this.#filesStore.files;
+  }
+
+  get currentDocument(): ReadableAtom<EditorDocument | undefined> {
+    return this.#editorStore.currentDocument;
+  }
+
+  get selectedFile(): ReadableAtom<string | undefined> {
+    return this.#editorStore.selectedFile;
+  }
+
+  get boltTerminal() {
+    return this.#terminalStore.boltTerminal;
+  }
+
+  get filesCount(): number {
+    return this.#filesStore.filesCount;
+  }
+
+  async initWebContainer() {
     try {
-      set({ webcontainerError: null });
-      
-      const wc = await getWebContainer();
-      webcontainerInstance = wc;
-      
-      // Create action runner
-      actionRunner = new ActionRunner(Promise.resolve(wc));
-      
-      // Create message parser with callbacks
-      const parser = new StreamingMessageParser({
-        onArtifactOpen: (data) => {
-          console.log('[Parser] Artifact opened:', data);
-          const artifact: ArtifactState = {
-            id: data.id,
-            title: data.title,
-            type: data.type,
-            closed: false,
-            runner: actionRunner || undefined,
-          };
-          set((state) => ({
-            artifacts: { ...state.artifacts, [data.id]: artifact },
-            currentArtifact: artifact,
-            showWorkbench: true,
-          }));
-        },
-        onArtifactClose: (data) => {
-          console.log('[Parser] Artifact closed:', data);
-          set((state) => ({
-            artifacts: {
-              ...state.artifacts,
-              [data.id]: { ...state.artifacts[data.id], closed: true },
-            },
-            currentArtifact: null,
-          }));
-        },
-        onActionOpen: (data) => {
-          console.log('[Parser] Action opened:', data);
-          if (actionRunner) {
-            actionRunner.addAction(data);
-          }
-        },
-        onActionStream: (data) => {
-          // Stream file content updates
-          if (data.action.type === 'file') {
-            const filePath = data.action.filePath.startsWith('/') 
-              ? data.action.filePath 
-              : `${WORK_DIR}/${data.action.filePath}`;
-            
-            // Auto-expand parent folders
-            const foldersToExpand = new Set(get().expandedFolders);
-            let pathBuilder = '';
-            const segments = filePath.split('/');
-            
-            // We want all parents. 
-            for (let i = 0; i < segments.length - 1; i++) {
-               const segment = segments[i];
-               if (segment === '' && i === 0) {
-                 pathBuilder = '/'; // Root
-                 continue;
-               }
-               
-               // Construct path for this level
-               if (pathBuilder === '' || pathBuilder === '/') {
-                 pathBuilder += segment;
-               } else {
-                 pathBuilder += '/' + segment;
-               }
-               
-               if (!foldersToExpand.has(pathBuilder)) {
-                 foldersToExpand.add(pathBuilder);
-               }
-            }
-
-            set((state) => ({
-              files: {
-                ...state.files,
-                [filePath]: { type: 'file', content: data.action.content },
-              },
-              selectedFile: filePath,
-              generatedFile: filePath,
-              expandedFolders: foldersToExpand
-            }));
-            
-            // Open the file in editor
-            get().openFile(filePath);
-          }
-        },
-        onActionClose: async (data) => {
-          console.log('[Parser] Action closed:', data);
-          
-          // Execute the action
-          if (actionRunner) {
-            await actionRunner.runAction(data, false);
-          }
-          
-          // Update file in store
-          if (data.action.type === 'file') {
-            const filePath = data.action.filePath.startsWith('/') 
-              ? data.action.filePath 
-              : `${WORK_DIR}/${data.action.filePath}`;
-            
-            set((state) => ({
-              files: {
-                ...state.files,
-                [filePath]: { type: 'file', content: data.action.content },
-              },
-              generatedFile: null,
-            }));
-          }
-        },
-      });
-      
-      set({ 
-        webcontainerReady: true,
-        messageParser: parser,
-      });
-      
-      // Listen for preview server
-      wc.on('server-ready', (port, url) => {
-        console.log('[WebContainer] Server ready on port:', port, url);
-        get().addPreview({ port, url, ready: true });
-      });
-      
-      // Listen for errors
-      wc.on('error', (error) => {
-        console.error('[WebContainer] Error:', error);
-        set({ webcontainerError: error.message });
-      });
-      
-      console.log('[Workbench] WebContainer initialized successfully');
+      const wc = await webcontainer;
+      this.webcontainerReady.set(true);
       return wc;
-      
     } catch (error: any) {
-      console.error('[Workbench] Failed to initialize WebContainer:', error);
-      set({ 
-        webcontainerReady: false, 
-        webcontainerError: error.message || 'Failed to initialize WebContainer',
-      });
-      return null;
+      this.webcontainerError.set(error.message);
+      throw error;
     }
-  },
-  
-  // File operations
-  setFiles: (files) => set({ files }),
-  
-  addFile: (path, content, type = 'file') => {
-    set((state) => ({
-      files: {
-        ...state.files,
-        [path]: type === 'file' 
-          ? { type: 'file', content } 
-          : { type: 'folder' },
-      },
-      fileHistory: type === 'file' 
-        ? {
-            ...state.fileHistory,
-            [path]: {
-              originalContent: content,
-              versions: [{ content, timestamp: Date.now(), description: 'Initial version' }]
-            }
-          }
-        : state.fileHistory,
-    }));
-  },
-  
-  updateFile: (path, content) => {
-    set((state) => {
-      const newUnsavedFiles = new Set(state.unsavedFiles);
-      newUnsavedFiles.add(path);
-      
-      const history = state.fileHistory[path];
-      const newHistory = history ? {
-        ...history,
-        versions: [...history.versions, { content, timestamp: Date.now() }]
-      } : {
-        originalContent: content,
-        versions: [{ content, timestamp: Date.now() }]
-      };
+  }
 
-      return {
-        files: {
-          ...state.files,
-          [path]: { type: 'file', content },
-        },
-        unsavedFiles: newUnsavedFiles,
-        fileHistory: {
-          ...state.fileHistory,
-          [path]: newHistory
+  parseMessage(messageId: string, content: string) {
+    return this.#messageParser.parse(messageId, content);
+  }
+
+  async addToArtifact(id: string, data: ArtifactCallbackData) {
+    const artifacts = this.artifacts.get();
+    const artifact = artifacts[id];
+
+    if (!artifact) {
+      const runner = new ActionRunner(
+        webcontainer,
+        () => this.boltTerminal,
+        (alert) => this.actionAlert.set(alert),
+        (alert) => this.supabaseAlert.set(alert),
+        (alert) => this.deployAlert.set(alert),
+      );
+
+      this.artifacts.setKey(id, {
+        id,
+        title: data.title,
+        type: data.type,
+        closed: false,
+        runner,
+      });
+    }
+  }
+
+  async addAction(data: ActionCallbackData) {
+    const artifacts = this.artifacts.get();
+    const artifact = artifacts[data.artifactId];
+
+    if (!artifact) {
+      unreachable('Artifact not found');
+    }
+
+    artifact.runner.addAction(data);
+  }
+
+  async runAction(data: ActionCallbackData, isStreaming: boolean = false) {
+    const artifacts = this.artifacts.get();
+    const artifact = artifacts[data.artifactId];
+
+    if (!artifact) {
+      unreachable('Artifact not found');
+    }
+
+    await artifact.runner.runAction(data, isStreaming);
+  }
+
+  setDocuments(files: FileMap) {
+    this.#editorStore.setDocuments(files);
+
+    if (this.#filesStore.filesCount > 0 && this.currentDocument.get() === undefined) {
+      for (const [filePath, dirent] of Object.entries(files)) {
+        if (dirent?.type === 'file') {
+          this.setSelectedFile(filePath);
+          break;
         }
-      };
-    });
-  },
-  
-  deleteFile: (path) => {
-    set((state) => {
-      const newFiles = { ...state.files };
-      delete newFiles[path];
-      
-      const newOpenFiles = state.openFiles.filter(f => f !== path);
-      const newSelectedFile = state.selectedFile === path 
-        ? newOpenFiles[0] || null 
-        : state.selectedFile;
-      
-      return {
-        files: newFiles,
-        openFiles: newOpenFiles,
-        selectedFile: newSelectedFile,
-      };
-    });
-    
-    // Also delete from WebContainer
-    if (webcontainerInstance) {
-      const relativePath = path.replace(`${WORK_DIR}/`, '');
-      webcontainerInstance.fs.rm(relativePath, { force: true }).catch(console.error);
-    }
-  },
-  
-  selectFile: (path) => set({ selectedFile: path }),
-  
-  openFile: (path) => {
-    set((state) => {
-      if (state.openFiles.includes(path)) {
-        return { selectedFile: path };
       }
-      return {
-        openFiles: [...state.openFiles, path],
-        selectedFile: path,
-      };
-    });
-  },
-  
-  closeFile: (path) => {
-    set((state) => {
-      const newOpenFiles = state.openFiles.filter(f => f !== path);
-      const newSelectedFile = state.selectedFile === path
-        ? newOpenFiles[newOpenFiles.length - 1] || null
-        : state.selectedFile;
-      
-      return {
-        openFiles: newOpenFiles,
-        selectedFile: newSelectedFile,
-      };
-    });
-  },
-  
-  saveFile: async (path) => {
-    if (!webcontainerInstance) return;
-    
-    const state = get();
-    const file = state.files[path];
-    
-    if (file?.type !== 'file') return;
-    
-    try {
-      const relativePath = path.replace(`${WORK_DIR}/`, '');
-      await webcontainerInstance.fs.writeFile(relativePath, file.content);
-      
-      set((state) => {
-        const newUnsavedFiles = new Set(state.unsavedFiles);
-        newUnsavedFiles.delete(path);
-        return { unsavedFiles: newUnsavedFiles };
-      });
-    } catch (error) {
-      console.error('Failed to save file:', error);
     }
-  },
-  
-  saveAllFiles: async () => {
-    const state = get();
-    for (const path of state.unsavedFiles) {
-      await get().saveFile(path);
-    }
-  },
-  
-  toggleFolder: (path) => {
-    set((state) => {
-      const newExpanded = new Set(state.expandedFolders);
-      if (newExpanded.has(path)) {
-        newExpanded.delete(path);
-      } else {
-        newExpanded.add(path);
-      }
-      return { expandedFolders: newExpanded };
-    });
-  },
-  
-  // View controls
-  setShowWorkbench: (show) => set({ showWorkbench: show }),
-  setCurrentView: (view) => set({ currentView: view }),
-  setShowTerminal: (show) => set({ showTerminal: show }),
-  setShowChat: (show) => set({ showChat: show }),
-  
-  // Preview
-  addPreview: (preview) => {
-    set((state) => {
-      const existing = state.previews.find(p => p.port === preview.port);
-      if (existing) {
-        return {
-          previews: state.previews.map(p => 
-            p.port === preview.port 
-              ? { ...p, ...preview, ready: preview.ready ?? true }
-              : p
-          ),
-        };
-      }
-      return {
-        previews: [...state.previews, { ...preview, ready: preview.ready ?? true }],
-      };
-    });
-  },
-  
-  removePreview: (port) => {
-    set((state) => ({
-      previews: state.previews.filter(p => p.port !== port),
-    }));
-  },
-  
-  setActivePreview: (index) => set({ activePreviewIndex: index }),
-  
-  // Artifacts & Actions
-  addArtifact: (data) => {
-    const artifact: ArtifactState = {
-      id: data.id,
-      title: data.title,
-      type: data.type,
-      closed: false,
-      runner: actionRunner || undefined,
-    };
-    
-    set((state) => ({
-      artifacts: { ...state.artifacts, [data.id]: artifact },
-    }));
-  },
-  
-  closeArtifact: (id) => {
-    set((state) => ({
-      artifacts: {
-        ...state.artifacts,
-        [id]: { ...state.artifacts[id], closed: true },
-      },
-    }));
-  },
-  
-  runAction: async (data, isStreaming = false) => {
-    if (actionRunner) {
-      await actionRunner.runAction(data, isStreaming);
-    }
-  },
-  
-  // Terminal
-  addTerminalOutput: (output) => {
-    set((state) => ({
-      terminalOutput: [...state.terminalOutput, output],
-    }));
-  },
-  
-  clearTerminal: () => set({ terminalOutput: [] }),
-  
-  runCommand: async (command) => {
-    if (!webcontainerInstance) {
-      get().addTerminalOutput({
-        id: Date.now().toString(),
-        content: 'WebContainer not initialized',
-        type: 'stderr',
-      });
+  }
+
+  async saveFile(filePath: string) {
+    const documents = this.#editorStore.documents.get();
+    const document = documents[filePath];
+
+    if (document === undefined) {
       return;
     }
-    
-    get().addTerminalOutput({
-      id: Date.now().toString(),
-      content: `$ ${command}`,
-      type: 'command',
-    });
-    
-    try {
-      const parts = command.trim().split(/\s+/);
-      const cmd = parts[0];
-      const args = parts.slice(1);
-      
-      const process = await webcontainerInstance.spawn(cmd, args);
-      
-      process.output.pipeTo(
-        new WritableStream({
-          write(data) {
-            get().addTerminalOutput({
-              id: Date.now().toString(),
-              content: data,
-              type: 'stdout',
-            });
-          },
-        })
-      );
-      
-      await process.exit;
-    } catch (error: any) {
-      get().addTerminalOutput({
-        id: Date.now().toString(),
-        content: error.message,
-        type: 'stderr',
-      });
+
+    await this.#filesStore.saveFile(filePath, document.value);
+
+    const newUnsavedFiles = new Set(this.unsavedFiles.get());
+    newUnsavedFiles.delete(filePath);
+
+    this.unsavedFiles.set(newUnsavedFiles);
+  }
+
+  async saveCurrentDocument() {
+    const currentDocument = this.currentDocument.get();
+
+    if (currentDocument === undefined) {
+      return;
     }
-  },
-  
-  // Message parsing
-  parseMessage: (messageId, content) => {
-    const parser = get().messageParser;
-    if (!parser) {
-      return content;
+
+    await this.saveFile(currentDocument.filePath);
+  }
+
+  setCurrentDocumentContent(newContent: string) {
+    const filePath = this.currentDocument.get()?.filePath;
+
+    if (!filePath) {
+      return;
     }
-    return parser.parse(messageId, content);
-  },
-  
-  // Reset
-  reset: () => {
-    set({
-      files: {},
-      selectedFile: null,
-      openFiles: [],
-      unsavedFiles: new Set(),
-      showWorkbench: false,
-      currentView: 'code',
-      showTerminal: false,
-      previews: [],
-      activePreviewIndex: 0,
-      artifacts: {},
-      terminalOutput: [],
-      currentArtifact: null,
-      fileHistory: {},
-      generatedFile: null,
-    });
-  },
-}));
+
+    const originalContent = this.#filesStore.getFile(filePath)?.content;
+    const unsavedChanges = originalContent !== undefined && originalContent !== newContent;
+
+    this.#editorStore.updateFile(filePath, newContent);
+
+    const currentDocument = this.currentDocument.get();
+
+    if (currentDocument) {
+      const previousUnsavedFiles = this.unsavedFiles.get();
+
+      if (unsavedChanges && previousUnsavedFiles.has(currentDocument.filePath)) {
+        return;
+      }
+
+      const newUnsavedFiles = new Set(previousUnsavedFiles);
+
+      if (unsavedChanges) {
+        newUnsavedFiles.add(currentDocument.filePath);
+      } else {
+        newUnsavedFiles.delete(currentDocument.filePath);
+      }
+
+      this.unsavedFiles.set(newUnsavedFiles);
+    }
+  }
+
+  setCurrentDocumentScrollPosition(position: ScrollPosition) {
+    const editorDocument = this.currentDocument.get();
+
+    if (!editorDocument) {
+      return;
+    }
+
+    const { filePath } = editorDocument;
+
+    this.#editorStore.updateScrollPosition(filePath, position);
+  }
+
+  setSelectedFile(filePath: string | undefined) {
+    this.#editorStore.setSelectedFile(filePath);
+  }
+
+  setShowWorkbench(show: boolean) {
+    this.showWorkbench.set(show);
+  }
+
+  setShowChat(show: boolean) {
+    this.showChat.set(show);
+  }
+
+  toggleTerminal(value?: boolean) {
+    this.#terminalStore.toggleTerminal(value);
+  }
+
+  getFileModifcations() {
+    return this.#filesStore.getFileModifications();
+  }
+
+  getModifiedFiles() {
+    return this.#filesStore.getModifiedFiles();
+  }
+
+  resetAllFileModifications() {
+    this.#filesStore.resetFileModifications();
+  }
+
+  reset() {
+    this.artifacts.set({});
+    this.showWorkbench.set(false);
+    this.showChat.set(true);
+    this.currentView.set('code');
+    this.webcontainerReady.set(false);
+    this.webcontainerError.set(undefined);
+    this.actionAlert.set(undefined);
+    this.supabaseAlert.set(undefined);
+    this.deployAlert.set(undefined);
+    this.unsavedFiles.set(new Set());
+    this.#messageParser.reset();
+  }
+}
+
+export const workbenchStore = new WorkbenchStore();
+
+export function useWorkbenchStore() {
+  const showWorkbench = useStore(workbenchStore.showWorkbench);
+  const showChat = useStore(workbenchStore.showChat);
+  const webcontainerReady = useStore(workbenchStore.webcontainerReady);
+  const webcontainerError = useStore(workbenchStore.webcontainerError);
+  const previews = useStore(workbenchStore.previews);
+  const files = useStore(workbenchStore.files);
+  const currentView = useStore(workbenchStore.currentView);
+  const showTerminal = useStore(workbenchStore.terminalStore.showTerminal);
+
+  return {
+    showWorkbench,
+    setShowWorkbench: (show: boolean) => workbenchStore.setShowWorkbench(show),
+    showChat,
+    setShowChat: (show: boolean) => workbenchStore.setShowChat(show),
+    webcontainerReady,
+    webcontainerError,
+    initWebContainer: () => workbenchStore.initWebContainer(),
+    parseMessage: (messageId: string, content: string) => workbenchStore.parseMessage(messageId, content),
+    previews,
+    files,
+    reset: () => workbenchStore.reset(),
+    currentView,
+    setCurrentView: (view: WorkbenchViewType) => workbenchStore.currentView.set(view),
+    showTerminal,
+    setShowTerminal: (show: boolean) => workbenchStore.terminalStore.toggleTerminal(show),
+    setSelectedFile: (path: string | undefined) => workbenchStore.setSelectedFile(path),
+    artifacts: useStore(workbenchStore.artifacts),
+    selectedFile: useStore(workbenchStore.selectedFile),
+    currentDocument: useStore(workbenchStore.currentDocument),
+    terminalStore: workbenchStore.terminalStore,
+    editorStore: workbenchStore.editorStore,
+    filesStore: workbenchStore.filesStore,
+  };
+}

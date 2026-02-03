@@ -7,6 +7,30 @@
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
+    /* Terminal Colors - Light Theme Default/Fallback */
+    --bolt-elements-terminal-backgroundColor: #ffffff;
+    --bolt-elements-terminal-textColor: #333333;
+    --bolt-elements-terminal-cursorColor: #333333;
+    --bolt-elements-terminal-selection-backgroundColor: #00000040;
+    --bolt-elements-terminal-color-black: #000000;
+    --bolt-elements-terminal-color-red: #cd3131;
+    --bolt-elements-terminal-color-green: #00bc00;
+    --bolt-elements-terminal-color-yellow: #949800;
+    --bolt-elements-terminal-color-blue: #0451a5;
+    --bolt-elements-terminal-color-magenta: #bc05bc;
+    --bolt-elements-terminal-color-cyan: #0598bc;
+    --bolt-elements-terminal-color-white: #555555;
+    --bolt-elements-terminal-color-brightBlack: #686868;
+    --bolt-elements-terminal-color-brightRed: #cd3131;
+    --bolt-elements-terminal-color-brightGreen: #00bc00;
+    --bolt-elements-terminal-color-brightYellow: #949800;
+    --bolt-elements-terminal-color-brightBlue: #0451a5;
+    --bolt-elements-terminal-color-brightMagenta: #bc05bc;
+    --bolt-elements-terminal-color-brightCyan: #0598bc;
+    --bolt-elements-terminal-color-brightWhite: #a5a5a5;
+
+
+
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
@@ -38,6 +62,29 @@
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
+
+    /* Terminal Colors - Dark Theme */
+    --bolt-elements-terminal-backgroundColor: #0f172a; /* depth-1 */
+    --bolt-elements-terminal-textColor: #eff0eb;
+    --bolt-elements-terminal-cursorColor: #eff0eb;
+    --bolt-elements-terminal-selection-backgroundColor: #97979b33;
+    --bolt-elements-terminal-color-black: #000000;
+    --bolt-elements-terminal-color-red: #ff5c57;
+    --bolt-elements-terminal-color-green: #5af78e;
+    --bolt-elements-terminal-color-yellow: #f3f99d;
+    --bolt-elements-terminal-color-blue: #57c7ff;
+    --bolt-elements-terminal-color-magenta: #ff6ac1;
+    --bolt-elements-terminal-color-cyan: #9aedfe;
+    --bolt-elements-terminal-color-white: #f1f1f0;
+    --bolt-elements-terminal-color-brightBlack: #686868;
+    --bolt-elements-terminal-color-brightRed: #ff5c57;
+    --bolt-elements-terminal-color-brightGreen: #5af78e;
+    --bolt-elements-terminal-color-brightYellow: #f3f99d;
+    --bolt-elements-terminal-color-brightBlue: #57c7ff;
+    --bolt-elements-terminal-color-brightMagenta: #ff6ac1;
+    --bolt-elements-terminal-color-brightCyan: #9aedfe;
+    --bolt-elements-terminal-color-brightWhite: #f1f1f0;
+
 
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;

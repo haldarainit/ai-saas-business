@@ -26,7 +26,7 @@ import FileTree from './FileTree';
 import EditorPanel from './EditorPanel';
 import Preview from './Preview';
 import DiffView from './DiffView';
-import Terminal from './Terminal';
+import { Terminal } from './Terminal';
 
 type ViewTab = 'code' | 'preview' | 'diff';
 type SidebarTab = 'files' | 'search';

@@ -6,24 +6,27 @@ interface WebContainerContext {
   loaded: boolean;
 }
 
-export const webcontainerContext: WebContainerContext = import.meta.hot?.data.webcontainerContext ?? {
+export const webcontainerContext: WebContainerContext = (import.meta as any).hot?.data.webcontainerContext ?? {
   loaded: false,
 };
 
-if (import.meta.hot) {
-  import.meta.hot.data.webcontainerContext = webcontainerContext;
+if ((import.meta as any).hot) {
+  (import.meta as any).hot.data.webcontainerContext = webcontainerContext;
 }
 
 export let webcontainer: Promise<WebContainer> = new Promise(() => {
   // noop for ssr
 });
 
-if (!import.meta.env.SSR) {
+if (typeof window !== 'undefined') {
   webcontainer =
-    import.meta.hot?.data.webcontainer ??
+    (import.meta as any).hot?.data.webcontainer ??
     Promise.resolve()
       .then(() => {
         return WebContainer.boot({
+            // coep: 'credentialless', // This might need Cross-Origin-Embedder-Policy header on the server
+            // For now, let's try without if it causes issues, or keep it if setup allows. 
+            // WebContainer requires COOP/COEP headers.
           coep: 'credentialless',
           workdirName: WORK_DIR_NAME,
           forwardPreviewErrors: true, // Enable error forwarding from iframes
@@ -59,7 +62,11 @@ if (!import.meta.env.SSR) {
         return webcontainer;
       });
 
-  if (import.meta.hot) {
-    import.meta.hot.data.webcontainer = webcontainer;
+  if ((import.meta as any).hot) {
+    (import.meta as any).hot.data.webcontainer = webcontainer;
   }
+}
+
+export function isWebContainerSupported() {
+  return typeof window !== 'undefined' && (window as any).SharedArrayBuffer !== undefined;
 }
