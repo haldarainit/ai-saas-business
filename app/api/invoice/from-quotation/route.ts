@@ -127,8 +127,7 @@ function extractQuotationDataComprehensive(quotation: any) {
                         (h || '').toLowerCase().includes('offered') || 
                         (h || '').toLowerCase().includes('parameter') ||
                         (h || '').toLowerCase().includes('specification') ||
-                        (h || '').toLowerCase().includes('technical') ||
-                        (h || '').toLowerCase().includes('remarks')
+                        (h || '').toLowerCase().includes('technical')
                     ),
                     hasFinance: tableHeaders.some((h: string) => 
                         (h || '').toLowerCase().includes('rate') || 
@@ -139,6 +138,9 @@ function extractQuotationDataComprehensive(quotation: any) {
                         (h || '').toLowerCase().includes('total')
                     )
                 };
+
+                // A table is billable if it's NOT explicitly technical OR it has finance headers
+                tableData.isBillable = !tableData.isTechnical || tableData.hasFinance;
                 
                 // Extra check: if any row content has technical units like 460V, 900A, reject as technical if no finance headers
                 if (!tableData.hasFinance && tableRows.length > 0) {
@@ -629,19 +631,19 @@ async function smartAITransformation(quotationData: any, invoiceNumber: string):
    - IGNORE tables for "Technical Compliance", "Parameter", "Requirement", "Offered", or "Specifications".
    - ONLY extract line items from tables that represent Products, Services, or Labour.
    - If a table row says "Complied", "OK", "Suitable", or lists technical settings (460V, 900A, 2.5sqmm, 50Hz, 3Ph, IS 8623), it is NOT a billable item.
-2. PRICE VALIDITY (ZERO HALLUCINATION):
+2. DEDUPLICATION (STRICT):
+   - You MUST NOT return the same line item multiple times.
+   - If a table row is split across multiple cells, MERGE them into ONE single item.
+   - If the same item appears in one table and is then technical-detailed in another, ONLY extract the billable version.
+3. PRICE AND QUANTITY VALIDITY (STRICT):
    - ONLY extract numbers as prices if they are in a column CLEARLY marked "Rate", "Price", "Amount", or "Cost".
    - NEVER extract prices from "Remarks", "Description", "Specifications", "Parameter", "SI No", or "Qty" columns.
    - Do NOT treat technical standards, voltages, dates, or ampere ratings (e.g., IS 8623, IEC 60947, 460, 220, 900) as prices.
    - **CRITICAL**: If a row has Quantity 3 and Price is missing, do NOT set rate to 3.00. Set rate=0.
-   - **CRITICAL**: If no explicit prices exist in the source table, ALL items must have rate: 0. NEVER assume a global price.
+   - **CRITICAL**: Copy quantities EXACTLY. If a row says 10, use 10. Do not use the SI No or other adjacent numbers.
    - If a table has no financial headers, set rate=0 for ALL its items.
-3. EXTRACT EVERY BILLABLE ROW: For each row in the billable tables below, create ONE item. Do NOT skip rows from billable tables.
-4. PRESERVE NUMBERS EXACTLY: Copy quantity and rate/price numbers EXACTLY as they appear.
-5. "EXTRA" OR "MISC" ROWS:
-   - Rows like "extra", "misc", "installation" are REAL line items.
-   - These often have EMPTY quantity but VALID PRICE in the last column.
-   - Give them rate=price and quantity=1.
+4. EXTRACT EVERY BILLABLE ROW: For each row in the billable tables below, create ONE item. Do NOT skip rows from billable tables.
+5. PRESERVE NUMBERS EXACTLY: Copy quantity and rate/price numbers EXACTLY as they appear.
 6. IF NO PRICES FOUND: Return all items with rate: 0. NEVER create fake prices from quantities, dates, or specs.
 
 === SOURCE TABLE DATA ===
@@ -809,23 +811,26 @@ Return ONLY the JSON object, nothing else.`;
                 });
             }
 
-            // Verify item count matches source - if not, supplement with manual extraction
-            const sourceRowCount = quotationData.allTables?.reduce((sum: number, t: any) => sum + (t.rawData?.length || 0), 0) || 0;
-            if (parsed.items.length < sourceRowCount) {
-                console.log(`AI returned ${parsed.items.length} items but source has ${sourceRowCount} rows. Supplementing with manual extraction.`);
+            // Verify item count matches source billable rows - if not, supplement with manual extraction
+            const sourceBillableRowCount = quotationData.allTables?.reduce((sum: number, t: any) => {
+                if (t.isBillable) return sum + (t.rawData?.length || 0);
+                return sum;
+            }, 0) || 0;
+
+            if (parsed.items.length < sourceBillableRowCount) {
+                console.log(`AI returned ${parsed.items.length} items but source has ${sourceBillableRowCount} billable rows. Supplementing.`);
                 const manualResult = manualTableExtraction(quotationData, invoiceNumber);
                 
-                // Merge: use AI items but add any missing items from manual extraction
-                const aiDescriptions: string[] = parsed.items.map((i: any) => (i.description || '').toLowerCase().trim());
+                // Merge with normalization to prevent duplicates
+                const normalize = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+                const aiNormalized = parsed.items.map((i: any) => normalize(i.description));
+
                 manualResult.items.forEach((manualItem: any) => {
-                    const manualDesc = (manualItem.description || '').toLowerCase().trim();
-                    let found = false;
-                    for (const aiDesc of aiDescriptions) {
-                        if (aiDesc.includes(manualDesc) || manualDesc.includes(aiDesc)) {
-                            found = true;
-                            break;
-                        }
-                    }
+                    const manualNorm = normalize(manualItem.description);
+                    if (!manualNorm) return;
+
+                    let found = aiNormalized.some((aiNorm: string) => aiNorm.includes(manualNorm) || manualNorm.includes(aiNorm));
+                    
                     if (!found && (manualItem.rate > 0 || manualItem.description)) {
                         parsed.items.push(manualItem);
                     }
