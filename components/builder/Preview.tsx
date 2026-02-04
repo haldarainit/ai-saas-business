@@ -45,38 +45,44 @@ interface PreviewProps {
 }
 
 export function Preview({ sandboxUrl }: PreviewProps) {
-  const { previews, isStreaming } = useWorkbenchStore();
+  const { 
+    previews, 
+    isStreaming, 
+    previewUrl: storePreviewUrl,
+    setPreviewUrl, 
+    previewDevice,
+    previewShowFrame,
+    previewIsLandscape,
+    previewScale,
+    setPreviewScale
+  } = useWorkbenchStore();
   
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [currentUrl, setCurrentUrl] = useState('');
   const [retryCount, setRetryCount] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  
-  // Device & Viewport State
-  const [selectedDevice, setSelectedDevice] = useState<Device>(DEVICES[0]);
-  const [isLandscape, setIsLandscape] = useState(false);
-  const [showFrame, setShowFrame] = useState(true);
-  const [showOptions, setShowOptions] = useState(false);
-  const [scale, setScale] = useState(1);
 
-  // Get the preview URL (from props or store)
-  const previewUrl = sandboxUrl || (previews.length > 0 ? previews[0].url : '');
-
+  // Sync prop/store URL to global preview URL
   useEffect(() => {
-    if (previewUrl) {
-      setCurrentUrl(previewUrl);
+    const url = sandboxUrl || (previews.length > 0 ? previews[0].url : '');
+    if (url && url !== storePreviewUrl) {
+      setPreviewUrl(url);
+    }
+  }, [sandboxUrl, previews, setPreviewUrl, storePreviewUrl]);
+
+  // Reset loading state when URL changes
+  useEffect(() => {
+    if (storePreviewUrl) {
       setIsLoading(true);
       setHasError(false);
     }
-  }, [previewUrl]);
+  }, [storePreviewUrl]);
 
   // Handle resizing to fit scale
   useEffect(() => {
-    if (!containerRef.current || selectedDevice.name === 'Responsive') {
-        setScale(1);
+    if (!containerRef.current || previewDevice.name === 'Responsive') {
+        setPreviewScale(1);
         return;
     }
 
@@ -86,17 +92,17 @@ export function Preview({ sandboxUrl }: PreviewProps) {
         const containerWidth = containerRef.current.clientWidth - 48; // padding
         const containerHeight = containerRef.current.clientHeight - 48;
         
-        const targetWidth = isLandscape ? selectedDevice.height : selectedDevice.width;
-        const targetHeight = isLandscape ? selectedDevice.width : selectedDevice.height;
+        const targetWidth = previewIsLandscape ? previewDevice.height : previewDevice.width;
+        const targetHeight = previewIsLandscape ? previewDevice.width : previewDevice.height;
 
         // Add extra space for frame
-        const frameX = showFrame && selectedDevice.hasFrame ? 30 : 0;
-        const frameY = showFrame && selectedDevice.hasFrame ? 60 : 0;
+        const frameX = previewShowFrame && previewDevice.hasFrame ? 30 : 0;
+        const frameY = previewShowFrame && previewDevice.hasFrame ? 60 : 0;
 
         const scaleX = containerWidth / (targetWidth + frameX);
         const scaleY = containerHeight / (targetHeight + frameY);
         
-        setScale(Math.min(1, scaleX, scaleY));
+        setPreviewScale(Math.min(1, scaleX, scaleY));
     };
 
     const observer = new ResizeObserver(updateScale);
@@ -104,17 +110,26 @@ export function Preview({ sandboxUrl }: PreviewProps) {
     updateScale();
 
     return () => observer.disconnect();
-  }, [selectedDevice, isLandscape, showFrame]);
+  }, [previewDevice, previewIsLandscape, previewShowFrame, setPreviewScale]);
 
 
   const handleRefresh = useCallback(() => {
-    if (iframeRef.current && currentUrl) {
+    if (iframeRef.current && storePreviewUrl) {
       setIsLoading(true);
       setHasError(false);
-      iframeRef.current.src = `${currentUrl}?t=${Date.now()}`;
+      iframeRef.current.src = `${storePreviewUrl}?t=${Date.now()}`;
     }
-  }, [currentUrl]);
+  }, [storePreviewUrl]);
 
+  // Expose refresh functionality to parent via custom event or store if needed?
+  // Current design: Workbench header will have refresh button. 
+  // We can expose a "triggerRefresh" atom in store, or just re-set the URL with a query param?
+  // Actually, standard way: changing the URL (even with query param) triggers refresh.
+  // BUT the iframe.src update logic is inside the rendered component.
+  // Workbench Refresh button needs to trigger `iframeRef.current.src = ...` which is here.
+  // One way: add a `refreshPreview` counter to store. 
+  // OR: Workbench refresh button just calls `setPreviewUrl(url + '?t=' + Date.now())`.
+  
   const handleLoad = useCallback(() => {
     setIsLoading(false);
     setHasError(false);
@@ -134,29 +149,7 @@ export function Preview({ sandboxUrl }: PreviewProps) {
     }
   }, [retryCount, handleRefresh]);
 
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-       containerRef.current?.requestFullscreen();
-       setIsFullscreen(true);
-    } else {
-       document.exitFullscreen();
-       setIsFullscreen(false);
-    }
-  }, []);
-
-  useEffect(() => {
-      const handler = () => setIsFullscreen(!!document.fullscreenElement);
-      document.addEventListener('fullscreenchange', handler);
-      return () => document.removeEventListener('fullscreenchange', handler);
-  }, []);
-
-  const handleOpenExternal = useCallback(() => {
-    if (currentUrl) {
-      window.open(`/live-preview?url=${encodeURIComponent(currentUrl)}`, '_blank');
-    }
-  }, [currentUrl]);
-
-  if (!currentUrl) {
+  if (!storePreviewUrl) {
     return (
       <div className="h-full flex items-center justify-center bg-slate-950 text-slate-500">
         <div className="text-center">
@@ -176,17 +169,17 @@ export function Preview({ sandboxUrl }: PreviewProps) {
 
   // Calculate dimensions for iframe container
   const getContainerStyle = () => {
-    if (selectedDevice.name === 'Responsive') {
+    if (previewDevice.name === 'Responsive') {
       return { width: '100%', height: '100%' };
     }
 
-    const width = isLandscape ? selectedDevice.height : selectedDevice.width;
-    const height = isLandscape ? selectedDevice.width : selectedDevice.height;
+    const width = previewIsLandscape ? previewDevice.height : previewDevice.width;
+    const height = previewIsLandscape ? previewDevice.width : previewDevice.height;
 
     return {
         width: `${width}px`,
         height: `${height}px`,
-        transform: `scale(${scale})`,
+        transform: `scale(${previewScale})`,
         transformOrigin: 'center center',
         transition: 'all 0.3s ease-in-out'
     };
@@ -194,132 +187,7 @@ export function Preview({ sandboxUrl }: PreviewProps) {
 
   return (
     <div className="h-full flex flex-col bg-slate-950">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/50 border-b border-slate-700/50 relative z-20">
-        {/* URL Bar */}
-        <div className="flex items-center gap-2 flex-1 min-w-0 mr-4">
-          <div className="flex items-center gap-1 px-2 py-1 bg-slate-700/50 rounded-md flex-1 min-w-0 max-w-md">
-            <Globe className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-            <input
-              type="text"
-              value={currentUrl}
-              onChange={(e) => setCurrentUrl(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleRefresh()}
-              className="bg-transparent text-xs text-slate-400 flex-1 min-w-0 outline-none"
-            />
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-1">
-          {/* Window Options Menu */}
-          <div className="relative">
-            <button
-                onClick={() => setShowOptions(!showOptions)}
-                className={`flex items-center gap-1 px-2 py-1.5 rounded transition-colors ${
-                    showOptions ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                }`}
-            >
-                {selectedDevice.type === 'mobile' ? <Smartphone className="w-4 h-4" /> : 
-                 selectedDevice.type === 'tablet' ? <Tablet className="w-4 h-4" /> : 
-                 <Monitor className="w-4 h-4" />}
-                <ChevronDown className="w-3 h-3" />
-            </button>
-
-            {/* Dropdown */}
-            {showOptions && (
-                <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowOptions(false)} />
-                    <div className="absolute right-0 top-full mt-1 w-64 bg-slate-900 border border-slate-700/50 rounded-lg shadow-xl z-20 overflow-hidden text-sm">
-                        
-                         {/* View Settings */}
-                        <div className="p-2 border-b border-slate-700/50 space-y-1">
-                            <div className="text-xs font-semibold text-slate-500 px-2 py-1">Window Options</div>
-                            <button 
-                                onClick={() => handleOpenExternal()}
-                                className="w-full flex items-center justify-between px-2 py-1.5 text-slate-300 hover:bg-slate-800 rounded text-left"
-                            >
-                                <span className="flex items-center gap-2">
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                    Open in new tab
-                                </span>
-                            </button>
-                            <button 
-                                onClick={() => setShowFrame(!showFrame)}
-                                className="w-full flex items-center justify-between px-2 py-1.5 text-slate-300 hover:bg-slate-800 rounded text-left"
-                            >
-                                <span className="flex items-center gap-2">
-                                    <Smartphone className="w-3.5 h-3.5" />
-                                    Show Device Frame
-                                </span>
-                                {showFrame && <div className="w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center"><Check className="w-3 h-3 text-white" /></div>}
-                            </button>
-                            <button 
-                                onClick={() => setIsLandscape(!isLandscape)}
-                                disabled={selectedDevice.name === 'Responsive'}
-                                className={`w-full flex items-center justify-between px-2 py-1.5 text-slate-300 hover:bg-slate-800 rounded text-left ${selectedDevice.name === 'Responsive' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                <span className="flex items-center gap-2">
-                                    <RotateCw className="w-3.5 h-3.5" />
-                                    Landscape Mode
-                                </span>
-                                {isLandscape && <div className="w-2 h-2 rounded-full bg-orange-500 mr-1" />}
-                            </button>
-                        </div>
-
-                        {/* Device List */}
-                        <div className="p-2 max-h-[300px] overflow-y-auto">
-                            <div className="text-xs font-semibold text-slate-500 px-2 py-1">Devices</div>
-                            {DEVICES.map(device => (
-                                <button
-                                    key={device.name}
-                                    onClick={() => {
-                                        setSelectedDevice(device);
-                                        setShowOptions(false);
-                                    }}
-                                    className={`w-full flex items-center justify-between px-2 py-2 rounded text-left transition-colors ${
-                                        selectedDevice.name === device.name ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-slate-800'
-                                    }`}
-                                >
-                                    <span className="flex items-center gap-2">
-                                        {device.type === 'mobile' ? <Smartphone className="w-3.5 h-3.5" /> : 
-                                         device.type === 'tablet' ? <Tablet className="w-3.5 h-3.5" /> : 
-                                         <Monitor className="w-3.5 h-3.5" />}
-                                        <div className="flex flex-col">
-                                            <span>{device.name}</span>
-                                            {device.width > 0 && <span className="text-[10px] text-slate-500">{device.width} x {device.height}</span>}
-                                        </div>
-                                    </span>
-                                    {selectedDevice.name === device.name && <Check className="w-3.5 h-3.5" />}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </>
-            )}
-          </div>
-
-          <div className="w-px h-4 bg-slate-700/50 mx-1" />
-
-          <button
-            onClick={handleRefresh}
-            className="p-1.5 hover:bg-slate-700 rounded transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw className={`w-4 h-4 text-slate-400 ${isLoading ? 'animate-spin' : ''}`} />
-          </button>
-          
-          <button
-            onClick={toggleFullscreen}
-            className="p-1.5 hover:bg-slate-700 rounded transition-colors"
-            title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4 text-slate-400" /> : <Maximize2 className="w-4 h-4 text-slate-400" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Preview Frame */}
+      {/* Preview Frame - No Toolbar */}
       <div 
         ref={containerRef}
         className="flex-1 relative overflow-hidden flex items-center justify-center bg-[#1e1e1e]"
@@ -359,10 +227,10 @@ export function Preview({ sandboxUrl }: PreviewProps) {
         )}
 
         {/* Device Frame & Iframe */}
-        <div style={getContainerStyle()} className={`relative ${selectedDevice.name !== 'Responsive' ? 'shadow-2xl' : ''}`}>
+        <div style={getContainerStyle()} className={`relative ${previewDevice.name !== 'Responsive' ? 'shadow-2xl' : ''}`}>
              
              {/* CSS Device Frame */}
-             {selectedDevice.hasFrame && showFrame && (
+             {previewDevice.hasFrame && previewShowFrame && (
                  <div className="absolute inset-0 pointer-events-none z-20 border-[12px] border-[#2a2a2e] rounded-[2.5rem] shadow-xl">
                     {/* Notch/Camera Area */}
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-[#2a2a2e] rounded-b-xl" />
@@ -372,8 +240,8 @@ export function Preview({ sandboxUrl }: PreviewProps) {
             {/* Inner Iframe */}
             <iframe
                 ref={iframeRef}
-                src={currentUrl}
-                className={`w-full h-full bg-white ${selectedDevice.hasFrame && showFrame ? 'rounded-[1.8rem]' : ''} ${selectedDevice.name === 'Responsive' ? '' : 'border border-slate-700/50'}`}
+                src={storePreviewUrl}
+                className={`w-full h-full bg-white ${previewDevice.hasFrame && previewShowFrame ? 'rounded-[1.8rem]' : ''} ${previewDevice.name === 'Responsive' ? '' : 'border border-slate-700/50'}`}
                 title="Preview"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
                 onLoad={handleLoad}

@@ -23,6 +23,26 @@ export interface ArtifactState {
 
 export type Artifacts = MapStore<Record<string, ArtifactState>>;
 
+export type DeviceType = 'mobile' | 'tablet' | 'desktop';
+
+export interface Device {
+  name: string;
+  type: DeviceType;
+  width: number;
+  height: number;
+  hasFrame?: boolean;
+}
+
+export const DEVICES: Device[] = [
+  { name: 'Responsive', type: 'desktop', width: 0, height: 0, hasFrame: false },
+  { name: 'iPhone 14 Pro', type: 'mobile', width: 393, height: 852, hasFrame: true },
+  { name: 'iPhone SE', type: 'mobile', width: 375, height: 667, hasFrame: true },
+  { name: 'Pixel 7', type: 'mobile', width: 412, height: 915, hasFrame: true },
+  { name: 'iPad Mini', type: 'tablet', width: 768, height: 1024, hasFrame: true },
+  { name: 'iPad Pro 11"', type: 'tablet', width: 834, height: 1194, hasFrame: true },
+  { name: 'Desktop', type: 'desktop', width: 1440, height: 900, hasFrame: false },
+];
+
 export type WorkbenchViewType = 'code' | 'preview';
 
 export class WorkbenchStore {
@@ -179,6 +199,15 @@ export class WorkbenchStore {
    * Deploy alert.
    */
   deployAlert: WritableAtom<DeployAlert | undefined> = atom(undefined);
+
+  /**
+   * Preview State
+   */
+  previewUrl: WritableAtom<string> = atom('');
+  previewDevice: WritableAtom<Device> = atom(DEVICES[0]);
+  previewShowFrame: WritableAtom<boolean> = atom(true);
+  previewIsLandscape: WritableAtom<boolean> = atom(false);
+  previewScale: WritableAtom<number> = atom(1);
 
   constructor() {}
 
@@ -536,6 +565,13 @@ export class WorkbenchStore {
     this.generatedFile.set(null);
     this.isStreaming.set(false);
     this.#messageParser.reset();
+    
+    // Reset preview state
+    this.previewUrl.set('');
+    this.previewDevice.set(DEVICES[0]);
+    this.previewShowFrame.set(true);
+    this.previewIsLandscape.set(false);
+    this.previewScale.set(1);
   }
 }
 
@@ -554,6 +590,11 @@ export function useWorkbenchStore() {
   const unsavedFiles = useStore(workbenchStore.unsavedFiles);
   const generatedFile = useStore(workbenchStore.generatedFile);
   const isStreaming = useStore(workbenchStore.isStreaming);
+  const previewUrl = useStore(workbenchStore.previewUrl);
+  const previewDevice = useStore(workbenchStore.previewDevice);
+  const previewShowFrame = useStore(workbenchStore.previewShowFrame);
+  const previewIsLandscape = useStore(workbenchStore.previewIsLandscape);
+  const previewScale = useStore(workbenchStore.previewScale);
 
   return {
     showWorkbench,
@@ -608,5 +649,16 @@ export function useWorkbenchStore() {
       await workbenchStore.saveFile(path);
     },
     fileHistory: null, // File history not implemented yet
+    // Preview Exports
+    previewUrl,
+    setPreviewUrl: (url: string) => workbenchStore.previewUrl.set(url),
+    previewDevice,
+    setPreviewDevice: (device: Device) => workbenchStore.previewDevice.set(device),
+    previewShowFrame,
+    setPreviewShowFrame: (show: boolean) => workbenchStore.previewShowFrame.set(show),
+    previewIsLandscape,
+    setPreviewIsLandscape: (landscape: boolean) => workbenchStore.previewIsLandscape.set(landscape),
+    previewScale,
+    setPreviewScale: (scale: number) => workbenchStore.previewScale.set(scale),
   };
 }
