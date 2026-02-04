@@ -16,13 +16,15 @@ export function DiffView({ filePath }: DiffViewProps) {
   const diffData = useMemo(() => {
     if (!targetFile) return null;
     
-    const history = fileHistory[targetFile];
+    // fileHistory may be null if not implemented
+    const history = fileHistory ? fileHistory[targetFile] : null;
     const currentFile = files[targetFile];
     
-    if (!history || !currentFile) return null;
+    // Check if currentFile exists and is a file type (has content)
+    if (!history || !currentFile || currentFile.type !== 'file') return null;
     
-    const originalContent = history.originalContent || '';
-    const currentContent = currentFile.content || '';
+    const originalContent = (history as any).originalContent || '';
+    const currentContent = (currentFile as any).content || '';
     
     // Normalize line endings
     const normalizedOriginal = originalContent.replace(/\r\n/g, '\n');

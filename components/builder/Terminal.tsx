@@ -56,7 +56,8 @@ export const Terminal = memo(function Terminal({ onClose }: TerminalProps) {
           readonly={false}
           onTerminalReady={(terminal) => {
              if (!attachedRef.current) {
-                 workbenchStore.terminalStore.attachTerminal(terminal);
+                 // Attach to the BoltShell which is used by ActionRunner for AI commands
+                 workbenchStore.terminalStore.attachBoltTerminal(terminal);
                  attachedRef.current = true;
              }
           }}

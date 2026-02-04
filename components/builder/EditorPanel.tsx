@@ -46,8 +46,7 @@ export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPane
     unsavedFiles,
     updateFile,
     saveFile,
-    selectFile,
-    fileHistory
+    selectFile
   } = useWorkbenchStore();
 
   const currentContent = useMemo(() => {
@@ -70,22 +69,10 @@ export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPane
   }, [selectedFile, saveFile]);
 
   const handleReset = useCallback(() => {
-    if (selectedFile && fileHistory && fileHistory[selectedFile]) {
-      // Revert to original content
-      const originalContent = fileHistory[selectedFile]!.originalContent;
-      updateFile(selectedFile, originalContent);
-      // We should probably also save it immediately if we want to "hard reset", 
-      // but usually reset just means reverting unsaved changes or going back to base.
-      // For now, let's just update the content. If it matches the last saved version on disk (which we don't track separately from "original" efficiently here),
-      // it might still show as unsaved in our simple tracker. 
-      // But let's assume "originalContent" is what we want.
-      
-      // Actually, if we reset, we might want to clear the unsaved status if it matches?
-      // For simple implementation, let's just update content.
-      
-      // Wait, if we revert to original, we are technically making an edit to match original.
-    }
-  }, [selectedFile, fileHistory, updateFile]);
+    // TODO: Implement file history to support reset functionality
+    // For now, fileHistory is not implemented
+    console.log('Reset functionality not yet implemented');
+  }, [selectedFile, updateFile]);
 
   const handleCopy = useCallback(() => {
     if (currentContent) {
@@ -205,7 +192,7 @@ export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPane
             <Download className="w-4 h-4" />
           </button>
           <button
-            onClick={() => selectFile(null)}
+            onClick={() => selectFile(undefined)}
             className="p-1.5 hover:bg-slate-700/50 rounded-md transition-colors text-slate-400 hover:text-slate-200 ml-1"
             title="Close file"
           >

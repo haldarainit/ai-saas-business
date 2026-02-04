@@ -33,10 +33,70 @@ export class WorkbenchStore {
 
   #messageParser = new StreamingMessageParser({
     callbacks: {
-      onArtifactOpen: (data) => this.addToArtifact(data.artifactId!, data),
-      onActionOpen: (data) => this.addAction(data),
-      onActionStream: (data) => this.runAction(data, true),
-      onActionClose: (data) => this.runAction(data),
+      onArtifactOpen: (data) => {
+        console.log('[MessageParser] Artifact opened:', data);
+        this.addToArtifact(data.artifactId!, data);
+        this.showWorkbench.set(true);
+      },
+      onActionOpen: (data) => {
+        console.log('[MessageParser] Action opened:', data);
+        this.addAction(data);
+      },
+      onActionStream: (data) => {
+        // Immediately update files store when streaming file content
+        if (data.action.type === 'file') {
+          const filePath = data.action.filePath.startsWith('/') 
+            ? data.action.filePath 
+            : `/home/project/${data.action.filePath}`;
+          
+          console.log('[MessageParser] Streaming file:', filePath);
+          
+          // Update the files store immediately for display
+          this.#filesStore.files.setKey(filePath, {
+            type: 'file',
+            content: data.action.content || '',
+            isBinary: false,
+          });
+          
+          // Set as the currently generating file
+          this.generatedFile.set(filePath);
+          
+          // Auto-expand parent folders
+          this.#autoExpandFolders(filePath);
+          
+          // Select and open the file in editor
+          this.setSelectedFile(filePath);
+        }
+        
+        // Also run the action for streaming updates
+        this.runAction(data, true);
+      },
+      onActionClose: (data) => {
+        console.log('[MessageParser] Action closed:', data);
+        
+        // Final update for file actions
+        if (data.action.type === 'file') {
+          const filePath = data.action.filePath.startsWith('/') 
+            ? data.action.filePath 
+            : `/home/project/${data.action.filePath}`;
+          
+          // Ensure parent folders exist in the store
+          this.#ensureFoldersExist(filePath);
+          
+          // Update the files store with final content
+          this.#filesStore.files.setKey(filePath, {
+            type: 'file',
+            content: data.action.content || '',
+            isBinary: false,
+          });
+          
+          // Clear the generating file indicator
+          this.generatedFile.set(null);
+        }
+        
+        // Run the action (writes to WebContainer)
+        this.runAction(data);
+      },
     },
   });
 
@@ -76,6 +136,16 @@ export class WorkbenchStore {
   unsavedFiles: WritableAtom<Set<string>> = atom(new Set<string>());
 
   /**
+   * Set of expanded folder paths in the file tree.
+   */
+  expandedFolders: WritableAtom<Set<string>> = atom(new Set<string>());
+
+  /**
+   * Currently being generated file path.
+   */
+  generatedFile: WritableAtom<string | null> = atom<string | null>(null);
+
+  /**
    * Action alert to display errors or information.
    */
   actionAlert: WritableAtom<{
@@ -103,6 +173,39 @@ export class WorkbenchStore {
   deployAlert: WritableAtom<DeployAlert | undefined> = atom(undefined);
 
   constructor() {}
+
+  /**
+   * Auto-expand all parent folders for a given file path
+   */
+  #autoExpandFolders(filePath: string) {
+    const parts = filePath.split('/').filter(Boolean);
+    const newExpandedFolders = new Set(this.expandedFolders.get());
+    
+    let currentPath = '';
+    for (let i = 0; i < parts.length - 1; i++) {
+      currentPath += '/' + parts[i];
+      newExpandedFolders.add(currentPath);
+    }
+    
+    this.expandedFolders.set(newExpandedFolders);
+  }
+
+  /**
+   * Ensure all parent folders exist in the files store
+   */
+  #ensureFoldersExist(filePath: string) {
+    const parts = filePath.split('/').filter(Boolean);
+    let currentPath = '';
+    
+    for (let i = 0; i < parts.length - 1; i++) {
+      currentPath += '/' + parts[i];
+      
+      // Add folder to store if it doesn't exist
+      if (!this.#filesStore.files.get()[currentPath]) {
+        this.#filesStore.files.setKey(currentPath, { type: 'folder' });
+      }
+    }
+  }
 
   get previewsStore() {
     return this.#previewsStore;
@@ -291,6 +394,21 @@ export class WorkbenchStore {
   }
 
   setSelectedFile(filePath: string | undefined) {
+    if (filePath) {
+      const documents = this.#editorStore.documents.get();
+      const file = this.#filesStore.getFile(filePath);
+      
+      // If file exists in filesStore but not in documents, create a document entry
+      if (file && !documents[filePath]) {
+        this.#editorStore.documents.setKey(filePath, {
+          filePath,
+          value: file.content,
+          isBinary: file.isBinary,
+          scroll: { left: 0, top: 0 },
+        });
+      }
+    }
+    
     this.#editorStore.setSelectedFile(filePath);
   }
 
@@ -318,6 +436,64 @@ export class WorkbenchStore {
     this.#filesStore.resetFileModifications();
   }
 
+  toggleFolder(path: string) {
+    const expandedFolders = new Set(this.expandedFolders.get());
+    if (expandedFolders.has(path)) {
+      expandedFolders.delete(path);
+    } else {
+      expandedFolders.add(path);
+    }
+    this.expandedFolders.set(expandedFolders);
+  }
+
+  async addFile(path: string, content: string = '', type: 'file' | 'folder' = 'file') {
+    try {
+      const wc = await webcontainer;
+      
+      if (type === 'folder') {
+        await wc.fs.mkdir(path, { recursive: true });
+        this.#filesStore.files.setKey(path, { type: 'folder' });
+      } else {
+        // Ensure parent directory exists
+        const parentDir = path.split('/').slice(0, -1).join('/');
+        if (parentDir) {
+          await wc.fs.mkdir(parentDir, { recursive: true });
+        }
+        await wc.fs.writeFile(path, content);
+        this.#filesStore.files.setKey(path, { type: 'file', content, isBinary: false });
+      }
+      
+      // Auto-expand parent folders
+      const parts = path.split('/').filter(Boolean);
+      let currentPath = '';
+      const newExpandedFolders = new Set(this.expandedFolders.get());
+      
+      for (let i = 0; i < parts.length - 1; i++) {
+        currentPath += '/' + parts[i];
+        newExpandedFolders.add(currentPath);
+      }
+      
+      this.expandedFolders.set(newExpandedFolders);
+    } catch (error) {
+      console.error('Failed to add file:', error);
+    }
+  }
+
+  async deleteFile(path: string) {
+    try {
+      const wc = await webcontainer;
+      await wc.fs.rm(path, { force: true, recursive: true });
+      this.#filesStore.files.setKey(path, undefined);
+      
+      // If this was the selected file, clear the selection
+      if (this.#editorStore.selectedFile.get() === path) {
+        this.#editorStore.setSelectedFile(undefined);
+      }
+    } catch (error) {
+      console.error('Failed to delete file:', error);
+    }
+  }
+
   reset() {
     this.artifacts.set({});
     this.showWorkbench.set(false);
@@ -329,6 +505,8 @@ export class WorkbenchStore {
     this.supabaseAlert.set(undefined);
     this.deployAlert.set(undefined);
     this.unsavedFiles.set(new Set());
+    this.expandedFolders.set(new Set());
+    this.generatedFile.set(null);
     this.#messageParser.reset();
   }
 }
@@ -344,6 +522,9 @@ export function useWorkbenchStore() {
   const files = useStore(workbenchStore.files);
   const currentView = useStore(workbenchStore.currentView);
   const showTerminal = useStore(workbenchStore.terminalStore.showTerminal);
+  const expandedFolders = useStore(workbenchStore.expandedFolders);
+  const unsavedFiles = useStore(workbenchStore.unsavedFiles);
+  const generatedFile = useStore(workbenchStore.generatedFile);
 
   return {
     showWorkbench,
@@ -368,5 +549,31 @@ export function useWorkbenchStore() {
     terminalStore: workbenchStore.terminalStore,
     editorStore: workbenchStore.editorStore,
     filesStore: workbenchStore.filesStore,
+    // FileTree required methods and state
+    expandedFolders,
+    unsavedFiles,
+    generatedFile,
+    toggleFolder: (path: string) => workbenchStore.toggleFolder(path),
+    addFile: (path: string, content?: string, type?: 'file' | 'folder') => workbenchStore.addFile(path, content, type),
+    deleteFile: (path: string) => workbenchStore.deleteFile(path),
+    selectFile: (path: string | undefined) => workbenchStore.setSelectedFile(path),
+    // EditorPanel required methods
+    updateFile: (path: string, content: string) => {
+      // Update the file in filesStore
+      const file = workbenchStore.filesStore.getFile(path);
+      if (file) {
+        workbenchStore.filesStore.files.setKey(path, { ...file, content });
+        // Also update in editorStore documents
+        workbenchStore.editorStore.updateFile(path, content);
+        // Mark as unsaved
+        const newUnsavedFiles = new Set(workbenchStore.unsavedFiles.get());
+        newUnsavedFiles.add(path);
+        workbenchStore.unsavedFiles.set(newUnsavedFiles);
+      }
+    },
+    saveFile: async (path: string) => {
+      await workbenchStore.saveFile(path);
+    },
+    fileHistory: null, // File history not implemented yet
   };
 }
