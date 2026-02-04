@@ -65,6 +65,7 @@ function BuilderContent() {
     files,
     reset: resetWorkbench,
     setIsStreaming: setWorkbenchStreaming,
+    stopGeneration,
   } = useWorkbenchStore();
 
   // Local State
@@ -73,6 +74,7 @@ function BuilderContent() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [webcontainerSupported, setWebcontainerSupported] = useState(true);
   const messageIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   // Chat panel resize state
   const [chatWidth, setChatWidth] = useState(400);
@@ -275,9 +277,12 @@ Create a complete, working application with all necessary files.`;
 
       setStatusMessage('AI is generating code...');
 
+      abortControllerRef.current = new AbortController();
+
       const response = await fetch('/api/builder-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: abortControllerRef.current.signal,
         body: JSON.stringify({
           prompt,
           model: currentModel,
@@ -325,17 +330,27 @@ Create a complete, working application with all necessary files.`;
       setIsLoading(false);
       setIsStreaming(false);
       setWorkbenchStreaming(false);  // Sync workbench streaming state
+      abortControllerRef.current = null;
     }
   }, [currentModel, currentProvider, messages, addMessage, updateLastMessage, setIsLoading, setIsStreaming, setShowWorkbench, parseMessage, setWorkbenchStreaming]);
 
   // Handle stop generation
   const handleStop = useCallback(() => {
+    // Abort the fetch request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Stop workbench actions
+    stopGeneration();
+
     setIsLoading(false);
     setIsStreaming(false);
     setWorkbenchStreaming(false);  // Sync workbench streaming state
     setStatus('ready');
     setStatusMessage('Generation stopped');
-  }, [setIsLoading, setIsStreaming, setWorkbenchStreaming]);
+  }, [setIsLoading, setIsStreaming, setWorkbenchStreaming, stopGeneration]);
 
   // Handle download
   const handleDownload = useCallback(async () => {

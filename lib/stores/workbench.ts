@@ -502,6 +502,17 @@ export class WorkbenchStore {
     }
   }
 
+  stopGeneration() {
+    this.isStreaming.set(false);
+    this.generatedFile.set(null);
+    
+    // Stop all action runners
+    const artifacts = this.artifacts.get();
+    for (const artifact of Object.values(artifacts)) {
+      artifact.runner.cancelAll();
+    }
+  }
+
   reset() {
     this.artifacts.set({});
     this.showWorkbench.set(false);
@@ -545,6 +556,7 @@ export function useWorkbenchStore() {
     webcontainerError,
     isStreaming,
     setIsStreaming: (streaming: boolean) => workbenchStore.isStreaming.set(streaming),
+    stopGeneration: () => workbenchStore.stopGeneration(),
     initWebContainer: () => workbenchStore.initWebContainer(),
     parseMessage: (messageId: string, content: string) => workbenchStore.parseMessage(messageId, content),
     previews,

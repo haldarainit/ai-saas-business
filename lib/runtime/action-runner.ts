@@ -126,11 +126,11 @@ export class ActionRunner {
     }
 
     if (action.executed) {
-      return; // No return value here
+      return;
     }
 
     if (isStreaming && action.type !== 'file') {
-      return; // No return value here
+      return;
     }
 
     this.#updateAction(actionId, { ...action, ...data.action, executed: !isStreaming });
@@ -146,6 +146,21 @@ export class ActionRunner {
     await this.#currentExecutionPromise;
 
     return;
+  }
+
+  cancelAll() {
+    const actions = this.actions.get();
+    
+    for (const [id, action] of Object.entries(actions)) {
+      if (action.status === 'pending' || action.status === 'running') {
+        action.abort();
+      }
+    }
+
+    const shell = this.#shellTerminal();
+    if (shell) {
+      shell.abort();
+    }
   }
 
   async #executeAction(actionId: string, isStreaming: boolean = false) {

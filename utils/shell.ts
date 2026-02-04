@@ -113,6 +113,12 @@ export class BoltShell {
     return this.#readyPromise;
   }
 
+  abort() {
+    if (this.#terminal) {
+      this.#terminal.input('\x03');
+    }
+  }
+
   async init(webcontainer: WebContainer, terminal: ITerminal) {
     this.#webcontainer = webcontainer;
     this.#terminal = terminal;
