@@ -21,6 +21,10 @@ interface RawMaterialItem {
     expiryDate?: string | Date;
     invoiceNumber?: string;
     invoiceDate?: string | Date;
+    // Additional fields for price derivation
+    totalCost?: number | string;
+    basePrice?: number | string;
+    gstAmount?: number | string;
 }
 
 interface BatchUpsertRequest {
@@ -121,14 +125,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 // Same SKU in this batch - add quantities
                 consolidatedItems[sku].quantity += (parseFloat(String(item.quantity)) || 0);
             } else {
+                // Parse all price-related fields
+                const quantity = parseFloat(String(item.quantity)) || 1;
+                const directCostPerUnit = parseFloat(String(item.costPerUnit)) || 0;
+                const totalCost = parseFloat(String(item.totalCost)) || 0;
+                const basePrice = parseFloat(String(item.basePrice)) || 0;
+                const gstAmount = parseFloat(String(item.gstAmount)) || 0;
+
+                // Derive costPerUnit with fallback chain:
+                // 1. Direct costPerUnit
+                // 2. basePrice + gstAmount
+                // 3. totalCost / quantity
+                const calculatedFromBase = basePrice > 0 ? (basePrice + gstAmount) : 0;
+                const derivedFromTotal = (totalCost > 0 && quantity > 0) ? (totalCost / quantity) : 0;
+                const finalCostPerUnit = directCostPerUnit || calculatedFromBase || derivedFromTotal;
+
                 consolidatedItems[sku] = {
                     name: String(item.name || '').trim(),
                     description: item.description ? String(item.description).trim() : '',
                     sku: sku,
                     category: item.category ? String(item.category).trim() : 'Uncategorized',
                     unit: (item.unit || 'pcs').toLowerCase().trim(),
-                    costPerUnit: parseFloat(String(item.costPerUnit)) || 0,
-                    quantity: parseFloat(String(item.quantity)) || 0,
+                    costPerUnit: finalCostPerUnit,
+                    quantity: quantity,
                     minimumStock: item.minimumStock ? parseInt(String(item.minimumStock), 10) : 10,
                     shelf: item.shelf ? String(item.shelf) : 'Default',
                     supplier: item.supplier ? String(item.supplier).trim() : '',
@@ -140,7 +159,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     invoiceNumber: item.invoiceNumber ? String(item.invoiceNumber).trim() : '',
                     invoiceDate: item.invoiceDate ? new Date(item.invoiceDate) : null,
                     lastPurchaseDate: new Date(),
-                    lastPurchasePrice: parseFloat(String(item.costPerUnit)) || 0
+                    lastPurchasePrice: finalCostPerUnit
                 };
             }
         }

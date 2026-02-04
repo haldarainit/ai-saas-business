@@ -362,8 +362,18 @@ export default function ManufacturingInventory() {
             const gstAmount = parseFloat(item.gstAmount) || 0;
             const calculatedCostPerUnit = basePrice + gstAmount;
 
-            // Use costPerUnit from item if available, otherwise use calculated value
-            const costPerUnit = parseFloat(item.costPerUnit) || calculatedCostPerUnit || 0;
+            // Also try to derive from totalCost if available
+            const quantity = parseFloat(item.quantity) || 1;
+            const totalCost = parseFloat(item.totalCost) || 0;
+            const derivedFromTotal = (totalCost > 0 && quantity > 0) ? (totalCost / quantity) : 0;
+
+            // Use costPerUnit from item if available, otherwise use calculated value, then derived from total
+            const costPerUnit = parseFloat(item.costPerUnit) || calculatedCostPerUnit || derivedFromTotal || 0;
+
+            // Log warning if costPerUnit is still 0 but we have totalCost
+            if (costPerUnit === 0 && totalCost > 0) {
+                console.warn(`Item ${item.name} (${item.sku}): costPerUnit is 0 but totalCost is ${totalCost}`);
+            }
 
             return {
                 name: item.name || '',
