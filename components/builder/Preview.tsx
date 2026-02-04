@@ -11,7 +11,9 @@ import {
   ChevronDown,
   AlertCircle,
   Loader2,
-  Globe
+  Globe,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { useWorkbenchStore } from '@/lib/stores/workbench';
 
@@ -32,11 +34,13 @@ export function Preview({ sandboxUrl }: PreviewProps) {
   const { previews, isStreaming } = useWorkbenchStore();
   
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [currentUrl, setCurrentUrl] = useState('');
   const [viewport, setViewport] = useState<ViewportSize>('responsive');
   const [retryCount, setRetryCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Get the preview URL (from props or store)
   const previewUrl = sandboxUrl || (previews.length > 0 ? previews[0].url : '');
@@ -76,9 +80,25 @@ export function Preview({ sandboxUrl }: PreviewProps) {
     }
   }, [retryCount, handleRefresh]);
 
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+       containerRef.current?.requestFullscreen();
+       setIsFullscreen(true);
+    } else {
+       document.exitFullscreen();
+       setIsFullscreen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+      const handler = () => setIsFullscreen(!!document.fullscreenElement);
+      document.addEventListener('fullscreenchange', handler);
+      return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
   const handleOpenExternal = useCallback(() => {
     if (currentUrl) {
-      window.open(currentUrl, '_blank');
+      window.open(`/live-preview?url=${encodeURIComponent(currentUrl)}`, '_blank');
     }
   }, [currentUrl]);
 
@@ -101,7 +121,7 @@ export function Preview({ sandboxUrl }: PreviewProps) {
   }
 
   return (
-    <div className="h-full flex flex-col bg-slate-950">
+    <div ref={containerRef} className="h-full flex flex-col bg-slate-950">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-2 bg-slate-800/50 border-b border-slate-700/50">
         {/* URL Bar */}
@@ -151,6 +171,13 @@ export function Preview({ sandboxUrl }: PreviewProps) {
             title="Open in new tab"
           >
             <ExternalLink className="w-4 h-4 text-slate-400" />
+          </button>
+          <button
+            onClick={toggleFullscreen}
+            className="p-1.5 hover:bg-slate-700 rounded transition-colors"
+            title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4 text-slate-400" /> : <Maximize2 className="w-4 h-4 text-slate-400" />}
           </button>
         </div>
       </div>
