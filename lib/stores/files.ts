@@ -607,14 +607,20 @@ export class FilesStore {
       this.#cleanupDeletedFiles();
   
       // Cast to any to access internal API
-    (webcontainer as any).internal.watchPaths(
-      {
-        include: [`${WORK_DIR}/**`],
-        exclude: ['**/node_modules', '.git', '**/package-lock.json'],
-        includeContent: true,
-      },
-      bufferWatchEvents(100, this.#processEventBuffer.bind(this)),
-    );
+    const internal = (webcontainer as any).internal;
+    
+    if (internal?.watchPaths) {
+      internal.watchPaths(
+        {
+          include: [`${WORK_DIR}/**`],
+          exclude: ['**/node_modules', '.git', '**/package-lock.json'],
+          includeContent: true,
+        },
+        bufferWatchEvents(100, this.#processEventBuffer.bind(this)),
+      );
+    } else {
+      logger.warn('WebContainer internal.watchPaths not available, file watching disabled');
+    }
   
       // Get the current chat ID
       const currentChatId = getCurrentChatId();

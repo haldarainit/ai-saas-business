@@ -108,7 +108,7 @@ const Message = memo(function Message({ message }: MessageProps) {
 });
 
 export function ChatMessages() {
-  const { messages, isStreaming } = useChatStore();
+  const { messages, isStreaming, setInput } = useChatStore();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom on new messages
@@ -122,10 +122,7 @@ export function ChatMessages() {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center max-w-md px-6">
-          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-orange-500/20 to-pink-600/20 rounded-2xl flex items-center justify-center">
-            <Sparkles className="w-10 h-10 text-orange-500" />
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-3">
+          <h2 className="text-2xl font-bold text-white mb-3 mt-12">
             Where ideas begin
           </h2>
           <p className="text-slate-400 mb-6">
@@ -140,7 +137,8 @@ export function ChatMessages() {
             ].map((suggestion) => (
               <button
                 key={suggestion}
-                className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-full text-sm text-slate-300 hover:bg-slate-700 hover:border-slate-600 transition-colors"
+                onClick={() => setInput(suggestion)}
+                className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-full text-sm text-slate-300 hover:bg-slate-700 hover:border-slate-600 transition-colors cursor-pointer"
               >
                 {suggestion}
               </button>

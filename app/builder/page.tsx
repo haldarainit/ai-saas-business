@@ -146,10 +146,7 @@ function BuilderContent() {
         setStatus('ready');
         setStatusMessage('WebContainer ready');
         
-        addMessage({
-          role: 'system',
-          content: `🚀 AI Builder initialized successfully!\n\nWebContainer is ready for live development. You can:\n- Describe what you want to build\n- Paste a URL to clone a website\n- Ask for specific features or components\n\nI'll generate the code and you'll see it running live in the preview!`
-        });
+        // Initial message removed for cleaner UI
       } else {
         throw new Error(webcontainerError || 'Failed to initialize WebContainer');
       }
@@ -437,9 +434,9 @@ Create a complete, working application with all necessary files.`;
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
+    <div className="h-screen flex flex-col bg-slate-950 overflow-hidden">
       {/* Header */}
-      <header className="shrink-0 flex items-center justify-between px-4 h-14 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50 z-50">
+      <header className="shrink-0 flex items-center justify-between px-4 h-14 bg-slate-950 border-b border-slate-800 z-50">
         {/* Left Section */}
         <div className="flex items-center gap-4">
           <Link
@@ -450,13 +447,10 @@ Create a complete, working application with all necessary files.`;
             <span className="text-sm hidden sm:inline">Back</span>
           </Link>
 
-          <div className="h-6 w-px bg-slate-700 hidden sm:block" />
+          <div className="h-6 w-px bg-slate-800 hidden sm:block" />
 
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-pink-600 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-semibold text-white hidden sm:inline">bolt.diy</span>
+            <span className="font-semibold text-white hidden sm:inline">Website Builder</span>
           </div>
         </div>
 
