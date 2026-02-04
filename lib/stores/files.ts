@@ -28,7 +28,13 @@ const utf8TextDecoder = new TextDecoder('utf8', { fatal: true });
 
 function isBinaryFile(buffer: Uint8Array | undefined): boolean {
     if (!buffer) return false;
-    return isBinary(null, Buffer.from(buffer));
+    // Simple check for null bytes in the first 1024 bytes to detect binary
+    const buf = Buffer.from(buffer);
+    const checkLen = Math.min(1024, buf.length);
+    for (let i = 0; i < checkLen; i++) {
+        if (buf[i] === 0) return true;
+    }
+    return false;
 }
 
 interface PathWatcherEvent {

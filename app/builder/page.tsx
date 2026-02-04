@@ -66,6 +66,7 @@ function BuilderContent() {
     reset: resetWorkbench,
     setIsStreaming: setWorkbenchStreaming,
     stopGeneration,
+    addFile,
   } = useWorkbenchStore();
 
   // Local State
@@ -170,12 +171,12 @@ function BuilderContent() {
 
   // Handle message send
   const handleSend = useCallback(async (message: string, files?: File[]) => {
-    if (!message.trim()) return;
+    if (!message.trim() && (!files || files.length === 0)) return;
 
     const messageId = `msg-${++messageIdRef.current}`;
 
-    // Add user message
-    addMessage({ role: 'user', content: message });
+    // Add user message with attached files metadata if needed (simplified here)
+    addMessage({ role: 'user', content: message + (files?.length ? `\n[Attached ${files.length} files]` : '') });
     setIsLoading(true);
     setIsStreaming(true);
     setWorkbenchStreaming(true);  // Sync workbench streaming state
@@ -185,6 +186,40 @@ function BuilderContent() {
 
     try {
       let prompt = message;
+
+      // Read attached files
+      // Read attached files
+      if (files && files.length > 0) {
+        const fileContents = await Promise.all(files.map(async (file) => {
+          // Handle images as assets
+          if (file.type.startsWith('image/')) {
+            try {
+              const buffer = await file.arrayBuffer();
+              const uint8Array = new Uint8Array(buffer);
+              const assetPath = `public/assets/${file.name}`;
+              
+              // Upload to WebContainer
+              await addFile(assetPath, uint8Array, 'file');
+              
+              return `[Uploaded Asset: ${file.name} available at ${assetPath}]`;
+            } catch (e) {
+              console.error('Asset upload error:', e);
+              return `[Error uploading asset: ${file.name}]`;
+            }
+          }
+           
+          // Handle text/code files
+          try {
+            const text = await file.text();
+            return `File: ${file.name}\n\`\`\`\n${text}\n\`\`\``;
+          } catch (e) {
+            return `File: ${file.name} (Error reading content)`;
+          }
+        }));
+        prompt += `\n\nAttached Files:\n${fileContents.join('\n\n')}`;
+      }
+
+      // If it's a URL, scrape it first
 
       // If it's a URL, scrape it first
       if (isUrl(message)) {
@@ -486,6 +521,26 @@ Create a complete, working application with all necessary files.`;
             title="Download project"
           >
             <Download className="w-5 h-5" />
+          </button>
+
+          {/* Export Chat */}
+          <button
+            onClick={() => {
+              const chatData = JSON.stringify(messages, null, 2);
+              const blob = new Blob([chatData], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `chat-history-${new Date().toISOString().slice(0, 10)}.json`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }}
+            className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            title="Export chat"
+          >
+            <div className="i-ph:export-bold w-5 h-5" />
           </button>
 
           {/* Settings */}

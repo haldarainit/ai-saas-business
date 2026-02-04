@@ -202,15 +202,6 @@ export const Workbench = memo(function Workbench({
             </button>
           )}
 
-          {/* Download */}
-          <button
-            onClick={onDownload}
-            className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-300 transition-colors"
-            title="Download project"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-
           {/* Toggle Terminal */}
           <button
             onClick={() => setShowTerminal(!showTerminal)}
@@ -253,24 +244,6 @@ export const Workbench = memo(function Workbench({
             <FileText className="w-5 h-5" />
           </button>
           <button 
-            onClick={() => {
-              if (sidebarTab === 'search' && sidebarVisible) {
-                setSidebarVisible(false);
-              } else {
-                setSidebarTab('search');
-                setSidebarVisible(true);
-              }
-            }}
-            className={`p-2 rounded-lg transition-colors ${
-              sidebarTab === 'search' && sidebarVisible
-                ? 'bg-orange-500/10 text-orange-500'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
-            }`}
-            title="Search"
-          >
-            <SearchIcon className="w-5 h-5" />
-          </button>
-          <button 
             className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors" 
             title="Source Control"
           >
@@ -285,23 +258,7 @@ export const Workbench = memo(function Workbench({
             style={{ width: `${sidebarWidth}px` }}
           >
             {sidebarTab === 'files' && <FileTree />}
-            {sidebarTab === 'search' && (
-              <div className="h-full flex flex-col">
-                <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700/50 shrink-0">
-                  <span className="text-sm font-medium text-slate-300">SEARCH</span>
-                </div>
-                <div className="p-2 shrink-0">
-                  <input
-                    type="text"
-                    placeholder="Search files..."
-                    className="w-full px-3 py-1.5 bg-slate-800/50 border border-slate-700/50 rounded text-sm text-slate-300 placeholder:text-slate-500 focus:outline-none focus:border-orange-500/50"
-                  />
-                </div>
-                <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
-                  Enter text to search
-                </div>
-              </div>
-            )}
+            {sidebarTab === 'search' && null}
           </div>
         )}
 

@@ -6,10 +6,10 @@ import {
   Send,
   StopCircle,
   Link2,
-  Image as ImageIcon,
   Sparkles,
   X,
-  Loader2
+  Loader2,
+  Paperclip
 } from 'lucide-react';
 import { useChatStore } from '@/lib/stores/chat';
 
@@ -88,17 +88,25 @@ export function ChatInput({
     if (!input.trim()) return;
     setShowEnhancePrompt(true);
     
-    // Simulating enhancement
-    setTimeout(() => {
-      const enhanced = `Create a modern, responsive ${input} with the following features:
-- Beautiful UI with smooth animations
-- Dark mode support
-- Mobile-first design
-- Clean, maintainable code structure
-- Best practices for accessibility`;
-      setInput(enhanced);
+    try {
+      const response = await fetch('/api/enhance-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: input })
+      });
+      
+      if (!response.ok) throw new Error('Failed to enhance prompt');
+      
+      const data = await response.json();
+      if (data.enhancedPrompt) {
+        setInput(data.enhancedPrompt);
+      }
+    } catch (error) {
+      console.error('Error enhancing prompt:', error);
+      // Optional: Add toast notification here
+    } finally {
       setShowEnhancePrompt(false);
-    }, 1000);
+    }
   };
 
   const isUrl = (text: string): boolean => {
@@ -116,10 +124,10 @@ export function ChatInput({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={disabled || isLoading || isStreaming}
                 className="text-xs flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors"
-                title="Attach image"
+                title="Attach file"
               >
-                <ImageIcon className="w-4 h-4" />
-                <span>Add Image</span>
+                <Paperclip className="w-4 h-4" />
+                <span>Add File</span>
              </button>
              
              <button
@@ -208,7 +216,6 @@ export function ChatInput({
         <input
            ref={fileInputRef}
            type="file"
-           accept="image/*"
            multiple
            onChange={handleFileUpload}
            className="hidden"

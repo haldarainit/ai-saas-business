@@ -454,7 +454,11 @@ export class WorkbenchStore {
     this.expandedFolders.set(expandedFolders);
   }
 
-  async addFile(path: string, content: string = '', type: 'file' | 'folder' = 'file') {
+  collapseAllFolders() {
+    this.expandedFolders.set(new Set());
+  }
+
+  async addFile(path: string, content: string | Uint8Array = '', type: 'file' | 'folder' = 'file') {
     try {
       const wc = await webcontainer;
       
@@ -468,7 +472,11 @@ export class WorkbenchStore {
           await wc.fs.mkdir(parentDir, { recursive: true });
         }
         await wc.fs.writeFile(path, content);
-        this.#filesStore.files.setKey(path, { type: 'file', content, isBinary: false });
+        
+        // Update store
+        const isBinary = content instanceof Uint8Array;
+        const storeContent = isBinary ? '' : (content as string);
+        this.#filesStore.files.setKey(path, { type: 'file', content: storeContent, isBinary });
       }
       
       // Auto-expand parent folders
@@ -578,7 +586,8 @@ export function useWorkbenchStore() {
     unsavedFiles,
     generatedFile,
     toggleFolder: (path: string) => workbenchStore.toggleFolder(path),
-    addFile: (path: string, content?: string, type?: 'file' | 'folder') => workbenchStore.addFile(path, content, type),
+    collapseAllFolders: () => workbenchStore.collapseAllFolders(),
+    addFile: (path: string, content?: string | Uint8Array, type?: 'file' | 'folder') => workbenchStore.addFile(path, content, type),
     deleteFile: (path: string) => workbenchStore.deleteFile(path),
     selectFile: (path: string | undefined) => workbenchStore.setSelectedFile(path),
     // EditorPanel required methods
