@@ -64,6 +64,7 @@ function BuilderContent() {
     previews,
     files,
     reset: resetWorkbench,
+    setIsStreaming: setWorkbenchStreaming,
   } = useWorkbenchStore();
 
   // Local State
@@ -178,6 +179,7 @@ function BuilderContent() {
     addMessage({ role: 'user', content: message });
     setIsLoading(true);
     setIsStreaming(true);
+    setWorkbenchStreaming(true);  // Sync workbench streaming state
     setShowWorkbench(true);
     setStatus('generating');
     setStatusMessage('Generating code...');
@@ -322,16 +324,18 @@ Create a complete, working application with all necessary files.`;
     } finally {
       setIsLoading(false);
       setIsStreaming(false);
+      setWorkbenchStreaming(false);  // Sync workbench streaming state
     }
-  }, [currentModel, currentProvider, messages, addMessage, updateLastMessage, setIsLoading, setIsStreaming, setShowWorkbench, parseMessage]);
+  }, [currentModel, currentProvider, messages, addMessage, updateLastMessage, setIsLoading, setIsStreaming, setShowWorkbench, parseMessage, setWorkbenchStreaming]);
 
   // Handle stop generation
   const handleStop = useCallback(() => {
     setIsLoading(false);
     setIsStreaming(false);
+    setWorkbenchStreaming(false);  // Sync workbench streaming state
     setStatus('ready');
     setStatusMessage('Generation stopped');
-  }, [setIsLoading, setIsStreaming]);
+  }, [setIsLoading, setIsStreaming, setWorkbenchStreaming]);
 
   // Handle download
   const handleDownload = useCallback(async () => {

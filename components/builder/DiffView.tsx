@@ -21,9 +21,9 @@ export function DiffView({ filePath }: DiffViewProps) {
     const currentFile = files[targetFile];
     
     // Check if currentFile exists and is a file type (has content)
-    if (!history || !currentFile || currentFile.type !== 'file') return null;
+    if (!currentFile || currentFile.type !== 'file') return null;
     
-    const originalContent = (history as any).originalContent || '';
+    const originalContent = (history as any)?.originalContent || '';
     const currentContent = (currentFile as any).content || '';
     
     // Normalize line endings

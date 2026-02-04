@@ -235,7 +235,7 @@ export function FileTree() {
       if (parts.length === 1) {
         root.push(node);
       } else {
-        const parentPath = parts.slice(0, -1).join('/');
+        const parentPath = '/' + parts.slice(0, -1).join('/');
         let parent = pathMap[parentPath];
         
         // If parent doesn't exist in map (might be implicitly created), check root or create it

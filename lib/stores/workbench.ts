@@ -64,6 +64,9 @@ export class WorkbenchStore {
           // Auto-expand parent folders
           this.#autoExpandFolders(filePath);
           
+          // Ensure parent folders exist in the store (critical for FileTree)
+          this.#ensureFoldersExist(filePath);
+          
           // Select and open the file in editor
           this.setSelectedFile(filePath);
         }
@@ -144,6 +147,11 @@ export class WorkbenchStore {
    * Currently being generated file path.
    */
   generatedFile: WritableAtom<string | null> = atom<string | null>(null);
+
+  /**
+   * Whether the AI is currently streaming a response.
+   */
+  isStreaming: WritableAtom<boolean> = atom(false);
 
   /**
    * Action alert to display errors or information.
@@ -507,6 +515,7 @@ export class WorkbenchStore {
     this.unsavedFiles.set(new Set());
     this.expandedFolders.set(new Set());
     this.generatedFile.set(null);
+    this.isStreaming.set(false);
     this.#messageParser.reset();
   }
 }
@@ -525,6 +534,7 @@ export function useWorkbenchStore() {
   const expandedFolders = useStore(workbenchStore.expandedFolders);
   const unsavedFiles = useStore(workbenchStore.unsavedFiles);
   const generatedFile = useStore(workbenchStore.generatedFile);
+  const isStreaming = useStore(workbenchStore.isStreaming);
 
   return {
     showWorkbench,
@@ -533,6 +543,8 @@ export function useWorkbenchStore() {
     setShowChat: (show: boolean) => workbenchStore.setShowChat(show),
     webcontainerReady,
     webcontainerError,
+    isStreaming,
+    setIsStreaming: (streaming: boolean) => workbenchStore.isStreaming.set(streaming),
     initWebContainer: () => workbenchStore.initWebContainer(),
     parseMessage: (messageId: string, content: string) => workbenchStore.parseMessage(messageId, content),
     previews,
