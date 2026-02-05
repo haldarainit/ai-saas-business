@@ -9,7 +9,8 @@ import {
   Zap,
   Sparkles,
   Bot,
-  Brain
+  Brain,
+  Lock
 } from 'lucide-react';
 import { useChatStore, PROVIDERS, type ProviderInfo } from '@/lib/stores/chat';
 
@@ -59,6 +60,9 @@ export function ModelSelector({ compact = false }: ModelSelectorProps) {
   };
 
   const handleSelectProvider = (providerName: string) => {
+    const provider = PROVIDERS.find(p => p.name === providerName);
+    if (!provider || !provider.enabled) return;
+    
     setCurrentProvider(providerName);
     setSearchQuery('');
   };
@@ -105,24 +109,35 @@ export function ModelSelector({ compact = false }: ModelSelectorProps) {
                 </div>
 
                 {/* Provider Tabs */}
-                <div className="flex border-b border-slate-700 overflow-x-auto">
+                <div className="flex border-b border-slate-700 overflow-x-auto scrollbar-hide">
                   {PROVIDERS.map((provider) => (
                     <button
                       key={provider.name}
                       onClick={() => handleSelectProvider(provider.name)}
-                      className={`flex-1 px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
+                      disabled={!provider.enabled}
+                      className={`flex-1 px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors relative ${
                         currentProvider === provider.name
                           ? 'bg-orange-500/10 text-orange-400 border-b-2 border-orange-500'
-                          : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/50'
+                          : provider.enabled 
+                            ? 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/50'
+                            : 'text-slate-600 cursor-not-allowed opacity-60'
                       }`}
                     >
-                      {provider.displayName}
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span>{provider.displayName}</span>
+                        {!provider.enabled && (
+                          <span className="text-[9px] uppercase tracking-wider bg-slate-700/50 px-1 rounded text-slate-500">Coming Soon</span>
+                        )}
+                      </div>
                     </button>
                   ))}
                 </div>
 
                 {/* Models List */}
                 <div className="max-h-64 overflow-y-auto p-2">
+                  <div className="text-xs font-semibold text-slate-500 px-2 py-1 mb-1">
+                     {currentProviderInfo.displayName} Models
+                  </div>
                   {filteredModels.length > 0 ? (
                     filteredModels.map((model) => (
                       <button
@@ -165,8 +180,12 @@ export function ModelSelector({ compact = false }: ModelSelectorProps) {
           className="appearance-none px-3 py-2 pr-8 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
         >
           {PROVIDERS.map((provider) => (
-            <option key={provider.name} value={provider.name}>
-              {provider.displayName}
+            <option 
+              key={provider.name} 
+              value={provider.name}
+              disabled={!provider.enabled}
+            >
+              {provider.displayName} {!provider.enabled ? '(Coming Soon)' : ''}
             </option>
           ))}
         </select>

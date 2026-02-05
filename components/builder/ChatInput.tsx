@@ -38,7 +38,7 @@ export function ChatInput({
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 400)}px`;
     }
   }, [input]);
 
@@ -99,7 +99,9 @@ export function ChatInput({
       
       const data = await response.json();
       if (data.enhancedPrompt) {
-        setInput(data.enhancedPrompt);
+        // Strip Markdown characters (# and *) per user request
+        const cleanPrompt = data.enhancedPrompt.replace(/[*#]/g, '');
+        setInput(cleanPrompt);
       }
     } catch (error) {
       console.error('Error enhancing prompt:', error);
@@ -186,7 +188,7 @@ export function ChatInput({
                 placeholder={placeholder}
                 disabled={disabled || isLoading || isStreaming}
                 rows={1}
-                className="flex-1 bg-transparent text-white placeholder:text-slate-500 resize-none outline-none min-h-[24px] max-h-[200px]"
+                className="flex-1 bg-transparent text-white placeholder:text-slate-500 resize-none outline-none min-h-[24px] max-h-[200px] scrollbar-hide overflow-y-auto"
               />
             </div>
           </div>

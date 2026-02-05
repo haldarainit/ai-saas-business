@@ -28,7 +28,8 @@ import {
   ExternalLink,
   Maximize2,
   Minimize2,
-  ChevronDown
+  ChevronDown,
+  Clock
 } from 'lucide-react';
 import { useWorkbenchStore, DEVICES } from '@/lib/stores/workbench';
 import FileTree from './FileTree';
@@ -65,7 +66,6 @@ function useResizable(initialWidth: number, minWidth: number, maxWidth: number) 
       if (!containerRef.current) return;
       
       const containerRect = containerRef.current.getBoundingClientRect();
-      // Account for activity bar width (48px)
       const newWidth = e.clientX - containerRect.left;
       
       setWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)));
@@ -180,16 +180,29 @@ export const Workbench = memo(function Workbench({
     <div className="h-full flex flex-col bg-slate-900 border-l border-slate-700/50 overflow-hidden">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-2 py-1.5 bg-slate-800/50 border-b border-slate-700/50 shrink-0 h-10 gap-2">
-        {/* View Tabs & Chat Toggle */}
+        {/* Left Actions */}
         <div className="flex items-center gap-1 shrink-0">
+          {/* File Explorer Toggle */}
+          <button
+            onClick={() => setSidebarVisible(!sidebarVisible)}
+            className={`p-1.5 rounded-lg transition-colors mr-1 ${
+              sidebarVisible ? 'bg-slate-700 text-white' : 'hover:bg-slate-700/50 text-slate-400 hover:text-slate-300'
+            }`}
+            title={sidebarVisible ? 'Hide Files' : 'Show Files'}
+          >
+            <FolderTree className="w-4 h-4" />
+          </button>
+
+          {/* Chat Toggle */}
           <button
             onClick={() => setShowChat(!showChat)}
-            className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-300 transition-colors mr-1"
+            className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-300 transition-colors mr-2"
             title={showChat ? 'Hide chat' : 'Show chat'}
           >
             {showChat ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
           </button>
 
+          {/* View Switcher */}
           <div className="flex bg-slate-800 rounded-lg p-0.5">
             {views.map((view) => (
               <button
@@ -355,35 +368,7 @@ export const Workbench = memo(function Workbench({
         className="flex-1 overflow-hidden flex min-h-0"
         style={{ cursor: isSidebarResizing ? 'col-resize' : undefined }}
       >
-        {/* Activity Bar */}
-        <div className="w-12 bg-slate-900 border-r border-slate-700/50 flex flex-col items-center py-4 gap-4 z-20 shrink-0">
-          <button 
-            onClick={() => {
-              if (sidebarTab === 'files' && sidebarVisible) {
-                setSidebarVisible(false);
-              } else {
-                setSidebarTab('files');
-                setSidebarVisible(true);
-              }
-            }}
-            className={`p-2 rounded-lg transition-colors ${
-              sidebarTab === 'files' && sidebarVisible
-                ? 'bg-orange-500/10 text-orange-500'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
-            }`}
-            title="Explorer"
-          >
-            <FileText className="w-5 h-5" />
-          </button>
-          <button 
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors" 
-            title="Source Control"
-          >
-            <GitCompare className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Sidebar */}
+        {/* Sidebar (No Activity Bar) */}
         {sidebarVisible && (
           <div 
             className="flex flex-col bg-[#1e1e1e] overflow-hidden shrink-0 relative"

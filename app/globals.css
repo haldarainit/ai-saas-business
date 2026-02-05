@@ -29,8 +29,6 @@
     --bolt-elements-terminal-color-brightCyan: #0598bc;
     --bolt-elements-terminal-color-brightWhite: #a5a5a5;
 
-
-
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
@@ -85,7 +83,6 @@
     --bolt-elements-terminal-color-brightCyan: #9aedfe;
     --bolt-elements-terminal-color-brightWhite: #f1f1f0;
 
-
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
 
@@ -122,26 +119,45 @@
   }
 }
 
+/* Scrollbar Hide Utility */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
 /* Light mode grid background */
 .grid-background {
-  background-image: linear-gradient(to right, rgba(36, 101, 237, 0.2) 0.5px, transparent 0.5px),
+  background-image:
+    linear-gradient(to right, rgba(36, 101, 237, 0.2) 0.5px, transparent 0.5px),
     linear-gradient(to bottom, rgba(36, 101, 237, 0.2) 0.5px, transparent 0.5px) !important;
   background-size: 80px 80px !important;
 }
 
 .grid-gradient {
-  background: radial-gradient(70% 70% at 50% 50%, transparent 0%, rgba(36, 101, 237, 0.05) 100%) !important;
+  background: radial-gradient(
+    70% 70% at 50% 50%,
+    transparent 0%,
+    rgba(36, 101, 237, 0.05) 100%
+  ) !important;
 }
 
 /* Dark mode adjustments for the grid background */
 .dark .grid-background {
-  background-image: linear-gradient(to right, rgba(36, 101, 237, 0.2) 0.5px, transparent 0.5px),
+  background-image:
+    linear-gradient(to right, rgba(36, 101, 237, 0.2) 0.5px, transparent 0.5px),
     linear-gradient(to bottom, rgba(36, 101, 237, 0.2) 0.5px, transparent 0.5px) !important;
   background-size: 80px 80px !important;
 }
 
 .dark .grid-gradient {
-  background: radial-gradient(70% 70% at 50% 50%, transparent 0%, rgba(36, 101, 237, 0.05) 100%) !important;
+  background: radial-gradient(
+    70% 70% at 50% 50%,
+    transparent 0%,
+    rgba(36, 101, 237, 0.05) 100%
+  ) !important;
 }
 
 /* Card styling improvements for dark mode */
@@ -284,7 +300,8 @@
 }
 
 @keyframes logoShadow3D {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px) scale(1);
     opacity: 0.6;
   }
@@ -313,7 +330,8 @@
 }
 
 @keyframes float1 {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px) translateX(0px);
     opacity: 0.8;
   }
@@ -332,7 +350,8 @@
 }
 
 @keyframes float2 {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px) translateX(0px);
     opacity: 0.6;
   }
@@ -347,7 +366,8 @@
 }
 
 @keyframes float3 {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px) translateX(0px);
     opacity: 0.7;
   }
@@ -467,12 +487,13 @@
 }
 
 .cm-content {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Menlo', monospace !important;
+  font-family:
+    "JetBrains Mono", "Fira Code", "Monaco", "Menlo", monospace !important;
 }
 
 /* Terminal styles */
 .terminal-container {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Menlo', monospace;
+  font-family: "JetBrains Mono", "Fira Code", "Monaco", "Menlo", monospace;
 }
 
 /* Resize handles */
@@ -482,14 +503,15 @@
 }
 
 [data-panel-resize-handle-id]::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: -2px;
 }
 
 /* Animation keyframes for builder */
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 5px rgba(249, 115, 22, 0.2);
   }
   50% {
@@ -598,11 +620,16 @@
 
 /* Streaming text animation */
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 
 .cursor-blink::after {
-  content: '▋';
+  content: "▋";
   animation: blink 1s infinite;
 }

@@ -17,12 +17,14 @@ import {
   Menu,
   X,
   AlertTriangle,
-  Zap
+  Zap,
+  PanelLeft
 } from 'lucide-react';
 
 // Components
 import ChatMessages from '@/components/builder/ChatMessages';
 import ChatInput from '@/components/builder/ChatInput';
+import ChatHistory from '@/components/builder/ChatHistory';
 import ModelSelector from '@/components/builder/ModelSelector';
 import Workbench from '@/components/builder/Workbench';
 
@@ -80,6 +82,7 @@ function BuilderContent() {
   // Chat panel resize state
   const [chatWidth, setChatWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Handle chat panel resize
@@ -351,6 +354,9 @@ Create a complete, working application with all necessary files.`;
       console.error('Generation error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Generation failed';
 
+      // Fix: Update the empty "Generating..." message with the error
+      updateLastMessage(`⚠️ Generation failed: ${errorMessage}`);
+
       addMessage({
         role: 'system',
         content: `⚠️ Error: ${errorMessage}`
@@ -485,6 +491,15 @@ Create a complete, working application with all necessary files.`;
           <div className="h-6 w-px bg-slate-800 hidden sm:block" />
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className={`p-2 rounded-lg transition-colors ${
+                showHistory ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+              title="Toggle History"
+            >
+              <PanelLeft className="w-5 h-5" />
+            </button>
             <span className="font-semibold text-white hidden sm:inline">Website Builder</span>
           </div>
         </div>
@@ -501,18 +516,7 @@ Create a complete, working application with all necessary files.`;
             <ModelSelector compact />
           </div>
 
-          {/* New Chat */}
-          <button
-            onClick={() => {
-              useChatStore.getState().reset();
-              resetWorkbench();
-              initializeWebContainer();
-            }}
-            className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-            title="New chat"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
+
 
           {/* Download */}
           <button
@@ -582,6 +586,35 @@ Create a complete, working application with all necessary files.`;
 
       {/* Main Content */}
       <div ref={containerRef} className="flex-1 overflow-hidden flex">
+        {/* History Sidebar */}
+        <AnimatePresence>
+          {showHistory && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 260, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              className="bg-slate-900 border-r border-slate-700/50 overflow-hidden hidden md:block"
+            >
+              <div className="w-[260px] h-full">
+                <ChatHistory onNewChat={async () => {
+                  // Save current chat if needed (ChatStore auto-saves but good to be explicit for last state)
+                   await useChatStore.getState().saveCurrentChat();
+                   
+                   // Reset everything for new chat
+                   useChatStore.getState().reset();
+                   resetWorkbench();
+                   
+                   // Re-init webcontainer to be safe/clean state
+                   initializeWebContainer();
+                   
+                   // Close mobile menu if open
+                   setShowMobileMenu(false);
+                }} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Chat Panel - Desktop */}
         {showChat && (
           <>

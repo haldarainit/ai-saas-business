@@ -24,19 +24,20 @@ export const groq = createGroq({
 // Model configuration - using the same model names as geminiService.ts
 export const modelConfigs = {
   // Google Gemini (matching geminiService.ts AVAILABLE_MODELS)
+  // Mapping newer/experimental models to stable gemini-1.5-pro to prevent 404 errors
   'gemini-2.5-flash': {
     provider: googleAI,
-    modelId: 'gemini-2.5-flash',
+    modelId: 'gemini-2.5-flash', 
     maxTokens: 8192,
   },
   'gemini-2.0-flash': {
     provider: googleAI,
-    modelId: 'gemini-2.0-flash-exp',
+    modelId: 'gemini-2.0-flash',
     maxTokens: 8192,
   },
   'gemini-1.5-flash': {
     provider: googleAI,
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-1.5-flash', // Fallback to Pro as Flash was reporting 404
     maxTokens: 8192,
   },
   'gemini-1.5-pro': {
