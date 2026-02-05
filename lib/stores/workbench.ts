@@ -205,7 +205,7 @@ export class WorkbenchStore {
    */
   previewUrl: WritableAtom<string> = atom('');
   previewDevice: WritableAtom<Device> = atom(DEVICES[0]);
-  previewShowFrame: WritableAtom<boolean> = atom(true);
+  previewShowFrame: WritableAtom<boolean> = atom(false);
   previewIsLandscape: WritableAtom<boolean> = atom(false);
   previewScale: WritableAtom<number> = atom(1);
 

@@ -51,7 +51,6 @@ export function Preview({ sandboxUrl }: PreviewProps) {
     previewUrl: storePreviewUrl,
     setPreviewUrl, 
     previewDevice,
-    previewShowFrame,
     previewIsLandscape,
     previewScale,
     setPreviewScale
@@ -95,12 +94,8 @@ export function Preview({ sandboxUrl }: PreviewProps) {
         const targetWidth = previewIsLandscape ? previewDevice.height : previewDevice.width;
         const targetHeight = previewIsLandscape ? previewDevice.width : previewDevice.height;
 
-        // Add extra space for frame
-        const frameX = previewShowFrame && previewDevice.hasFrame ? 30 : 0;
-        const frameY = previewShowFrame && previewDevice.hasFrame ? 60 : 0;
-
-        const scaleX = containerWidth / (targetWidth + frameX);
-        const scaleY = containerHeight / (targetHeight + frameY);
+        const scaleX = containerWidth / targetWidth;
+        const scaleY = containerHeight / targetHeight;
         
         setPreviewScale(Math.min(1, scaleX, scaleY));
     };
@@ -110,7 +105,7 @@ export function Preview({ sandboxUrl }: PreviewProps) {
     updateScale();
 
     return () => observer.disconnect();
-  }, [previewDevice, previewIsLandscape, previewShowFrame, setPreviewScale]);
+  }, [previewDevice, previewIsLandscape, setPreviewScale]);
 
 
   const handleRefresh = useCallback(() => {
@@ -226,27 +221,17 @@ export function Preview({ sandboxUrl }: PreviewProps) {
           </div>
         )}
 
-        {/* Device Frame & Iframe */}
+        {/* Iframe */}
         <div style={getContainerStyle()} className={`relative ${previewDevice.name !== 'Responsive' ? 'shadow-2xl' : ''}`}>
-             
-             {/* CSS Device Frame */}
-             {previewDevice.hasFrame && previewShowFrame && (
-                 <div className="absolute inset-0 pointer-events-none z-20 border-[12px] border-[#2a2a2e] rounded-[2.5rem] shadow-xl">
-                    {/* Notch/Camera Area */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-[#2a2a2e] rounded-b-xl" />
-                 </div>
-             )}
-
-            {/* Inner Iframe */}
-            <iframe
-                ref={iframeRef}
-                src={storePreviewUrl}
-                className={`w-full h-full bg-white ${previewDevice.hasFrame && previewShowFrame ? 'rounded-[1.8rem]' : ''} ${previewDevice.name === 'Responsive' ? '' : 'border border-slate-700/50'}`}
-                title="Preview"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-                onLoad={handleLoad}
-                onError={handleError}
-            />
+          <iframe
+            ref={iframeRef}
+            src={storePreviewUrl}
+            className={`w-full h-full bg-white rounded-lg ${previewDevice.name === 'Responsive' ? '' : 'border border-slate-700/50'}`}
+            title="Preview"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
+            onLoad={handleLoad}
+            onError={handleError}
+          />
         </div>
       </div>
     </div>

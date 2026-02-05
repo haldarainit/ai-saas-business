@@ -145,8 +145,6 @@ export const Workbench = memo(function Workbench({
     setPreviewUrl,
     previewDevice,
     setPreviewDevice,
-    previewShowFrame,
-    setPreviewShowFrame,
     previewIsLandscape,
     setPreviewIsLandscape
   } = useWorkbenchStore();
@@ -171,10 +169,14 @@ export const Workbench = memo(function Workbench({
   ];
 
   const handleOpenExternal = useCallback(() => {
-    if (previewUrl) {
-      window.open(previewUrl, '_blank');
-    }
-  }, [previewUrl]);
+    const url = previewUrl || sandboxUrl;
+    if (!url) return;
+
+    const match = url.match(/^https?:\/\/([^.]+)\.local-credentialless\.webcontainer-api\.io/);
+    const targetUrl = match ? `/webcontainer/preview/${match[1]}` : url;
+
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+  }, [previewUrl, sandboxUrl]);
 
   return (
     <div className="h-full flex flex-col bg-slate-900 border-l border-slate-700/50 overflow-hidden">
@@ -274,25 +276,6 @@ export const Workbench = memo(function Workbench({
                             <div className="p-2 border-b border-slate-700/50 space-y-1">
                                 <div className="text-xs font-semibold text-slate-500 px-2 py-1">Window Options</div>
                                 <button 
-                                    onClick={() => handleOpenExternal()}
-                                    className="w-full flex items-center justify-between px-2 py-1.5 text-slate-300 hover:bg-slate-800 rounded text-left"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <ExternalLink className="w-3.5 h-3.5" />
-                                        Open in new tab
-                                    </span>
-                                </button>
-                                <button 
-                                    onClick={() => setPreviewShowFrame(!previewShowFrame)}
-                                    className="w-full flex items-center justify-between px-2 py-1.5 text-slate-300 hover:bg-slate-800 rounded text-left"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <Settings className="w-3.5 h-3.5" />
-                                        Show Device Frame
-                                    </span>
-                                    {previewShowFrame && <div className="w-3 h-3 bg-orange-500 rounded-full" />}
-                                </button>
-                                <button 
                                     onClick={() => setPreviewIsLandscape(!previewIsLandscape)}
                                     disabled={previewDevice.name === 'Responsive'}
                                     className={`w-full flex items-center justify-between px-2 py-1.5 text-slate-300 hover:bg-slate-800 rounded text-left ${previewDevice.name === 'Responsive' ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -338,13 +321,23 @@ export const Workbench = memo(function Workbench({
         <div className="flex items-center gap-1 shrink-0">
           {/* Refresh Action (Only show for Preview) */}
           {activeView === 'preview' && (
-            <button
-              onClick={onRefresh}
-              className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-300 transition-colors"
-              title="Refresh preview"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
+            <>
+              <button
+                onClick={handleOpenExternal}
+                disabled={!previewUrl && !sandboxUrl}
+                className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Open in new tab"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onRefresh}
+                className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-300 transition-colors"
+                title="Refresh preview"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </>
           )}
 
           {/* Toggle Terminal */}
