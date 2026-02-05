@@ -332,6 +332,7 @@ Create a complete, working application with all necessary files.`;
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullContent = '';
+      let assistantContent = '';
 
       while (reader) {
         const { done, value } = await reader.read();
@@ -341,10 +342,11 @@ Create a complete, working application with all necessary files.`;
         fullContent += chunk;
         
         // Parse the message to extract and execute actions
-        const parsedContent = parseMessage(messageId, fullContent);
+        const parsedDelta = parseMessage(messageId, fullContent);
+        assistantContent += parsedDelta;
         
-        // Update the assistant message
-        updateLastMessage(parsedContent);
+        // Update the assistant message with accumulated content
+        updateLastMessage(assistantContent);
       }
 
       setStatus('ready');
@@ -622,7 +624,7 @@ Create a complete, working application with all necessary files.`;
         {showChat && (
           <>
             <div 
-              className="hidden md:flex flex-col bg-slate-900/50 border-r border-slate-700/50 shrink-0 overflow-hidden"
+              className="hidden md:flex flex-col bg-slate-900/50 border-r border-slate-700/50 shrink-0 overflow-hidden min-h-0"
               style={{ width: `${chatWidth}px` }}
             >
               <ChatMessages />

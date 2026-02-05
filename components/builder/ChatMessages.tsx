@@ -42,7 +42,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
       className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
     >
       {/* Avatar */}
-      <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
+      <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center shadow-sm ${
         isUser 
           ? 'bg-gradient-to-r from-orange-500 to-pink-600' 
           : isSystem 
@@ -52,37 +52,37 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
         {isUser ? (
           <User className="w-4 h-4 text-white" />
         ) : isSystem ? (
-          <AlertCircle className="w-4 h-4 text-slate-400" />
+          <AlertCircle className="w-4 h-4 text-slate-300" />
         ) : (
           <Bot className="w-4 h-4 text-white" />
         )}
       </div>
 
       {/* Message Content */}
-      <div className={`flex-1 max-w-[85%] ${isUser ? 'flex justify-end' : ''}`}>
+      <div className={`max-w-[80%] ${isUser ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
         <div
-          className={`rounded-2xl px-4 py-3 ${
+          className={`rounded-2xl px-4 py-3 shadow-sm ring-1 ${
             isUser
-              ? 'bg-gradient-to-r from-orange-500 to-pink-600 text-white'
+              ? 'bg-gradient-to-r from-orange-500 to-pink-600 text-white ring-white/10'
               : isSystem
-              ? 'bg-slate-800/50 text-slate-400 border border-slate-700'
-              : 'bg-slate-800 text-slate-200'
+              ? 'bg-slate-800/40 text-slate-300 border border-slate-700/60 ring-transparent'
+              : 'bg-slate-800/80 text-slate-200 ring-slate-700/60'
           }`}
         >
           {/* Streaming indicator - Only show if this is the active generation */}
           {isMessageStreaming && (
-            <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
+            <div className="flex items-center gap-2 text-xs text-slate-300/80 mb-2">
               <Loader2 className="w-3 h-3 animate-spin" />
               <span>Generating...</span>
             </div>
           )}
 
           {/* Message content with markdown */}
-          <div className={`prose prose-sm max-w-none ${
+          <div className={`prose prose-sm max-w-none leading-relaxed ${
             isUser ? 'prose-invert' : 'prose-slate prose-invert'
           }`}>
             {isUser ? (
-              <p className="m-0 whitespace-pre-wrap">{message.content}</p>
+              <p className="m-0 whitespace-pre-wrap tracking-[0.01em]">{message.content}</p>
             ) : (
               <Markdown html>{(isLast && isStreaming) ? `${message.content}<span class="cursor-blink"></span>` : message.content}</Markdown>
             )}
@@ -90,9 +90,9 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
 
           {/* Metadata */}
           {message.metadata?.model && !isUser && (
-            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-700/50 text-xs text-slate-500">
-              <Sparkles className="w-3 h-3" />
-              <span>{message.metadata.model}</span>
+            <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-700/50 text-xs text-slate-400">
+              <Sparkles className="w-3 h-3 text-slate-500" />
+              <span className="uppercase tracking-wide">{message.metadata.model}</span>
               {message.metadata.tokens && (
                 <span>• {message.metadata.tokens} tokens</span>
               )}
@@ -101,7 +101,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
         </div>
 
         {/* Timestamp */}
-        <div className={`text-xs text-slate-500 mt-1 ${isUser ? 'text-right' : ''}`}>
+        <div className={`text-[11px] text-slate-500 mt-1 ${isUser ? 'text-right' : ''}`}>
           {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
@@ -154,7 +154,7 @@ export function ChatMessages() {
   return (
     <div 
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide scroll-smooth"
+      className="flex-1 overflow-y-auto px-4 py-5 space-y-5 scrollbar-hide scroll-smooth"
     >
       <AnimatePresence mode="popLayout">
         {messages.map((message, index) => (
