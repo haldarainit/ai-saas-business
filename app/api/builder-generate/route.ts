@@ -38,8 +38,8 @@ Format your response using the following structure:
 </boltArtifact>
 
 RULES:
-1. Always assume you are starting from scratch unless told otherwise.
-2. For new projects, ALWAYS include a package.json, index.html, vite.config.ts (or equivalent), and main entry files.
+1. If the prompt includes existing project context or file list, treat it as an existing project and MODIFY it. Do NOT recreate the project from scratch.
+2. For new projects ONLY (when no existing project context is provided), ALWAYS include a package.json, index.html, vite.config.ts (or equivalent), and main entry files.
 3. Use Vite + React + Tailwind CSS as the default stack unless requested otherwise.
 4. Ensure all code is production-ready, clean, and well-commented.
 5. Do NOT include markdown code blocks (like \`\`\`jsx) inside the <boltAction> tags. Put raw code directly.
@@ -48,6 +48,9 @@ RULES:
 8. For "shell" actions, the content is the command to run.
 9. For "start" actions, the content is the command to start the dev server.
 10. You can have multiple <boltAction> tags inside one <boltArtifact>.
+11. Only include files that need to be created or updated. Do NOT include unchanged files.
+12. Only include "npm install" if dependencies changed or were newly added. Avoid repeating it.
+13. Only include "npm run dev" if the user explicitly asks to start the app.
 
 When updating existing files, provide the FULL file content, not just diffs.`;
 

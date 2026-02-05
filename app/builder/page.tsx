@@ -172,6 +172,45 @@ function BuilderContent() {
     return urlPattern.test(text.trim());
   };
 
+  const buildProjectContext = useCallback(() => {
+    const fileEntries = Object.entries(files || {}).filter(([, file]) => file?.type === 'file');
+    if (fileEntries.length === 0) return '';
+
+    const filePaths = fileEntries.map(([path]) => path.replace('/home/project/', '')).sort();
+
+    const keyFiles = [
+      'package.json',
+      'index.html',
+      'vite.config.ts',
+      'vite.config.js',
+      'src/App.tsx',
+      'src/main.tsx',
+      'src/index.css',
+      'src/App.jsx',
+      'src/main.jsx',
+    ];
+
+    const keyFileContents = keyFiles
+      .map((relativePath) => {
+        const fullPath = `/home/project/${relativePath}`;
+        const file = files[fullPath];
+        if (!file || file.type !== 'file' || file.isBinary) return null;
+        const content = (file.content || '').slice(0, 4000);
+        if (!content.trim()) return null;
+        return `File: ${relativePath}\n${content}`;
+      })
+      .filter(Boolean)
+      .join('\n\n');
+
+    const fileList = filePaths.slice(0, 200).join('\n');
+
+    return `Existing Project Context:
+- Files (${Math.min(filePaths.length, 200)} of ${filePaths.length}):
+${fileList}
+
+${keyFileContents ? `Key Files:\n${keyFileContents}` : ''}`.trim();
+  }, [files]);
+
   // Handle message send
   const handleSend = useCallback(async (message: string, files?: File[]) => {
     if (!message.trim() && (!files || files.length === 0)) return;
@@ -189,6 +228,7 @@ function BuilderContent() {
 
     try {
       let prompt = message;
+      const projectContext = buildProjectContext();
 
       // Read attached files
       // Read attached files
@@ -285,8 +325,19 @@ Create a complete React application with Tailwind CSS that replicates this websi
         }
       } else {
         // Wrap the prompt to get boltArtifact formatted output
+        const existingProjectInstructions = projectContext
+          ? `You are modifying an existing project. Do NOT rewrite everything.
+- Only change files necessary to implement the request.
+- Do NOT delete or recreate unrelated files.
+- Provide full content for any file you update.
+- Only run "npm install" if dependencies changed.
+- Only run "npm run dev" if explicitly requested.
+`
+          : '';
+
         prompt = `${message}
 
+${projectContext ? `${projectContext}\n\n` : ''}${existingProjectInstructions}
 Please generate the code using the boltArtifact format. Wrap your code in:
 <boltArtifact id="generated-app" title="Generated Application">
   <boltAction type="file" filePath="filename.ext">
@@ -300,7 +351,7 @@ Please generate the code using the boltArtifact format. Wrap your code in:
   </boltAction>
 </boltArtifact>
 
-Create a complete, working application with all necessary files.`;
+${projectContext ? 'Only include files that need to be created or updated.' : 'Create a complete, working application with all necessary files.'}`;
       }
 
       // Add assistant message placeholder
