@@ -618,6 +618,7 @@
   opacity: 0.7;
 }
 
+
 /* Streaming text animation */
 @keyframes blink {
   0%,
@@ -629,7 +630,13 @@
   }
 }
 
+.cursor-blink {
+  display: inline-block;
+  margin-left: 2px;
+}
+
 .cursor-blink::after {
   content: "▋";
-  animation: blink 1s infinite;
+  animation: blink 1s step-start infinite;
+  color: rgb(249, 115, 22); /* Orange-500 to match theme */
 }

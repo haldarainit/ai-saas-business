@@ -433,24 +433,27 @@ export const Workbench = memo(function Workbench({
             </div>
           </div>
 
-          {/* Terminal */}
-          {showTerminal && (
-            <>
-              {/* Terminal Resize Handle */}
+          {/* Terminal - Always mounted but hidden when closed to preserve state */}
+          <>
+            {/* Terminal Resize Handle - Only render when visible */}
+            {showTerminal && (
               <div 
                 className={`h-1 shrink-0 cursor-row-resize transition-colors z-30 ${
                   isTerminalResizing ? 'bg-orange-500' : 'bg-slate-800 hover:bg-orange-500'
                 }`}
                 onMouseDown={startTerminalResize}
               />
-              <div 
-                className="shrink-0 overflow-hidden"
-                style={{ height: `${terminalHeight}px` }}
-              >
-                <Terminal onClose={() => setShowTerminal(false)} />
-              </div>
-            </>
-          )}
+            )}
+            <div 
+              className="shrink-0 overflow-hidden"
+              style={{ 
+                height: `${terminalHeight}px`,
+                display: showTerminal ? 'block' : 'none' 
+              }}
+            >
+              <Terminal onClose={() => setShowTerminal(false)} />
+            </div>
+          </>
         </div>
       </div>
     </div>

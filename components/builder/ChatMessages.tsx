@@ -15,13 +15,15 @@ import { Markdown } from '@/components/chat/Markdown';
 
 interface MessageProps {
   message: ChatMessage;
+  isLast?: boolean;
+  isStreaming?: boolean;
 }
 
-const Message = memo(function Message({ message }: MessageProps) {
+const Message = memo(function Message({ message, isLast, isStreaming }: MessageProps) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
-  const isStreaming = message.metadata?.streaming;
+  const isMessageStreaming = message.metadata?.streaming;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
@@ -67,8 +69,8 @@ const Message = memo(function Message({ message }: MessageProps) {
               : 'bg-slate-800 text-slate-200'
           }`}
         >
-          {/* Streaming indicator */}
-          {isStreaming && (
+          {/* Streaming indicator - Only show if this is the active generation */}
+          {isMessageStreaming && (
             <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
               <Loader2 className="w-3 h-3 animate-spin" />
               <span>Generating...</span>
@@ -82,7 +84,7 @@ const Message = memo(function Message({ message }: MessageProps) {
             {isUser ? (
               <p className="m-0 whitespace-pre-wrap">{message.content}</p>
             ) : (
-              <Markdown html>{message.content}</Markdown>
+              <Markdown html>{(isLast && isStreaming) ? `${message.content}<span class="cursor-blink"></span>` : message.content}</Markdown>
             )}
           </div>
 
@@ -152,16 +154,21 @@ export function ChatMessages() {
   return (
     <div 
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-4 space-y-4"
+      className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide scroll-smooth"
     >
       <AnimatePresence mode="popLayout">
-        {messages.map((message) => (
-          <Message key={message.id} message={message} />
+        {messages.map((message, index) => (
+          <Message 
+            key={message.id} 
+            message={message} 
+            isLast={index === messages.length - 1}
+            isStreaming={isStreaming}
+          />
         ))}
       </AnimatePresence>
 
-      {/* Streaming indicator */}
-      {isStreaming && (
+      {/* Streaming indicator - Global (removed to avoid duplication, relying on message specific loader) */}
+      {/* {isStreaming && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -170,7 +177,7 @@ export function ChatMessages() {
           <Loader2 className="w-4 h-4 animate-spin" />
           <span className="text-sm">Generating response...</span>
         </motion.div>
-      )}
+      )} */}
     </div>
   );
 }

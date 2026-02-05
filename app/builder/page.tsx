@@ -369,6 +369,9 @@ Create a complete, working application with all necessary files.`;
       setIsStreaming(false);
       setWorkbenchStreaming(false);  // Sync workbench streaming state
       abortControllerRef.current = null;
+      
+      // Ensure the last message is marked as not streaming
+      useChatStore.getState().updateLastMessage(undefined, { streaming: false });
     }
   }, [currentModel, currentProvider, messages, addMessage, updateLastMessage, setIsLoading, setIsStreaming, setShowWorkbench, parseMessage, setWorkbenchStreaming]);
 

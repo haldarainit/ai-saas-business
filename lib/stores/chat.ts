@@ -80,7 +80,7 @@ interface ChatState {
   // Actions
   initialize: () => Promise<void>;
   addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
-  updateLastMessage: (content: string) => void;
+  updateLastMessage: (content?: string, metadata?: Partial<ChatMessage['metadata']>) => void;
   setMessages: (messages: ChatMessage[]) => void;
   clearMessages: () => void;
   setInput: (input: string) => void;
@@ -150,13 +150,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
   },
   
-  updateLastMessage: (content) => {
+  updateLastMessage: (content, metadata) => {
     set((state) => {
       const messages = [...state.messages];
       if (messages.length > 0) {
         messages[messages.length - 1] = {
           ...messages[messages.length - 1],
-          content
+          ...(content !== undefined ? { content } : {}),
+          ...(metadata ? { metadata: { ...messages[messages.length - 1].metadata, ...metadata } } : {})
         };
       }
       return { messages };
