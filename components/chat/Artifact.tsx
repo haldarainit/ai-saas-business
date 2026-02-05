@@ -44,10 +44,12 @@ export const Artifact = memo(({ artifactId }: ArtifactProps) => {
   // We will derive it from the artifact runner actions
   const actionsMap = useStore(artifact?.runner.actions || computed({} as any, () => ({}))); // Fallback if artifact is missing
 
-  const actions = Object.values(actionsMap).filter((action) => {
+  const actions = Object.entries(actionsMap)
+    .filter(([, action]) => {
       // Exclude actions with type 'supabase' or actions that contain 'supabase' in their content
       return action.type !== 'supabase' && !(action.type === 'shell' && action.content?.includes('supabase'));
-  });
+    })
+    .map(([id, action]) => ({ id, action }));
 
 
   const toggleActions = () => {
@@ -154,7 +156,7 @@ export const Artifact = memo(({ artifactId }: ArtifactProps) => {
               <div className="bg-bolt-elements-artifacts-borderColor h-[1px]" />
 
               <div className="p-5 text-left bg-bolt-elements-actions-background">
-                <ActionList actions={actions} />
+                <ActionList actions={actions} runner={artifact.runner} />
               </div>
             </motion.div>
           )}
@@ -192,7 +194,8 @@ function ShellCodeBlock({ classsName, code }: ShellCodeBlockProps) {
 }
 
 interface ActionListProps {
-  actions: ActionState[];
+  actions: { id: string; action: ActionState }[];
+  runner: { rerunAction: (actionId: string) => Promise<void> };
 }
 
 const actionVariants = {
@@ -206,7 +209,7 @@ function openArtifactInWorkbenchStore(filePath: any) {
     // We will just expose this logic and let the component handle it or use a global store instance if available
 }
 
-const ActionList = memo(({ actions }: ActionListProps) => {
+const ActionList = memo(({ actions, runner }: ActionListProps) => {
   const { currentView, setCurrentView, setSelectedFile } = useWorkbenchStore(); 
   
   const openArtifact = (filePath: string) => {
@@ -219,9 +222,11 @@ const ActionList = memo(({ actions }: ActionListProps) => {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
       <ul className="list-none space-y-2.5">
-        {actions.map((action, index) => {
+        {actions.map(({ id, action }, index) => {
           const { status, type, content } = action;
           const isLast = index === actions.length - 1;
+          const canRetry = status === 'failed' || status === 'aborted';
+          const retryLabel = type === 'start' ? 'Restart' : 'Retry';
 
           return (
             <motion.li
@@ -265,17 +270,35 @@ const ActionList = memo(({ actions }: ActionListProps) => {
                 ) : type === 'shell' ? (
                   <div className="flex items-center w-full min-h-[28px]">
                     <span className="flex-1">Run command</span>
+                    {canRetry && (
+                      <button
+                        onClick={() => runner.rerunAction(id)}
+                        className="text-xs px-2 py-1 rounded bg-slate-700/60 hover:bg-slate-700 text-slate-200"
+                      >
+                        {retryLabel}
+                      </button>
+                    )}
                   </div>
                 ) : type === 'start' ? (
-                  <a
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setCurrentView('preview');
-                    }}
-                    className="flex items-center w-full min-h-[28px]"
-                  >
-                    <span className="flex-1">Start Application</span>
-                  </a>
+                  <div className="flex items-center w-full min-h-[28px]">
+                    <a
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentView('preview');
+                      }}
+                      className="flex-1"
+                    >
+                      Start Application
+                    </a>
+                    {canRetry && (
+                      <button
+                        onClick={() => runner.rerunAction(id)}
+                        className="text-xs px-2 py-1 rounded bg-slate-700/60 hover:bg-slate-700 text-slate-200"
+                      >
+                        {retryLabel}
+                      </button>
+                    )}
+                  </div>
                 ) : null}
               </div>
               {(type === 'shell' || type === 'start') && (

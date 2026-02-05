@@ -16,6 +16,7 @@ export type BaseActionState = BoltAction & {
   abort: () => void;
   executed: boolean;
   abortSignal: AbortSignal;
+  retryCount?: number;
 };
 
 export type FailedActionState = BoltAction &
@@ -105,6 +106,7 @@ export class ActionRunner {
       ...data.action,
       status: 'pending',
       executed: false,
+      retryCount: 0,
       abort: () => {
         abortController.abort();
         this.#updateAction(actionId, { status: 'aborted' });
@@ -146,6 +148,38 @@ export class ActionRunner {
     await this.#currentExecutionPromise;
 
     return;
+  }
+
+  async rerunAction(actionId: string) {
+    const actions = this.actions.get();
+    const action = actions[actionId];
+
+    if (!action) {
+      unreachable(`Action ${actionId} not found`);
+    }
+
+    const abortController = new AbortController();
+
+    this.actions.setKey(actionId, {
+      ...action,
+      status: 'pending',
+      executed: false,
+      error: undefined,
+      retryCount: 0,
+      abort: () => {
+        abortController.abort();
+        this.#updateAction(actionId, { status: 'aborted' });
+      },
+      abortSignal: abortController.signal,
+    });
+
+    this.#currentExecutionPromise = this.#currentExecutionPromise
+      .then(() => this.#executeAction(actionId, false))
+      .catch((error) => {
+        logger.error('Action re-execution promise failed:', error);
+      });
+
+    await this.#currentExecutionPromise;
   }
 
   cancelAll() {
@@ -282,11 +316,30 @@ export class ActionRunner {
       action.content = validationResult.modifiedCommand;
     }
 
-    const resp = await shell.executeCommand(this.runnerId.get(), action.content, () => {
+    const shouldRetry = this.#isNpmInstallCommand(action.content);
+    let resp = await shell.executeCommand(this.runnerId.get(), action.content, () => {
       logger.debug(`[${action.type}]:Aborting Action\n\n`, action);
       action.abort();
     });
     logger.debug(`${action.type} Shell Response: [exit code:${resp?.exitCode}]`);
+
+    if (resp?.exitCode != 0 && shouldRetry && this.#isNetworkError(resp?.output)) {
+      const nextRetry = (action.retryCount ?? 0) + 1;
+
+      if (nextRetry <= 1) {
+        const actionId = this.#findActionId(action);
+        if (actionId) {
+          this.#updateAction(actionId, { retryCount: nextRetry });
+        }
+        logger.warn(`[${action.type}]: Network error detected. Retrying npm install...`);
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        resp = await shell.executeCommand(this.runnerId.get(), action.content, () => {
+          logger.debug(`[${action.type}]:Aborting Action\n\n`, action);
+          action.abort();
+        });
+        logger.debug(`${action.type} Shell Response (retry): [exit code:${resp?.exitCode}]`);
+      }
+    }
 
     if (resp?.exitCode != 0) {
       const enhancedError = this.#createEnhancedShellError(action.content, resp?.exitCode, resp?.output);
@@ -756,5 +809,25 @@ export class ActionRunner {
       title: `Command Failed (exit code: ${exitCode})`,
       details: `Command: ${trimmedCommand}\n\nOutput: ${output || 'No output available'}${suggestion}`,
     };
+  }
+
+  #isNpmInstallCommand(command: string) {
+    const trimmed = command.trim();
+    return trimmed.startsWith('npm install') || trimmed.startsWith('npm ci');
+  }
+
+  #isNetworkError(output?: string) {
+    if (!output) return false;
+    return /ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|network|ECONNREFUSED|socket hang up/i.test(output);
+  }
+
+  #findActionId(action: ActionState): string {
+    const actions = this.actions.get();
+    for (const [id, existing] of Object.entries(actions)) {
+      if (existing === action) {
+        return id;
+      }
+    }
+    return '';
   }
 }
