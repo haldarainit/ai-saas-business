@@ -1,76 +1,108 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { 
-  RefreshCw, 
-  ExternalLink, 
-  Smartphone, 
-  Tablet, 
-  Monitor,
-  RotateCcw,
-  ChevronDown,
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
   AlertCircle,
-  Loader2,
+  ExternalLink,
   Globe,
+  Loader2,
   Maximize2,
   Minimize2,
-  Settings, 
-  Check,
-  RotateCw
+  RefreshCw,
+  Smartphone,
+  Tablet,
+  Monitor,
+  Scan,
+  RotateCw,
+  Ruler,
+  QrCode,
 } from 'lucide-react';
-import { useWorkbenchStore } from '@/lib/stores/workbench';
-
-type DeviceType = 'mobile' | 'tablet' | 'desktop';
-
-interface Device {
-  name: string;
-  type: DeviceType;
-  width: number;
-  height: number;
-  hasFrame?: boolean;
-}
-
-const DEVICES: Device[] = [
-  { name: 'Responsive', type: 'desktop', width: 0, height: 0, hasFrame: false },
-  { name: 'iPhone 14 Pro', type: 'mobile', width: 393, height: 852, hasFrame: true },
-  { name: 'iPhone SE', type: 'mobile', width: 375, height: 667, hasFrame: true },
-  { name: 'Pixel 7', type: 'mobile', width: 412, height: 915, hasFrame: true },
-  { name: 'iPad Mini', type: 'tablet', width: 768, height: 1024, hasFrame: true },
-  { name: 'iPad Pro 11"', type: 'tablet', width: 834, height: 1194, hasFrame: true },
-  { name: 'Desktop', type: 'desktop', width: 1440, height: 900, hasFrame: false },
-];
+import { DEVICES, useWorkbenchStore } from '@/lib/stores/workbench';
+import PortDropdown from './PortDropdown';
+import ScreenshotSelector from './ScreenshotSelector';
+import Inspector, { type ElementInfo } from './Inspector';
+import InspectorPanel from './InspectorPanel';
+import ExpoQrModal from './ExpoQrModal';
 
 interface PreviewProps {
   sandboxUrl?: string;
 }
 
 export function Preview({ sandboxUrl }: PreviewProps) {
-  const { 
-    previews, 
-    isStreaming, 
+  const {
+    previews,
+    isStreaming,
     previewUrl: storePreviewUrl,
-    setPreviewUrl, 
+    setPreviewUrl,
     previewDevice,
+    setPreviewDevice,
+    previewShowFrame,
+    setPreviewShowFrame,
     previewIsLandscape,
+    setPreviewIsLandscape,
     previewScale,
-    setPreviewScale
+    setPreviewScale,
   } = useWorkbenchStore();
-  
+
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Sync prop/store URL to global preview URL
-  useEffect(() => {
-    const url = sandboxUrl || (previews.length > 0 ? previews[0].url : '');
-    if (url && url !== storePreviewUrl) {
-      setPreviewUrl(url);
-    }
-  }, [sandboxUrl, previews, setPreviewUrl, storePreviewUrl]);
+  const [activePreviewIndex, setActivePreviewIndex] = useState(0);
+  const [isPortDropdownOpen, setIsPortDropdownOpen] = useState(false);
+  const hasSelectedPreview = useRef(false);
+  const [displayPath, setDisplayPath] = useState('/');
+  const [iframeUrl, setIframeUrl] = useState<string | undefined>();
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isInspectorMode, setIsInspectorMode] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<ElementInfo | null>(null);
+  const [showInspectorPanel, setShowInspectorPanel] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
-  // Reset loading state when URL changes
+  const activePreview = previews[activePreviewIndex];
+  const activeBaseUrl = activePreview?.baseUrl;
+
+  useEffect(() => {
+    if (previews.length > 1 && !hasSelectedPreview.current) {
+      const minPortIndex = previews.reduce((minIndex, preview, index, array) => {
+        return preview.port < array[minIndex].port ? index : minIndex;
+      }, 0);
+      if (minPortIndex !== activePreviewIndex) {
+        setActivePreviewIndex(minPortIndex);
+      }
+    }
+  }, [previews, activePreviewIndex]);
+
+  useEffect(() => {
+    if (sandboxUrl && previews.length > 0 && !hasSelectedPreview.current) {
+      const matchIndex = previews.findIndex((preview) => preview.baseUrl === sandboxUrl);
+      if (matchIndex >= 0 && matchIndex !== activePreviewIndex) {
+        setActivePreviewIndex(matchIndex);
+      }
+    }
+  }, [sandboxUrl, previews, activePreviewIndex]);
+
+  useEffect(() => {
+    if (!activeBaseUrl) {
+      setIframeUrl((prev) => (prev ? undefined : prev));
+      return;
+    }
+
+    let targetPath = displayPath.trim() || '/';
+    if (!targetPath.startsWith('/')) targetPath = `/${targetPath}`;
+    const nextUrl = `${activeBaseUrl}${targetPath}`;
+    setIframeUrl((prev) => (prev === nextUrl ? prev : nextUrl));
+  }, [activeBaseUrl, displayPath]);
+
+  useEffect(() => {
+    if (activeBaseUrl && activeBaseUrl !== storePreviewUrl) {
+      setPreviewUrl(activeBaseUrl);
+    }
+  }, [activeBaseUrl, setPreviewUrl, storePreviewUrl]);
+
   useEffect(() => {
     if (storePreviewUrl) {
       setIsLoading(true);
@@ -78,26 +110,31 @@ export function Preview({ sandboxUrl }: PreviewProps) {
     }
   }, [storePreviewUrl]);
 
-  // Handle resizing to fit scale
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   useEffect(() => {
     if (!containerRef.current || previewDevice.name === 'Responsive') {
-        setPreviewScale(1);
-        return;
+      setPreviewScale(1);
+      return;
     }
 
     const updateScale = () => {
-        if (!containerRef.current) return;
-        
-        const containerWidth = containerRef.current.clientWidth - 48; // padding
-        const containerHeight = containerRef.current.clientHeight - 48;
-        
-        const targetWidth = previewIsLandscape ? previewDevice.height : previewDevice.width;
-        const targetHeight = previewIsLandscape ? previewDevice.width : previewDevice.height;
-
-        const scaleX = containerWidth / targetWidth;
-        const scaleY = containerHeight / targetHeight;
-        
-        setPreviewScale(Math.min(1, scaleX, scaleY));
+      if (!containerRef.current) return;
+      const containerWidth = containerRef.current.clientWidth - 48;
+      const containerHeight = containerRef.current.clientHeight - 48;
+      const targetWidth = previewIsLandscape ? previewDevice.height : previewDevice.width;
+      const targetHeight = previewIsLandscape ? previewDevice.width : previewDevice.height;
+      const frameX = previewShowFrame && previewDevice.hasFrame ? 30 : 0;
+      const frameY = previewShowFrame && previewDevice.hasFrame ? 60 : 0;
+      const scaleX = containerWidth / (targetWidth + frameX);
+      const scaleY = containerHeight / (targetHeight + frameY);
+      setPreviewScale(Math.min(1, scaleX, scaleY));
     };
 
     const observer = new ResizeObserver(updateScale);
@@ -105,26 +142,16 @@ export function Preview({ sandboxUrl }: PreviewProps) {
     updateScale();
 
     return () => observer.disconnect();
-  }, [previewDevice, previewIsLandscape, setPreviewScale]);
-
+  }, [previewDevice, previewIsLandscape, previewShowFrame, setPreviewScale]);
 
   const handleRefresh = useCallback(() => {
-    if (iframeRef.current && storePreviewUrl) {
+    if (iframeRef.current && iframeUrl) {
       setIsLoading(true);
       setHasError(false);
-      iframeRef.current.src = `${storePreviewUrl}?t=${Date.now()}`;
+      iframeRef.current.src = `${iframeUrl}?t=${Date.now()}`;
     }
-  }, [storePreviewUrl]);
+  }, [iframeUrl]);
 
-  // Expose refresh functionality to parent via custom event or store if needed?
-  // Current design: Workbench header will have refresh button. 
-  // We can expose a "triggerRefresh" atom in store, or just re-set the URL with a query param?
-  // Actually, standard way: changing the URL (even with query param) triggers refresh.
-  // BUT the iframe.src update logic is inside the rendered component.
-  // Workbench Refresh button needs to trigger `iframeRef.current.src = ...` which is here.
-  // One way: add a `refreshPreview` counter to store. 
-  // OR: Workbench refresh button just calls `setPreviewUrl(url + '?t=' + Date.now())`.
-  
   const handleLoad = useCallback(() => {
     setIsLoading(false);
     setHasError(false);
@@ -134,17 +161,45 @@ export function Preview({ sandboxUrl }: PreviewProps) {
   const handleError = useCallback(() => {
     setIsLoading(false);
     setHasError(true);
-    
-    // Auto-retry up to 3 times
     if (retryCount < 3) {
       setTimeout(() => {
-        setRetryCount(prev => prev + 1);
+        setRetryCount((prev) => prev + 1);
         handleRefresh();
       }, 2000);
     }
   }, [retryCount, handleRefresh]);
 
-  if (!storePreviewUrl) {
+  const getContainerStyle = () => {
+    if (previewDevice.name === 'Responsive') {
+      return { width: '100%', height: '100%' };
+    }
+    const width = previewIsLandscape ? previewDevice.height : previewDevice.width;
+    const height = previewIsLandscape ? previewDevice.width : previewDevice.height;
+    return {
+      width: `${width}px`,
+      height: `${height}px`,
+      transform: `scale(${previewScale})`,
+      transformOrigin: 'center center',
+      transition: 'all 0.3s ease-in-out',
+    };
+  };
+
+  const openInNewTab = () => {
+    if (!activePreview?.baseUrl) return;
+    const match = activePreview.baseUrl.match(/^https?:\/\/([^.]+)\.local-credentialless\.webcontainer-api\.io/);
+    const targetUrl = match ? `/webcontainer/preview/${match[1]}` : activePreview.baseUrl;
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const toggleFullscreen = async () => {
+    if (!isFullscreen && containerRef.current) {
+      await containerRef.current.requestFullscreen();
+    } else if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+  };
+
+  if (!activePreview?.baseUrl) {
     return (
       <div className="h-full flex items-center justify-center bg-slate-950 text-slate-500">
         <div className="text-center">
@@ -162,32 +217,136 @@ export function Preview({ sandboxUrl }: PreviewProps) {
     );
   }
 
-  // Calculate dimensions for iframe container
-  const getContainerStyle = () => {
-    if (previewDevice.name === 'Responsive') {
-      return { width: '100%', height: '100%' };
-    }
-
-    const width = previewIsLandscape ? previewDevice.height : previewDevice.width;
-    const height = previewIsLandscape ? previewDevice.width : previewDevice.height;
-
-    return {
-        width: `${width}px`,
-        height: `${height}px`,
-        transform: `scale(${previewScale})`,
-        transformOrigin: 'center center',
-        transition: 'all 0.3s ease-in-out'
-    };
-  };
-
   return (
     <div className="h-full flex flex-col bg-slate-950">
-      {/* Preview Frame - No Toolbar */}
-      <div 
-        ref={containerRef}
-        className="flex-1 relative overflow-hidden flex items-center justify-center bg-[#1e1e1e]"
-      >
-        {/* Loading Overlay */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-800/60 bg-slate-900/60">
+        <button
+          onClick={handleRefresh}
+          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white"
+          title="Refresh preview"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={() => setIsSelectionMode(!isSelectionMode)}
+          className={`p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white ${
+            isSelectionMode ? 'bg-slate-800 text-white' : ''
+          }`}
+          title={isSelectionMode ? 'Exit selection' : 'Select screenshot area'}
+        >
+          <Scan className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={() => {
+            const next = !isInspectorMode;
+            setIsInspectorMode(next);
+            if (next) setShowInspectorPanel(true);
+          }}
+          className={`p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white ${
+            isInspectorMode ? 'bg-slate-800 text-white' : ''
+          }`}
+          title={isInspectorMode ? 'Disable inspector' : 'Enable inspector'}
+        >
+          <Ruler className="w-4 h-4" />
+        </button>
+
+        <PortDropdown
+          activePreviewIndex={activePreviewIndex}
+          setActivePreviewIndex={setActivePreviewIndex}
+          isDropdownOpen={isPortDropdownOpen}
+          setIsDropdownOpen={setIsPortDropdownOpen}
+          setHasSelectedPreview={(value) => (hasSelectedPreview.current = value)}
+          previews={previews}
+        />
+
+        <div className="flex-1 flex items-center gap-1 bg-slate-900/50 border border-slate-700/50 rounded-full px-2 py-1 text-xs">
+          <span className="i-ph:globe text-sm text-slate-400" />
+          <input
+            title="URL Path"
+            className="w-full bg-transparent outline-none text-slate-300"
+            type="text"
+            value={displayPath}
+            onChange={(event) => setDisplayPath(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && activePreview) {
+                let targetPath = displayPath.trim();
+                if (!targetPath.startsWith('/')) targetPath = '/' + targetPath;
+                setDisplayPath(targetPath);
+                setIframeUrl(`${activePreview.baseUrl}${targetPath}`);
+              }
+            }}
+          />
+        </div>
+
+        <button
+          onClick={() => setPreviewDevice(DEVICES[0])}
+          className={`p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white ${
+            previewDevice.name === 'Responsive' ? 'bg-slate-800 text-white' : ''
+          }`}
+          title="Responsive"
+        >
+          <Monitor className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setPreviewDevice(DEVICES.find((d) => d.type === 'tablet') || DEVICES[0])}
+          className={`p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white ${
+            previewDevice.type === 'tablet' ? 'bg-slate-800 text-white' : ''
+          }`}
+          title="Tablet"
+        >
+          <Tablet className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setPreviewDevice(DEVICES.find((d) => d.type === 'mobile') || DEVICES[0])}
+          className={`p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white ${
+            previewDevice.type === 'mobile' ? 'bg-slate-800 text-white' : ''
+          }`}
+          title="Mobile"
+        >
+          <Smartphone className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setPreviewIsLandscape(!previewIsLandscape)}
+          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white"
+          title="Toggle landscape"
+        >
+          <RotateCw className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setPreviewShowFrame(!previewShowFrame)}
+          className={`p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white ${
+            previewShowFrame ? 'bg-slate-800 text-white' : ''
+          }`}
+          title="Toggle device frame"
+        >
+          <Monitor className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setShowQr(true)}
+          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white"
+          title="Expo QR"
+        >
+          <QrCode className="w-4 h-4" />
+        </button>
+        <button
+          onClick={openInNewTab}
+          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white"
+          title="Open in new tab"
+        >
+          <ExternalLink className="w-4 h-4" />
+        </button>
+        <button
+          onClick={toggleFullscreen}
+          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white"
+          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+        >
+          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </button>
+      </div>
+
+      <div ref={containerRef} className="flex-1 relative overflow-hidden flex items-center justify-center bg-[#1e1e1e]">
         {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/80 rounded-lg">
             <div className="text-center">
@@ -200,7 +359,6 @@ export function Preview({ sandboxUrl }: PreviewProps) {
           </div>
         )}
 
-        {/* Error Overlay */}
         {hasError && !isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950 rounded-lg">
             <div className="text-center">
@@ -221,19 +379,49 @@ export function Preview({ sandboxUrl }: PreviewProps) {
           </div>
         )}
 
-        {/* Iframe */}
         <div style={getContainerStyle()} className={`relative ${previewDevice.name !== 'Responsive' ? 'shadow-2xl' : ''}`}>
+          {previewDevice.hasFrame && previewShowFrame && (
+            <div className="absolute inset-0 pointer-events-none z-20 border-[12px] border-[#2a2a2e] rounded-[2.5rem] shadow-xl">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-[#2a2a2e] rounded-b-xl" />
+            </div>
+          )}
+
           <iframe
             ref={iframeRef}
-            src={storePreviewUrl}
-            className={`w-full h-full bg-white rounded-lg ${previewDevice.name === 'Responsive' ? '' : 'border border-slate-700/50'}`}
+            src={iframeUrl}
+            className={`w-full h-full bg-white ${
+              previewDevice.hasFrame && previewShowFrame ? 'rounded-[1.8rem]' : 'rounded-lg'
+            } ${previewDevice.name === 'Responsive' ? '' : 'border border-slate-700/50'}`}
             title="Preview"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
             onLoad={handleLoad}
             onError={handleError}
           />
+
+          <ScreenshotSelector
+            isSelectionMode={isSelectionMode}
+            setIsSelectionMode={setIsSelectionMode}
+            containerRef={containerRef}
+          />
         </div>
+
+        <Inspector
+          isActive={isInspectorMode}
+          iframeRef={iframeRef}
+          onElementSelect={(element) => {
+            setSelectedElement(element);
+            setShowInspectorPanel(true);
+          }}
+        />
+
+        <InspectorPanel
+          selectedElement={selectedElement}
+          isVisible={showInspectorPanel}
+          onClose={() => setShowInspectorPanel(false)}
+        />
       </div>
+
+      <ExpoQrModal open={showQr} onClose={() => setShowQr(false)} />
     </div>
   );
 }

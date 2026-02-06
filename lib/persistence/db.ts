@@ -5,6 +5,7 @@ export interface ChatMetadata {
   id: string;
   title: string;
   lastMessage: string;
+  summary?: string;
   timestamp: string; // ISO string
 }
 
@@ -40,10 +41,11 @@ export const getAllChats = async (): Promise<ChatMetadata[]> => {
       // Return only metadata, messages might be large so we might want to separate them later
       // For now, we return everything but map it to metadata
       const sessions = request.result as ChatSession[];
-      const metadata = sessions.map(({ id, title, lastMessage, timestamp }) => ({
+      const metadata = sessions.map(({ id, title, lastMessage, summary, timestamp }) => ({
         id,
         title,
         lastMessage,
+        summary,
         timestamp,
       })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       

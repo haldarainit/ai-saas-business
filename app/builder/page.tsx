@@ -7,9 +7,9 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   Wand2,
-  Settings,
   Plus,
   Download,
+  Rocket,
   Loader2,
   AlertCircle,
   CheckCircle,
@@ -27,10 +27,14 @@ import ChatInput from '@/components/builder/ChatInput';
 import ChatHistory from '@/components/builder/ChatHistory';
 import ModelSelector from '@/components/builder/ModelSelector';
 import Workbench from '@/components/builder/Workbench';
+import DeployModal from '@/components/builder/DeployModal';
 
 // Stores
 import { useChatStore, PROVIDERS } from '@/lib/stores/chat';
 import { useWorkbenchStore } from '@/lib/stores/workbench';
+import { webcontainer } from '@/lib/webcontainer';
+import { path as pathUtils } from '@/utils/path';
+import { WORK_DIR } from '@/utils/constants';
 
 // WebContainer
 import { isWebContainerSupported } from '@/lib/webcontainer';
@@ -75,6 +79,7 @@ function BuilderContent() {
   const [status, setStatus] = useState<'idle' | 'booting' | 'ready' | 'generating' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showDeploy, setShowDeploy] = useState(false);
   const [webcontainerSupported, setWebcontainerSupported] = useState(true);
   const messageIdRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -448,21 +453,45 @@ ${projectContext ? 'Only include files that need to be created or updated.' : 'C
 
   // Handle download
   const handleDownload = useCallback(async () => {
-    // Implementation for downloading project as ZIP
     const JSZip = (await import('jszip')).default;
     const FileSaver = (await import('file-saver')).default;
-    
     const zip = new JSZip();
-    
-    Object.entries(files).forEach(([path, file]) => {
-      if (file?.type === 'file') {
-        const relativePath = path.replace('/home/project/', '');
-        zip.file(relativePath, file.content);
+
+    const wc = await webcontainer;
+    const workdir = wc.workdir || WORK_DIR;
+
+    const entries = Object.entries(files || {}).filter(([, file]) => file?.type === 'file');
+
+    for (const [filePath, file] of entries) {
+      if (!file || file.type !== 'file') continue;
+
+      // Resolve relative path for zip
+      let relativePath = pathUtils.relative(workdir, filePath);
+      if (!relativePath || relativePath.startsWith('..')) {
+        relativePath = filePath.replace(`${WORK_DIR}/`, '');
       }
-    });
-    
+
+      // Skip node_modules and empty paths
+      if (!relativePath || relativePath.includes('node_modules/')) continue;
+
+      try {
+        if (file.isBinary) {
+          const binaryContent = await wc.fs.readFile(relativePath);
+          zip.file(relativePath, binaryContent, { binary: true });
+        } else {
+          const textContent = file.content ?? '';
+          zip.file(relativePath, textContent);
+        }
+      } catch {
+        // Fallback to stored content if direct read fails
+        if (!file.isBinary) {
+          zip.file(relativePath, file.content ?? '');
+        }
+      }
+    }
+
     const content = await zip.generateAsync({ type: 'blob' });
-    FileSaver.saveAs(content, 'project.zip');
+    FileSaver.saveAs(content, `project-${new Date().toISOString().slice(0, 10)}.zip`);
   }, [files]);
 
   // Handle refresh preview
@@ -583,6 +612,15 @@ ${projectContext ? 'Only include files that need to be created or updated.' : 'C
             <Download className="w-5 h-5" />
           </button>
 
+          {/* Deploy */}
+          <button
+            onClick={() => setShowDeploy(true)}
+            className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            title="Deploy project"
+          >
+            <Rocket className="w-5 h-5" />
+          </button>
+
           {/* Export Chat */}
           <button
             onClick={() => {
@@ -601,14 +639,6 @@ ${projectContext ? 'Only include files that need to be created or updated.' : 'C
             title="Export chat"
           >
             <div className="i-ph:export-bold w-5 h-5" />
-          </button>
-
-          {/* Settings */}
-          <button
-            className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-            title="Settings"
-          >
-            <Settings className="w-5 h-5" />
           </button>
 
           {/* Mobile Menu Toggle */}
@@ -723,6 +753,8 @@ ${projectContext ? 'Only include files that need to be created or updated.' : 'C
           </div>
         </div>
       </div>
+
+      <DeployModal open={showDeploy} onClose={() => setShowDeploy(false)} />
     </div>
   );
 }

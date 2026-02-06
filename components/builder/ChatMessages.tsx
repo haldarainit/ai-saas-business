@@ -39,7 +39,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
-      className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
+      className={`flex gap-3 group ${isUser ? 'flex-row-reverse' : ''}`}
     >
       {/* Avatar */}
       <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center shadow-sm ${
@@ -110,7 +110,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
 });
 
 export function ChatMessages() {
-  const { messages, isStreaming, setInput } = useChatStore();
+  const { messages, isStreaming, setInput, forkChat, rewindChat, restoreLatestSnapshot } = useChatStore();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom on new messages
@@ -158,12 +158,35 @@ export function ChatMessages() {
     >
       <AnimatePresence mode="popLayout">
         {messages.map((message, index) => (
-          <Message 
-            key={message.id} 
-            message={message} 
-            isLast={index === messages.length - 1}
-            isStreaming={isStreaming}
-          />
+          <div key={message.id} className="relative group">
+            <Message 
+              message={message} 
+              isLast={index === messages.length - 1}
+              isStreaming={isStreaming}
+            />
+            {message.role === 'assistant' && (
+              <div className="mt-1 ml-11 flex items-center gap-2 text-[11px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => rewindChat(message.id)}
+                  className="px-2 py-0.5 rounded bg-slate-800/60 hover:bg-slate-700/80 text-slate-300"
+                >
+                  Rewind
+                </button>
+                <button
+                  onClick={() => forkChat(message.id)}
+                  className="px-2 py-0.5 rounded bg-slate-800/60 hover:bg-slate-700/80 text-slate-300"
+                >
+                  Fork
+                </button>
+                <button
+                  onClick={() => restoreLatestSnapshot()}
+                  className="px-2 py-0.5 rounded bg-slate-800/60 hover:bg-slate-700/80 text-slate-300"
+                >
+                  Restore Snapshot
+                </button>
+              </div>
+            )}
+          </div>
         ))}
       </AnimatePresence>
 

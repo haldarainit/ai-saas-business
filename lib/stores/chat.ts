@@ -1,6 +1,8 @@
 // Chat Store - State management for the AI Chat
 import { create } from 'zustand';
 import { getAllChats, getChat, saveChat, deleteChat, type ChatMetadata, type ChatSession } from '@/lib/persistence/db';
+import { saveSnapshot, getSnapshot, restoreSnapshot } from '@/lib/persistence/snapshots';
+import { workbenchStore } from '@/lib/stores/workbench';
 import { nanoid } from 'nanoid';
 
 export interface ChatMessage {
@@ -98,6 +100,9 @@ interface ChatState {
   loadChat: (id: string) => Promise<void>;
   deleteChat: (id: string) => Promise<void>;
   saveCurrentChat: () => Promise<void>;
+  forkChat: (messageId?: string) => Promise<void>;
+  rewindChat: (messageId: string) => Promise<void>;
+  restoreLatestSnapshot: () => Promise<void>;
 }
 
 let messageCounter = 0;
@@ -238,6 +243,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           chatStarted: true,
           // Extract model/provider from last message if available?
         });
+
+        const snapshot = getSnapshot(chat.id);
+        if (snapshot) {
+          await restoreSnapshot(snapshot);
+        }
       }
     } catch (error) {
       console.error('Failed to load chat:', error);
@@ -265,11 +275,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     const title = messages[0].content.slice(0, 50) + (messages[0].content.length > 50 ? '...' : '');
     const lastMessage = messages[messages.length - 1].content.slice(0, 100);
+    const summarySource =
+      [...messages].reverse().find((m) => m.role === 'assistant' && m.content.trim())?.content ||
+      messages[0].content;
+    const summary = summarySource.replace(/\s+/g, ' ').slice(0, 140) + (summarySource.length > 140 ? '...' : '');
     
     const chatSession: ChatSession = {
       id: chatId,
       title,
       lastMessage,
+      summary,
       timestamp: new Date().toISOString(),
       messages
     };
@@ -278,10 +293,82 @@ export const useChatStore = create<ChatState>((set, get) => ({
       await saveChat(chatSession);
       const chats = await getAllChats(); // Refresh list
       set({ chats });
+
+      // Save snapshot of current files for restore
+      const lastMessageId = messages[messages.length - 1]?.id;
+      if (lastMessageId) {
+        saveSnapshot(chatId, lastMessageId, workbenchStore.files.get());
+      }
     } catch (error) {
       console.error('Failed to save chat:', error);
     }
-  }
+  },
+
+  forkChat: async (messageId?: string) => {
+    const { messages, chatId: currentChatId } = get();
+    if (messages.length === 0) return;
+
+    const cutIndex = messageId ? messages.findIndex((m) => m.id === messageId) : messages.length - 1;
+    const forkedMessages = cutIndex >= 0 ? messages.slice(0, cutIndex + 1) : messages;
+
+    const newId = nanoid();
+    const title = forkedMessages[0]?.content?.slice(0, 50) || 'Forked Chat';
+    const lastMessage = forkedMessages[forkedMessages.length - 1]?.content?.slice(0, 100) || '';
+
+    const chatSession: ChatSession = {
+      id: newId,
+      title: title + (title.length > 50 ? '...' : ''),
+      lastMessage,
+      timestamp: new Date().toISOString(),
+      messages: forkedMessages,
+    };
+
+    try {
+      await saveChat(chatSession);
+      const chats = await getAllChats();
+      set({ chats, chatId: newId, messages: forkedMessages, chatStarted: true });
+
+      const snapshot = getSnapshot(currentChatId);
+      if (snapshot) {
+        saveSnapshot(newId, snapshot.messageId, snapshot.files);
+      }
+    } catch (error) {
+      console.error('Failed to fork chat:', error);
+    }
+  },
+
+  rewindChat: async (messageId: string) => {
+    const { messages, chatId } = get();
+    const cutIndex = messages.findIndex((m) => m.id === messageId);
+    if (cutIndex < 0) return;
+
+    const newMessages = messages.slice(0, cutIndex + 1);
+    set({ messages: newMessages, chatStarted: newMessages.length > 0 });
+
+    const title = newMessages[0]?.content?.slice(0, 50) || 'Chat';
+    const lastMessage = newMessages[newMessages.length - 1]?.content?.slice(0, 100) || '';
+
+    try {
+      await saveChat({
+        id: chatId,
+        title: title + (title.length > 50 ? '...' : ''),
+        lastMessage,
+        timestamp: new Date().toISOString(),
+        messages: newMessages,
+      });
+      const chats = await getAllChats();
+      set({ chats });
+    } catch (error) {
+      console.error('Failed to rewind chat:', error);
+    }
+  },
+
+  restoreLatestSnapshot: async () => {
+    const { chatId } = get();
+    const snapshot = getSnapshot(chatId);
+    if (!snapshot) return;
+    await restoreSnapshot(snapshot);
+  },
 }));
 
 export default useChatStore;

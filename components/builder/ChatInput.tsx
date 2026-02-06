@@ -34,6 +34,14 @@ export function ChatInput({
   const [imagePreview, setImagePreview] = useState<string[]>([]);
   const [showEnhancePrompt, setShowEnhancePrompt] = useState(false);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    (window as any).__BUILDER_SET_UPLOADED_FILES__ = setUploadedFiles;
+    (window as any).__BUILDER_SET_IMAGE_PREVIEW__ = setImagePreview;
+    (window as any).__BUILDER_UPLOADED_FILES__ = uploadedFiles;
+    (window as any).__BUILDER_IMAGE_PREVIEW__ = imagePreview;
+  }, [uploadedFiles, imagePreview]);
+
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {

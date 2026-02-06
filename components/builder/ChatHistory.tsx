@@ -102,11 +102,16 @@ export default function ChatHistory({ onNewChat }: ChatHistoryProps) {
                           currentChatId === chat.id ? 'text-orange-400' : 'text-slate-500 group-hover:text-slate-400'
                         }`} />
                         <div className="flex-1 min-w-0">
-                          <div className={`text-sm font-medium truncate ${
+                        <div className={`text-sm font-medium truncate ${
                              currentChatId === chat.id ? 'text-slate-100' : 'text-slate-300'
                           }`}>
                             {chat.title || 'Untitled Chat'}
                           </div>
+                          {chat.summary && (
+                            <div className="text-xs text-slate-500 truncate mt-1 group-hover:text-slate-400 transition-colors">
+                              {chat.summary}
+                            </div>
+                          )}
                           <div className="text-xs text-slate-500 truncate mt-1 group-hover:text-slate-400 transition-colors">
                             {format(new Date(chat.timestamp), 'h:mm a')}
                           </div>

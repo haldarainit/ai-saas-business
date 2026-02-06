@@ -569,7 +569,7 @@ export class WorkbenchStore {
     // Reset preview state
     this.previewUrl.set('');
     this.previewDevice.set(DEVICES[0]);
-    this.previewShowFrame.set(true);
+    this.previewShowFrame.set(false);
     this.previewIsLandscape.set(false);
     this.previewScale.set(1);
   }
