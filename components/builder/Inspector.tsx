@@ -62,6 +62,8 @@ export const Inspector = ({ isActive, iframeRef, onElementSelect, onElementUpdat
         elementInfo.rect.top += iframeRect.y;
         elementInfo.rect.left += iframeRect.x;
         onElementUpdate?.(elementInfo);
+      } else if (event.data.type === 'INSPECTOR_READY') {
+        sendActivationMessage();
       } else if (event.data.type === 'INSPECTOR_LEAVE') {
         setHoveredElement(null);
       }

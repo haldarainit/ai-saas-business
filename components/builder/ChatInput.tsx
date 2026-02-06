@@ -26,7 +26,15 @@ export function ChatInput({
   placeholder = "Describe what you want to build...",
   disabled = false
 }: ChatInputProps) {
-  const { input, setInput, isLoading, isStreaming } = useChatStore();
+  const {
+    input,
+    setInput,
+    isLoading,
+    isStreaming,
+    inspectorSelections,
+    clearInspectorSelections,
+    removeInspectorSelection,
+  } = useChatStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -54,15 +62,28 @@ export function ChatInput({
     if (!input.trim() && uploadedFiles.length === 0) return;
     if (isLoading || isStreaming) return;
 
-    onSend(input.trim(), uploadedFiles.length > 0 ? uploadedFiles : undefined);
+    const selectionContext = inspectorSelections.length
+      ? `Selected elements:\n${inspectorSelections.join('\n')}\n\n`
+      : '';
+    onSend(selectionContext + input.trim(), uploadedFiles.length > 0 ? uploadedFiles : undefined);
     setInput('');
+    clearInspectorSelections();
     setUploadedFiles([]);
     setImagePreview([]);
     
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-  }, [input, uploadedFiles, isLoading, isStreaming, onSend, setInput]);
+  }, [
+    input,
+    uploadedFiles,
+    isLoading,
+    isStreaming,
+    onSend,
+    setInput,
+    inspectorSelections,
+    clearInspectorSelections,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -128,6 +149,35 @@ export function ChatInput({
     <div className="border-t border-slate-800 p-4 bg-slate-950">
       <div className="relative max-w-4xl mx-auto">
         
+        {/* Selected element label */}
+        {inspectorSelections.length > 0 && (
+          <div className="mb-2 px-1 flex flex-wrap gap-1.5">
+            {inspectorSelections.map((selection) => (
+              <span
+                key={selection}
+                className="flex items-center gap-1 text-[11px] text-slate-300 bg-slate-900/60 border border-slate-800 rounded-full px-2 py-0.5 max-w-[240px]"
+              >
+                <span className="i-ph:cursor-click text-xs text-slate-400" />
+                <span className="truncate">{selection}</span>
+                <button
+                  onClick={() => removeInspectorSelection(selection)}
+                  className="ml-1 text-slate-500 hover:text-slate-200"
+                  title="Remove selection"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            <button
+              onClick={clearInspectorSelections}
+              className="text-[11px] px-2 py-0.5 rounded-full border border-slate-800 text-slate-400 hover:text-slate-200"
+              title="Clear selections"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
         {/* Toolbar - Top of Send Message (Input Area) */}
         <div className="flex items-center gap-4 mb-2 px-1">
              <button

@@ -18,6 +18,7 @@ import {
   QrCode,
 } from 'lucide-react';
 import { DEVICES, useWorkbenchStore } from '@/lib/stores/workbench';
+import { useChatStore } from '@/lib/stores/chat';
 import PortDropdown from './PortDropdown';
 import ScreenshotSelector from './ScreenshotSelector';
 import Inspector, { type ElementInfo } from './Inspector';
@@ -29,6 +30,7 @@ interface PreviewProps {
 }
 
 export function Preview({ sandboxUrl }: PreviewProps) {
+  const { addInspectorSelection } = useChatStore();
   const {
     previews,
     isStreaming,
@@ -42,6 +44,9 @@ export function Preview({ sandboxUrl }: PreviewProps) {
     setPreviewIsLandscape,
     previewScale,
     setPreviewScale,
+    files,
+    updateFile,
+    saveFile,
   } = useWorkbenchStore();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -61,6 +66,7 @@ export function Preview({ sandboxUrl }: PreviewProps) {
   const [showInspectorPanel, setShowInspectorPanel] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const lastSelectedTextRef = useRef<string>('');
 
   const activePreview = previews[activePreviewIndex];
   const activeBaseUrl = activePreview?.baseUrl;
@@ -411,6 +417,10 @@ export function Preview({ sandboxUrl }: PreviewProps) {
           onElementSelect={(element) => {
             setSelectedElement(element);
             setShowInspectorPanel(true);
+            lastSelectedTextRef.current = element.textContent || '';
+            const label = element.displayText || `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ''}`;
+            const text = element.textContent ? `Current text: "${element.textContent}"` : '';
+            addInspectorSelection(`Selected: ${label}${text ? ` — ${text}` : ''}`);
           }}
           onElementUpdate={(element) => {
             setSelectedElement(element);
@@ -421,11 +431,39 @@ export function Preview({ sandboxUrl }: PreviewProps) {
           selectedElement={selectedElement}
           isVisible={showInspectorPanel}
           onClose={() => setShowInspectorPanel(false)}
-          onUpdateText={(text) => {
+          onUpdateText={async (text, originalText) => {
             const targetWindow = iframeRef.current?.contentWindow;
             if (!targetWindow) return;
             targetWindow.postMessage({ type: 'INSPECTOR_SET_TEXT', text }, '*');
             setSelectedElement((prev) => (prev ? { ...prev, textContent: text } : prev));
+            lastSelectedTextRef.current = text;
+
+            const sourceText = originalText || lastSelectedTextRef.current;
+            if (!sourceText || sourceText === text) return;
+
+            const entries = Object.entries(files || {})
+              .filter(([path, file]) => file?.type === 'file' && !file.isBinary && path.includes('/src/'));
+
+            let updatedPath: string | null = null;
+            let updatedContent: string | null = null;
+
+            for (const [path, file] of entries) {
+              const content = file?.content || '';
+              // Replace only plain text nodes between tags to avoid changing styles/props.
+              const escapedSource = sourceText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const textNodePattern = new RegExp(`>(\\s*)${escapedSource}(\\s*)<`);
+              const match = content.match(textNodePattern);
+              if (match) {
+                updatedPath = path;
+                updatedContent = content.replace(textNodePattern, `>$1${text}$2<`);
+                break;
+              }
+            }
+
+            if (updatedPath && updatedContent !== null) {
+              updateFile(updatedPath, updatedContent);
+              await saveFile(updatedPath);
+            }
           }}
         />
       </div>

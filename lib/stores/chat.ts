@@ -72,6 +72,7 @@ interface ChatState {
   
   // UI state
   input: string;
+  inspectorSelections: string[];
   isLoading: boolean;
   isStreaming: boolean;
   error: string | null;
@@ -88,6 +89,9 @@ interface ChatState {
   setMessages: (messages: ChatMessage[]) => void;
   clearMessages: () => void;
   setInput: (input: string) => void;
+  addInspectorSelection: (selection: string) => void;
+  removeInspectorSelection: (selection: string) => void;
+  clearInspectorSelections: () => void;
   setIsLoading: (loading: boolean) => void;
   setIsStreaming: (streaming: boolean) => void;
   setError: (error: string | null) => void;
@@ -174,6 +178,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   currentModel: 'gemini-1.5-flash',
   apiKeys: {},
   input: '',
+  inspectorSelections: [],
   isLoading: false,
   isStreaming: false,
   error: null,
@@ -242,6 +247,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   }),
   
   setInput: (input) => set({ input }),
+  addInspectorSelection: (selection) =>
+    set((state) => ({
+      inspectorSelections: state.inspectorSelections.includes(selection)
+        ? state.inspectorSelections
+        : [...state.inspectorSelections, selection],
+    })),
+  removeInspectorSelection: (selection) =>
+    set((state) => ({
+      inspectorSelections: state.inspectorSelections.filter((item) => item !== selection),
+    })),
+  clearInspectorSelections: () => set({ inspectorSelections: [] }),
   
   setIsLoading: (loading) => {
     set({ isLoading: loading });

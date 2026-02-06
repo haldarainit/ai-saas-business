@@ -7,7 +7,7 @@ interface InspectorPanelProps {
   selectedElement: ElementInfo | null;
   isVisible: boolean;
   onClose: () => void;
-  onUpdateText?: (text: string) => void;
+  onUpdateText?: (text: string, originalText: string) => void;
 }
 
 export const InspectorPanel = ({ selectedElement, isVisible, onClose, onUpdateText }: InspectorPanelProps) => {
@@ -49,7 +49,7 @@ export const InspectorPanel = ({ selectedElement, isVisible, onClose, onUpdateTe
   };
 
   return (
-    <div className="fixed right-4 top-20 w-80 bg-slate-900 border border-slate-700/50 rounded-lg shadow-xl z-40 max-h-[calc(100vh-6rem)] overflow-hidden">
+    <div className="absolute right-3 top-3 w-80 bg-slate-900 border border-slate-700/50 rounded-lg shadow-xl z-40 max-h-[calc(100%-1.5rem)] overflow-hidden">
       <div className="flex items-center justify-between p-3 border-b border-slate-700/50">
         <h3 className="font-medium text-slate-200">Element Inspector</h3>
         <button onClick={onClose} className="text-slate-400 hover:text-white">
@@ -69,6 +69,7 @@ export const InspectorPanel = ({ selectedElement, isVisible, onClose, onUpdateTe
           {selectedElement.textContent && (
             <div className="mt-1 text-slate-400 text-xs truncate">"{selectedElement.textContent}"</div>
           )}
+          
         </div>
       </div>
 
@@ -137,7 +138,7 @@ export const InspectorPanel = ({ selectedElement, isVisible, onClose, onUpdateTe
                 Reset
               </button>
               <button
-                onClick={() => onUpdateText?.(draftText)}
+                onClick={() => onUpdateText?.(draftText, selectedElement.textContent || '')}
                 className="px-2.5 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-500"
               >
                 Apply
