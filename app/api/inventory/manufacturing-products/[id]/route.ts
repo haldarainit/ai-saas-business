@@ -115,8 +115,28 @@ export async function PUT(
         }
 
         // Process Bill of Materials if provided
-        let billOfMaterials: ProcessedBOMItem[] = existing.billOfMaterials;
+        let billOfMaterials: ProcessedBOMItem[] = existing.billOfMaterials.map(item => ({
+            rawMaterialId: item.rawMaterialId.toString(),
+            rawMaterialName: item.rawMaterialName,
+            rawMaterialSku: item.rawMaterialSku,
+            quantityRequired: item.quantityRequired,
+            unit: item.unit,
+            costPerUnit: item.costPerUnit
+        }));
+        const rawMaterialsToUpdate: { id: string; quantityChange: number; name: string }[] = [];
+
         if (data.billOfMaterials && Array.isArray(data.billOfMaterials)) {
+            // Build a map of existing BOM quantities for comparison
+            const existingBOMMap = new Map<string, number>();
+            for (const item of existing.billOfMaterials) {
+                existingBOMMap.set(item.rawMaterialId.toString(), item.quantityRequired);
+            }
+
+            console.log('PUT /api/inventory/manufacturing-products/[id] - Processing BOM update');
+            console.log('Existing BOM items:', existing.billOfMaterials.length);
+            console.log('New BOM items:', data.billOfMaterials.length);
+            console.log('ExistingBOMMap:', Object.fromEntries(existingBOMMap));
+
             billOfMaterials = [];
             for (const item of data.billOfMaterials) {
                 const rawMaterial = await RawMaterial.findOne({ _id: item.rawMaterialId, userId });
@@ -127,14 +147,83 @@ export async function PUT(
                     );
                 }
 
+                const newQuantityRequired = parseFloat(String(item.quantityRequired));
+                const existingQuantityRequired = existingBOMMap.get(rawMaterial._id.toString()) || 0;
+
+                // Calculate the difference (positive = need more, negative = need less)
+                const quantityDifference = newQuantityRequired - existingQuantityRequired;
+
+                // Only validate and update if there's a change that requires more raw materials
+                if (quantityDifference > 0) {
+                    // Check if raw material has zero quantity - prevent update
+                    if (rawMaterial.quantity === 0) {
+                        return NextResponse.json(
+                            { message: `Cannot update product: Raw material "${rawMaterial.name}" has zero quantity in inventory` },
+                            { status: 400 }
+                        );
+                    }
+
+                    // Check if there's sufficient quantity available for the additional amount needed
+                    if (rawMaterial.quantity < quantityDifference) {
+                        return NextResponse.json(
+                            {
+                                message: `Insufficient quantity for raw material "${rawMaterial.name}". ` +
+                                    `Additional required: ${quantityDifference} ${rawMaterial.unit}, ` +
+                                    `Available: ${rawMaterial.quantity} ${rawMaterial.unit}`
+                            },
+                            { status: 400 }
+                        );
+                    }
+
+                    // Calculate the new quantity after deduction
+                    const newQuantity = rawMaterial.quantity - quantityDifference;
+
+                    // Ensure quantity doesn't go below zero
+                    if (newQuantity < 0) {
+                        return NextResponse.json(
+                            { message: `Cannot deduct ${quantityDifference} from raw material "${rawMaterial.name}". Would result in negative inventory.` },
+                            { status: 400 }
+                        );
+                    }
+
+                    // Store the raw material update info for later
+                    rawMaterialsToUpdate.push({
+                        id: rawMaterial._id.toString(),
+                        quantityChange: -quantityDifference, // Negative because we're deducting
+                        name: rawMaterial.name
+                    });
+                } else if (quantityDifference < 0) {
+                    // Quantity is being reduced, restore inventory
+                    rawMaterialsToUpdate.push({
+                        id: rawMaterial._id.toString(),
+                        quantityChange: Math.abs(quantityDifference), // Positive because we're restoring
+                        name: rawMaterial.name
+                    });
+                }
+
+                // Remove from existing map to track what's been processed
+                existingBOMMap.delete(rawMaterial._id.toString());
+
                 billOfMaterials.push({
-                    rawMaterialId: rawMaterial._id,
+                    rawMaterialId: rawMaterial._id.toString(),
                     rawMaterialName: rawMaterial.name,
                     rawMaterialSku: rawMaterial.sku,
-                    quantityRequired: parseFloat(String(item.quantityRequired)),
+                    quantityRequired: newQuantityRequired,
                     unit: rawMaterial.unit,
                     costPerUnit: rawMaterial.costPerUnit
                 });
+            }
+
+            // Any remaining items in existingBOMMap were removed - restore their quantities
+            for (const [materialId, quantityToRestore] of existingBOMMap.entries()) {
+                const rawMaterial = await RawMaterial.findById(materialId);
+                if (rawMaterial) {
+                    rawMaterialsToUpdate.push({
+                        id: materialId,
+                        quantityChange: quantityToRestore, // Positive because we're restoring
+                        name: rawMaterial.name
+                    });
+                }
             }
         }
 
@@ -165,6 +254,22 @@ export async function PUT(
         };
 
         const updatedProduct = await ManufacturingProduct.findByIdAndUpdate(id, updateData, { new: true });
+
+        // Update raw material quantities
+        for (const materialUpdate of rawMaterialsToUpdate) {
+            await RawMaterial.findByIdAndUpdate(
+                materialUpdate.id,
+                {
+                    $inc: { quantity: materialUpdate.quantityChange },
+                    $currentDate: { updatedAt: true }
+                }
+            );
+            if (materialUpdate.quantityChange < 0) {
+                console.log(`Deducted ${Math.abs(materialUpdate.quantityChange)} from raw material "${materialUpdate.name}"`);
+            } else {
+                console.log(`Restored ${materialUpdate.quantityChange} to raw material "${materialUpdate.name}"`);
+            }
+        }
 
         return NextResponse.json(updatedProduct);
     } catch (error) {

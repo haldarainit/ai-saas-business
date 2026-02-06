@@ -107,8 +107,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         // Process Bill of Materials if provided
         const billOfMaterials: ProcessedBOMItem[] = [];
+        const rawMaterialsToUpdate: { id: string; newQuantity: number; name: string }[] = [];
+
         if (data.billOfMaterials && Array.isArray(data.billOfMaterials)) {
-            // Fetch current costs from raw materials
+            // Fetch current costs from raw materials and validate quantities
             for (const item of data.billOfMaterials) {
                 const rawMaterial = await RawMaterial.findOne({ _id: item.rawMaterialId, userId });
                 if (!rawMaterial) {
@@ -118,11 +120,51 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     );
                 }
 
+                const quantityRequired = parseFloat(String(item.quantityRequired));
+
+                // Check if raw material has zero quantity - prevent product creation
+                if (rawMaterial.quantity === 0) {
+                    return NextResponse.json(
+                        { message: `Cannot add product: Raw material "${rawMaterial.name}" has zero quantity in inventory` },
+                        { status: 400 }
+                    );
+                }
+
+                // Check if there's sufficient quantity available
+                if (rawMaterial.quantity < quantityRequired) {
+                    return NextResponse.json(
+                        {
+                            message: `Insufficient quantity for raw material "${rawMaterial.name}". ` +
+                                `Required: ${quantityRequired} ${rawMaterial.unit}, ` +
+                                `Available: ${rawMaterial.quantity} ${rawMaterial.unit}`
+                        },
+                        { status: 400 }
+                    );
+                }
+
+                // Calculate the new quantity after deduction
+                const newQuantity = rawMaterial.quantity - quantityRequired;
+
+                // Ensure quantity doesn't go below zero (additional safety check)
+                if (newQuantity < 0) {
+                    return NextResponse.json(
+                        { message: `Cannot deduct ${quantityRequired} from raw material "${rawMaterial.name}". Would result in negative inventory.` },
+                        { status: 400 }
+                    );
+                }
+
+                // Store the raw material update info for later
+                rawMaterialsToUpdate.push({
+                    id: rawMaterial._id.toString(),
+                    newQuantity: newQuantity,
+                    name: rawMaterial.name
+                });
+
                 billOfMaterials.push({
-                    rawMaterialId: rawMaterial._id,
+                    rawMaterialId: rawMaterial._id.toString(),
                     rawMaterialName: rawMaterial.name,
                     rawMaterialSku: rawMaterial.sku,
-                    quantityRequired: parseFloat(String(item.quantityRequired)),
+                    quantityRequired: quantityRequired,
                     unit: rawMaterial.unit,
                     costPerUnit: rawMaterial.costPerUnit
                 });
@@ -145,6 +187,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const savedProduct = await product.save();
         console.log('Manufacturing product created successfully:', savedProduct._id);
+
+        // Now deduct the raw material quantities from inventory
+        for (const materialUpdate of rawMaterialsToUpdate) {
+            await RawMaterial.findByIdAndUpdate(
+                materialUpdate.id,
+                {
+                    $set: { quantity: materialUpdate.newQuantity },
+                    $currentDate: { updatedAt: true }
+                }
+            );
+            console.log(`Deducted quantity from raw material "${materialUpdate.name}". New quantity: ${materialUpdate.newQuantity}`);
+        }
 
         return NextResponse.json(savedProduct, { status: 201 });
     } catch (error) {
