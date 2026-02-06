@@ -412,12 +412,21 @@ export function Preview({ sandboxUrl }: PreviewProps) {
             setSelectedElement(element);
             setShowInspectorPanel(true);
           }}
+          onElementUpdate={(element) => {
+            setSelectedElement(element);
+          }}
         />
 
         <InspectorPanel
           selectedElement={selectedElement}
           isVisible={showInspectorPanel}
           onClose={() => setShowInspectorPanel(false)}
+          onUpdateText={(text) => {
+            const targetWindow = iframeRef.current?.contentWindow;
+            if (!targetWindow) return;
+            targetWindow.postMessage({ type: 'INSPECTOR_SET_TEXT', text }, '*');
+            setSelectedElement((prev) => (prev ? { ...prev, textContent: text } : prev));
+          }}
         />
       </div>
 

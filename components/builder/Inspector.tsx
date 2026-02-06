@@ -23,9 +23,10 @@ interface InspectorProps {
   isActive: boolean;
   iframeRef: React.RefObject<HTMLIFrameElement>;
   onElementSelect: (elementInfo: ElementInfo) => void;
+  onElementUpdate?: (elementInfo: ElementInfo) => void;
 }
 
-export const Inspector = ({ isActive, iframeRef, onElementSelect }: InspectorProps) => {
+export const Inspector = ({ isActive, iframeRef, onElementSelect, onElementUpdate }: InspectorProps) => {
   const [hoveredElement, setHoveredElement] = useState<ElementInfo | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -53,6 +54,14 @@ export const Inspector = ({ isActive, iframeRef, onElementSelect }: InspectorPro
         elementInfo.rect.top += iframeRect.y;
         elementInfo.rect.left += iframeRect.x;
         onElementSelect(elementInfo);
+      } else if (event.data.type === 'INSPECTOR_TEXT_UPDATED') {
+        const elementInfo = event.data.elementInfo as ElementInfo;
+        const iframeRect = iframe.getBoundingClientRect();
+        elementInfo.rect.x += iframeRect.x;
+        elementInfo.rect.y += iframeRect.y;
+        elementInfo.rect.top += iframeRect.y;
+        elementInfo.rect.left += iframeRect.x;
+        onElementUpdate?.(elementInfo);
       } else if (event.data.type === 'INSPECTOR_LEAVE') {
         setHoveredElement(null);
       }
@@ -89,7 +98,7 @@ export const Inspector = ({ isActive, iframeRef, onElementSelect }: InspectorPro
         );
       }
     };
-  }, [isActive, iframeRef, onElementSelect]);
+  }, [isActive, iframeRef, onElementSelect, onElementUpdate]);
 
   return (
     <>
@@ -116,4 +125,3 @@ export const Inspector = ({ isActive, iframeRef, onElementSelect }: InspectorPro
 };
 
 export default Inspector;
-

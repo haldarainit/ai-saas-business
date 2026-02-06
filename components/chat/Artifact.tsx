@@ -1,6 +1,6 @@
 import { useStore } from '@nanostores/react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { computed } from 'nanostores';
+import { map } from 'nanostores';
 import { memo, useEffect, useRef, useState } from 'react';
 import { createHighlighter, type BundledLanguage, type BundledTheme, type HighlighterGeneric } from 'shiki';
 import type { ActionState } from '@/lib/runtime/action-runner';
@@ -27,6 +27,8 @@ interface ArtifactProps {
   artifactId: string;
 }
 
+const EMPTY_ACTIONS_STORE = map({});
+
 export const Artifact = memo(({ artifactId }: ArtifactProps) => {
   const userToggledActions = useRef(false);
   const [showActions, setShowActions] = useState(false);
@@ -42,7 +44,7 @@ export const Artifact = memo(({ artifactId }: ArtifactProps) => {
   
   // Re-implement the actions computed store since we can't use `computed` directly on the hook result in the same way
   // We will derive it from the artifact runner actions
-  const actionsMap = useStore(artifact?.runner.actions || computed({} as any, () => ({}))); // Fallback if artifact is missing
+  const actionsMap = useStore(artifact?.runner.actions ?? EMPTY_ACTIONS_STORE); // Fallback if artifact is missing
 
   const actions = Object.entries(actionsMap)
     .filter(([, action]) => {

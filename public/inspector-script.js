@@ -2,6 +2,11 @@
   let isInspectorActive = false;
   let inspectorStyle = null;
   let currentHighlight = null;
+  let selectedElement = null;
+  let editableElement = null;
+  let isInlineEditing = false;
+
+  const TEXT_TAGS = ['span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'button', 'a', 'label', 'li', 'strong', 'em', 'small'];
 
   // Function to get relevant styles
   function getRelevantStyles(element) {
@@ -132,6 +137,58 @@
     };
   }
 
+  function isTextElement(element) {
+    if (!element || !element.tagName) return false;
+    const tagName = element.tagName.toLowerCase();
+    if (TEXT_TAGS.includes(tagName)) return true;
+    if (element.isContentEditable) return true;
+    const text = element.textContent || '';
+    return text.trim().length > 0;
+  }
+
+  function clearInlineEditing() {
+    if (!editableElement) return;
+    editableElement.removeAttribute('contenteditable');
+    editableElement.removeAttribute('data-inspector-editable');
+    editableElement.removeEventListener('blur', handleInlineBlur, true);
+    editableElement.removeEventListener('input', handleInlineInput, true);
+    editableElement = null;
+    isInlineEditing = false;
+  }
+
+  function handleInlineInput() {
+    if (!editableElement) return;
+    const elementInfo = createElementInfo(editableElement);
+    window.parent.postMessage({
+      type: 'INSPECTOR_TEXT_UPDATED',
+      elementInfo: elementInfo
+    }, '*');
+  }
+
+  function handleInlineBlur() {
+    if (!editableElement) return;
+    const elementInfo = createElementInfo(editableElement);
+    window.parent.postMessage({
+      type: 'INSPECTOR_TEXT_UPDATED',
+      elementInfo: elementInfo
+    }, '*');
+    clearInlineEditing();
+  }
+
+  function enableInlineEditing(element) {
+    if (!isTextElement(element)) return;
+    if (editableElement && editableElement !== element) {
+      clearInlineEditing();
+    }
+    editableElement = element;
+    editableElement.setAttribute('contenteditable', 'true');
+    editableElement.setAttribute('data-inspector-editable', 'true');
+    editableElement.focus();
+    isInlineEditing = true;
+    editableElement.addEventListener('blur', handleInlineBlur, true);
+    editableElement.addEventListener('input', handleInlineInput, true);
+  }
+
   // Helper function to get element class name consistently
   function getElementClassName(element) {
     if (!element.className) return '';
@@ -207,6 +264,7 @@
     const target = e.target;
     if (!target || target === document.body || target === document.documentElement) return;
 
+    selectedElement = target;
     const elementInfo = createElementInfo(target);
     
     // Send message to parent
@@ -214,6 +272,10 @@
       type: 'INSPECTOR_CLICK',
       elementInfo: elementInfo
     }, '*');
+
+    if (isTextElement(target)) {
+      enableInlineEditing(target);
+    }
   }
 
   function handleMouseLeave() {
@@ -266,6 +328,8 @@
         currentHighlight.classList.remove('inspector-highlight');
         currentHighlight = null;
       }
+
+      clearInlineEditing();
       
       // Remove event listeners
       document.removeEventListener('mousemove', handleMouseMove, true);
@@ -284,6 +348,15 @@
   window.addEventListener('message', function(event) {
     if (event.data.type === 'INSPECTOR_ACTIVATE') {
       setInspectorActive(event.data.active);
+    } else if (event.data.type === 'INSPECTOR_SET_TEXT') {
+      if (selectedElement && isTextElement(selectedElement)) {
+        selectedElement.textContent = event.data.text || '';
+        const elementInfo = createElementInfo(selectedElement);
+        window.parent.postMessage({
+          type: 'INSPECTOR_TEXT_UPDATED',
+          elementInfo: elementInfo
+        }, '*');
+      }
     }
   });
 

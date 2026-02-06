@@ -1,16 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ElementInfo } from './Inspector';
 
 interface InspectorPanelProps {
   selectedElement: ElementInfo | null;
   isVisible: boolean;
   onClose: () => void;
+  onUpdateText?: (text: string) => void;
 }
 
-export const InspectorPanel = ({ selectedElement, isVisible, onClose }: InspectorPanelProps) => {
-  const [activeTab, setActiveTab] = useState<'styles' | 'box'>('styles');
+export const InspectorPanel = ({ selectedElement, isVisible, onClose, onUpdateText }: InspectorPanelProps) => {
+  const [activeTab, setActiveTab] = useState<'styles' | 'box' | 'text'>('styles');
+  const [draftText, setDraftText] = useState('');
+
+  useEffect(() => {
+    setDraftText(selectedElement?.textContent || '');
+  }, [selectedElement]);
 
   if (!isVisible || !selectedElement) {
     return null;
@@ -67,7 +73,7 @@ export const InspectorPanel = ({ selectedElement, isVisible, onClose }: Inspecto
       </div>
 
       <div className="flex border-b border-slate-700/50">
-        {(['styles', 'box'] as const).map((tab) => (
+        {(['styles', 'box', 'text'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -112,10 +118,39 @@ export const InspectorPanel = ({ selectedElement, isVisible, onClose }: Inspecto
             </div>
           </div>
         )}
+
+        {activeTab === 'text' && (
+          <div className="space-y-3 text-sm">
+            <label className="block text-xs text-slate-400">Text content</label>
+            <textarea
+              value={draftText}
+              onChange={(event) => setDraftText(event.target.value)}
+              rows={4}
+              className="w-full rounded-md bg-slate-950 border border-slate-700/60 text-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Select a text element to edit..."
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setDraftText(selectedElement.textContent || '')}
+                className="px-2.5 py-1 rounded-md border border-slate-700 text-slate-300 hover:text-white"
+              >
+                Reset
+              </button>
+              <button
+                onClick={() => onUpdateText?.(draftText)}
+                className="px-2.5 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-500"
+              >
+                Apply
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Changes apply instantly in the preview. This does not run AI.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default InspectorPanel;
-
