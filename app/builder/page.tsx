@@ -10,6 +10,7 @@ import {
   Plus,
   Download,
   Rocket,
+  FileDown,
   Loader2,
   AlertCircle,
   CheckCircle,
@@ -31,7 +32,7 @@ import DeployModal from '@/components/builder/DeployModal';
 
 // Stores
 import { useChatStore, PROVIDERS } from '@/lib/stores/chat';
-import { useWorkbenchStore } from '@/lib/stores/workbench';
+import { useWorkbenchStore, workbenchStore } from '@/lib/stores/workbench';
 import { webcontainer } from '@/lib/webcontainer';
 import { path as pathUtils } from '@/utils/path';
 import { WORK_DIR } from '@/utils/constants';
@@ -176,6 +177,40 @@ function BuilderContent() {
     const urlPattern = /^(https?:\/\/)?[\w.-]+\.[a-z]{2,}(\/.*)?$/i;
     return urlPattern.test(text.trim());
   };
+
+  const clearWorkbenchProject = useCallback(async () => {
+    try {
+      const wc = await webcontainer;
+      const workdir = wc.workdir || WORK_DIR;
+
+      try {
+        const entries = await wc.fs.readdir(workdir, { withFileTypes: true });
+        for (const entry of entries) {
+          const targetPath = pathUtils.join(workdir, entry.name);
+          try {
+            await wc.fs.rm(targetPath, { recursive: true, force: true });
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // ignore if workdir doesn't exist
+      }
+
+      await wc.fs.mkdir(workdir, { recursive: true });
+
+      // Clear workbench stores
+      workbenchStore.filesStore.files.set({});
+      workbenchStore.filesStore.resetFileModifications();
+      workbenchStore.previewsStore.previews.set([]);
+      workbenchStore.expandedFolders.set(new Set());
+      workbenchStore.unsavedFiles.set(new Set());
+      workbenchStore.generatedFile.set(null);
+      workbenchStore.previewUrl.set('');
+    } catch (error) {
+      console.error('Failed to clear workbench project:', error);
+    }
+  }, []);
 
   const buildProjectContext = useCallback(() => {
     const fileEntries = Object.entries(files || {}).filter(([, file]) => file?.type === 'file');
@@ -337,6 +372,7 @@ Create a complete React application with Tailwind CSS that replicates this websi
 - Provide full content for any file you update.
 - Only run "npm install" if dependencies changed.
 - Only run "npm run dev" if explicitly requested.
+- Ensure layouts are fully responsive across mobile, tablet, and desktop.
 `
           : '';
 
@@ -474,18 +510,19 @@ ${projectContext ? 'Only include files that need to be created or updated.' : 'C
       // Skip node_modules and empty paths
       if (!relativePath || relativePath.includes('node_modules/')) continue;
 
+      const normalizedPath = relativePath.replace(/^\//, '');
+
       try {
+        const content = await wc.fs.readFile(normalizedPath);
         if (file.isBinary) {
-          const binaryContent = await wc.fs.readFile(relativePath);
-          zip.file(relativePath, binaryContent, { binary: true });
+          zip.file(normalizedPath, content, { binary: true });
         } else {
-          const textContent = file.content ?? '';
-          zip.file(relativePath, textContent);
+          zip.file(normalizedPath, new TextDecoder().decode(content));
         }
       } catch {
         // Fallback to stored content if direct read fails
         if (!file.isBinary) {
-          zip.file(relativePath, file.content ?? '');
+          zip.file(normalizedPath, file.content ?? '');
         }
       }
     }
@@ -638,7 +675,7 @@ ${projectContext ? 'Only include files that need to be created or updated.' : 'C
             className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
             title="Export chat"
           >
-            <div className="i-ph:export-bold w-5 h-5" />
+            <FileDown className="w-5 h-5" />
           </button>
 
           {/* Mobile Menu Toggle */}
@@ -690,6 +727,9 @@ ${projectContext ? 'Only include files that need to be created or updated.' : 'C
                    useChatStore.getState().reset();
                    resetWorkbench();
                    
+                   // Clear WebContainer project files and previews
+                   await clearWorkbenchProject();
+
                    // Re-init webcontainer to be safe/clean state
                    initializeWebContainer();
                    

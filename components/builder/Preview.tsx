@@ -15,7 +15,6 @@ import {
   Scan,
   RotateCw,
   Ruler,
-  QrCode,
 } from 'lucide-react';
 import { DEVICES, useWorkbenchStore } from '@/lib/stores/workbench';
 import { useChatStore } from '@/lib/stores/chat';
@@ -23,7 +22,6 @@ import PortDropdown from './PortDropdown';
 import ScreenshotSelector from './ScreenshotSelector';
 import Inspector, { type ElementInfo } from './Inspector';
 import InspectorPanel from './InspectorPanel';
-import ExpoQrModal from './ExpoQrModal';
 
 interface PreviewProps {
   sandboxUrl?: string;
@@ -65,7 +63,7 @@ export function Preview({ sandboxUrl }: PreviewProps) {
   const [selectedElement, setSelectedElement] = useState<ElementInfo | null>(null);
   const [showInspectorPanel, setShowInspectorPanel] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showQr, setShowQr] = useState(false);
+  // QR code support removed (Expo-only)
   const lastSelectedTextRef = useRef<string>('');
 
   const activePreview = previews[activePreviewIndex];
@@ -330,13 +328,6 @@ export function Preview({ sandboxUrl }: PreviewProps) {
           <Monitor className="w-4 h-4" />
         </button>
         <button
-          onClick={() => setShowQr(true)}
-          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white"
-          title="Expo QR"
-        >
-          <QrCode className="w-4 h-4" />
-        </button>
-        <button
           onClick={openInNewTab}
           className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white"
           title="Open in new tab"
@@ -468,7 +459,6 @@ export function Preview({ sandboxUrl }: PreviewProps) {
         />
       </div>
 
-      <ExpoQrModal open={showQr} onClose={() => setShowQr(false)} />
     </div>
   );
 }
