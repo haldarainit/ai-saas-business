@@ -29,10 +29,12 @@ import ChatHistory from '@/components/builder/ChatHistory';
 import ModelSelector from '@/components/builder/ModelSelector';
 import Workbench from '@/components/builder/Workbench';
 import DeployModal from '@/components/builder/DeployModal';
+import { Toaster } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 // Stores
 import { useChatStore, PROVIDERS } from '@/lib/stores/chat';
-import { useWorkbenchStore, workbenchStore } from '@/lib/stores/workbench';
+import { useWorkbenchStore } from '@/lib/stores/workbench';
 import { webcontainer } from '@/lib/webcontainer';
 import { path as pathUtils } from '@/utils/path';
 import { WORK_DIR } from '@/utils/constants';
@@ -43,6 +45,9 @@ import { isWebContainerSupported } from '@/lib/webcontainer';
 function BuilderContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const searchParamsString = searchParams.toString();
+  const chatIdParam = searchParams.get('chatId');
+  const hasLoadedFromUrl = useRef(false);
 
   // Chat Store
   const {
@@ -56,6 +61,11 @@ function BuilderContent() {
     setIsStreaming,
     currentModel,
     currentProvider,
+    initialize,
+    chatId,
+    loadChat,
+    error,
+    setError,
   } = useChatStore();
 
   // Workbench Store
@@ -74,6 +84,9 @@ function BuilderContent() {
     setIsStreaming: setWorkbenchStreaming,
     stopGeneration,
     addFile,
+    clearProject,
+    actionAlert,
+    clearActionAlert,
   } = useWorkbenchStore();
 
   // Local State
@@ -84,6 +97,8 @@ function BuilderContent() {
   const [webcontainerSupported, setWebcontainerSupported] = useState(true);
   const messageIdRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const lastAutoFixSignature = useRef<string>('');
+  const lastAutoFixTime = useRef<number>(0);
   
   // Chat panel resize state
   const [chatWidth, setChatWidth] = useState(400);
@@ -120,6 +135,7 @@ function BuilderContent() {
 
   // Check WebContainer support and initialize
   useEffect(() => {
+    initialize();
     const supported = isWebContainerSupported();
     setWebcontainerSupported(supported);
 
@@ -145,6 +161,43 @@ function BuilderContent() {
     }
   }, [searchParams, setInput]);
 
+  // Show database errors as toast notifications
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      setError(null);
+    }
+  }, [error, setError]);
+
+  // Load chat by id from URL if present
+  useEffect(() => {
+    if (!chatIdParam) return;
+    if (chatIdParam === chatId) return;
+    if (hasLoadedFromUrl.current && chatId === chatIdParam) return;
+
+    hasLoadedFromUrl.current = true;
+    loadChat(chatIdParam);
+  }, [chatIdParam, chatId, loadChat]);
+
+  // Keep chat id in URL for sharing/restoring
+  useEffect(() => {
+    const params = new URLSearchParams(searchParamsString);
+    if (chatId) {
+      if (params.get('chatId') !== chatId) {
+        params.set('chatId', chatId);
+        const query = params.toString();
+        router.replace(query ? `/builder?${query}` : '/builder', { scroll: false });
+      }
+      return;
+    }
+
+    if (params.has('chatId')) {
+      params.delete('chatId');
+      const query = params.toString();
+      router.replace(query ? `/builder?${query}` : '/builder', { scroll: false });
+    }
+  }, [chatId, router, searchParamsString]);
+
   const initializeWebContainer = async () => {
     setStatus('booting');
     setStatusMessage('Initializing WebContainer...');
@@ -167,7 +220,7 @@ function BuilderContent() {
 
       addMessage({
         role: 'system',
-        content: `⚠️ Failed to initialize WebContainer: ${errorMessage}\n\nYou can still chat, but live preview won't be available.`
+        content: `Warning: Failed to initialize WebContainer: ${errorMessage}\n\nYou can still chat, but live preview won't be available.`
       });
     }
   };
@@ -178,39 +231,6 @@ function BuilderContent() {
     return urlPattern.test(text.trim());
   };
 
-  const clearWorkbenchProject = useCallback(async () => {
-    try {
-      const wc = await webcontainer;
-      const workdir = wc.workdir || WORK_DIR;
-
-      try {
-        const entries = await wc.fs.readdir(workdir, { withFileTypes: true });
-        for (const entry of entries) {
-          const targetPath = pathUtils.join(workdir, entry.name);
-          try {
-            await wc.fs.rm(targetPath, { recursive: true, force: true });
-          } catch {
-            // ignore
-          }
-        }
-      } catch {
-        // ignore if workdir doesn't exist
-      }
-
-      await wc.fs.mkdir(workdir, { recursive: true });
-
-      // Clear workbench stores
-      workbenchStore.filesStore.files.set({});
-      workbenchStore.filesStore.resetFileModifications();
-      workbenchStore.previewsStore.previews.set([]);
-      workbenchStore.expandedFolders.set(new Set());
-      workbenchStore.unsavedFiles.set(new Set());
-      workbenchStore.generatedFile.set(null);
-      workbenchStore.previewUrl.set('');
-    } catch (error) {
-      console.error('Failed to clear workbench project:', error);
-    }
-  }, []);
 
   const buildProjectContext = useCallback(() => {
     const fileEntries = Object.entries(files || {}).filter(([, file]) => file?.type === 'file');
@@ -244,11 +264,7 @@ function BuilderContent() {
 
     const fileList = filePaths.slice(0, 200).join('\n');
 
-    return `Existing Project Context:
-- Files (${Math.min(filePaths.length, 200)} of ${filePaths.length}):
-${fileList}
-
-${keyFileContents ? `Key Files:\n${keyFileContents}` : ''}`.trim();
+    return `Existing Project Context:\n- Files (${Math.min(filePaths.length, 200)} of ${filePaths.length}):\n${fileList}\n\n${keyFileContents ? `Key Files:\n${keyFileContents}` : ''}`.trim();
   }, [files]);
 
   // Handle message send
@@ -257,8 +273,57 @@ ${keyFileContents ? `Key Files:\n${keyFileContents}` : ''}`.trim();
 
     const messageId = `msg-${++messageIdRef.current}`;
 
-    // Add user message with attached files metadata if needed (simplified here)
-    addMessage({ role: 'user', content: message + (files?.length ? `\n[Attached ${files.length} files]` : '') });
+    // Upload attachments to Cloudinary (user-specific storage)
+    const attachments: Array<{
+      type: 'image' | 'video' | 'audio' | 'document';
+      url: string;
+      publicId?: string;
+      name?: string;
+      mimeType?: string;
+    }> = [];
+
+    if (files && files.length > 0) {
+      const uploadResults = await Promise.all(
+        files.map(async (file) => {
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/api/upload-file', {
+              method: 'POST',
+              body: formData,
+            });
+
+            const data = await response.json();
+            if (!response.ok || !data?.file) {
+              return null;
+            }
+
+            return {
+              type: data.file.type,
+              url: data.file.url,
+              publicId: data.file.publicId,
+              name: data.file.filename,
+              mimeType: data.file.mimeType,
+            } as (typeof attachments)[number];
+          } catch (error) {
+            console.error('Attachment upload failed:', error);
+            return null;
+          }
+        }),
+      );
+
+      uploadResults.forEach((item) => {
+        if (item) attachments.push(item);
+      });
+    }
+
+    // Add user message with attached files metadata if needed
+    addMessage({
+      role: 'user',
+      content: message + (files?.length ? `\n[Attached ${files.length} files]` : ''),
+      attachments,
+    });
     setIsLoading(true);
     setIsStreaming(true);
     setWorkbenchStreaming(true);  // Sync workbench streaming state
@@ -319,45 +384,7 @@ ${keyFileContents ? `Key Files:\n${keyFileContents}` : ''}`.trim();
 
           if (scrapeData.success) {
             const scrapedContent = scrapeData.markdown || scrapeData.content || '';
-            prompt = `Clone this website and recreate it. Generate all the code wrapped in <boltArtifact> tags.
-
-Website URL: ${message}
-Website Title: ${scrapeData.title || 'Unknown'}
-
-Website Content:
-${scrapedContent.substring(0, 15000)}
-
-Create a complete React application with Tailwind CSS that replicates this website. Use the boltArtifact format:
-
-<boltArtifact id="cloned-website" title="Cloned Website">
-  <boltAction type="file" filePath="package.json">
-  {
-    "name": "cloned-website",
-    "private": true,
-    "version": "0.0.0",
-    "type": "module",
-    "scripts": {
-      "dev": "vite",
-      "build": "vite build",
-      "preview": "vite preview"
-    },
-    "dependencies": {
-      "react": "^18.2.0",
-      "react-dom": "^18.2.0"
-    },
-    "devDependencies": {
-      "@types/react": "^18.2.0",
-      "@types/react-dom": "^18.2.0",
-      "@vitejs/plugin-react": "^4.2.0",
-      "autoprefixer": "^10.4.16",
-      "postcss": "^8.4.32",
-      "tailwindcss": "^3.4.0",
-      "vite": "^5.0.0"
-    }
-  }
-  </boltAction>
-  <!-- Add more files as needed -->
-</boltArtifact>`;
+            prompt = `Clone this website and recreate it. Generate all the code wrapped in <boltArtifact> tags.\n\nWebsite URL: ${message}\nWebsite Title: ${scrapeData.title || 'Unknown'}\n\nWebsite Content:\n${scrapedContent.substring(0, 15000)}\n\nCreate a complete React application with Tailwind CSS that replicates this website. Use the boltArtifact format:\n\n<boltArtifact id="cloned-website" title="Cloned Website">\n  <boltAction type="file" filePath="package.json">\n  {\n    \"name\": \"cloned-website\",\n    \"private\": true,\n    \"version\": \"0.0.0\",\n    \"type\": \"module\",\n    \"scripts\": {\n      \"dev\": \"vite\",\n      \"build\": \"vite build\",\n      \"preview\": \"vite preview\"\n    },\n    \"dependencies\": {\n      \"react\": \"^18.2.0\",\n      \"react-dom\": \"^18.2.0\"\n    },\n    \"devDependencies\": {\n      \"@types/react\": \"^18.2.0\",\n      \"@types/react-dom\": \"^18.2.0\",\n      \"@vitejs/plugin-react\": \"^4.2.0\",\n      \"autoprefixer\": \"^10.4.16\",\n      \"postcss\": \"^8.4.32\",\n      \"tailwindcss\": \"^3.4.0\",\n      \"vite\": \"^5.0.0\"\n    }\n  }\n  </boltAction>\n  <!-- Add more files as needed -->\n</boltArtifact>`;
           }
         } catch (scrapeError) {
           console.error('Scrape error:', scrapeError);
@@ -366,33 +393,10 @@ Create a complete React application with Tailwind CSS that replicates this websi
       } else {
         // Wrap the prompt to get boltArtifact formatted output
         const existingProjectInstructions = projectContext
-          ? `You are modifying an existing project. Do NOT rewrite everything.
-- Only change files necessary to implement the request.
-- Do NOT delete or recreate unrelated files.
-- Provide full content for any file you update.
-- Only run "npm install" if dependencies changed.
-- Only run "npm run dev" if explicitly requested.
-- Ensure layouts are fully responsive across mobile, tablet, and desktop.
-`
+          ? `You are modifying an existing project. Do NOT rewrite everything.\n- Only change files necessary to implement the request.\n- Do NOT delete or recreate unrelated files.\n- Provide full content for any file you update.\n- Only run "npm install" if dependencies changed.\n- Only run "npm run dev" if explicitly requested.\n- Ensure layouts are fully responsive across mobile, tablet, and desktop.\n`
           : '';
 
-        prompt = `${message}
-
-${projectContext ? `${projectContext}\n\n` : ''}${existingProjectInstructions}
-Please generate the code using the boltArtifact format. Wrap your code in:
-<boltArtifact id="generated-app" title="Generated Application">
-  <boltAction type="file" filePath="filename.ext">
-  file content here
-  </boltAction>
-  <boltAction type="shell">
-  npm install
-  </boltAction>
-  <boltAction type="start">
-  npm run dev
-  </boltAction>
-</boltArtifact>
-
-${projectContext ? 'Only include files that need to be created or updated.' : 'Create a complete, working application with all necessary files.'}`;
+        prompt = `${message}\n\n${projectContext ? `${projectContext}\n\n` : ''}${existingProjectInstructions}\nPlease generate the code using the boltArtifact format. Wrap your code in:\n<boltArtifact id="generated-app" title="Generated Application">\n  <boltAction type="file" filePath="filename.ext">\n  file content here\n  </boltAction>\n  <boltAction type="shell">\n  npm install\n  </boltAction>\n  <boltAction type="start">\n  npm run dev\n  </boltAction>\n</boltArtifact>\n\n${projectContext ? 'Only include files that need to be created or updated.' : 'Create a complete, working application with all necessary files.'}`;
       }
 
       // Add assistant message placeholder
@@ -447,13 +451,28 @@ ${projectContext ? 'Only include files that need to be created or updated.' : 'C
     } catch (error) {
       console.error('Generation error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Generation failed';
+      const isAbort =
+        (error instanceof DOMException && error.name === 'AbortError') ||
+        /aborted|abort/i.test(errorMessage);
+
+      if (isAbort) {
+        const lastAssistant = [...useChatStore.getState().messages].reverse().find((m) => m.role === 'assistant');
+        if (lastAssistant && !lastAssistant.content?.trim()) {
+          updateLastMessage('Generation stopped.');
+        }
+        setStatus('ready');
+        setStatusMessage('Generation stopped');
+        return;
+      }
 
       // Fix: Update the empty "Generating..." message with the error
-      updateLastMessage(`⚠️ Generation failed: ${errorMessage}`);
+      updateLastMessage(`Warning: Generation failed: ${errorMessage}`);
+
+      toast.error(errorMessage);
 
       addMessage({
         role: 'system',
-        content: `⚠️ Error: ${errorMessage}`
+        content: `Warning: Error: ${errorMessage}`
       });
 
       setStatus('error');
@@ -486,8 +505,7 @@ ${projectContext ? 'Only include files that need to be created or updated.' : 'C
     setStatus('ready');
     setStatusMessage('Generation stopped');
   }, [setIsLoading, setIsStreaming, setWorkbenchStreaming, stopGeneration]);
-
-  // Handle download
+// Handle download
   const handleDownload = useCallback(async () => {
     const JSZip = (await import('jszip')).default;
     const FileSaver = (await import('file-saver')).default;
@@ -728,7 +746,7 @@ ${projectContext ? 'Only include files that need to be created or updated.' : 'C
                    resetWorkbench();
                    
                    // Clear WebContainer project files and previews
-                   await clearWorkbenchProject();
+                   await clearProject();
 
                    // Re-init webcontainer to be safe/clean state
                    initializeWebContainer();
@@ -795,6 +813,7 @@ ${projectContext ? 'Only include files that need to be created or updated.' : 'C
       </div>
 
       <DeployModal open={showDeploy} onClose={() => setShowDeploy(false)} />
+      <Toaster position="top-right" />
     </div>
   );
 }

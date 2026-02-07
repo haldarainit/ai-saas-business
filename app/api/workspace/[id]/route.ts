@@ -3,12 +3,38 @@ import Workspace from '@/models/Workspace';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
+function isDbUnavailable(error: unknown) {
+    const message = error instanceof Error ? error.message : '';
+    return (
+        message.includes('ETIMEDOUT') ||
+        message.includes('ECONN') ||
+        message.includes('Server selection timed out') ||
+        (error as any)?.name === 'MongoServerSelectionError' ||
+        (error as any)?.name === 'MongoNetworkError'
+    );
+}
+
+function dbUnavailableResponse(error: unknown) {
+    console.error('Database unavailable:', error);
+    return NextResponse.json(
+        { error: 'Database unavailable. Please try again shortly.' },
+        { status: 503, headers: { 'Retry-After': '15' } },
+    );
+}
+
 // GET - Get a specific workspace by ID (with ownership check)
 export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await props.params;
         console.log(`GET /api/workspace/${id} - Connecting to DB...`);
-        await dbConnect();
+        try {
+            await dbConnect();
+        } catch (error) {
+            if (isDbUnavailable(error)) {
+                return dbUnavailableResponse(error);
+            }
+            throw error;
+        }
         console.log(`GET /api/workspace/${id} - Connected`);
 
         // Get authenticated user
@@ -43,6 +69,9 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
         console.log(`GET /api/workspace/${id} - Found`);
         return NextResponse.json({ workspace });
     } catch (error) {
+        if (isDbUnavailable(error)) {
+            return dbUnavailableResponse(error);
+        }
         console.error('Error fetching workspace:', error);
         return NextResponse.json(
             { error: 'Failed to fetch workspace' },
@@ -56,7 +85,14 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
     try {
         const { id } = await props.params;
         console.log(`PUT /api/workspace/${id} - Connecting to DB...`);
-        await dbConnect();
+        try {
+            await dbConnect();
+        } catch (error) {
+            if (isDbUnavailable(error)) {
+                return dbUnavailableResponse(error);
+            }
+            throw error;
+        }
         console.log(`PUT /api/workspace/${id} - Connected`);
 
         // Get authenticated user
@@ -102,7 +138,7 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
             );
         }
 
-        const { messages, fileData, history } = body;
+        const { messages, fileData, history, name } = body;
 
         // Sanitize messages to fix validation errors with cached schema
         // This maps 'model' -> 'ai' to ensure it passes the old enum validation
@@ -123,6 +159,7 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
         });
 
         const updateData: any = {};
+        if (name !== undefined) updateData.name = name;
         if (sanitizedMessages !== undefined) updateData.messages = sanitizedMessages;
         if (fileData !== undefined) updateData.fileData = fileData;
         if (history !== undefined) updateData.history = history;
@@ -156,6 +193,9 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
             workspace
         });
     } catch (error) {
+        if (isDbUnavailable(error)) {
+            return dbUnavailableResponse(error);
+        }
         console.error('Error updating workspace:', error);
         return NextResponse.json(
             { error: 'Failed to update workspace' },
@@ -167,7 +207,14 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
 // DELETE - Delete a workspace - with ownership check
 export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
-        await dbConnect();
+        try {
+            await dbConnect();
+        } catch (error) {
+            if (isDbUnavailable(error)) {
+                return dbUnavailableResponse(error);
+            }
+            throw error;
+        }
         const { id } = await props.params;
 
         // Get authenticated user
@@ -232,6 +279,9 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
             message: 'Workspace deleted successfully'
         });
     } catch (error) {
+        if (isDbUnavailable(error)) {
+            return dbUnavailableResponse(error);
+        }
         console.error('Error deleting workspace:', error);
         return NextResponse.json(
             { error: 'Failed to delete workspace' },

@@ -50,6 +50,16 @@ export class WorkbenchStore {
   #filesStore = new FilesStore(webcontainer);
   #editorStore = new EditorStore(this.#filesStore);
   #terminalStore = new TerminalStore(webcontainer);
+  #autoActionCounter = 0;
+  #pendingInstall = false;
+  #pendingStart = false;
+  #artifactHasStart = false;
+  #autoInstallAttempts = 0;
+  #autoStartAttempts = 0;
+  #lastAutoInstallAt = 0;
+  #lastAutoStartAt = 0;
+  #lastArtifactId: string | undefined;
+  #autoCooldownMs = 15000;
 
   #messageParser = new StreamingMessageParser({
     callbacks: {
@@ -57,10 +67,27 @@ export class WorkbenchStore {
         console.log('[MessageParser] Artifact opened:', data);
         this.addToArtifact(data.artifactId!, data);
         this.showWorkbench.set(true);
+        this.#lastArtifactId = data.artifactId;
+        this.#artifactHasStart = false;
+        this.#autoInstallAttempts = 0;
+        this.#autoStartAttempts = 0;
+        this.#pendingInstall = false;
+        this.#pendingStart = false;
+      },
+      onArtifactClose: () => {
+        this.#maybeAutoSetup();
       },
       onActionOpen: (data) => {
         console.log('[MessageParser] Action opened:', data);
         this.addAction(data);
+        if (data.action.type === 'start') {
+          this.#artifactHasStart = true;
+          this.#pendingStart = false;
+        }
+        if (data.action.type === 'shell' && this.#isStartCommand(data.action.content || '')) {
+          this.#artifactHasStart = true;
+          this.#pendingStart = false;
+        }
       },
       onActionStream: (data) => {
         // Immediately update files store when streaming file content
@@ -119,6 +146,22 @@ export class WorkbenchStore {
         
         // Run the action (writes to WebContainer)
         this.runAction(data);
+
+        if (data.action.type === 'file' && data.action.filePath) {
+          if (this.#isDependencyFile(data.action.filePath)) {
+            this.#pendingInstall = true;
+            this.#pendingStart = true;
+          }
+        }
+
+        if (data.action.type === 'shell' && this.#isInstallCommand(data.action.content || '')) {
+          this.#pendingInstall = false;
+        }
+
+        if (data.action.type === 'start' || (data.action.type === 'shell' && this.#isStartCommand(data.action.content || ''))) {
+          this.#artifactHasStart = true;
+          this.#pendingStart = false;
+        }
       },
     },
   });
@@ -309,7 +352,10 @@ export class WorkbenchStore {
       const runner = new ActionRunner(
         webcontainer,
         () => this.boltTerminal,
-        (alert) => this.actionAlert.set(alert),
+        (alert) => {
+          this.actionAlert.set(alert);
+          this.#handleActionAlert(alert);
+        },
         (alert) => this.supabaseAlert.set(alert),
         (alert) => this.deployAlert.set(alert),
       );
@@ -572,6 +618,153 @@ export class WorkbenchStore {
     this.previewShowFrame.set(false);
     this.previewIsLandscape.set(false);
     this.previewScale.set(1);
+    this.#pendingInstall = false;
+    this.#pendingStart = false;
+    this.#artifactHasStart = false;
+    this.#autoInstallAttempts = 0;
+    this.#autoStartAttempts = 0;
+    this.#lastAutoInstallAt = 0;
+    this.#lastAutoStartAt = 0;
+    this.#lastArtifactId = undefined;
+  }
+
+  async clearProject() {
+    try {
+      const wc = await webcontainer;
+      const workdir = wc.workdir || '/home/project';
+
+      try {
+        const entries = await wc.fs.readdir(workdir, { withFileTypes: true });
+        for (const entry of entries) {
+          const targetPath = `${workdir}/${entry.name}`;
+          try {
+            await wc.fs.rm(targetPath, { recursive: true, force: true });
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // ignore if workdir missing
+      }
+
+      await wc.fs.mkdir(workdir, { recursive: true });
+
+      this.#filesStore.files.set({});
+      this.#filesStore.resetFileModifications();
+      this.#previewsStore.previews.set([]);
+      this.expandedFolders.set(new Set());
+      this.unsavedFiles.set(new Set());
+      this.generatedFile.set(null);
+      this.previewUrl.set('');
+      this.#pendingInstall = false;
+      this.#pendingStart = false;
+      this.#artifactHasStart = false;
+      this.#autoInstallAttempts = 0;
+      this.#autoStartAttempts = 0;
+      this.#lastAutoInstallAt = 0;
+      this.#lastAutoStartAt = 0;
+    } catch (error) {
+      console.error('Failed to clear project:', error);
+    }
+  }
+
+  #hasPackageJson() {
+    const files = this.#filesStore.files.get();
+    return Boolean(files['/home/project/package.json']);
+  }
+
+  #isDependencyFile(filePath: string) {
+    const normalized = filePath.replace(/\\/g, '/');
+    return (
+      normalized.endsWith('package.json') ||
+      normalized.endsWith('package-lock.json') ||
+      normalized.endsWith('pnpm-lock.yaml') ||
+      normalized.endsWith('yarn.lock') ||
+      normalized.endsWith('bun.lockb')
+    );
+  }
+
+  #isInstallCommand(command: string) {
+    const trimmed = command.trim();
+    return (
+      trimmed.startsWith('npm install') ||
+      trimmed.startsWith('npm ci') ||
+      trimmed.startsWith('pnpm install') ||
+      trimmed.startsWith('yarn install') ||
+      trimmed.startsWith('bun install')
+    );
+  }
+
+  #isStartCommand(command: string) {
+    const trimmed = command.trim();
+    return (
+      trimmed.startsWith('npm run dev') ||
+      trimmed.startsWith('npm start') ||
+      trimmed.startsWith('pnpm dev') ||
+      trimmed.startsWith('yarn dev') ||
+      trimmed.startsWith('bun dev')
+    );
+  }
+
+  #queueRunnerAction(action: BoltAction) {
+    const artifacts = this.artifacts.get();
+    const artifactId =
+      this.#lastArtifactId && artifacts[this.#lastArtifactId] ? this.#lastArtifactId : Object.keys(artifacts)[0];
+    if (!artifactId) return;
+    const artifact = artifacts[artifactId];
+    if (!artifact) return;
+
+    const actionId = `auto-${Date.now()}-${this.#autoActionCounter++}`;
+    const data = { artifactId, messageId: 'auto', actionId, action } as any;
+    artifact.runner.addAction(data);
+    artifact.runner.runAction(data);
+  }
+
+  #maybeAutoSetup() {
+    if (!this.#hasPackageJson()) return;
+
+    const now = Date.now();
+    const previews = this.#previewsStore.previews.get();
+    const hasPreview = previews.length > 0;
+
+    const shouldInstall =
+      this.#pendingInstall && this.#autoInstallAttempts < 2 && now - this.#lastAutoInstallAt > this.#autoCooldownMs;
+
+    if (shouldInstall) {
+      this.#pendingInstall = false;
+      this.#pendingStart = true;
+      this.#autoInstallAttempts += 1;
+      this.#lastAutoInstallAt = now;
+      this.#queueRunnerAction({ type: 'shell', content: 'npm install' } as BoltAction);
+    }
+
+    const shouldStart =
+      (this.#pendingStart || (!hasPreview && !this.#artifactHasStart)) &&
+      this.#autoStartAttempts < 2 &&
+      now - this.#lastAutoStartAt > this.#autoCooldownMs;
+
+    if (shouldStart) {
+      this.#pendingStart = false;
+      this.#autoStartAttempts += 1;
+      this.#lastAutoStartAt = now;
+      this.#queueRunnerAction({ type: 'start', content: 'npm run dev' } as BoltAction);
+    }
+  }
+
+  #handleActionAlert(alert: { title?: string; description?: string; content?: string; source?: string }) {
+    const haystack = `${alert.title || ''}\n${alert.description || ''}\n${alert.content || ''}`.toLowerCase();
+    const missingDeps =
+      haystack.includes('cannot find module') ||
+      haystack.includes('cannot find package') ||
+      haystack.includes('err_module_not_found') ||
+      haystack.includes('module not found') ||
+      haystack.includes('failed to resolve import');
+
+    if (missingDeps) {
+      this.#pendingInstall = true;
+      this.#pendingStart = true;
+      this.#maybeAutoSetup();
+    }
   }
 }
 
@@ -595,6 +788,7 @@ export function useWorkbenchStore() {
   const previewShowFrame = useStore(workbenchStore.previewShowFrame);
   const previewIsLandscape = useStore(workbenchStore.previewIsLandscape);
   const previewScale = useStore(workbenchStore.previewScale);
+  const actionAlert = useStore(workbenchStore.actionAlert);
 
   return {
     showWorkbench,
@@ -660,5 +854,8 @@ export function useWorkbenchStore() {
     setPreviewIsLandscape: (landscape: boolean) => workbenchStore.previewIsLandscape.set(landscape),
     previewScale,
     setPreviewScale: (scale: number) => workbenchStore.previewScale.set(scale),
+    actionAlert,
+    clearActionAlert: () => workbenchStore.actionAlert.set(undefined),
+    clearProject: () => workbenchStore.clearProject(),
   };
 }
