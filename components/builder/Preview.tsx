@@ -45,6 +45,7 @@ export function Preview({ sandboxUrl }: PreviewProps) {
     files,
     updateFile,
     saveFile,
+    ensureDevServerRunning,
   } = useWorkbenchStore();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -68,6 +69,13 @@ export function Preview({ sandboxUrl }: PreviewProps) {
 
   const activePreview = previews[activePreviewIndex];
   const activeBaseUrl = activePreview?.baseUrl;
+  const hasProject = Boolean(files?.['/home/project/package.json']);
+
+  useEffect(() => {
+    if (hasProject && !activePreview?.baseUrl) {
+      ensureDevServerRunning();
+    }
+  }, [hasProject, activePreview?.baseUrl, ensureDevServerRunning]);
 
   useEffect(() => {
     if (previews.length > 1 && !hasSelectedPreview.current) {
@@ -207,14 +215,32 @@ export function Preview({ sandboxUrl }: PreviewProps) {
     return (
       <div className="h-full flex items-center justify-center bg-slate-950 text-slate-500">
         <div className="text-center">
-          <Globe className="w-16 h-16 mx-auto mb-4 text-slate-700" />
-          <p className="text-lg font-medium">No preview available</p>
-          <p className="text-sm mt-1">Generate code to see a live preview</p>
-          {isStreaming && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-orange-400">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Generating...</span>
-            </div>
+          {hasProject ? (
+            <>
+              <Loader2 className="w-8 h-8 mx-auto mb-3 text-orange-500 animate-spin" />
+              <p className="text-lg font-medium text-slate-300">Starting preview...</p>
+              <p className="text-sm mt-1 text-slate-500">
+                Installing dependencies and launching the dev server.
+              </p>
+              <button
+                onClick={() => ensureDevServerRunning()}
+                className="mt-4 px-4 py-2 text-sm rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200"
+              >
+                Retry start
+              </button>
+            </>
+          ) : (
+            <>
+              <Globe className="w-16 h-16 mx-auto mb-4 text-slate-700" />
+              <p className="text-lg font-medium">No preview available</p>
+              <p className="text-sm mt-1">Generate code to see a live preview</p>
+              {isStreaming && (
+                <div className="mt-4 flex items-center justify-center gap-2 text-orange-400">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Generating...</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -60,6 +60,8 @@ export class WorkbenchStore {
   #lastAutoStartAt = 0;
   #lastArtifactId: string | undefined;
   #autoCooldownMs = 15000;
+  #lastEnsureAt = 0;
+  #ensureCooldownMs = 4000;
 
   #messageParser = new StreamingMessageParser({
     callbacks: {
@@ -370,6 +372,34 @@ export class WorkbenchStore {
     }
   }
 
+  #getOrCreateAutoArtifact() {
+    const artifacts = this.artifacts.get();
+    const existing = artifacts['auto-runner'];
+    if (existing) return existing;
+
+    const runner = new ActionRunner(
+      webcontainer,
+      () => this.boltTerminal,
+      (alert) => {
+        this.actionAlert.set(alert);
+        this.#handleActionAlert(alert);
+      },
+      (alert) => this.supabaseAlert.set(alert),
+      (alert) => this.deployAlert.set(alert),
+    );
+
+    const artifact: ArtifactState = {
+      id: 'auto-runner',
+      title: 'Auto Runner',
+      type: 'auto',
+      closed: true,
+      runner,
+    };
+
+    this.artifacts.setKey(artifact.id, artifact);
+    return artifact;
+  }
+
   async addAction(data: ActionCallbackData) {
     const artifacts = this.artifacts.get();
     const artifact = artifacts[data.artifactId];
@@ -626,6 +656,7 @@ export class WorkbenchStore {
     this.#lastAutoInstallAt = 0;
     this.#lastAutoStartAt = 0;
     this.#lastArtifactId = undefined;
+    this.#lastEnsureAt = 0;
   }
 
   async clearProject() {
@@ -663,9 +694,32 @@ export class WorkbenchStore {
       this.#autoStartAttempts = 0;
       this.#lastAutoInstallAt = 0;
       this.#lastAutoStartAt = 0;
+      this.#lastEnsureAt = 0;
     } catch (error) {
       console.error('Failed to clear project:', error);
     }
+  }
+
+  async ensureDevServerRunning() {
+    const now = Date.now();
+    if (now - this.#lastEnsureAt < this.#ensureCooldownMs) return;
+    this.#lastEnsureAt = now;
+
+    if (!this.#hasPackageJson()) return;
+
+    let needsInstall = false;
+    try {
+      const wc = await webcontainer;
+      await wc.fs.readdir('/home/project/node_modules');
+    } catch {
+      needsInstall = true;
+    }
+
+    if (needsInstall) {
+      this.#pendingInstall = true;
+    }
+    this.#pendingStart = true;
+    this.#maybeAutoSetup();
   }
 
   #hasPackageJson() {
@@ -708,14 +762,17 @@ export class WorkbenchStore {
 
   #queueRunnerAction(action: BoltAction) {
     const artifacts = this.artifacts.get();
-    const artifactId =
-      this.#lastArtifactId && artifacts[this.#lastArtifactId] ? this.#lastArtifactId : Object.keys(artifacts)[0];
-    if (!artifactId) return;
-    const artifact = artifacts[artifactId];
+    let artifact =
+      this.#lastArtifactId && artifacts[this.#lastArtifactId] ? artifacts[this.#lastArtifactId] : undefined;
+
+    if (!artifact) {
+      artifact = this.#getOrCreateAutoArtifact();
+    }
+
     if (!artifact) return;
 
     const actionId = `auto-${Date.now()}-${this.#autoActionCounter++}`;
-    const data = { artifactId, messageId: 'auto', actionId, action } as any;
+    const data = { artifactId: artifact.id, messageId: 'auto', actionId, action } as any;
     artifact.runner.addAction(data);
     artifact.runner.runAction(data);
   }
@@ -857,5 +914,6 @@ export function useWorkbenchStore() {
     actionAlert,
     clearActionAlert: () => workbenchStore.actionAlert.set(undefined),
     clearProject: () => workbenchStore.clearProject(),
+    ensureDevServerRunning: () => workbenchStore.ensureDevServerRunning(),
   };
 }

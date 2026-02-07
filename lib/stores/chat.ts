@@ -3,8 +3,6 @@ import { create } from 'zustand';
 import type { ChatMetadata } from '@/lib/persistence/db';
 import { restoreSnapshot } from '@/lib/persistence/snapshots';
 import { workbenchStore } from '@/lib/stores/workbench';
-import { webcontainer } from '@/lib/webcontainer';
-import { WORK_DIR } from '@/utils/constants';
 import {
   listWorkspaces,
   createWorkspace,
@@ -166,56 +164,12 @@ function fromWorkspaceMessages(messages: WorkspaceMessage[]): ChatMessage[] {
   });
 }
 
-async function drainProcessOutput(process: { output: ReadableStream<string> }) {
-  try {
-    await process.output.pipeTo(
-      new WritableStream({
-        write() {
-          // no-op
-        },
-      }),
-    );
-  } catch {
-    // ignore drain errors
-  }
-}
-
 async function ensureDevServerRunning() {
   if (autoRunInProgress) return;
   autoRunInProgress = true;
 
   try {
-    const wc = await webcontainer;
-    const previews = workbenchStore.previews.get();
-    if (previews?.some((preview) => preview.ready)) {
-      return;
-    }
-
-    // If package.json doesn't exist, there's nothing to run.
-    try {
-      await wc.fs.readFile(`${WORK_DIR}/package.json`, 'utf-8');
-    } catch {
-      return;
-    }
-
-    let hasNodeModules = true;
-    try {
-      await wc.fs.readdir(`${WORK_DIR}/node_modules`);
-    } catch {
-      hasNodeModules = false;
-    }
-
-    if (!hasNodeModules) {
-      const installProcess = await wc.spawn('npm', ['install'], { cwd: WORK_DIR });
-      drainProcessOutput(installProcess);
-      const installExit = await installProcess.exit;
-      if (installExit !== 0) {
-        return;
-      }
-    }
-
-    const devProcess = await wc.spawn('npm', ['run', 'dev'], { cwd: WORK_DIR });
-    drainProcessOutput(devProcess);
+    await workbenchStore.ensureDevServerRunning();
   } catch (error) {
     console.error('Auto-run dev server failed:', error);
   } finally {
