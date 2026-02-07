@@ -95,7 +95,7 @@ const products = [
     gradient: "from-blue-500 to-indigo-600",
     bgColor: "bg-blue-500/10",
     iconColor: "text-blue-500",
-    link: "/landing-page-builder",
+    link: "/builder",
   },
   {
     icon: Megaphone,

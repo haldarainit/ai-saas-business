@@ -145,7 +145,12 @@ function toWorkspaceMessages(messages: ChatMessage[]): WorkspaceMessage[] {
     role: message.role,
     content: message.content,
     timestamp: message.timestamp?.toISOString(),
-    metadata: message.metadata as Record<string, unknown> | undefined,
+    metadata: message.metadata
+      ? ({
+          ...message.metadata,
+          streaming: false,
+        } as Record<string, unknown>)
+      : undefined,
     attachments: message.attachments,
   }));
 }
@@ -158,7 +163,9 @@ function fromWorkspaceMessages(messages: WorkspaceMessage[]): ChatMessage[] {
       role: role as ChatMessage['role'],
       content: message.content,
       timestamp: message.timestamp ? new Date(message.timestamp) : new Date(),
-      metadata: (message.metadata as ChatMessage['metadata']) || undefined,
+      metadata: message.metadata
+        ? ({ ...(message.metadata as ChatMessage['metadata']), streaming: false } as ChatMessage['metadata'])
+        : undefined,
       attachments: message.attachments,
     };
   });
