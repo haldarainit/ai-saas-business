@@ -121,12 +121,12 @@ export const Workbench = memo(function Workbench({
     setShowTerminal,
     showChat,
     setShowChat,
-    // Preview State
   } = useWorkbenchStore();
 
   const [activeView, setActiveView] = useState<ViewTab>('code');
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('files');
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  
   // Resizable sidebar
   const { width: sidebarWidth, isResizing: isSidebarResizing, startResize: startSidebarResize, containerRef: mainContainerRef } = 
     useResizable(240, 160, 400);
@@ -188,9 +188,6 @@ export const Workbench = memo(function Workbench({
 
         {/* Global Toolbar Actions */}
         <div className="flex items-center gap-1 shrink-0">
-          {/* Refresh Action (Only show for Preview) */}
-          {/* Preview controls moved into Preview toolbar */}
-
           {/* Toggle Terminal */}
           <button
             onClick={() => setShowTerminal(!showTerminal)}
@@ -212,7 +209,7 @@ export const Workbench = memo(function Workbench({
         className="flex-1 overflow-hidden flex min-h-0"
         style={{ cursor: isSidebarResizing ? 'col-resize' : undefined }}
       >
-        {/* Sidebar (No Activity Bar) */}
+        {/* Sidebar */}
         {sidebarVisible && (
           <div 
             className="flex flex-col bg-[#1e1e1e] overflow-hidden shrink-0 relative"
@@ -277,9 +274,9 @@ export const Workbench = memo(function Workbench({
             </div>
           </div>
 
-          {/* Terminal - Always mounted but hidden when closed to preserve state */}
+          {/* Terminal - Always mounted to preserve shell state for command execution */}
           <>
-            {/* Terminal Resize Handle - Only render when visible */}
+            {/* Terminal Resize Handle - Only visible when terminal is shown */}
             {showTerminal && (
               <div 
                 className={`h-1 shrink-0 cursor-row-resize transition-colors z-30 ${
@@ -288,11 +285,16 @@ export const Workbench = memo(function Workbench({
                 onMouseDown={startTerminalResize}
               />
             )}
+            {/* Terminal container - always mounted but hidden when not shown */}
             <div 
               className="shrink-0 overflow-hidden"
               style={{ 
-                height: `${terminalHeight}px`,
-                display: showTerminal ? 'block' : 'none' 
+                height: showTerminal ? `${terminalHeight}px` : '100px',
+                visibility: showTerminal ? 'visible' : 'hidden',
+                position: showTerminal ? 'relative' : 'absolute',
+                clip: showTerminal ? undefined : 'rect(0 0 0 0)',
+                clipPath: showTerminal ? undefined : 'inset(50%)',
+                overflow: 'hidden',
               }}
             >
               <Terminal onClose={() => setShowTerminal(false)} />

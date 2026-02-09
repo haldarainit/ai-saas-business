@@ -29,6 +29,7 @@ import ChatHistory from '@/components/builder/ChatHistory';
 import ModelSelector from '@/components/builder/ModelSelector';
 import Workbench from '@/components/builder/Workbench';
 import DeployModal from '@/components/builder/DeployModal';
+import BuilderOnboarding from '@/components/builder/BuilderOnboarding';
 import { Toaster } from '@/components/ui/sonner';
 import { ProtectedRoute } from '@/components/protected-route';
 import { toast } from 'sonner';
@@ -98,66 +99,22 @@ function BuilderContent() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showDeploy, setShowDeploy] = useState(false);
   const [webcontainerSupported, setWebcontainerSupported] = useState(true);
+  const [webcontainerDetails, setWebcontainerDetails] = useState({
+    isSecureContext: true,
+    isCrossOriginIsolated: true,
+    hasSharedArrayBuffer: true,
+  });
   const messageIdRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastAutoFixSignature = useRef<string>('');
   const lastAutoFixTime = useRef<number>(0);
   const [showBuilderOnboarding, setShowBuilderOnboarding] = useState(false);
-  const [onboardingForm, setOnboardingForm] = useState({
-    projectName: '',
-    websiteType: 'Landing page',
-    primaryGoal: '',
-    audience: '',
-    style: '',
-    sections: ''
-  });
-  const onboardingRequiredMet = Boolean(
-    onboardingForm.projectName.trim() && onboardingForm.primaryGoal.trim()
-  );
   
   // Chat panel resize state
   const [chatWidth, setChatWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const buildOnboardingPrompt = useCallback(() => {
-    const parts: string[] = [];
-    const trimmedName = onboardingForm.projectName.trim();
-    const trimmedGoal = onboardingForm.primaryGoal.trim();
-    const trimmedAudience = onboardingForm.audience.trim();
-    const trimmedStyle = onboardingForm.style.trim();
-    const trimmedSections = onboardingForm.sections.trim();
-
-    if (onboardingForm.websiteType) {
-      parts.push(`Build a ${onboardingForm.websiteType.toLowerCase()} website.`);
-    } else {
-      parts.push('Build a responsive website.');
-    }
-
-    if (trimmedName) parts.push(`Project name: ${trimmedName}.`);
-    if (trimmedGoal) parts.push(`Primary goal: ${trimmedGoal}.`);
-    if (trimmedAudience) parts.push(`Target audience: ${trimmedAudience}.`);
-    if (trimmedStyle) parts.push(`Style: ${trimmedStyle}.`);
-    if (trimmedSections) parts.push(`Key sections: ${trimmedSections}.`);
-
-    parts.push('Use a clean, modern layout with strong typography and spacing. Make it fully responsive.');
-    return parts.join(' ');
-  }, [onboardingForm]);
-
-  const completeOnboarding = useCallback((prefillPrompt: boolean) => {
-    if (!user) return;
-    const key = `builder-onboarding:${user.id}`;
-    try {
-      localStorage.setItem(key, 'done');
-    } catch {
-      // Ignore storage failures, keep onboarding state in memory
-    }
-    setShowBuilderOnboarding(false);
-    if (prefillPrompt) {
-      setInput(buildOnboardingPrompt());
-    }
-  }, [user, setInput, buildOnboardingPrompt]);
 
   // Handle chat panel resize
   useEffect(() => {
@@ -186,33 +143,54 @@ function BuilderContent() {
     };
   }, [isResizing]);
 
-  // Builder onboarding (first time only)
+  // Builder onboarding (first time only - fetch from database)
   useEffect(() => {
     if (!user) return;
-    const key = `builder-onboarding:${user.id}`;
-    let seen: string | null = null;
-    try {
-      seen = localStorage.getItem(key);
-    } catch {
-      seen = null;
-    }
-    if (!seen) {
-      setShowBuilderOnboarding(true);
-    }
+    
+    // Check database for onboarding status
+    const checkOnboardingStatus = async () => {
+      try {
+        const response = await fetch('/api/builder-onboarding');
+        if (response.ok) {
+          const data = await response.json();
+          if (!data.builderOnboardingCompleted) {
+            setShowBuilderOnboarding(true);
+          }
+        } else {
+          // API error - log details for debugging
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Failed to fetch onboarding status:', response.status, errorData);
+          // If unauthorized, skip - user not logged in
+          // For other errors, default to not showing onboarding
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+      }
+    };
+    
+    checkOnboardingStatus();
   }, [user]);
 
   // Check WebContainer support and initialize
   useEffect(() => {
     initialize();
+    const isSecureContext = typeof window !== 'undefined' ? window.isSecureContext === true : false;
+    const isCrossOriginIsolated = typeof window !== 'undefined' ? (window as any).crossOriginIsolated === true : false;
+    const hasSharedArrayBuffer = typeof window !== 'undefined' ? (window as any).SharedArrayBuffer !== undefined : false;
+    setWebcontainerDetails({
+      isSecureContext,
+      isCrossOriginIsolated,
+      hasSharedArrayBuffer,
+    });
     const supported = isWebContainerSupported();
     setWebcontainerSupported(supported);
 
     if (!supported) {
       setStatus('error');
-      setStatusMessage('WebContainer requires SharedArrayBuffer. Please ensure your browser supports it.');
+      setStatusMessage('WebContainer requires cross-origin isolation and SharedArrayBuffer support.');
       addMessage({
         role: 'system',
-        content: '⚠️ WebContainer is not supported in this browser. The live preview feature requires SharedArrayBuffer support. Please try using Chrome or Edge with the correct headers.'
+        content: 'Warning: WebContainer is not supported in this browser. The live preview feature requires cross-origin isolation and SharedArrayBuffer support.'
       });
       return;
     }
@@ -666,10 +644,19 @@ function BuilderContent() {
         <div className="max-w-md text-center p-8">
           <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white mb-2">Browser Not Supported</h1>
-          <p className="text-slate-400 mb-6">
-            The AI Builder requires WebContainer which needs SharedArrayBuffer support. 
-            This is typically available in Chrome or Edge with the correct security headers.
+          <p className="text-slate-400 mb-4">
+            The AI Builder needs cross-origin isolation and SharedArrayBuffer support.
           </p>
+          <ul className="text-left text-sm text-slate-400 space-y-2 mb-6">
+            <li>- Use HTTPS (secure context) or localhost.</li>
+            <li>- Ensure COOP/COEP headers are present for the builder route.</li>
+            <li>- In Brave private mode, disable Shields for this site or open a normal window.</li>
+          </ul>
+          <div className="text-left text-xs text-slate-500 mb-6 space-y-1">
+            <div>Secure context: {webcontainerDetails.isSecureContext ? 'yes' : 'no'}</div>
+            <div>Cross-origin isolated: {webcontainerDetails.isCrossOriginIsolated ? 'yes' : 'no'}</div>
+            <div>SharedArrayBuffer: {webcontainerDetails.hasSharedArrayBuffer ? 'yes' : 'no'}</div>
+          </div>
           <Link 
             href="/"
             className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
@@ -677,6 +664,13 @@ function BuilderContent() {
             <ArrowLeft className="w-4 h-4" />
             Go Back Home
           </Link>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors ml-3"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -810,18 +804,14 @@ function BuilderContent() {
                   handleStop();
 
                   // Clear chatId from URL to avoid re-loading previous chat
-                  const params = new URLSearchParams(searchParamsString);
-                  if (params.has('chatId')) {
-                    params.delete('chatId');
-                    const query = params.toString();
-                    router.replace(query ? `/builder?${query}` : '/builder', { scroll: false });
-                  } else {
-                    router.replace('/builder', { scroll: false });
-                  }
+                  router.replace('/builder', { scroll: false });
                   hasLoadedFromUrl.current = false;
 
-                  // Save current chat if needed (ChatStore auto-saves but good to be explicit for last state)
-                  await useChatStore.getState().saveCurrentChat();
+                  // Save current chat only if it has messages
+                  const currentMessages = useChatStore.getState().messages;
+                  if (currentMessages.length > 0) {
+                    await useChatStore.getState().saveCurrentChat();
+                  }
                    
                   // Reset everything for new chat
                   useChatStore.getState().reset();
@@ -829,9 +819,6 @@ function BuilderContent() {
                    
                   // Clear WebContainer project files and previews
                   await clearProject();
-
-                  // Re-init webcontainer to be safe/clean state
-                  initializeWebContainer();
 
                   // Ensure UI states are clean
                   setStatus('ready');
@@ -902,127 +889,29 @@ function BuilderContent() {
       <Toaster position="top-right" />
 
       {showBuilderOnboarding && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-3xl rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
-            <div className="px-6 py-5 border-b border-slate-800">
-              <h2 className="text-lg font-semibold text-white">Start your first website</h2>
-              <p className="text-sm text-slate-400">
-                Share a few details and we will draft a prompt for your first build.
-              </p>
-            </div>
-
-            <form
-              className="p-6 space-y-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                completeOnboarding(true);
-              }}
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="text-sm text-slate-300">
-                  Project name
-                  <span className="text-orange-400"> *</span>
-                  <input
-                    className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-orange-500 focus:outline-none"
-                    placeholder="MyBrand"
-                    value={onboardingForm.projectName}
-                    onChange={(event) => setOnboardingForm((prev) => ({ ...prev, projectName: event.target.value }))}
-                    required
-                  />
-                </label>
-
-                <label className="text-sm text-slate-300">
-                  Website type
-                  <select
-                    className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
-                    value={onboardingForm.websiteType}
-                    onChange={(event) => setOnboardingForm((prev) => ({ ...prev, websiteType: event.target.value }))}
-                  >
-                    <option>Landing page</option>
-                    <option>SaaS product</option>
-                    <option>Portfolio</option>
-                    <option>Ecommerce</option>
-                    <option>Blog</option>
-                    <option>Startup</option>
-                  </select>
-                </label>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="text-sm text-slate-300">
-                  Primary goal
-                  <span className="text-orange-400"> *</span>
-                  <input
-                    className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-orange-500 focus:outline-none"
-                    placeholder="Collect leads and book demos"
-                    value={onboardingForm.primaryGoal}
-                    onChange={(event) => setOnboardingForm((prev) => ({ ...prev, primaryGoal: event.target.value }))}
-                    required
-                  />
-                </label>
-
-                <label className="text-sm text-slate-300">
-                  Target audience
-                  <input
-                    className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-orange-500 focus:outline-none"
-                    placeholder="Startup founders and product teams"
-                    value={onboardingForm.audience}
-                    onChange={(event) => setOnboardingForm((prev) => ({ ...prev, audience: event.target.value }))}
-                  />
-                </label>
-              </div>
-
-              <label className="text-sm text-slate-300">
-                Style or vibe
-                <input
-                  className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-orange-500 focus:outline-none"
-                  placeholder="Modern, bold gradients, clean typography"
-                  value={onboardingForm.style}
-                  onChange={(event) => setOnboardingForm((prev) => ({ ...prev, style: event.target.value }))}
-                />
-              </label>
-
-              <label className="text-sm text-slate-300">
-                Key sections
-                <textarea
-                  className="mt-2 w-full min-h-[96px] rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-orange-500 focus:outline-none"
-                  placeholder="Hero, features, testimonials, pricing, CTA"
-                  value={onboardingForm.sections}
-                  onChange={(event) => setOnboardingForm((prev) => ({ ...prev, sections: event.target.value }))}
-                />
-              </label>
-
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-xs text-slate-500 space-y-1">
-                  <p>We will place the draft prompt into the chat input so you can review it.</p>
-                  {!onboardingRequiredMet && (
-                    <p className="text-orange-300">Project name and primary goal are required.</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="px-4 py-2 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
-                    onClick={() => completeOnboarding(false)}
-                  >
-                    Skip for now
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!onboardingRequiredMet}
-                    className={`px-4 py-2 rounded-lg transition-colors ${
-                      onboardingRequiredMet
-                        ? 'bg-orange-500 text-white hover:bg-orange-600'
-                        : 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                    }`}
-                  >
-                    Start building
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
+        <BuilderOnboarding
+          onComplete={async (prefillPrompt, promptText) => {
+            if (!user) return;
+            
+            // Save to database
+            try {
+              await fetch('/api/builder-onboarding', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ completed: true }),
+              });
+            } catch (error) {
+              console.error('Failed to save onboarding status:', error);
+            }
+            
+            setShowBuilderOnboarding(false);
+            
+            if (prefillPrompt && promptText) {
+              // Auto-trigger the build by calling handleSend directly
+              handleSend(promptText);
+            }
+          }}
+        />
       )}
     </div>
   );

@@ -72,5 +72,9 @@ if (typeof window !== 'undefined') {
 }
 
 export function isWebContainerSupported() {
-  return typeof window !== 'undefined' && (window as any).SharedArrayBuffer !== undefined;
+  if (typeof window === 'undefined') return false;
+  const hasSAB = (window as any).SharedArrayBuffer !== undefined;
+  const isIsolated = (window as any).crossOriginIsolated === true;
+  const isSecure = (window as any).isSecureContext === true;
+  return hasSAB && isIsolated && isSecure;
 }

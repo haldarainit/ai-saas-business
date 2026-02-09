@@ -302,7 +302,20 @@ export class ActionRunner {
     }
 
     const shell = this.#shellTerminal();
-    await shell.ready();
+    
+    // Wait for shell with a timeout to prevent hanging forever
+    const shellReadyTimeout = 30000; // 30 seconds
+    try {
+      await Promise.race([
+        shell.ready(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Shell initialization timeout')), shellReadyTimeout)
+        )
+      ]);
+    } catch (error: any) {
+      logger.error('Shell ready timeout:', error);
+      throw new ActionCommandError('Terminal not ready', 'The terminal shell is not initialized. Please wait for the terminal to load and try again.');
+    }
 
     if (!shell || !shell.terminal || !shell.process) {
       unreachable('Shell terminal not found');
@@ -329,7 +342,7 @@ export class ActionRunner {
       if (nextRetry <= 1) {
         const actionId = this.#findActionId(action);
         if (actionId) {
-          this.#updateAction(actionId, { retryCount: nextRetry });
+          this.#updateAction(actionId, { retryCount: nextRetry } as any);
         }
         logger.warn(`[${action.type}]: Network error detected. Retrying npm install...`);
         await new Promise((resolve) => setTimeout(resolve, 1500));

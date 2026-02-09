@@ -99,7 +99,9 @@ $code-font-size: 13px;
     font-size: $code-font-size;
     background: transparent;
     overflow-x: auto;
-    min-width: 0;
+    max-width: 100%;
+    word-break: break-word;
+    white-space: pre-wrap;
   }
 
   blockquote {

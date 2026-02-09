@@ -8,6 +8,7 @@ export interface IUser extends mongoose.Document {
   authProvider?: "local" | "google";
   image?: string;
   onboardingCompleted?: boolean;
+  builderOnboardingCompleted?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +44,10 @@ const UserSchema = new mongoose.Schema<IUser>(
       type: String,
     },
     onboardingCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    builderOnboardingCompleted: {
       type: Boolean,
       default: false,
     },

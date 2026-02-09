@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, memo } from 'react';
+import { useRef, useEffect, memo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, 
@@ -10,7 +10,6 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useChatStore, type ChatMessage } from '@/lib/stores/chat';
-import { useState } from 'react';
 import { Markdown } from '@/components/chat/Markdown';
 
 interface MessageProps {
@@ -61,7 +60,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
       {/* Message Content */}
       <div className={`max-w-[80%] ${isUser ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
         <div
-          className={`rounded-2xl px-4 py-3 shadow-sm ring-1 ${
+          className={`rounded-2xl px-4 py-3 shadow-sm ring-1 overflow-hidden break-words ${
             isUser
               ? 'bg-gradient-to-r from-orange-500 to-pink-600 text-white ring-white/10'
               : isSystem
@@ -78,7 +77,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
           )}
 
           {/* Message content with markdown */}
-          <div className={`prose prose-sm max-w-none leading-relaxed ${
+          <div className={`prose prose-sm max-w-none leading-relaxed overflow-x-hidden ${
             isUser ? 'prose-invert' : 'prose-slate prose-invert'
           }`}>
             {isUser ? (
@@ -112,10 +111,20 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
 export function ChatMessages() {
   const { messages, isStreaming, setInput, forkChat, rewindChat, restoreLatestSnapshot } = useChatStore();
   const containerRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
 
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
+  // Track if user is at bottom
+  const handleScroll = () => {
     if (containerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+      // Consider "at bottom" if within 100px of bottom
+      isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < 100;
+    }
+  };
+
+  // Auto-scroll to bottom on new messages only if user was at bottom
+  useEffect(() => {
+    if (containerRef.current && isAtBottomRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
   }, [messages]);
@@ -154,7 +163,8 @@ export function ChatMessages() {
   return (
     <div 
       ref={containerRef}
-      className="flex-1 overflow-y-auto px-4 py-5 space-y-5 scrollbar-hide scroll-smooth"
+      onScroll={handleScroll}
+      className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 px-4 py-5 space-y-5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
     >
       <AnimatePresence mode="popLayout">
         {messages.map((message, index) => (
@@ -189,18 +199,6 @@ export function ChatMessages() {
           </div>
         ))}
       </AnimatePresence>
-
-      {/* Streaming indicator - Global (removed to avoid duplication, relying on message specific loader) */}
-      {/* {isStreaming && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex items-center gap-2 text-slate-400 pl-11"
-        >
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-sm">Generating response...</span>
-        </motion.div>
-      )} */}
     </div>
   );
 }
