@@ -103,7 +103,12 @@ export class WorkbenchStore {
         this.#pendingStart = false;
       },
       onArtifactClose: () => {
-        this.#maybeAutoSetup();
+        // Delay auto-setup to ensure all file writes have flushed to WebContainer.
+        // The runAction calls in onActionClose are async and may still be writing.
+        console.log('[MessageParser] Artifact closed, scheduling auto-setup in 3s...');
+        setTimeout(() => {
+          this.#maybeAutoSetup();
+        }, 3000);
       },
       onActionOpen: (data) => {
         // Normalize file path if it's a file action
@@ -111,48 +116,43 @@ export class WorkbenchStore {
            data.action.filePath = this.#normalizeFilePath(data.action.filePath);
         }
 
-        // Prevent immediate execution of install/start commands
-        // We will handle them in maybeAutoSetup at the end of the artifact
+        // Intercept install/start shell commands — defer them to auto-setup.
+        // NOTE: At onActionOpen, content may be empty (still streaming).
+        // We also intercept 'start' type actions.
         if (data.action.type === 'shell') {
-          const content = data.action.content || '';
-          if (this.#isInstallCommand(content)) {
-            this.#pendingInstall = true;
-            return;
-          }
-          if (this.#isStartCommand(content)) {
-            this.#pendingStart = true;
-            return;
-          }
+          this.#pendingInstall = true;
+          this.#pendingStart = true;
+          console.log('[MessageParser] Intercepted shell action, deferring to auto-setup');
+          return;
+        }
+
+        if (data.action.type === 'start') {
+          this.#artifactHasStart = true;
+          this.#pendingStart = true;
+          console.log('[MessageParser] Intercepted start action, deferring to auto-setup');
+          return;
         }
 
         console.log('[MessageParser] Action opened:', data);
         this.addAction(data);
-        if (data.action.type === 'start') {
-          this.#artifactHasStart = true;
-          this.#pendingStart = false;
-        }
       },
       onActionStream: (data) => {
-        // Skip streaming for intercepted commands
-        if (data.action.type === 'shell') {
-          const content = data.action.content || '';
-          if (this.#isInstallCommand(content) || this.#isStartCommand(content)) {
-             return;
-          }
+        // Skip streaming for intercepted shell/start commands
+        if (data.action.type === 'shell' || data.action.type === 'start') {
+          return;
         }
 
-        // Immediately update files store when streaming file content
+        // For file actions: update in-memory store for DISPLAY ONLY (editor, file tree).
+        // Do NOT write to WebContainer during streaming — partial content causes errors
+        // (e.g. incomplete package.json → EJSONPARSE on npm install).
         if (data.action.type === 'file') {
-          // Normalize (update in place for runAction)
           if (data.action.filePath) {
              data.action.filePath = this.#normalizeFilePath(data.action.filePath);
           }
           
           const filePath = data.action.filePath;
           
-          console.log('[MessageParser] Streaming file:', filePath);
-          
-          // Update the files store immediately for display
+          // Update the files store for display only (not WebContainer)
           this.#filesStore.files.setKey(filePath, {
             type: 'file',
             content: data.action.content || '',
@@ -172,23 +172,28 @@ export class WorkbenchStore {
           this.setSelectedFile(filePath);
         }
         
-        // Also run the action for streaming updates
-        this.runAction(data, true);
+        // NOTE: We intentionally do NOT call this.runAction(data, true) for file actions.
+        // Files are written to WebContainer only once, with complete content, in onActionClose.
       },
       onActionClose: (data) => {
-        // Skip execution for intercepted commands
-        if (data.action.type === 'shell') {
+        // Skip execution for intercepted shell/start commands
+        if (data.action.type === 'shell' || data.action.type === 'start') {
+          // But mark pending flags based on content
           const content = data.action.content || '';
-          if (this.#isInstallCommand(content) || this.#isStartCommand(content)) {
-             return;
+          if (this.#isInstallCommand(content)) {
+            this.#pendingInstall = true;
           }
+          if (this.#isStartCommand(content)) {
+            this.#pendingStart = true;
+          }
+          console.log('[MessageParser] Shell/start action closed (deferred):', content.trim());
+          return;
         }
 
         console.log('[MessageParser] Action closed:', data);
         
         // Final update for file actions
         if (data.action.type === 'file') {
-           // Normalize (update in place for runAction)
           if (data.action.filePath) {
              data.action.filePath = this.#normalizeFilePath(data.action.filePath);
           }
@@ -206,17 +211,16 @@ export class WorkbenchStore {
           
           // Clear the generating file indicator
           this.generatedFile.set(null);
-        }
-        
-        // Run the action (writes to WebContainer)
-        this.runAction(data);
-
-        if (data.action.type === 'file' && data.action.filePath) {
-          if (this.#isDependencyFile(data.action.filePath)) {
+          
+          // Mark dependency files for install
+          if (this.#isDependencyFile(filePath)) {
             this.#pendingInstall = true;
             this.#pendingStart = true;
           }
         }
+        
+        // Write COMPLETE content to WebContainer (only happens here, not during streaming)
+        this.runAction(data);
       },
     },
   });
@@ -862,6 +866,19 @@ export class WorkbenchStore {
     if (this.isRestoringHistory.get()) return;
     if (!this.#hasPackageJson()) return;
 
+    // Validate that package.json has valid JSON content before proceeding.
+    // During streaming, it might still have partial/incomplete content.
+    const pkgFile = this.#filesStore.files.get()['/home/project/package.json'];
+    if (pkgFile?.type === 'file') {
+      try {
+        JSON.parse(pkgFile.content);
+      } catch {
+        console.log('[AutoSetup] package.json has invalid JSON, retrying in 2s...');
+        setTimeout(() => this.#maybeAutoSetup(), 2000);
+        return;
+      }
+    }
+
     const now = Date.now();
     const previews = this.#previewsStore.previews.get();
     const hasPreview = previews.length > 0;
@@ -872,20 +889,24 @@ export class WorkbenchStore {
       
       if (timeSinceLastInstall > this.#autoCooldownMs) {
         console.log('[AutoSetup] Triggering npm install');
-        this.#pendingInstall = false; // Reset flag
+        this.#pendingInstall = false;
         this.#autoInstallAttempts++;
         this.#lastAutoInstallAt = now;
         
-        // If we are installing, we definitely need to start afterwards
+        // After install, we need to start the dev server
         this.#pendingStart = true;
         
         this.#queueRunnerAction({ type: 'shell', content: 'npm install' } as BoltAction);
-        return; // Return to let install finish before starting dev
+        
+        // Schedule dev server start after install has time to complete
+        setTimeout(() => {
+          this.#maybeAutoSetup();
+        }, 20000);
+        return;
       }
     }
 
     // Check if we need to start the dev server
-    // condition: pending start OR (no preview AND not started yet)
     const shouldStart = this.#pendingStart || (!hasPreview && !this.#artifactHasStart);
 
     if (shouldStart && this.#autoStartAttempts < 2) {
@@ -893,7 +914,7 @@ export class WorkbenchStore {
 
       if (timeSinceLastStart > this.#autoCooldownMs) {
         console.log('[AutoSetup] Triggering npm run dev');
-        this.#pendingStart = false; // Reset flag
+        this.#pendingStart = false;
         this.#autoStartAttempts++;
         this.#lastAutoStartAt = now;
         this.#queueRunnerAction({ type: 'start', content: 'npm run dev' } as BoltAction);
