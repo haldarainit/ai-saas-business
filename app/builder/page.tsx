@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { AuthModal } from '@/components/auth-modal';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -43,6 +45,17 @@ import { WORK_DIR } from '@/utils/constants';
 import { isWebContainerSupported } from '@/lib/webcontainer';
 
 function BuilderContent() {
+  const { user, loading: authLoading } = useAuth();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setAuthModalOpen(true);
+    } else {
+      setAuthModalOpen(false);
+    }
+  }, [user, authLoading]);
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const searchParamsString = searchParams.toString();
@@ -812,6 +825,7 @@ function BuilderContent() {
         </div>
       </div>
 
+      <AuthModal isOpen={authModalOpen} onClose={() => router.push('/')} />
       <DeployModal open={showDeploy} onClose={() => setShowDeploy(false)} />
       <Toaster position="top-right" />
     </div>

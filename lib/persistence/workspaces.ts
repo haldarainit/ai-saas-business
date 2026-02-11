@@ -63,6 +63,11 @@ async function apiFetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   }
 
   const data = await response.json().catch(() => ({}));
+  
+  if (response.status === 401) {
+    throw new Error('Please sign in to continue.');
+  }
+
   if (!response.ok) {
     throw new Error(data?.error || 'Request failed');
   }
