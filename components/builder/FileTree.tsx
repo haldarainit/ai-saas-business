@@ -168,6 +168,9 @@ export function FileTree() {
     const root: TreeNode[] = [];
     const pathMap: Record<string, TreeNode> = {};
 
+    // Prefix to strip so the tree shows project contents at root level
+    const STRIP_PREFIX = '/home/project';
+
     // Sort files by path
     const sortedPaths = Object.keys(files).sort((a, b) => {
       const aDepth = a.split('/').length;
@@ -176,41 +179,56 @@ export function FileTree() {
       return a.localeCompare(b);
     });
 
-    sortedPaths.forEach((path) => {
-      const file = files[path];
+    sortedPaths.forEach((fullPath) => {
+      const file = files[fullPath];
       if (!file) return;
 
-      const parts = path.split('/').filter(Boolean);
+      // Skip the /home and /home/project folder entries themselves
+      if (fullPath === '/home' || fullPath === '/home/project') {
+        return;
+      }
+
+      // Strip the /home/project prefix for display purposes
+      let displayPath = fullPath;
+      if (displayPath.startsWith(STRIP_PREFIX + '/')) {
+        displayPath = displayPath.substring(STRIP_PREFIX.length);
+      } else if (displayPath.startsWith(STRIP_PREFIX)) {
+        displayPath = displayPath.substring(STRIP_PREFIX.length);
+      }
+
+      // displayPath now looks like "/src/App.tsx" or "/package.json"
+      const parts = displayPath.split('/').filter(Boolean);
+      if (parts.length === 0) return;
+
       const name = parts[parts.length - 1];
       
       // Apply search filter
-      if (searchQuery && !path.toLowerCase().includes(searchQuery.toLowerCase())) {
+      if (searchQuery && !displayPath.toLowerCase().includes(searchQuery.toLowerCase())) {
         return;
       }
 
       const node: TreeNode = {
         name,
-        path,
+        path: fullPath, // Keep the full path for file operations (open, delete, etc.)
         type: file.type,
         children: file.type === 'folder' ? [] : undefined
       };
 
-      pathMap[path] = node;
+      // Use displayPath as the key for parent lookups
+      pathMap[displayPath] = node;
 
       if (parts.length === 1) {
         root.push(node);
       } else {
-        const parentPath = '/' + parts.slice(0, -1).join('/');
-        let parent = pathMap[parentPath];
+        const parentDisplayPath = '/' + parts.slice(0, -1).join('/');
+        const parent = pathMap[parentDisplayPath];
         
-        // If parent doesn't exist in map (might be implicitly created), check root or create it
         if (!parent) {
-          // This logic handles implicit folder creation if needed, 
-          // but strictly we expect folders to be in the 'files' map as type: 'folder'
+          // Parent folder not in the map yet — skip this node
           return; 
         }
 
-        if (parent && parent.children) {
+        if (parent.children) {
           parent.children.push(node);
         }
       }
