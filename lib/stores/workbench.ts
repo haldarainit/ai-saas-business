@@ -63,6 +63,32 @@ export class WorkbenchStore {
   #lastEnsureAt = 0;
   #ensureCooldownMs = 4000;
 
+  /**
+   * Whether history is being restored (prevents auto-runs).
+   */
+   isRestoringHistory: WritableAtom<boolean> = atom(false);
+
+  /**
+   * Normalize file paths to prevent nesting issues
+   */
+  #normalizeFilePath(filePath: string) {
+    let cleanPath = filePath.trim();
+    // Remove leading slash for processing
+    if (cleanPath.startsWith('/')) {
+      cleanPath = cleanPath.substring(1);
+    }
+    
+    // Remove common prefixes that LLMs might hallucinate
+    if (cleanPath.startsWith('home/project/')) {
+      cleanPath = cleanPath.substring('home/project/'.length);
+    } else if (cleanPath.startsWith('project/')) {
+      cleanPath = cleanPath.substring('project/'.length);
+    }
+    
+    // Return absolute path
+    return `/home/project/${cleanPath}`;
+  }
+
   #messageParser = new StreamingMessageParser({
     callbacks: {
       onArtifactOpen: (data) => {
@@ -80,23 +106,49 @@ export class WorkbenchStore {
         this.#maybeAutoSetup();
       },
       onActionOpen: (data) => {
+        // Normalize file path if it's a file action
+        if (data.action.type === 'file' && data.action.filePath) {
+           data.action.filePath = this.#normalizeFilePath(data.action.filePath);
+        }
+
+        // Prevent immediate execution of install/start commands
+        // We will handle them in maybeAutoSetup at the end of the artifact
+        if (data.action.type === 'shell') {
+          const content = data.action.content || '';
+          if (this.#isInstallCommand(content)) {
+            this.#pendingInstall = true;
+            return;
+          }
+          if (this.#isStartCommand(content)) {
+            this.#pendingStart = true;
+            return;
+          }
+        }
+
         console.log('[MessageParser] Action opened:', data);
         this.addAction(data);
         if (data.action.type === 'start') {
           this.#artifactHasStart = true;
           this.#pendingStart = false;
         }
-        if (data.action.type === 'shell' && this.#isStartCommand(data.action.content || '')) {
-          this.#artifactHasStart = true;
-          this.#pendingStart = false;
-        }
       },
       onActionStream: (data) => {
+        // Skip streaming for intercepted commands
+        if (data.action.type === 'shell') {
+          const content = data.action.content || '';
+          if (this.#isInstallCommand(content) || this.#isStartCommand(content)) {
+             return;
+          }
+        }
+
         // Immediately update files store when streaming file content
         if (data.action.type === 'file') {
-          const filePath = data.action.filePath.startsWith('/') 
-            ? data.action.filePath 
-            : `/home/project/${data.action.filePath}`;
+          // Normalize (update in place for runAction)
+          if (data.action.filePath) {
+             data.action.filePath = this.#normalizeFilePath(data.action.filePath);
+          }
+          
+          const filePath = data.action.filePath;
           
           console.log('[MessageParser] Streaming file:', filePath);
           
@@ -124,13 +176,23 @@ export class WorkbenchStore {
         this.runAction(data, true);
       },
       onActionClose: (data) => {
+        // Skip execution for intercepted commands
+        if (data.action.type === 'shell') {
+          const content = data.action.content || '';
+          if (this.#isInstallCommand(content) || this.#isStartCommand(content)) {
+             return;
+          }
+        }
+
         console.log('[MessageParser] Action closed:', data);
         
         // Final update for file actions
         if (data.action.type === 'file') {
-          const filePath = data.action.filePath.startsWith('/') 
-            ? data.action.filePath 
-            : `/home/project/${data.action.filePath}`;
+           // Normalize (update in place for runAction)
+          if (data.action.filePath) {
+             data.action.filePath = this.#normalizeFilePath(data.action.filePath);
+          }
+          const filePath = data.action.filePath;
           
           // Ensure parent folders exist in the store
           this.#ensureFoldersExist(filePath);
@@ -154,15 +216,6 @@ export class WorkbenchStore {
             this.#pendingInstall = true;
             this.#pendingStart = true;
           }
-        }
-
-        if (data.action.type === 'shell' && this.#isInstallCommand(data.action.content || '')) {
-          this.#pendingInstall = false;
-        }
-
-        if (data.action.type === 'start' || (data.action.type === 'shell' && this.#isStartCommand(data.action.content || ''))) {
-          this.#artifactHasStart = true;
-          this.#pendingStart = false;
         }
       },
     },
@@ -217,6 +270,8 @@ export class WorkbenchStore {
    * Whether the AI is currently streaming a response.
    */
   isStreaming: WritableAtom<boolean> = atom(false);
+
+
 
   /**
    * Action alert to display errors or information.
@@ -563,29 +618,48 @@ export class WorkbenchStore {
     this.expandedFolders.set(new Set());
   }
 
-  async addFile(path: string, content: string | Uint8Array = '', type: 'file' | 'folder' = 'file') {
+  async addFile(filePath: string, content: string | Uint8Array = '', type: 'file' | 'folder' = 'file') {
     try {
       const wc = await webcontainer;
       
+      // Convert absolute path to relative path for WebContainer fs operations.
+      // WebContainer's fs methods operate relative to the workdir (/home/project),
+      // so we must strip the /home/project prefix to avoid nested directories.
+      const workdir = wc.workdir || '/home/project';
+      let relativePath = filePath;
+      if (relativePath.startsWith(workdir + '/')) {
+        relativePath = relativePath.substring(workdir.length + 1);
+      } else if (relativePath.startsWith(workdir)) {
+        relativePath = relativePath.substring(workdir.length);
+      }
+      // Also handle if it starts with / but isn't the workdir prefix
+      if (relativePath.startsWith('/')) {
+        relativePath = relativePath.substring(1);
+      }
+      
+      console.log(`[addFile] storePath=${filePath}, relativePath=${relativePath}, type=${type}`);
+      
       if (type === 'folder') {
-        await wc.fs.mkdir(path, { recursive: true });
-        this.#filesStore.files.setKey(path, { type: 'folder' });
+        if (relativePath) {
+          await wc.fs.mkdir(relativePath, { recursive: true });
+        }
+        this.#filesStore.files.setKey(filePath, { type: 'folder' });
       } else {
         // Ensure parent directory exists
-        const parentDir = path.split('/').slice(0, -1).join('/');
+        const parentDir = relativePath.split('/').slice(0, -1).join('/');
         if (parentDir) {
           await wc.fs.mkdir(parentDir, { recursive: true });
         }
-        await wc.fs.writeFile(path, content);
+        await wc.fs.writeFile(relativePath, content);
         
-        // Update store
+        // Update store with the original absolute path as key
         const isBinary = content instanceof Uint8Array;
         const storeContent = isBinary ? '' : (content as string);
-        this.#filesStore.files.setKey(path, { type: 'file', content: storeContent, isBinary });
+        this.#filesStore.files.setKey(filePath, { type: 'file', content: storeContent, isBinary });
       }
       
-      // Auto-expand parent folders
-      const parts = path.split('/').filter(Boolean);
+      // Auto-expand parent folders (uses the absolute store path)
+      const parts = filePath.split('/').filter(Boolean);
       let currentPath = '';
       const newExpandedFolders = new Set(this.expandedFolders.get());
       
@@ -600,14 +674,24 @@ export class WorkbenchStore {
     }
   }
 
-  async deleteFile(path: string) {
+  async deleteFile(filePath: string) {
     try {
       const wc = await webcontainer;
-      await wc.fs.rm(path, { force: true, recursive: true });
-      this.#filesStore.files.setKey(path, undefined);
+      
+      // Convert to relative path for WebContainer
+      const workdir = wc.workdir || '/home/project';
+      let relativePath = filePath;
+      if (relativePath.startsWith(workdir + '/')) {
+        relativePath = relativePath.substring(workdir.length + 1);
+      } else if (relativePath.startsWith('/')) {
+        relativePath = relativePath.substring(1);
+      }
+      
+      await wc.fs.rm(relativePath, { force: true, recursive: true });
+      this.#filesStore.files.setKey(filePath, undefined);
       
       // If this was the selected file, clear the selection
-      if (this.#editorStore.selectedFile.get() === path) {
+      if (this.#editorStore.selectedFile.get() === filePath) {
         this.#editorStore.setSelectedFile(undefined);
       }
     } catch (error) {
@@ -662,14 +746,13 @@ export class WorkbenchStore {
   async clearProject() {
     try {
       const wc = await webcontainer;
-      const workdir = wc.workdir || '/home/project';
 
+      // Use '.' to reference the current workdir (avoids absolute path issues)
       try {
-        const entries = await wc.fs.readdir(workdir, { withFileTypes: true });
+        const entries = await wc.fs.readdir('.', { withFileTypes: true });
         for (const entry of entries) {
-          const targetPath = `${workdir}/${entry.name}`;
           try {
-            await wc.fs.rm(targetPath, { recursive: true, force: true });
+            await wc.fs.rm(entry.name, { recursive: true, force: true });
           } catch {
             // ignore
           }
@@ -677,8 +760,6 @@ export class WorkbenchStore {
       } catch {
         // ignore if workdir missing
       }
-
-      await wc.fs.mkdir(workdir, { recursive: true });
 
       this.#filesStore.files.set({});
       this.#filesStore.resetFileModifications();
@@ -710,7 +791,7 @@ export class WorkbenchStore {
     let needsInstall = false;
     try {
       const wc = await webcontainer;
-      await wc.fs.readdir('/home/project/node_modules');
+      await wc.fs.readdir('node_modules');
     } catch {
       needsInstall = true;
     }
@@ -778,33 +859,45 @@ export class WorkbenchStore {
   }
 
   #maybeAutoSetup() {
+    if (this.isRestoringHistory.get()) return;
     if (!this.#hasPackageJson()) return;
 
     const now = Date.now();
     const previews = this.#previewsStore.previews.get();
     const hasPreview = previews.length > 0;
 
-    const shouldInstall =
-      this.#pendingInstall && this.#autoInstallAttempts < 2 && now - this.#lastAutoInstallAt > this.#autoCooldownMs;
-
-    if (shouldInstall) {
-      this.#pendingInstall = false;
-      this.#pendingStart = true;
-      this.#autoInstallAttempts += 1;
-      this.#lastAutoInstallAt = now;
-      this.#queueRunnerAction({ type: 'shell', content: 'npm install' } as BoltAction);
+    // Check if we need to install dependencies
+    if (this.#pendingInstall && this.#autoInstallAttempts < 2) {
+      const timeSinceLastInstall = now - this.#lastAutoInstallAt;
+      
+      if (timeSinceLastInstall > this.#autoCooldownMs) {
+        console.log('[AutoSetup] Triggering npm install');
+        this.#pendingInstall = false; // Reset flag
+        this.#autoInstallAttempts++;
+        this.#lastAutoInstallAt = now;
+        
+        // If we are installing, we definitely need to start afterwards
+        this.#pendingStart = true;
+        
+        this.#queueRunnerAction({ type: 'shell', content: 'npm install' } as BoltAction);
+        return; // Return to let install finish before starting dev
+      }
     }
 
-    const shouldStart =
-      (this.#pendingStart || (!hasPreview && !this.#artifactHasStart)) &&
-      this.#autoStartAttempts < 2 &&
-      now - this.#lastAutoStartAt > this.#autoCooldownMs;
+    // Check if we need to start the dev server
+    // condition: pending start OR (no preview AND not started yet)
+    const shouldStart = this.#pendingStart || (!hasPreview && !this.#artifactHasStart);
 
-    if (shouldStart) {
-      this.#pendingStart = false;
-      this.#autoStartAttempts += 1;
-      this.#lastAutoStartAt = now;
-      this.#queueRunnerAction({ type: 'start', content: 'npm run dev' } as BoltAction);
+    if (shouldStart && this.#autoStartAttempts < 2) {
+      const timeSinceLastStart = now - this.#lastAutoStartAt;
+
+      if (timeSinceLastStart > this.#autoCooldownMs) {
+        console.log('[AutoSetup] Triggering npm run dev');
+        this.#pendingStart = false; // Reset flag
+        this.#autoStartAttempts++;
+        this.#lastAutoStartAt = now;
+        this.#queueRunnerAction({ type: 'start', content: 'npm run dev' } as BoltAction);
+      }
     }
   }
 

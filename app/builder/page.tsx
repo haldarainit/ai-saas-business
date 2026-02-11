@@ -147,24 +147,30 @@ function BuilderContent() {
   }, [isResizing]);
 
   // Check WebContainer support and initialize
+  // Check WebContainer support and initialize
   useEffect(() => {
-    initialize();
-    const supported = isWebContainerSupported();
-    setWebcontainerSupported(supported);
+    // Only initialize if we have a user
+    if (user && !authLoading) {
+      console.log('User authenticated, initializing chat store');
+      initialize();
+      
+      const supported = isWebContainerSupported();
+      setWebcontainerSupported(supported);
 
-    if (!supported) {
-      setStatus('error');
-      setStatusMessage('WebContainer requires SharedArrayBuffer. Please ensure your browser supports it.');
-      addMessage({
-        role: 'system',
-        content: '⚠️ WebContainer is not supported in this browser. The live preview feature requires SharedArrayBuffer support. Please try using Chrome or Edge with the correct headers.'
-      });
-      return;
+      if (!supported) {
+        setStatus('error');
+        setStatusMessage('WebContainer requires SharedArrayBuffer. Please ensure your browser supports it.');
+        addMessage({
+          role: 'system',
+          content: '⚠️ WebContainer is not supported in this browser. The live preview feature requires SharedArrayBuffer support. Please try using Chrome or Edge with the correct headers.'
+        });
+        return;
+      }
+
+      // Initialize WebContainer
+      initializeWebContainer();
     }
-
-    // Initialize WebContainer
-    initializeWebContainer();
-  }, []);
+  }, [user, authLoading]);
 
   // Check for URL param
   useEffect(() => {
@@ -178,22 +184,27 @@ function BuilderContent() {
   useEffect(() => {
     if (error) {
       toast.error(error);
+      if (error === 'Please sign in to continue.') {
+         // Optionally handle sign in redirect here if needed, 
+         // though AuthModal should handle it.
+      }
       setError(null);
     }
   }, [error, setError]);
 
   // Load chat by id from URL if present
   useEffect(() => {
-    if (!chatIdParam) return;
+    if (!chatIdParam || authLoading || !user) return;
     if (chatIdParam === chatId) return;
-    if (hasLoadedFromUrl.current && chatId === chatIdParam) return;
-
-    hasLoadedFromUrl.current = true;
+    // Removed hasLoadedFromUrl check to ensure it retries if auth was pending
+    
+    console.log('Loading chat from URL:', chatIdParam);
     loadChat(chatIdParam);
-  }, [chatIdParam, chatId, loadChat]);
+  }, [chatIdParam, chatId, loadChat, authLoading, user]);
 
   // Keep chat id in URL for sharing/restoring
   useEffect(() => {
+    if (!user) return; // Don't update URL if not logged in
     const params = new URLSearchParams(searchParamsString);
     if (chatId) {
       if (params.get('chatId') !== chatId) {

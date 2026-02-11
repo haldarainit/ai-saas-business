@@ -369,14 +369,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
 
       // Clear and restore project files
-      await workbenchStore.clearProject();
-      if (workspace.fileData) {
-        await restoreSnapshot({
-          chatId: workspace._id,
-          messageId: '',
-          files: workspace.fileData as any,
-          timestamp: Date.now(),
-        });
+      workbenchStore.isRestoringHistory.set(true);
+      try {
+        await workbenchStore.clearProject();
+        if (workspace.fileData) {
+          await restoreSnapshot({
+            chatId: workspace._id,
+            messageId: '',
+            files: workspace.fileData as any,
+            timestamp: Date.now(),
+          });
+        }
+      } finally {
+        workbenchStore.isRestoringHistory.set(false);
       }
 
       // Always try to auto-run preview if not already running
