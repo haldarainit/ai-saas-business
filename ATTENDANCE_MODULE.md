@@ -12,6 +12,7 @@ The Attendance Module provides AI-powered face verification for employee clock-i
 - ✅ Fraud detection with suspicious flags
 - ✅ Rate limiting (1 attempt per minute)
 - ✅ Retry mechanism with match score feedback
+- 
 - ✅ Daily and monthly attendance report
 
 ## Architecture
