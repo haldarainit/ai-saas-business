@@ -162,9 +162,9 @@ function ArtifactCard({ artifact, isStreaming }: { artifact: ParsedArtifact; isS
                 </button>
               ))}
               {shellActions.map((action, i) => (
-                <div key={`s-${i}`} className="flex items-center gap-2 px-2 py-1">
-                  <Terminal className="w-3 h-3 text-green-400/60 shrink-0" />
-                  <code className="text-[12px] text-green-400/70 font-mono truncate">{action.content.trim()}</code>
+                <div key={`s-${i}`} className="flex items-center gap-2 px-2 py-1.5 border-t border-slate-700/30 first:border-0">
+                  <Terminal className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                  <code className="text-[12px] text-green-300 font-mono truncate bg-transparent flex-1">{action.content.trim()}</code>
                 </div>
               ))}
             </div>

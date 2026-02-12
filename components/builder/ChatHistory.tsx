@@ -4,7 +4,17 @@ import { useChatStore } from '@/lib/stores/chat';
 import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
 import { MessageSquare, Trash2, Clock, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface ChatHistoryProps {
   onNewChat?: () => void;
@@ -12,15 +22,21 @@ interface ChatHistoryProps {
 
 export default function ChatHistory({ onNewChat }: ChatHistoryProps) {
   const { chats, loadChat, deleteChat, chatId: currentChatId, initialize } = useChatStore();
+  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     initialize();
   }, [initialize]);
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (confirm('Are you sure you want to delete this chat?')) {
-      await deleteChat(id);
+    setChatToDelete(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (chatToDelete) {
+      await deleteChat(chatToDelete);
+      setChatToDelete(null);
     }
   };
 
@@ -107,11 +123,7 @@ export default function ChatHistory({ onNewChat }: ChatHistoryProps) {
                           }`}>
                             {chat.title || 'Untitled Chat'}
                           </div>
-                          {chat.summary && (
-                            <div className="text-xs text-slate-500 truncate mt-1 group-hover:text-slate-400 transition-colors">
-                              {chat.summary}
-                            </div>
-                          )}
+
                           <div className="text-xs text-slate-500 truncate mt-1 group-hover:text-slate-400 transition-colors">
                             {format(new Date(chat.timestamp), 'h:mm a')}
                           </div>
@@ -120,7 +132,7 @@ export default function ChatHistory({ onNewChat }: ChatHistoryProps) {
                       
                       <button
                         className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-slate-700 rounded-lg text-slate-500 hover:text-red-400"
-                        onClick={(e) => handleDelete(e, chat.id)}
+                        onClick={(e) => handleDeleteClick(e, chat.id)}
                         title="Delete chat"
                         tabIndex={0}
                       >
@@ -135,6 +147,23 @@ export default function ChatHistory({ onNewChat }: ChatHistoryProps) {
         })}
       </div>
       )}
+
+      <AlertDialog open={!!chatToDelete} onOpenChange={(open) => !open && setChatToDelete(null)}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700 text-slate-200">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Delete Chat</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              Are you sure you want to delete this chat? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-500 hover:bg-red-600 text-white border-red-600">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

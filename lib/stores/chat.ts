@@ -198,13 +198,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const workspaces = await listWorkspaces();
       const chats = workspaces.map((workspace) => {
-        const lastMessage = workspace.messages?.[workspace.messages.length - 1]?.content || '';
+        const lastMessage = (workspace.messages?.[workspace.messages.length - 1]?.content || '').replace(/<[^>]*>/g, '');
         const summarySource =
           [...(workspace.messages || [])]
             .reverse()
             .find((m) => m.role === 'assistant' && m.content?.trim())
             ?.content || (workspace.messages?.[0]?.content || '');
-        const summary = summarySource.replace(/\s+/g, ' ').slice(0, 140) + (summarySource.length > 140 ? '...' : '');
+        const cleanSource = summarySource.replace(/<[^>]*>/g, '');
+        const summary = cleanSource.replace(/\s+/g, ' ').slice(0, 140) + (cleanSource.length > 140 ? '...' : '');
         return {
           id: workspace._id,
           title: workspace.name || 'Untitled Chat',
@@ -429,7 +430,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const summarySource =
       [...messages].reverse().find((m) => m.role === 'assistant' && m.content.trim())?.content ||
       messages[0].content;
-    const summary = summarySource.replace(/\s+/g, ' ').slice(0, 140) + (summarySource.length > 140 ? '...' : '');
+    const cleanSource = summarySource.replace(/<[^>]*>/g, '');
+    const summary = cleanSource.replace(/\s+/g, ' ').slice(0, 140) + (cleanSource.length > 140 ? '...' : '');
 
     try {
       let workspaceId = chatId;
