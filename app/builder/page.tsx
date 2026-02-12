@@ -36,7 +36,7 @@ import { toast } from 'sonner';
 
 // Stores
 import { useChatStore, PROVIDERS } from '@/lib/stores/chat';
-import { useWorkbenchStore } from '@/lib/stores/workbench';
+import { useWorkbenchStore, workbenchStore } from '@/lib/stores/workbench';
 import { webcontainer } from '@/lib/webcontainer';
 import { path as pathUtils } from '@/utils/path';
 import { WORK_DIR } from '@/utils/constants';
@@ -774,10 +774,16 @@ function BuilderContent() {
                    // Set guard flag to prevent loadChat effect from interfering
                    isCreatingNewChatRef.current = true;
                    
+                   // stop any running generation
+                   stopGeneration();
+                   
+                   // Reset terminal content immediately
+                   workbenchStore.terminalStore.boltTerminal.terminal?.reset();
+
                    // Reset stores (this clears chatId to empty string)
                    useChatStore.getState().reset();
-                   resetWorkbench();
-                   await clearProject();
+                   resetWorkbench(); // Resets UI state
+                   await clearProject(); // Clears files and file store
 
                    // Clear URL immediately (use replace to avoid back button issues)
                    router.replace('/builder');
