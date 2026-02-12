@@ -10,6 +10,7 @@ import {
   updateWorkspace,
   deleteWorkspace,
   type WorkspaceMessage,
+  type WorkspaceRecord,
 } from '@/lib/persistence/workspaces';
 
 export interface ChatMessage {
@@ -128,6 +129,7 @@ let messageCounter = 0;
 let autoRunInProgress = false;
 let fileWatcherInitialized = false;
 let fileSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+let activeLoadId = 0;
 
 function formatWorkspaceError(error: unknown, fallback: string) {
   const message = error instanceof Error ? error.message : '';
@@ -165,6 +167,37 @@ function fromWorkspaceMessages(messages: WorkspaceMessage[]): ChatMessage[] {
   });
 }
 
+function chatTimestampValue(timestamp: unknown) {
+  if (typeof timestamp === 'string' || timestamp instanceof Date) {
+    const value = new Date(timestamp).getTime();
+    return Number.isFinite(value) ? value : 0;
+  }
+  return 0;
+}
+
+function workspaceToChatMetadata(workspace: WorkspaceRecord): ChatMetadata {
+  const lastMessage = (workspace.messages?.[workspace.messages.length - 1]?.content || '').replace(/<[^>]*>/g, '');
+  const summarySource =
+    [...(workspace.messages || [])]
+      .reverse()
+      .find((m) => m.role === 'assistant' && m.content?.trim())
+      ?.content || (workspace.messages?.[0]?.content || '');
+  const cleanSource = summarySource.replace(/<[^>]*>/g, '');
+  const summary = cleanSource.replace(/\s+/g, ' ').slice(0, 140) + (cleanSource.length > 140 ? '...' : '');
+
+  return {
+    id: workspace._id,
+    title: workspace.name || 'Untitled Chat',
+    lastMessage: lastMessage.slice(0, 100),
+    summary,
+    timestamp: workspace.updatedAt || workspace.createdAt || new Date().toISOString(),
+  } as ChatMetadata;
+}
+
+function sortChats(chats: ChatMetadata[]) {
+  return [...chats].sort((a, b) => chatTimestampValue(b.timestamp) - chatTimestampValue(a.timestamp));
+}
+
 async function ensureDevServerRunning() {
   if (autoRunInProgress) return;
   autoRunInProgress = true;
@@ -197,33 +230,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
   initialize: async () => {
     try {
       const workspaces = await listWorkspaces();
-      const chats = workspaces.map((workspace) => {
-        const lastMessage = (workspace.messages?.[workspace.messages.length - 1]?.content || '').replace(/<[^>]*>/g, '');
-        const summarySource =
-          [...(workspace.messages || [])]
-            .reverse()
-            .find((m) => m.role === 'assistant' && m.content?.trim())
-            ?.content || (workspace.messages?.[0]?.content || '');
-        const cleanSource = summarySource.replace(/<[^>]*>/g, '');
-        const summary = cleanSource.replace(/\s+/g, ' ').slice(0, 140) + (cleanSource.length > 140 ? '...' : '');
-        return {
-          id: workspace._id,
-          title: workspace.name || 'Untitled Chat',
-          lastMessage: lastMessage.slice(0, 100),
-          summary,
-          timestamp: workspace.updatedAt || workspace.createdAt || new Date().toISOString(),
-        } as ChatMetadata;
-      });
+      const chats = sortChats(workspaces.map(workspaceToChatMetadata));
       set({ chats, error: null });
 
       if (!fileWatcherInitialized) {
         fileWatcherInitialized = true;
         workbenchStore.files.listen(() => {
           if (get().messages.length === 0) return;
+          if (workbenchStore.isRestoringHistory.get()) return;
           if (fileSaveTimeout) {
             clearTimeout(fileSaveTimeout);
           }
           fileSaveTimeout = setTimeout(() => {
+            if (workbenchStore.isRestoringHistory.get()) return;
             get().saveCurrentChat();
           }, 1500);
         });
@@ -359,8 +378,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
   }),
   
   loadChat: async (id) => {
+    const loadId = ++activeLoadId;
+    console.log('ChatStore: Loading chat', id, 'Request:', loadId);
+
+    // Stop any ongoing generation/actions from previous chat
+    workbenchStore.stopGeneration();
+    // Kill any running terminal process (e.g. dev server) from previous chat
+    workbenchStore.terminalStore.boltTerminal.abort();
+    // Clear terminal buffer to start fresh for the new chat
+    workbenchStore.terminalStore.boltTerminal.terminal?.reset();
+
     try {
       const workspace = await getWorkspace(id);
+      if (activeLoadId !== loadId) {
+        console.log('ChatStore: Load aborted checks (newer request started)');
+        return;
+      }
+      console.log('ChatStore: Workspace loaded', workspace._id);
 
       const messages = fromWorkspaceMessages(workspace.messages || []);
       set({
@@ -373,8 +407,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Clear and restore project files
       workbenchStore.isRestoringHistory.set(true);
       try {
+        console.log('ChatStore: Clearing project...');
+        // Clear previous artifacts to avoid confusion
+        workbenchStore.artifacts.set({});
         await workbenchStore.clearProject();
+        if (activeLoadId !== loadId) return;
+
         if (workspace.fileData) {
+          console.log('ChatStore: Restoring snapshot...');
           await restoreSnapshot({
             chatId: workspace._id,
             messageId: '',
@@ -382,6 +422,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             timestamp: Date.now(),
           });
         }
+        if (activeLoadId !== loadId) return;
       } finally {
         workbenchStore.isRestoringHistory.set(false);
       }
@@ -398,17 +439,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       await deleteWorkspace(id);
       const workspaces = await listWorkspaces();
-      const chats = workspaces.map((workspace) => ({
-        id: workspace._id,
-        title: workspace.name || 'Untitled Chat',
-        lastMessage: workspace.messages?.[workspace.messages.length - 1]?.content?.slice(0, 100) || '',
-        summary:
-          [...(workspace.messages || [])]
-            .reverse()
-            .find((m) => m.role === 'assistant' && m.content?.trim())
-            ?.content?.slice(0, 140) || '',
-        timestamp: workspace.updatedAt || workspace.createdAt || new Date().toISOString(),
-      })) as ChatMetadata[];
+      const chats = sortChats(workspaces.map(workspaceToChatMetadata));
       set({ chats, error: null });
       
       // If deleting current chat, reset
@@ -426,12 +457,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (messages.length === 0) return;
 
     const title = messages[0].content.slice(0, 50) + (messages[0].content.length > 50 ? '...' : '');
-    const lastMessage = messages[messages.length - 1].content.slice(0, 100);
-    const summarySource =
-      [...messages].reverse().find((m) => m.role === 'assistant' && m.content.trim())?.content ||
-      messages[0].content;
-    const cleanSource = summarySource.replace(/<[^>]*>/g, '');
-    const summary = cleanSource.replace(/\s+/g, ' ').slice(0, 140) + (cleanSource.length > 140 ? '...' : '');
 
     try {
       let workspaceId = chatId;
@@ -449,13 +474,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
 
       const workspaces = await listWorkspaces();
-      const chats = workspaces.map((workspace) => ({
-        id: workspace._id,
-        title: workspace.name || 'Untitled Chat',
-        lastMessage: workspace.messages?.[workspace.messages.length - 1]?.content?.slice(0, 100) || '',
-        summary,
-        timestamp: workspace.updatedAt || workspace.createdAt || new Date().toISOString(),
-      })) as ChatMetadata[];
+      const chats = sortChats(workspaces.map(workspaceToChatMetadata));
       set({ chats, error: null });
     } catch (error) {
       console.error('Failed to save chat:', error);
@@ -480,17 +499,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         history: [],
       });
       const workspaces = await listWorkspaces();
-      const chats = workspaces.map((ws) => ({
-        id: ws._id,
-        title: ws.name || 'Untitled Chat',
-        lastMessage: ws.messages?.[ws.messages.length - 1]?.content?.slice(0, 100) || '',
-        summary:
-          [...(ws.messages || [])]
-            .reverse()
-            .find((m) => m.role === 'assistant' && m.content?.trim())
-            ?.content?.slice(0, 140) || '',
-        timestamp: ws.updatedAt || ws.createdAt || new Date().toISOString(),
-      })) as ChatMetadata[];
+      const chats = sortChats(workspaces.map(workspaceToChatMetadata));
       set({ chats, chatId: workspace._id, messages: forkedMessages, chatStarted: true, error: null });
     } catch (error) {
       console.error('Failed to fork chat:', error);
@@ -519,17 +528,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         });
       }
       const workspaces = await listWorkspaces();
-      const chats = workspaces.map((workspace) => ({
-        id: workspace._id,
-        title: workspace.name || 'Untitled Chat',
-        lastMessage: workspace.messages?.[workspace.messages.length - 1]?.content?.slice(0, 100) || '',
-        summary:
-          [...(workspace.messages || [])]
-            .reverse()
-            .find((m) => m.role === 'assistant' && m.content?.trim())
-            ?.content?.slice(0, 140) || '',
-        timestamp: workspace.updatedAt || workspace.createdAt || new Date().toISOString(),
-      })) as ChatMetadata[];
+      const chats = sortChats(workspaces.map(workspaceToChatMetadata));
       set({ chats, error: null });
     } catch (error) {
       console.error('Failed to rewind chat:', error);

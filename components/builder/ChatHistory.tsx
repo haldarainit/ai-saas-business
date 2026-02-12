@@ -4,7 +4,7 @@ import { useChatStore } from '@/lib/stores/chat';
 import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
 import { MessageSquare, Trash2, Clock, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,15 +18,12 @@ import {
 
 interface ChatHistoryProps {
   onNewChat?: () => void;
+  onSelectChat?: (id: string) => void;
 }
 
-export default function ChatHistory({ onNewChat }: ChatHistoryProps) {
-  const { chats, loadChat, deleteChat, chatId: currentChatId, initialize } = useChatStore();
+export default function ChatHistory({ onNewChat, onSelectChat }: ChatHistoryProps) {
+  const { chats, loadChat, deleteChat, chatId: currentChatId } = useChatStore();
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
-
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -107,7 +104,14 @@ export default function ChatHistory({ onNewChat }: ChatHistoryProps) {
                       className="group relative"
                     >
                       <button
-                        onClick={() => loadChat(chat.id)}
+                        onClick={() => {
+                          console.log('ChatHistory: Clicked chat', chat.id);
+                          if (onSelectChat) {
+                            onSelectChat(chat.id);
+                          } else {
+                            loadChat(chat.id);
+                          }
+                        }}
                         className={`w-full text-left p-3 rounded-xl transition-all duration-200 border border-transparent flex items-start gap-3 ${
                           currentChatId === chat.id
                             ? 'bg-slate-800/80 text-white border-slate-700/50 shadow-lg shadow-black/20'

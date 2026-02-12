@@ -207,8 +207,11 @@ function BuilderContent() {
   useEffect(() => {
     if (!user) return; // Don't update URL if not logged in
     const params = new URLSearchParams(searchParamsString);
+    const urlChatId = params.get('chatId');
+
+    // URL is the source of truth when present. Only write to the URL when it's missing.
     if (chatId) {
-      if (params.get('chatId') !== chatId) {
+      if (!urlChatId) {
         params.set('chatId', chatId);
         const query = params.toString();
         router.replace(query ? `/builder?${query}` : '/builder', { scroll: false });
@@ -216,12 +219,23 @@ function BuilderContent() {
       return;
     }
 
-    if (params.has('chatId')) {
+    if (urlChatId) {
       params.delete('chatId');
       const query = params.toString();
       router.replace(query ? `/builder?${query}` : '/builder', { scroll: false });
     }
   }, [chatId, router, searchParamsString]);
+
+  const handleSelectChat = useCallback(
+    (id: string) => {
+      const params = new URLSearchParams(searchParamsString);
+      if (params.get('chatId') === id) return;
+      params.set('chatId', id);
+      const query = params.toString();
+      router.push(query ? `/builder?${query}` : '/builder');
+    },
+    [router, searchParamsString],
+  );
 
   const initializeWebContainer = async () => {
     setStatus('booting');
@@ -770,7 +784,7 @@ function BuilderContent() {
               className="bg-slate-900 border-r border-slate-700/50 overflow-hidden hidden md:block"
             >
               <div className="w-[260px] h-full">
-                <ChatHistory onNewChat={async () => {
+                <ChatHistory onSelectChat={handleSelectChat} onNewChat={async () => {
                    // Set guard flag to prevent loadChat effect from interfering
                    isCreatingNewChatRef.current = true;
                    
