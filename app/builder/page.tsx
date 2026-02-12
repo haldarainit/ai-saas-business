@@ -61,6 +61,7 @@ function BuilderContent() {
   const searchParamsString = searchParams.toString();
   const chatIdParam = searchParams.get('chatId');
   const hasLoadedFromUrl = useRef(false);
+  const isCreatingNewChatRef = useRef(false); // Guard flag for new chat creation
 
   // Chat Store
   const {
@@ -196,7 +197,7 @@ function BuilderContent() {
   useEffect(() => {
     if (!chatIdParam || authLoading || !user) return;
     if (chatIdParam === chatId) return;
-    // Removed hasLoadedFromUrl check to ensure it retries if auth was pending
+    if (isCreatingNewChatRef.current) return; // Skip during new chat creation
     
     console.log('Loading chat from URL:', chatIdParam);
     loadChat(chatIdParam);
@@ -509,6 +510,10 @@ function BuilderContent() {
       
       // Ensure the last message is marked as not streaming
       useChatStore.getState().updateLastMessage(undefined, { streaming: false });
+
+      // Clean up generating status if stuck
+      setStatus((prev) => prev === 'generating' ? 'ready' : prev);
+      if (status === 'generating') setStatusMessage('Generation complete');
     }
   }, [currentModel, currentProvider, messages, addMessage, updateLastMessage, setIsLoading, setIsStreaming, setShowWorkbench, parseMessage, setWorkbenchStreaming]);
 
@@ -762,21 +767,25 @@ function BuilderContent() {
             >
               <div className="w-[260px] h-full">
                 <ChatHistory onNewChat={async () => {
-                  // Save current chat if needed (ChatStore auto-saves but good to be explicit for last state)
-                   await useChatStore.getState().saveCurrentChat();
+                   // Set guard flag to prevent loadChat effect from interfering
+                   isCreatingNewChatRef.current = true;
                    
-                   // Reset everything for new chat
+                   // Reset stores (this clears chatId to empty string)
                    useChatStore.getState().reset();
                    resetWorkbench();
-                   
-                   // Clear WebContainer project files and previews
                    await clearProject();
 
-                   // Re-init webcontainer to be safe/clean state
-                   initializeWebContainer();
+                   // Clear URL immediately (use replace to avoid back button issues)
+                   router.replace('/builder');
                    
-                   // Close mobile menu if open
+                   // Re-init webcontainer
+                   initializeWebContainer();
                    setShowMobileMenu(false);
+
+                   // Clear guard flag after navigation settles
+                   setTimeout(() => {
+                     isCreatingNewChatRef.current = false;
+                   }, 500);
                 }} />
               </div>
             </motion.div>

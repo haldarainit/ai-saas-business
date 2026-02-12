@@ -60,8 +60,8 @@ function parseAIContent(content: string): ParsedContent {
 
   // Extract artifact attributes
   const attrsStr = openMatch[1];
-  const titleMatch = /title="([^"]*)"/.exec(attrsStr);
-  const idMatch = /id="([^"]*)"/.exec(attrsStr);
+  const titleMatch = /title=["']?([^"']+)["']?/.exec(attrsStr);
+  const idMatch = /id=["']?([^"']+)["']?/.exec(attrsStr);
   const title = titleMatch ? titleMatch[1] : 'Generated Code';
   const id = idMatch ? idMatch[1] : 'artifact';
 
@@ -80,8 +80,8 @@ function parseAIContent(content: string): ParsedContent {
     const actionAttrs = actionMatch[1];
     const actionContent = actionMatch[2].trim();
 
-    const typeMatch = /type="([^"]*)"/.exec(actionAttrs);
-    const filePathMatch = /filePath="([^"]*)"/.exec(actionAttrs);
+    const typeMatch = /type=["']?([^"']+)["']?/.exec(actionAttrs);
+    const filePathMatch = /filePath=["']?([^"']+)["']?/.exec(actionAttrs);
     const actionType = typeMatch ? typeMatch[1] : 'unknown';
     const filePath = filePathMatch ? filePathMatch[1] : undefined;
 
@@ -103,70 +103,34 @@ function parseAIContent(content: string): ParsedContent {
 // --- Action Summary Card ---
 
 function ActionCard({ action, index }: { action: ParsedAction; index: number }) {
-  const [expanded, setExpanded] = useState(false);
   const { selectFile } = useWorkbenchStore();
   
-  // Clean up file path for display
-  const displayPath = useMemo(() => {
-    if (!action.filePath) return '';
-    let p = action.filePath;
-    if (p.startsWith('/home/project/')) p = p.substring('/home/project/'.length);
-    if (p.startsWith('home/project/')) p = p.substring('home/project/'.length);
-    if (p.startsWith('project/')) p = p.substring('project/'.length);
-    return p;
-  }, [action.filePath]);
-
   if (action.type === 'file') {
     return (
-      <div className="border border-slate-700/60 rounded-lg overflow-hidden bg-slate-800/40">
+      <div className="border border-slate-800 rounded mb-1 overflow-hidden bg-slate-900/50">
         <button
           onClick={() => {
-            setExpanded(!expanded);
             if (action.filePath) {
-              // Normalize and select in editor
-              let fp = action.filePath;
-              if (!fp.startsWith('/home/project/')) {
-                fp = `/home/project/${fp.replace(/^\/?(home\/project\/|project\/)?/, '')}`;
-              }
+              // Normalize path for editor selection
+              const fp = action.filePath.startsWith('/home/project/') 
+                ? action.filePath 
+                : `/home/project/${action.filePath}`;
               selectFile(fp);
             }
           }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700/30 transition-colors"
+          className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-slate-800 transition-colors"
         >
-          <FileCode className="w-4 h-4 text-blue-400 shrink-0" />
-          <span className="text-sm text-slate-300 font-mono truncate flex-1">{displayPath}</span>
-          {expanded ? (
-            <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-          ) : (
-            <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
-          )}
+          <FileCode className="w-3.5 h-3.5 text-blue-400/80 shrink-0" />
+          <span className="text-sm text-slate-300 font-mono truncate flex-1">{action.filePath}</span>
         </button>
-        <AnimatePresence>
-          {expanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="overflow-hidden"
-            >
-              <div className="border-t border-slate-700/40 px-3 py-2 max-h-48 overflow-y-auto">
-                <pre className="text-xs text-slate-400 font-mono whitespace-pre-wrap break-all">
-                  {action.content.slice(0, 2000)}
-                  {action.content.length > 2000 && '\n... (truncated)'}
-                </pre>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     );
   }
 
   if (action.type === 'shell') {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 border border-slate-700/60 rounded-lg bg-slate-800/40">
-        <Terminal className="w-4 h-4 text-green-400 shrink-0" />
+      <div className="flex items-center gap-2 px-2 py-1.5 border border-slate-800 rounded mb-1 bg-slate-900/50">
+        <Terminal className="w-3.5 h-3.5 text-green-400/80 shrink-0" />
         <code className="text-sm text-green-300 font-mono truncate">{action.content.trim()}</code>
       </div>
     );
@@ -174,16 +138,16 @@ function ActionCard({ action, index }: { action: ParsedAction; index: number }) 
 
   if (action.type === 'start') {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 border border-slate-700/60 rounded-lg bg-slate-800/40">
-        <Play className="w-4 h-4 text-orange-400 shrink-0" />
+      <div className="flex items-center gap-2 px-2 py-1.5 border border-slate-800 rounded mb-1 bg-slate-900/50">
+        <Play className="w-3.5 h-3.5 text-orange-400/80 shrink-0" />
         <code className="text-sm text-orange-300 font-mono truncate">{action.content.trim() || 'npm run dev'}</code>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 border border-slate-700/60 rounded-lg bg-slate-800/40">
-      <Package className="w-4 h-4 text-slate-400 shrink-0" />
+    <div className="flex items-center gap-2 px-2 py-1.5 border border-slate-800 rounded mb-1 bg-slate-900/50">
+      <Package className="w-3.5 h-3.5 text-slate-400 shrink-0" />
       <span className="text-sm text-slate-400">{action.type}: {action.content.slice(0, 100)}</span>
     </div>
   );
@@ -195,8 +159,35 @@ function ArtifactSummary({ artifact, isStreaming }: { artifact: ParsedArtifact; 
   const [showAll, setShowAll] = useState(false);
   const { setShowWorkbench } = useWorkbenchStore();
   
-  const fileActions = artifact.actions.filter(a => a.type === 'file');
-  const shellActions = artifact.actions.filter(a => a.type === 'shell' || a.type === 'start');
+  // Clean file paths and filter actions
+  const fileActions = artifact.actions
+    .filter(a => a.type === 'file')
+    .map(action => ({
+      ...action,
+      filePath: action.filePath?.replace(/^\/?(home\/project\/|project\/)?/, '')
+    }));
+  
+  // Deduplicate shell/start commands and filter out auto-handled ones
+  const shellActions = artifact.actions
+    .filter(a => a.type === 'shell' || a.type === 'start')
+    .reduce((acc, action) => {
+      const content = action.content.trim().toLowerCase();
+      
+      // Skip auto-handled commands (npm install, npm run dev) - they run automatically
+      if (content.includes('npm install') || 
+          content.includes('npm i') || 
+          content.includes('npm run dev') ||
+          content.includes('npm start')) {
+        return acc;
+      }
+      
+      // Deduplicate by content
+      const exists = acc.some(a => a.content.trim() === action.content.trim());
+      if (!exists) {
+        acc.push(action);
+      }
+      return acc;
+    }, [] as ParsedAction[]);
   
   const visibleFiles = showAll ? fileActions : fileActions.slice(0, 5);
   const hiddenCount = fileActions.length - visibleFiles.length;
@@ -236,7 +227,7 @@ function ArtifactSummary({ artifact, isStreaming }: { artifact: ParsedArtifact; 
         </div>
       )}
 
-      {/* Shell/Start actions */}
+      {/* Shell/Start actions (only show non-auto-handled ones) */}
       {shellActions.length > 0 && (
         <div className="space-y-1 pt-1">
           {shellActions.map((action, i) => (

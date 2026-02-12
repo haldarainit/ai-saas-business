@@ -59,7 +59,7 @@ export class WorkbenchStore {
   #lastAutoInstallAt = 0;
   #lastAutoStartAt = 0;
   #lastArtifactId: string | undefined;
-  #autoCooldownMs = 15000;
+  #autoCooldownMs = 5000; // Reduced from 15000 for faster setup
   #lastEnsureAt = 0;
   #ensureCooldownMs = 4000;
 
@@ -862,7 +862,17 @@ export class WorkbenchStore {
     artifact.runner.runAction(data);
   }
 
+  // Additional auto-setup guard flags (other properties defined above)
+  #autoSetupInProgress = false; // Guard flag to prevent concurrent runs
+  #autoSetupTimeoutId: ReturnType<typeof setTimeout> | null = null; // Track scheduled runs
+
   #maybeAutoSetup() {
+    // Prevent concurrent runs
+    if (this.#autoSetupInProgress) {
+      console.log('[AutoSetup] Already in progress, skipping...');
+      return;
+    }
+
     if (this.isRestoringHistory.get()) return;
     if (!this.#hasPackageJson()) return;
 
@@ -872,9 +882,9 @@ export class WorkbenchStore {
     if (pkgFile?.type === 'file') {
       try {
         JSON.parse(pkgFile.content);
-      } catch {
-        console.log('[AutoSetup] package.json has invalid JSON, retrying in 2s...');
-        setTimeout(() => this.#maybeAutoSetup(), 2000);
+      } catch (e) {
+        console.log('[AutoSetup] package.json has invalid JSON, retrying in 2s...', e);
+        this.#autoSetupTimeoutId = setTimeout(() => this.#maybeAutoSetup(), 2000);
         return;
       }
     }
@@ -888,7 +898,8 @@ export class WorkbenchStore {
       const timeSinceLastInstall = now - this.#lastAutoInstallAt;
       
       if (timeSinceLastInstall > this.#autoCooldownMs) {
-        console.log('[AutoSetup] Triggering npm install');
+        console.log('[AutoSetup] Triggering npm install (attempt', this.#autoInstallAttempts + 1, ')');
+        this.#autoSetupInProgress = true; // Set guard
         this.#pendingInstall = false;
         this.#autoInstallAttempts++;
         this.#lastAutoInstallAt = now;
@@ -896,12 +907,22 @@ export class WorkbenchStore {
         // After install, we need to start the dev server
         this.#pendingStart = true;
         
-        this.#queueRunnerAction({ type: 'shell', content: 'npm install' } as BoltAction);
+        try {
+          this.#queueRunnerAction({ type: 'shell', content: 'npm install' } as BoltAction);
+        } catch (error) {
+          console.error('[AutoSetup] Failed to queue npm install:', error);
+          // Reset flags so user can manually retry
+          this.#pendingInstall = true;
+          this.#autoInstallAttempts--;
+          this.#autoSetupInProgress = false;
+          return;
+        }
         
-        // Schedule dev server start after install has time to complete
-        setTimeout(() => {
+        // Schedule dev server start after install has time to complete (reduced from 20s to 10s)
+        this.#autoSetupTimeoutId = setTimeout(() => {
+          this.#autoSetupInProgress = false; // Clear guard before next phase
           this.#maybeAutoSetup();
-        }, 20000);
+        }, 10000); // Reduced from 20000ms
         return;
       }
     }
@@ -913,12 +934,29 @@ export class WorkbenchStore {
       const timeSinceLastStart = now - this.#lastAutoStartAt;
 
       if (timeSinceLastStart > this.#autoCooldownMs) {
-        console.log('[AutoSetup] Triggering npm run dev');
+        console.log('[AutoSetup] Triggering npm run dev (attempt', this.#autoStartAttempts + 1, ')');
+        this.#autoSetupInProgress = true; // Set guard
         this.#pendingStart = false;
         this.#autoStartAttempts++;
         this.#lastAutoStartAt = now;
-        this.#queueRunnerAction({ type: 'start', content: 'npm run dev' } as BoltAction);
+        
+        try {
+          this.#queueRunnerAction({ type: 'start', content: 'npm run dev' } as BoltAction);
+        } catch (error) {
+          console.error('[AutoSetup] Failed to queue npm run dev:', error);
+          // Reset flags so user can manually retry
+          this.#pendingStart = true;
+          this.#autoStartAttempts--;
+        }
+        
+        // Clear guard after dev server starts
+        setTimeout(() => {
+          this.#autoSetupInProgress = false;
+        }, 3000);
       }
+    } else {
+      // No actions taken, clear guard
+      this.#autoSetupInProgress = false;
     }
   }
 
