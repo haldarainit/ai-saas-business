@@ -15,12 +15,24 @@ import {
   ChevronRight,
   Package,
   Eye,
+  CheckCircle,
 } from 'lucide-react';
 import { useChatStore, type ChatMessage } from '@/lib/stores/chat';
 import { Markdown } from '@/components/chat/Markdown';
 import { useWorkbenchStore } from '@/lib/stores/workbench';
 
-// --- Artifact/Action Parsing ---
+// --- Artifact/Action Parsing for RESTORED chats ---
+// When a chat is restored from the database, the workbench artifacts store is empty.
+// The message content has __boltArtifact__ div placeholders from the streaming parser,
+// which the Markdown component tries to render via the <Artifact> component.
+// But <Artifact> returns null because the artifact data doesn't exist in the store.
+//
+// For restored chats, we need a FALLBACK: parse the ORIGINAL raw content that was
+// also saved (it contains boltArtifact tags), and render a static summary.
+// 
+// However, since we only save the parsed content (with __boltArtifact__ placeholders),
+// we render the descriptions via Markdown and show a simple "Project files" summary
+// for the artifact placeholder sections.
 
 interface ParsedAction {
   type: string;
@@ -43,7 +55,8 @@ interface ParsedContent {
 
 /**
  * Parse AI response to extract boltArtifact/boltAction tags and separate them
- * from regular text content. This allows rendering action summaries instead of raw XML.
+ * from regular text content. This is used as a FALLBACK for cases where the
+ * content still has raw boltArtifact tags (e.g. if the raw response was stored).
  */
 function parseAIContent(content: string): ParsedContent {
   const artifactOpenRegex = /<boltArtifact\b([^>]*)>/;
@@ -100,18 +113,18 @@ function parseAIContent(content: string): ParsedContent {
   };
 }
 
-// --- Action Summary Card ---
+// --- Action Summary Card (for both live and restored chats) ---
 
 function ActionCard({ action, index }: { action: ParsedAction; index: number }) {
   const { selectFile } = useWorkbenchStore();
   
   if (action.type === 'file') {
+    const cleanPath = action.filePath?.replace(/^\/?(?:home\/project\/|project\/)?/, '') || '';
     return (
       <div className="border border-slate-800 rounded mb-1 overflow-hidden bg-slate-900/50">
         <button
           onClick={() => {
             if (action.filePath) {
-              // Normalize path for editor selection
               const fp = action.filePath.startsWith('/home/project/') 
                 ? action.filePath 
                 : `/home/project/${action.filePath}`;
@@ -121,7 +134,7 @@ function ActionCard({ action, index }: { action: ParsedAction; index: number }) 
           className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-slate-800 transition-colors"
         >
           <FileCode className="w-3.5 h-3.5 text-blue-400/80 shrink-0" />
-          <span className="text-sm text-slate-300 font-mono truncate flex-1">{action.filePath}</span>
+          <span className="text-sm text-slate-300 font-mono truncate flex-1">{cleanPath}</span>
         </button>
       </div>
     );
@@ -153,7 +166,7 @@ function ActionCard({ action, index }: { action: ParsedAction; index: number }) 
   );
 }
 
-// --- Artifact Summary ---
+// --- Artifact Summary (shown for both live streaming and restored chats) ---
 
 function ArtifactSummary({ artifact, isStreaming }: { artifact: ParsedArtifact; isStreaming?: boolean }) {
   const [showAll, setShowAll] = useState(false);
@@ -164,7 +177,7 @@ function ArtifactSummary({ artifact, isStreaming }: { artifact: ParsedArtifact; 
     .filter(a => a.type === 'file')
     .map(action => ({
       ...action,
-      filePath: action.filePath?.replace(/^\/?(home\/project\/|project\/)?/, '')
+      filePath: action.filePath?.replace(/^\/?(?:home\/project\/|project\/)?/, '')
     }));
   
   // Deduplicate shell/start commands and filter out auto-handled ones
@@ -173,7 +186,7 @@ function ArtifactSummary({ artifact, isStreaming }: { artifact: ParsedArtifact; 
     .reduce((acc, action) => {
       const content = action.content.trim().toLowerCase();
       
-      // Skip auto-handled commands (npm install, npm run dev) - they run automatically
+      // Skip auto-handled commands
       if (content.includes('npm install') || 
           content.includes('npm i') || 
           content.includes('npm run dev') ||
@@ -181,7 +194,6 @@ function ArtifactSummary({ artifact, isStreaming }: { artifact: ParsedArtifact; 
         return acc;
       }
       
-      // Deduplicate by content
       const exists = acc.some(a => a.content.trim() === action.content.trim());
       if (!exists) {
         acc.push(action);
@@ -227,7 +239,7 @@ function ArtifactSummary({ artifact, isStreaming }: { artifact: ParsedArtifact; 
         </div>
       )}
 
-      {/* Shell/Start actions (only show non-auto-handled ones) */}
+      {/* Shell/Start actions */}
       {shellActions.length > 0 && (
         <div className="space-y-1 pt-1">
           {shellActions.map((action, i) => (
@@ -237,6 +249,47 @@ function ArtifactSummary({ artifact, isStreaming }: { artifact: ParsedArtifact; 
       )}
     </div>
   );
+}
+
+// --- Restored Artifact Placeholder ---
+// When a chat is restored, the __boltArtifact__ placeholders exist in the content
+// but the workbench artifacts store is empty. This component provides a static fallback.
+
+function RestoredArtifactPlaceholder() {
+  const { setShowWorkbench } = useWorkbenchStore();
+  
+  return (
+    <div className="mt-3 border border-slate-700/60 rounded-lg overflow-hidden bg-slate-800/40">
+      <button
+        onClick={() => setShowWorkbench(true)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-700/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <CheckCircle className="w-4 h-4 text-green-400/80" />
+          <span className="text-sm font-medium text-slate-200">Project Files</span>
+        </div>
+        <span className="text-xs text-slate-400">Click to open Workbench</span>
+      </button>
+    </div>
+  );
+}
+
+// --- Determine how to render an AI message ---
+// 
+// There are 3 possible content formats for assistant messages:
+// 1. Content with raw <boltArtifact> tags (if raw response was stored)
+// 2. Content with __boltArtifact__ div placeholders (normal case after streaming parser)
+// 3. Plain text/markdown with no artifact references
+//
+// For case 1: Use parseAIContent() to show textBefore + ArtifactSummary + textAfter
+// For case 2: Use Markdown component which handles __boltArtifact__ via <Artifact> component
+//             BUT if the Artifact returns null (restored chat), show RestoredArtifactPlaceholder
+// For case 3: Just render as Markdown
+
+function detectContentType(content: string): 'raw_artifact' | 'parsed_artifact' | 'plain' {
+  if (/<boltArtifact\b/.test(content)) return 'raw_artifact';
+  if (content.includes('__boltArtifact__')) return 'parsed_artifact';
+  return 'plain';
 }
 
 // --- Message Component ---
@@ -252,6 +305,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const isMessageStreaming = message.metadata?.streaming;
+  const { artifacts } = useWorkbenchStore();
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
@@ -259,42 +313,79 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Parse AI content to extract artifact actions
+  // Determine content type and parse if needed
+  // For restored chats, prefer rawContent from metadata which has the full artifact info
+  const effectiveContent = useMemo(() => {
+    if (isUser || isSystem) return message.content;
+    // If we have rawContent in metadata and the main content has placeholder divs,
+    // prefer the rawContent for display (it has full artifact data)
+    if (message.metadata?.rawContent && message.content.includes('__boltArtifact__')) {
+      return message.metadata.rawContent;
+    }
+    return message.content;
+  }, [message.content, message.metadata?.rawContent, isUser, isSystem]);
+
+  const contentType = useMemo(() => {
+    if (isUser || isSystem) return 'plain' as const;
+    return detectContentType(effectiveContent);
+  }, [effectiveContent, isUser, isSystem]);
+
+  // Parse raw artifact content
   const parsed = useMemo(() => {
-    if (isUser || isSystem) return null;
-    return parseAIContent(message.content);
-  }, [message.content, isUser, isSystem]);
+    if (contentType !== 'raw_artifact') return null;
+    return parseAIContent(effectiveContent);
+  }, [effectiveContent, contentType]);
 
-  // For AI messages: render text + artifact summary
+  // Check if workbench has the artifacts for __boltArtifact__ rendering
+  const hasWorkbenchArtifacts = useMemo(() => {
+    return Object.keys(artifacts).length > 0;
+  }, [artifacts]);
+
+  // For AI messages: render based on content type
   const renderAIContent = () => {
-    if (!parsed) return null;
+    if (contentType === 'raw_artifact' && parsed) {
+      // Case 1: Raw boltArtifact tags - render with our custom summary
+      // This handles BOTH the original raw case AND restored chats (via rawContent fallback)
+      return (
+        <>
+          {parsed.textBefore && (
+            <div className="prose prose-sm max-w-none leading-relaxed prose-slate prose-invert">
+              <Markdown html>{parsed.textBefore}</Markdown>
+            </div>
+          )}
 
-    return (
-      <>
-        {/* Text content before artifact (explanation, intro) */}
-        {parsed.textBefore && (
-          <div className="prose prose-sm max-w-none leading-relaxed prose-slate prose-invert">
-            <Markdown html>{parsed.textBefore}</Markdown>
-          </div>
-        )}
+          {parsed.artifact && (
+            <ArtifactSummary 
+              artifact={parsed.artifact} 
+              isStreaming={isLast && isStreaming && parsed.isPartialArtifact}
+            />
+          )}
 
-        {/* Artifact summary card */}
-        {parsed.artifact && (
-          <ArtifactSummary 
-            artifact={parsed.artifact} 
-            isStreaming={isLast && isStreaming && parsed.isPartialArtifact}
-          />
-        )}
+          {parsed.textAfter && (
+            <div className="prose prose-sm max-w-none leading-relaxed prose-slate prose-invert mt-3">
+              <Markdown html>{parsed.textAfter}</Markdown>
+            </div>
+          )}
 
-        {/* Text content after artifact */}
-        {parsed.textAfter && (
-          <div className="prose prose-sm max-w-none leading-relaxed prose-slate prose-invert mt-3">
-            <Markdown html>{parsed.textAfter}</Markdown>
-          </div>
-        )}
+          {/* If no artifact found, render as normal markdown */}
+          {!parsed.artifact && !parsed.textBefore && (
+            <div className="prose prose-sm max-w-none leading-relaxed prose-slate prose-invert">
+              <Markdown html>
+                {(isLast && isStreaming) 
+                  ? `${effectiveContent}<span class="cursor-blink"></span>` 
+                  : effectiveContent}
+              </Markdown>
+            </div>
+          )}
+        </>
+      );
+    }
 
-        {/* If no artifact found, render as normal markdown */}
-        {!parsed.artifact && !parsed.textBefore && (
+    if (contentType === 'parsed_artifact') {
+      // Case 2: Content has __boltArtifact__ divs from the streaming parser
+      if (hasWorkbenchArtifacts) {
+        // Workbench has artifact data - use the proper Markdown -> Artifact rendering
+        return (
           <div className="prose prose-sm max-w-none leading-relaxed prose-slate prose-invert">
             <Markdown html>
               {(isLast && isStreaming) 
@@ -302,8 +393,39 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
                 : message.content}
             </Markdown>
           </div>
-        )}
-      </>
+        );
+      } else {
+        // Restored chat - workbench has no artifacts. 
+        // Split the content around __boltArtifact__ divs and render with placeholder
+        const parts = message.content.split(/<div[^>]*class="__boltArtifact__"[^>]*>[\s\S]*?<\/div>/g);
+        const artifactMatches = message.content.match(/<div[^>]*class="__boltArtifact__"[^>]*>[\s\S]*?<\/div>/g) || [];
+        
+        return (
+          <>
+            {parts.map((part, i) => (
+              <div key={i}>
+                {part.trim() && (
+                  <div className="prose prose-sm max-w-none leading-relaxed prose-slate prose-invert">
+                    <Markdown html>{part.trim()}</Markdown>
+                  </div>
+                )}
+                {i < artifactMatches.length && <RestoredArtifactPlaceholder />}
+              </div>
+            ))}
+          </>
+        );
+      }
+    }
+
+    // Case 3: Plain text/markdown
+    return (
+      <div className="prose prose-sm max-w-none leading-relaxed prose-slate prose-invert">
+        <Markdown html>
+          {(isLast && isStreaming) 
+            ? `${message.content}<span class="cursor-blink"></span>` 
+            : message.content}
+        </Markdown>
+      </div>
     );
   };
 

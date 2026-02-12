@@ -470,6 +470,10 @@ function BuilderContent() {
         updateLastMessage(assistantContent);
       }
 
+      // Save the raw AI response (with boltArtifact tags) in metadata
+      // so restored chats can reconstruct the artifact file list display
+      updateLastMessage(undefined, { rawContent: fullContent });
+
       setStatus('ready');
       setStatusMessage('Generation complete');
 

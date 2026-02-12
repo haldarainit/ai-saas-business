@@ -30,6 +30,7 @@ export interface ChatMessage {
     provider?: string;
     tokens?: number;
     streaming?: boolean;
+    rawContent?: string;
   };
 }
 
