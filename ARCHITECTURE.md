@@ -1,4 +1,4 @@
-#  Web Scraper Architecture & Flow
+# Web Scraper Architecture & Flow
 
 ## System Architecture.
 
