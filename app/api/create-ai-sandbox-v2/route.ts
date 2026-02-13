@@ -1,0 +1,134 @@
+// Create AI Sandbox API v2 - Production-ready sandbox creation
+import { NextResponse } from 'next/server';
+import { SandboxFactory } from '@/lib/sandbox/factory';
+import type { SandboxState } from '@/types/sandbox';
+import { sandboxManager } from '@/lib/sandbox/sandbox-manager';
+
+// Store active sandbox globally
+declare global {
+  // eslint-disable-next-line no-var
+  var activeSandboxProvider: any;
+  // eslint-disable-next-line no-var
+  var sandboxData: any;
+  // eslint-disable-next-line no-var
+  var existingFiles: Set<string>;
+  // eslint-disable-next-line no-var
+  var sandboxState: SandboxState;
+}
+
+export async function POST() {
+  try {
+    console.log('[create-ai-sandbox-v2] Creating sandbox...');
+    
+    // Clean up all existing sandboxes
+    console.log('[create-ai-sandbox-v2] Cleaning up existing sandboxes...');
+    await sandboxManager.terminateAll();
+    
+    // Also clean up legacy global state
+    if (global.activeSandboxProvider) {
+      try {
+        await global.activeSandboxProvider.terminate();
+      } catch (e) {
+        console.error('Failed to terminate legacy global sandbox:', e);
+      }
+      global.activeSandboxProvider = null;
+    }
+    
+    // Clear existing files tracking
+    if (global.existingFiles) {
+      global.existingFiles.clear();
+    } else {
+      global.existingFiles = new Set<string>();
+    }
+
+    // Create new sandbox using factory
+    const provider = SandboxFactory.create();
+    const sandboxInfo = await provider.createSandbox();
+    
+    console.log('[create-ai-sandbox-v2] Setting up Vite React app...');
+    await provider.setupViteApp();
+    
+    // Wait for Vite server to start
+    console.log('[create-ai-sandbox-v2] Waiting for Vite server...');
+    let isReady = false;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (!isReady && attempts < maxAttempts) {
+      attempts++;
+      try {
+        const response = await fetch(sandboxInfo.url, { 
+          method: 'HEAD',
+          signal: AbortSignal.timeout(5000)
+        });
+        if (response.ok || response.status === 200) {
+          isReady = true;
+          console.log('[create-ai-sandbox-v2] Vite server ready after', attempts, 'attempts');
+        }
+      } catch (e) {
+        console.log('[create-ai-sandbox-v2] Waiting for Vite... attempt', attempts);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
+    if (!isReady) {
+      console.warn('[create-ai-sandbox-v2] Vite server may not be ready yet');
+    }
+    
+    // Register with sandbox manager
+    sandboxManager.registerSandbox(sandboxInfo.sandboxId, provider);
+    
+    // Also store in legacy global state for backward compatibility
+    global.activeSandboxProvider = provider;
+    global.sandboxData = {
+      sandboxId: sandboxInfo.sandboxId,
+      url: sandboxInfo.url
+    };
+    
+    // Initialize sandbox state
+    global.sandboxState = {
+      fileCache: {
+        files: {},
+        lastSync: Date.now(),
+        sandboxId: sandboxInfo.sandboxId
+      },
+      sandbox: provider,
+      sandboxData: {
+        sandboxId: sandboxInfo.sandboxId,
+        url: sandboxInfo.url
+      }
+    };
+    
+    console.log('[create-ai-sandbox-v2] Sandbox ready at:', sandboxInfo.url);
+    
+    return NextResponse.json({
+      success: true,
+      sandboxId: sandboxInfo.sandboxId,
+      url: sandboxInfo.url,
+      provider: sandboxInfo.provider,
+      message: 'Sandbox created and Vite React app initialized'
+    });
+
+  } catch (error) {
+    console.error('[create-ai-sandbox-v2] Error:', error);
+    
+    // Clean up on error
+    await sandboxManager.terminateAll();
+    if (global.activeSandboxProvider) {
+      try {
+        await global.activeSandboxProvider.terminate();
+      } catch (e) {
+        console.error('Failed to terminate sandbox on error:', e);
+      }
+      global.activeSandboxProvider = null;
+    }
+    
+    return NextResponse.json(
+      { 
+        error: error instanceof Error ? error.message : 'Failed to create sandbox',
+        details: error instanceof Error ? error.stack : undefined
+      },
+      { status: 500 }
+    );
+  }
+}
