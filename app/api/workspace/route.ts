@@ -8,11 +8,37 @@ interface CreateWorkspaceBody {
     name: string;
 }
 
+function isDbUnavailable(error: unknown) {
+    const message = error instanceof Error ? error.message : '';
+    return (
+        message.includes('ETIMEDOUT') ||
+        message.includes('ECONN') ||
+        message.includes('Server selection timed out') ||
+        (error as any)?.name === 'MongoServerSelectionError' ||
+        (error as any)?.name === 'MongoNetworkError'
+    );
+}
+
+function dbUnavailableResponse(error: unknown) {
+    console.error('Database unavailable:', error);
+    return NextResponse.json(
+        { error: 'Database unavailable. Please try again shortly.' },
+        { status: 503, headers: { 'Retry-After': '15' } },
+    );
+}
+
 // GET - Get all workspaces for the authenticated user
 export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         console.log("GET /api/workspace - Connecting to DB...");
-        await dbConnect();
+        try {
+            await dbConnect();
+        } catch (error) {
+            if (isDbUnavailable(error)) {
+                return dbUnavailableResponse(error);
+            }
+            throw error;
+        }
         console.log("GET /api/workspace - Connected to DB");
 
         // Get authenticated user from session
@@ -33,6 +59,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         console.log(`GET /api/workspace - Found ${workspaces.length} workspaces`);
         return NextResponse.json({ workspaces });
     } catch (error) {
+        if (isDbUnavailable(error)) {
+            return dbUnavailableResponse(error);
+        }
         console.error('Error fetching workspaces:', error);
         return NextResponse.json(
             { error: 'Failed to fetch workspaces' },
@@ -45,7 +74,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         console.log("POST /api/workspace - Connecting to DB...");
-        await dbConnect();
+        try {
+            await dbConnect();
+        } catch (error) {
+            if (isDbUnavailable(error)) {
+                return dbUnavailableResponse(error);
+            }
+            throw error;
+        }
         console.log("POST /api/workspace - Connected to DB");
 
         // Get authenticated user from session
@@ -82,6 +118,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             workspace: workspace.toObject()
         });
     } catch (error) {
+        if (isDbUnavailable(error)) {
+            return dbUnavailableResponse(error);
+        }
         console.error('Error creating workspace:', error);
         return NextResponse.json(
             { error: 'Failed to create workspace' },

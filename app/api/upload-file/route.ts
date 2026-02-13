@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadFile } from "@/lib/cloudinary";
+import { getAuthenticatedUser } from "@/lib/get-auth-user";
 
 // Allowed file types
 const ALLOWED_TYPES = {
@@ -65,6 +66,10 @@ export async function POST(request: NextRequest) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
+        // Upload to Cloudinary (user-specific folder when available)
+        const { userId } = await getAuthenticatedUser(request);
+        const folder = userId ? `ai-saas-chat/${userId}` : 'ai-saas-chat';
+
         // Upload to Cloudinary
         // Determine resource type for Cloudinary
         let resourceType = 'auto';
@@ -74,7 +79,7 @@ export async function POST(request: NextRequest) {
 
         console.log(`Uploading file: ${file.name}, Size: ${file.size}, Type: ${resourceType}`);
 
-        const result = await uploadFile(buffer, 'ai-saas-chat', resourceType);
+        const result = await uploadFile(buffer, folder, resourceType);
 
         console.log("Cloudinary upload result:", result);
 

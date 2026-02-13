@@ -13,6 +13,8 @@ export interface IAttachment {
 export interface IMessage {
     role: string;
     content: string;
+    timestamp?: Date;
+    metadata?: Record<string, unknown>;
     attachments?: IAttachment[];
 }
 
@@ -47,6 +49,14 @@ const MessageSchema = new Schema<IMessage>({
     content: {
         type: String,
         required: true
+    },
+    timestamp: {
+        type: Date,
+        default: Date.now
+    },
+    metadata: {
+        type: Schema.Types.Mixed,
+        default: {}
     },
     attachments: [{
         type: {

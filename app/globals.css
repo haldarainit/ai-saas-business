@@ -7,6 +7,28 @@
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
+    /* Terminal Colors - Light Theme Default/Fallback */
+    --bolt-elements-terminal-backgroundColor: #ffffff;
+    --bolt-elements-terminal-textColor: #333333;
+    --bolt-elements-terminal-cursorColor: #333333;
+    --bolt-elements-terminal-selection-backgroundColor: #00000040;
+    --bolt-elements-terminal-color-black: #000000;
+    --bolt-elements-terminal-color-red: #cd3131;
+    --bolt-elements-terminal-color-green: #00bc00;
+    --bolt-elements-terminal-color-yellow: #949800;
+    --bolt-elements-terminal-color-blue: #0451a5;
+    --bolt-elements-terminal-color-magenta: #bc05bc;
+    --bolt-elements-terminal-color-cyan: #0598bc;
+    --bolt-elements-terminal-color-white: #555555;
+    --bolt-elements-terminal-color-brightBlack: #686868;
+    --bolt-elements-terminal-color-brightRed: #cd3131;
+    --bolt-elements-terminal-color-brightGreen: #00bc00;
+    --bolt-elements-terminal-color-brightYellow: #949800;
+    --bolt-elements-terminal-color-brightBlue: #0451a5;
+    --bolt-elements-terminal-color-brightMagenta: #bc05bc;
+    --bolt-elements-terminal-color-brightCyan: #0598bc;
+    --bolt-elements-terminal-color-brightWhite: #a5a5a5;
+
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
@@ -33,11 +55,47 @@
     --ring: 221.2 83.2% 53.3%;
 
     --radius: 0.5rem;
+    
+    /* Bolt Elements - Light Theme */
+    --bolt-elements-textPrimary: #0f172a;
+    --bolt-elements-textSecondary: #475569;
+    --bolt-elements-textTertiary: #64748b;
+    --bolt-elements-borderColor: #e2e8f0;
+    --bolt-elements-messages-linkColor: #2563eb;
+    --bolt-elements-messages-inlineCode-background: #f1f5f9;
+    --bolt-elements-messages-inlineCode-text: #0f172a;
+    --bolt-elements-background-depth-1: #ffffff;
+    --bolt-elements-background-depth-2: #f8fafc;
+    --bolt-elements-background-depth-3: #f1f5f9;
+    --bolt-elements-item-contentAccent: #2563eb;
+    --bolt-elements-item-backgroundAccent: #eff6ff;
   }
 
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
+
+    /* Terminal Colors - Dark Theme */
+    --bolt-elements-terminal-backgroundColor: #0f172a; /* depth-1 */
+    --bolt-elements-terminal-textColor: #eff0eb;
+    --bolt-elements-terminal-cursorColor: #eff0eb;
+    --bolt-elements-terminal-selection-backgroundColor: #97979b33;
+    --bolt-elements-terminal-color-black: #000000;
+    --bolt-elements-terminal-color-red: #ff5c57;
+    --bolt-elements-terminal-color-green: #5af78e;
+    --bolt-elements-terminal-color-yellow: #f3f99d;
+    --bolt-elements-terminal-color-blue: #57c7ff;
+    --bolt-elements-terminal-color-magenta: #ff6ac1;
+    --bolt-elements-terminal-color-cyan: #9aedfe;
+    --bolt-elements-terminal-color-white: #f1f1f0;
+    --bolt-elements-terminal-color-brightBlack: #686868;
+    --bolt-elements-terminal-color-brightRed: #ff5c57;
+    --bolt-elements-terminal-color-brightGreen: #5af78e;
+    --bolt-elements-terminal-color-brightYellow: #f3f99d;
+    --bolt-elements-terminal-color-brightBlue: #57c7ff;
+    --bolt-elements-terminal-color-brightMagenta: #ff6ac1;
+    --bolt-elements-terminal-color-brightCyan: #9aedfe;
+    --bolt-elements-terminal-color-brightWhite: #f1f1f0;
 
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
@@ -63,6 +121,20 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
+
+    /* Bolt Elements - Dark Theme */
+    --bolt-elements-textPrimary: #f8fafc;
+    --bolt-elements-textSecondary: #cbd5e1;
+    --bolt-elements-textTertiary: #94a3b8;
+    --bolt-elements-borderColor: #334155;
+    --bolt-elements-messages-linkColor: #60a5fa;
+    --bolt-elements-messages-inlineCode-background: #1e293b;
+    --bolt-elements-messages-inlineCode-text: #e2e8f0;
+    --bolt-elements-background-depth-1: #0f172a;
+    --bolt-elements-background-depth-2: #1e293b;
+    --bolt-elements-background-depth-3: #334155;
+    --bolt-elements-item-contentAccent: #60a5fa;
+    --bolt-elements-item-backgroundAccent: rgba(96, 165, 250, 0.1);
   }
 }
 
@@ -75,26 +147,45 @@
   }
 }
 
+/* Scrollbar Hide Utility */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
 /* Light mode grid background */
 .grid-background {
-  background-image: linear-gradient(to right, rgba(36, 101, 237, 0.2) 0.5px, transparent 0.5px),
+  background-image:
+    linear-gradient(to right, rgba(36, 101, 237, 0.2) 0.5px, transparent 0.5px),
     linear-gradient(to bottom, rgba(36, 101, 237, 0.2) 0.5px, transparent 0.5px) !important;
   background-size: 80px 80px !important;
 }
 
 .grid-gradient {
-  background: radial-gradient(70% 70% at 50% 50%, transparent 0%, rgba(36, 101, 237, 0.05) 100%) !important;
+  background: radial-gradient(
+    70% 70% at 50% 50%,
+    transparent 0%,
+    rgba(36, 101, 237, 0.05) 100%
+  ) !important;
 }
 
 /* Dark mode adjustments for the grid background */
 .dark .grid-background {
-  background-image: linear-gradient(to right, rgba(36, 101, 237, 0.2) 0.5px, transparent 0.5px),
+  background-image:
+    linear-gradient(to right, rgba(36, 101, 237, 0.2) 0.5px, transparent 0.5px),
     linear-gradient(to bottom, rgba(36, 101, 237, 0.2) 0.5px, transparent 0.5px) !important;
   background-size: 80px 80px !important;
 }
 
 .dark .grid-gradient {
-  background: radial-gradient(70% 70% at 50% 50%, transparent 0%, rgba(36, 101, 237, 0.05) 100%) !important;
+  background: radial-gradient(
+    70% 70% at 50% 50%,
+    transparent 0%,
+    rgba(36, 101, 237, 0.05) 100%
+  ) !important;
 }
 
 /* Card styling improvements for dark mode */
@@ -237,7 +328,8 @@
 }
 
 @keyframes logoShadow3D {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px) scale(1);
     opacity: 0.6;
   }
@@ -266,7 +358,8 @@
 }
 
 @keyframes float1 {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px) translateX(0px);
     opacity: 0.8;
   }
@@ -285,7 +378,8 @@
 }
 
 @keyframes float2 {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px) translateX(0px);
     opacity: 0.6;
   }
@@ -300,7 +394,8 @@
 }
 
 @keyframes float3 {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px) translateX(0px);
     opacity: 0.7;
   }
@@ -384,4 +479,192 @@
 }
 .dark .custom-dialog-scroll {
   scrollbar-color: rgba(59, 130, 246, 0.3) transparent;
+}
+
+/* ============================================ */
+/* Builder-specific Styles (bolt.diy-style)    */
+/* ============================================ */
+
+/* Modern scrollbar for builder */
+.modern-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.modern-scrollbar::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 4px;
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+  border-radius: 4px;
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+}
+
+/* Code editor styles */
+.cm-editor {
+  height: 100% !important;
+}
+
+.cm-scroller {
+  overflow: auto !important;
+}
+
+.cm-content {
+  font-family:
+    "JetBrains Mono", "Fira Code", "Monaco", "Menlo", monospace !important;
+}
+
+/* Terminal styles */
+.terminal-container {
+  font-family: "JetBrains Mono", "Fira Code", "Monaco", "Menlo", monospace;
+}
+
+/* Resize handles */
+[data-panel-resize-handle-id] {
+  position: relative;
+  z-index: 10;
+}
+
+[data-panel-resize-handle-id]::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+}
+
+/* Animation keyframes for builder */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(249, 115, 22, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.4);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Markdown prose styles for dark mode in builder */
+.prose-invert h1,
+.prose-invert h2,
+.prose-invert h3,
+.prose-invert h4,
+.prose-invert h5,
+.prose-invert h6 {
+  color: #f8fafc;
+}
+
+.prose-invert p {
+  color: #cbd5e1;
+}
+
+.prose-invert strong {
+  color: #f8fafc;
+}
+
+.prose-invert code {
+  color: #fb923c;
+  background: rgba(30, 41, 59, 0.8);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+.prose-invert pre code {
+  color: inherit;
+  background: transparent;
+  padding: 0;
+}
+
+.prose-invert a {
+  color: #fb923c;
+}
+
+.prose-invert a:hover {
+  color: #fdba74;
+}
+
+.prose-invert ul,
+.prose-invert ol {
+  color: #cbd5e1;
+}
+
+.prose-invert blockquote {
+  color: #94a3b8;
+  border-left-color: #475569;
+}
+
+/* File tree styles */
+.file-tree-item {
+  transition: background-color 0.1s ease;
+}
+
+.file-tree-item:hover {
+  background-color: rgba(71, 85, 105, 0.3);
+}
+
+.file-tree-item.selected {
+  background-color: rgba(249, 115, 22, 0.2);
+}
+
+/* Preview frame */
+.preview-frame {
+  background: white;
+  border-radius: 0;
+}
+
+/* Glass effect for builder */
+.builder-glass {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Diff view styles */
+.diff-added {
+  background-color: rgba(34, 197, 94, 0.1);
+}
+
+.diff-removed {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.diff-added-line {
+  color: #4ade80;
+}
+
+.diff-removed-line {
+  color: #f87171;
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+
+/* Streaming text animation */
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.cursor-blink {
+  display: inline-block;
+  margin-left: 2px;
+}
+
+.cursor-blink::after {
+  content: "▋";
+  animation: blink 1s step-start infinite;
+  color: rgb(249, 115, 22); /* Orange-500 to match theme */
 }

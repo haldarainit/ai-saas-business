@@ -80,7 +80,7 @@ export default function Features() {
             benefits: ["AI-Powered Design", "Drag & Drop", "Version History", "Instant Deploy"],
             gradient: "from-blue-500 to-indigo-600",
             shadowColor: "shadow-blue-500/20",
-            link: "/landing-page-builder",
+            link: "/builder",
         },
         {
             icon: <Megaphone className="w-6 h-6" />,

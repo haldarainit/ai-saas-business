@@ -302,28 +302,71 @@ If you cannot read the invoice or find no items, return:
                         let basePrice: number;
                         let gstAmount: number;
                         let gstPercentage: number;
+                        let totalCost: number;
+
+                        const quantity = parseFloat(String(item.quantity)) || 1;
+
+                        // Get the AI-provided totalCost first - this is often the most reliable
+                        const aiProvidedTotalCost = parseFloat(String(item.totalCost)) || 0;
 
                         if (inventoryType === 'manufacturing') {
                             basePrice = parseFloat(String(item.basePrice)) || 0;
                             gstPercentage = parseFloat(String(item.gstPercentage)) || 0;
                             gstAmount = parseFloat(String(item.gstAmount)) || (basePrice * gstPercentage / 100);
-                            finalCost = parseFloat(String(item.costPerUnit)) || (basePrice + gstAmount);
 
-                            if (finalCost === basePrice && gstAmount > 0) {
+                            // Try multiple sources for costPerUnit with fallback chain:
+                            // 1. Directly provided costPerUnit
+                            // 2. basePrice + gstAmount (if basePrice is valid)
+                            // 3. Derive from totalCost / quantity (if AI provided totalCost)
+                            const directCostPerUnit = parseFloat(String(item.costPerUnit)) || 0;
+                            const calculatedFromBase = basePrice > 0 ? (basePrice + gstAmount) : 0;
+                            const derivedFromTotal = (aiProvidedTotalCost > 0 && quantity > 0) ? (aiProvidedTotalCost / quantity) : 0;
+
+                            // Use the first valid non-zero value
+                            finalCost = directCostPerUnit || calculatedFromBase || derivedFromTotal;
+
+                            // If we still have 0 but gstAmount is positive, recalculate
+                            if (finalCost === 0 && gstAmount > 0) {
                                 finalCost = basePrice + gstAmount;
+                            }
+
+                            // Calculate totalCost - prefer AI value if finalCost calculation would give 0
+                            totalCost = finalCost > 0 ? (finalCost * quantity) : aiProvidedTotalCost;
+
+                            // If we have totalCost but no finalCost, derive finalCost
+                            if (finalCost === 0 && totalCost > 0 && quantity > 0) {
+                                finalCost = totalCost / quantity;
                             }
                         } else {
                             basePrice = parseFloat(String(item.basePrice)) || 0;
                             gstPercentage = parseFloat(String(item.gstPercentage)) || 0;
                             gstAmount = parseFloat(String(item.gstAmount)) || (basePrice * gstPercentage / 100);
-                            finalCost = parseFloat(String(item.costPrice)) || (basePrice + gstAmount);
 
-                            if (finalCost === basePrice && gstAmount > 0) {
+                            // Try multiple sources for costPrice with fallback chain:
+                            // 1. Directly provided costPrice
+                            // 2. basePrice + gstAmount (if basePrice is valid)
+                            // 3. Derive from totalCost / quantity (if AI provided totalCost)
+                            const directCostPrice = parseFloat(String(item.costPrice)) || 0;
+                            const calculatedFromBase = basePrice > 0 ? (basePrice + gstAmount) : 0;
+                            const derivedFromTotal = (aiProvidedTotalCost > 0 && quantity > 0) ? (aiProvidedTotalCost / quantity) : 0;
+
+                            // Use the first valid non-zero value
+                            finalCost = directCostPrice || calculatedFromBase || derivedFromTotal;
+
+                            // If we still have 0 but gstAmount is positive, recalculate
+                            if (finalCost === 0 && gstAmount > 0) {
                                 finalCost = basePrice + gstAmount;
+                            }
+
+                            // Calculate totalCost - prefer AI value if finalCost calculation would give 0
+                            totalCost = finalCost > 0 ? (finalCost * quantity) : aiProvidedTotalCost;
+
+                            // If we have totalCost but no finalCost, derive finalCost
+                            if (finalCost === 0 && totalCost > 0 && quantity > 0) {
+                                finalCost = totalCost / quantity;
                             }
                         }
 
-                        const quantity = parseFloat(String(item.quantity)) || 1;
                         const baseSku = item.sku || `${inventoryType === 'manufacturing' ? 'RM' : 'PRD'}-${String(Date.now()).slice(-4)}-${index + 1}`;
 
                         const enhanced: EnhancedItem = {
@@ -335,21 +378,21 @@ If you cannot read the invoice or find no items, return:
                             category: item.category || 'Uncategorized',
                             unit: item.unit || 'pcs',
                             hsnCode: item.hsnCode || '',
-                            basePrice: basePrice,
+                            basePrice: basePrice || finalCost, // If basePrice is 0 but we have finalCost, use it
                             gstPercentage: gstPercentage,
                             gstAmount: gstAmount,
                             quantity: quantity,
                             confidence: item.confidence || 'medium',
-                            needsReview: !item.name || !item.sku || item.confidence === 'low'
+                            needsReview: !item.name || !item.sku || item.confidence === 'low' || finalCost === 0
                         };
 
                         if (inventoryType === 'manufacturing') {
                             enhanced.costPerUnit = finalCost;
-                            enhanced.totalCost = finalCost * quantity;
+                            enhanced.totalCost = totalCost;
                         } else {
                             enhanced.costPrice = finalCost;
-                            enhanced.sellingPrice = parseFloat(String(item.sellingPrice)) || (finalCost * 1.25);
-                            enhanced.totalCost = finalCost * quantity;
+                            enhanced.sellingPrice = parseFloat(String(item.sellingPrice)) || (finalCost > 0 ? finalCost * 1.25 : 0);
+                            enhanced.totalCost = totalCost;
                         }
 
                         return enhanced;

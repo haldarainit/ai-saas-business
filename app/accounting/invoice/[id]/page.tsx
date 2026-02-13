@@ -1329,27 +1329,23 @@ export default function InvoicePage() {
                             {/* Top Section: Company & Buyer */}
                             <div className="company-buyer-section grid grid-cols-2 border border-slate-300">
                                 {/* Seller Details (Left) */}
-                                <div className="p-3 border-r border-slate-300">
-                                    <div className="font-bold text-base mb-1">{invoiceData.companyName || "Seller Name"}</div>
-                                    <div className="whitespace-pre-line text-slate-600 mb-2">
+                                <div className="p-3 border-r border-slate-300 overflow-hidden">
+                                    <div className="font-bold text-base mb-1 break-words">{invoiceData.companyName || "Seller Name"}</div>
+                                    <div className="whitespace-pre-line text-slate-600 mb-2 break-words" style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                                         {invoiceData.companyAddress && <div>{invoiceData.companyAddress}</div>}
-                                        {(invoiceData.companyCity || invoiceData.companyState || invoiceData.companyPincode) && (
-                                            <div>
-                                                {invoiceData.companyCity && `${invoiceData.companyCity}`}
-                                                {invoiceData.companyState && `, ${invoiceData.companyState}`}
-                                                {invoiceData.companyPincode && ` - ${invoiceData.companyPincode}`}
-                                            </div>
-                                        )}
+                                        {invoiceData.companyCity && <div>{invoiceData.companyCity}</div>}
                                     </div>
-                                    <div className="grid grid-cols-[60px_1fr] gap-y-0.5">
+                                    <div className="grid grid-cols-[60px_1fr] gap-y-0.5" style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                                         <span className="font-semibold text-slate-500">Phone:</span>
                                         <span>{invoiceData.companyPhone}</span>
                                         <span className="font-semibold text-slate-500">Email:</span>
-                                        <span>{invoiceData.companyEmail}</span>
+                                        <span className="break-words">{invoiceData.companyEmail}</span>
                                         <span className="font-semibold text-slate-500">GSTIN:</span>
                                         <span>{invoiceData.companyGSTIN}</span>
                                         <span className="font-semibold text-slate-500">State:</span>
                                         <span>{invoiceData.companyState}</span>
+                                        <span className="font-semibold text-slate-500">Pin:</span>
+                                        <span>{invoiceData.companyPincode}</span>
                                     </div>
                                 </div>
 
@@ -1382,24 +1378,18 @@ export default function InvoicePage() {
 
                             {/* Consignee / Buyer Section */}
                             <div className="consignee-section grid grid-cols-2 border-x border-b border-slate-300">
-                                <div className="p-3 border-r border-slate-300">
+                                <div className="p-3 border-r border-slate-300 overflow-hidden">
                                     <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Bill To (Buyer)</div>
-                                    <div className="font-bold text-sm mb-1">{invoiceData.clientName || "Buyer Name"}</div>
-                                    <div className="whitespace-pre-line text-slate-600 mb-2">
+                                    <div className="font-bold text-sm mb-1 break-words">{invoiceData.clientName || "Buyer Name"}</div>
+                                    <div className="whitespace-pre-line text-slate-600 mb-2 break-words" style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                                         {invoiceData.clientAddress && <div>{invoiceData.clientAddress}</div>}
-                                        {(invoiceData.clientCity || invoiceData.clientState || invoiceData.clientPincode) && (
-                                            <div>
-                                                {invoiceData.clientCity && `${invoiceData.clientCity}`}
-                                                {invoiceData.clientState && `, ${invoiceData.clientState}`}
-                                                {invoiceData.clientPincode && ` - ${invoiceData.clientPincode}`}
-                                            </div>
-                                        )}
+                                        {invoiceData.clientCity && <div>{invoiceData.clientCity}</div>}
                                     </div>
-                                    <div className="grid grid-cols-[50px_1fr] gap-y-0.5">
+                                    <div className="grid grid-cols-[50px_1fr] gap-y-0.5" style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                                         <span className="font-semibold text-slate-500">Phone:</span>
                                         <span>{invoiceData.clientPhone}</span>
                                         <span className="font-semibold text-slate-500">Email:</span>
-                                        <span>{invoiceData.clientEmail}</span>
+                                        <span className="break-words">{invoiceData.clientEmail}</span>
                                         {invoiceData.clientGSTIN && (
                                             <>
                                                 <span className="font-semibold text-slate-500">GSTIN:</span>
@@ -1414,39 +1404,31 @@ export default function InvoicePage() {
                                         )}
                                         <span className="font-semibold text-slate-500">State:</span>
                                         <span>{invoiceData.clientState}</span>
+                                        <span className="font-semibold text-slate-500">Pin:</span>
+                                        <span>{invoiceData.clientPincode}</span>
                                     </div>
                                 </div>
-                                <div className="p-3">
+                                <div className="p-3 overflow-hidden">
                                     <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Ship To (Consignee)</div>
-                                    <div className="font-bold text-sm mb-1">{invoiceData.sameAsBillTo ? (invoiceData.clientName || "Buyer Name") : (invoiceData.shipToName || "Consignee Name")}</div>
-                                    <div className="whitespace-pre-line text-slate-600 mb-2">
+                                    <div className="font-bold text-sm mb-1 break-words">{invoiceData.sameAsBillTo ? (invoiceData.clientName || "Buyer Name") : (invoiceData.shipToName || "Consignee Name")}</div>
+                                    <div className="whitespace-pre-line text-slate-600 mb-2 break-words" style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                                         {invoiceData.sameAsBillTo ? (
                                             <>
                                                 {invoiceData.clientAddress && <div>{invoiceData.clientAddress}</div>}
-                                                {(invoiceData.clientCity || invoiceData.clientState || invoiceData.clientPincode) && (
-                                                    <div>
-                                                        {invoiceData.clientCity && `${invoiceData.clientCity}`}
-                                                        {invoiceData.clientState && `, ${invoiceData.clientState}`}
-                                                        {invoiceData.clientPincode && ` - ${invoiceData.clientPincode}`}
-                                                    </div>
-                                                )}
+                                                {invoiceData.clientCity && <div>{invoiceData.clientCity}</div>}
                                             </>
                                         ) : (
                                             <>
                                                 {invoiceData.shipToAddress && <div>{invoiceData.shipToAddress}</div>}
-                                                {(invoiceData.shipToCity || invoiceData.shipToState || invoiceData.shipToPincode) && (
-                                                    <div>
-                                                        {invoiceData.shipToCity && `${invoiceData.shipToCity}`}
-                                                        {invoiceData.shipToState && `, ${invoiceData.shipToState}`}
-                                                        {invoiceData.shipToPincode && ` - ${invoiceData.shipToPincode}`}
-                                                    </div>
-                                                )}
+                                                {invoiceData.shipToCity && <div>{invoiceData.shipToCity}</div>}
                                             </>
                                         )}
                                     </div>
-                                    <div className="grid grid-cols-[50px_1fr] gap-y-0.5">
+                                    <div className="grid grid-cols-[50px_1fr] gap-y-0.5" style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                                         <span className="font-semibold text-slate-500">State:</span>
                                         <span>{invoiceData.sameAsBillTo ? invoiceData.clientState : invoiceData.shipToState}</span>
+                                        <span className="font-semibold text-slate-500">Pin:</span>
+                                        <span>{invoiceData.sameAsBillTo ? invoiceData.clientPincode : invoiceData.shipToPincode}</span>
                                     </div>
                                 </div>
                             </div>

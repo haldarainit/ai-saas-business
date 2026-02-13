@@ -8,31 +8,35 @@ export function middleware(req: NextRequest) {
     // Define allowed domains (including localhost for development)
     const allowedDomains = ["localhost:3000", "your-production-domain.com"];
 
+    // Initialize response
+    let response = NextResponse.next();
+
     // Check if the current hostname is a subdomain
     const isSubdomain = !allowedDomains.some(domain => hostname === domain || hostname.endsWith(`.${domain}`));
 
-    // If it's a subdomain, rewrite the path
-    // We need to extract the subdomain part. 
-    // For localhost:3000, sub.localhost:3000 -> sub
-    // For domain.com, sub.domain.com -> sub
-
+    // Rewrite logic
     let currentHost = hostname;
     if (hostname.includes(":")) {
         currentHost = hostname.split(":")[0];
     }
 
-    // Simple check: if host is not the main domain, treat as subdomain
-    // Adjust this logic based on your actual domain structure
     const mainDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost";
 
     if (currentHost !== mainDomain && currentHost.endsWith(`.${mainDomain}`)) {
         const subdomain = currentHost.replace(`.${mainDomain}`, "");
-
         // Rewrite to the preview page
-        return NextResponse.rewrite(new URL(`/preview/${subdomain}${url.pathname}`, req.url));
+        response = NextResponse.rewrite(new URL(`/preview/${subdomain}${url.pathname}`, req.url));
     }
 
-    return NextResponse.next();
+    // Add headers required for WebContainer (SharedArrayBuffer)
+    // ONLY for the builder route to avoid breaking other parts like Google Auth or Images
+    if (url.pathname.startsWith('/builder')) {
+        response.headers.set("Cross-Origin-Embedder-Policy", "credentialless");
+        response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+        response.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+    }
+
+    return response;
 }
 
 export const config = {

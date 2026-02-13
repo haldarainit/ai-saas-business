@@ -105,7 +105,7 @@ export default function AttendancePortal() {
         // Send location update every 2 minutes
         const sendUpdate = async () => {
             const trackingData = JSON.parse(localStorage.getItem('activeTracking') || '{}');
-            
+
             if (!trackingData.employeeId) return;
 
             // Check if geolocation is supported
@@ -118,7 +118,7 @@ export default function AttendancePortal() {
                 async (position) => {
                     try {
                         const trackingData = JSON.parse(localStorage.getItem('activeTracking') || '{}');
-                        
+
                         const response = await employeeAuth.apiCall('/api/tracking/update', {
                             method: 'POST',
                             body: JSON.stringify({
@@ -185,7 +185,7 @@ export default function AttendancePortal() {
         loadAttendanceHistory();
         loadLeaves();
         loadLeavePolicy();
-        
+
         // Check geolocation support and permissions
         if (navigator.geolocation) {
             // Test if geolocation is available and show helpful message
@@ -213,13 +213,13 @@ export default function AttendancePortal() {
                 variant: "destructive",
             });
         }
-        
+
         // Restore background tracking if user was clocked in
         const trackingData = localStorage.getItem('activeTracking');
         if (trackingData) {
             const { employeeId, startTime } = JSON.parse(trackingData);
             const empData = employeeAuth.getEmployeeData();
-            
+
             // Verify it's the same employee and tracking is recent (within 24 hours)
             if (employeeId === empData?.employeeId) {
                 const timeSinceStart = Date.now() - new Date(startTime).getTime();
@@ -332,7 +332,7 @@ export default function AttendancePortal() {
         // Validate dates and calculate days
         const fromDate = new Date(leaveForm.fromDate);
         const toDate = new Date(leaveForm.toDate);
-        
+
         if (fromDate > toDate) {
             toast({
                 title: "Validation Error",
@@ -345,8 +345,8 @@ export default function AttendancePortal() {
         const days = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
         // Get leave balance from employee data
-        const leaveBalanceKey = leaveForm.leaveType === 'casual' ? 'casual' : 
-                               leaveForm.leaveType === 'sick' ? 'sick' : 'annual';
+        const leaveBalanceKey = leaveForm.leaveType === 'casual' ? 'casual' :
+            leaveForm.leaveType === 'sick' ? 'sick' : 'annual';
         const availableBalance = employee?.leaveBalance?.[leaveBalanceKey] || 0;
 
         // Get policy for this leave type
@@ -375,8 +375,8 @@ export default function AttendancePortal() {
         }
 
         // Check consecutive days limit
-        if (leaveTypePolicy?.maxConsecutiveDays && 
-            leaveTypePolicy.maxConsecutiveDays > 0 && 
+        if (leaveTypePolicy?.maxConsecutiveDays &&
+            leaveTypePolicy.maxConsecutiveDays > 0 &&
             days > leaveTypePolicy.maxConsecutiveDays) {
             toast({
                 title: "Exceeds Consecutive Days Limit",
@@ -602,7 +602,7 @@ export default function AttendancePortal() {
                         });
                         resolve({ latitude: 0, longitude: 0, accuracy: 0 });
                     },
-                    { 
+                    {
                         enableHighAccuracy: false, // Set to false for better compatibility
                         timeout: 15000, // Increased timeout
                         maximumAge: 300000 // Allow 5 minutes old location
@@ -746,8 +746,9 @@ export default function AttendancePortal() {
         );
     }
 
-    const canClockIn = !todayAttendance || !todayAttendance.clockIn;
-    const canClockOut = todayAttendance?.clockIn && !todayAttendance?.clockOut;
+    const isOnLeave = todayAttendance?.status === 'on-leave';
+    const canClockIn = !isOnLeave && (!todayAttendance || !todayAttendance.clockIn);
+    const canClockOut = !isOnLeave && todayAttendance?.clockIn && !todayAttendance?.clockOut;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-500/5 via-background to-cyan-500/5">
@@ -801,48 +802,64 @@ export default function AttendancePortal() {
                             </h2>
 
                             {todayAttendance ? (
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between p-4 bg-green-500/10 rounded-lg border border-green-500/20">
-                                        <div className="flex items-center gap-3">
-                                            <CheckCircle className="w-6 h-6 text-green-500" />
-                                            <div>
-                                                <p className="font-semibold">Clock In</p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {formatTime(todayAttendance.clockIn.time)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        {todayAttendance.clockIn.location && (
-                                            <MapPin className="w-5 h-5 text-muted-foreground" />
+                                isOnLeave ? (
+                                    <div className="p-8 bg-orange-500/10 rounded-lg text-center border border-orange-500/20">
+                                        <CalendarDays className="w-12 h-12 mx-auto mb-3 text-orange-500" />
+                                        <p className="font-semibold text-orange-600 dark:text-orange-400">
+                                            You are on leave today
+                                        </p>
+                                        {todayAttendance.notes && (
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                {todayAttendance.notes}
+                                            </p>
                                         )}
                                     </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {todayAttendance.clockIn && (
+                                            <div className="flex items-center justify-between p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                                                <div className="flex items-center gap-3">
+                                                    <CheckCircle className="w-6 h-6 text-green-500" />
+                                                    <div>
+                                                        <p className="font-semibold">Clock In</p>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {formatTime(todayAttendance.clockIn.time)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                {todayAttendance.clockIn.location && (
+                                                    <MapPin className="w-5 h-5 text-muted-foreground" />
+                                                )}
+                                            </div>
+                                        )}
 
-                                    {todayAttendance.clockOut ? (
-                                        <div className="flex items-center justify-between p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                                            <div className="flex items-center gap-3">
-                                                <CheckCircle className="w-6 h-6 text-blue-500" />
-                                                <div>
-                                                    <p className="font-semibold">Clock Out</p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {formatTime(todayAttendance.clockOut.time)}
+                                        {todayAttendance.clockOut ? (
+                                            <div className="flex items-center justify-between p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                                                <div className="flex items-center gap-3">
+                                                    <CheckCircle className="w-6 h-6 text-blue-500" />
+                                                    <div>
+                                                        <p className="font-semibold">Clock Out</p>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {formatTime(todayAttendance.clockOut.time)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-bold text-lg">
+                                                        {todayAttendance.workingHours?.toFixed(2)}h
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Working Hours
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="font-bold text-lg">
-                                                    {todayAttendance.workingHours?.toFixed(2)}h
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Working Hours
-                                                </p>
+                                        ) : todayAttendance.clockIn ? (
+                                            <div className="p-4 bg-muted rounded-lg text-center">
+                                                <p className="text-muted-foreground">Not clocked out yet</p>
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <div className="p-4 bg-muted rounded-lg text-center">
-                                            <p className="text-muted-foreground">Not clocked out yet</p>
-                                        </div>
-                                    )}
-                                </div>
+                                        ) : null}
+                                    </div>
+                                )
                             ) : (
                                 <div className="p-8 bg-muted rounded-lg text-center">
                                     <Clock className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
@@ -1008,7 +1025,7 @@ export default function AttendancePortal() {
                                                     </span>
                                                 </div>
                                                 <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                                                    <div 
+                                                    <div
                                                         className={`h-2.5 rounded-full ${lastVerificationResult.matchScore >= 75 ? 'bg-green-500' : 'bg-orange-500'}`}
                                                         style={{ width: `${lastVerificationResult.matchScore}%` }}
                                                     />
@@ -1026,7 +1043,7 @@ export default function AttendancePortal() {
                                                     </span>
                                                 </div>
                                                 <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2 dark:bg-gray-700">
-                                                    <div 
+                                                    <div
                                                         className={`h-1.5 rounded-full ${lastVerificationResult.qualityScore >= 70 ? 'bg-green-500' : lastVerificationResult.qualityScore >= 40 ? 'bg-orange-500' : 'bg-red-500'}`}
                                                         style={{ width: `${lastVerificationResult.qualityScore}%` }}
                                                     />
@@ -1310,13 +1327,12 @@ export default function AttendancePortal() {
                                                     <X className="w-4 h-4 text-red-500" />
                                                 )}
                                                 <span
-                                                    className={`text-sm font-medium ${
-                                                        leave.status === "approved"
+                                                    className={`text-sm font-medium ${leave.status === "approved"
                                                             ? "text-green-600"
                                                             : leave.status === "pending"
-                                                            ? "text-orange-600"
-                                                            : "text-red-600"
-                                                    }`}
+                                                                ? "text-orange-600"
+                                                                : "text-red-600"
+                                                        }`}
                                                 >
                                                     {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
                                                 </span>

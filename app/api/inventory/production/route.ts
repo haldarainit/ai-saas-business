@@ -144,28 +144,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             );
         }
 
-        if (product.billOfMaterials.length === 0) {
-            return NextResponse.json(
-                { message: 'Product has no Bill of Materials defined. Cannot produce.' },
-                { status: 400 }
-            );
-        }
+        // Note: Products without BOM can still be produced - they just won't consume raw materials
+        // This is useful for products with only manufacturing cost (labor, overhead, etc.)
 
         // Check if we have enough raw materials
         const materialsConsumed: MaterialConsumed[] = [];
         const insufficientMaterials: InsufficientMaterial[] = [];
 
-        for (const bomItem of product.billOfMaterials as BOMItem[]) {
-            const rawMaterial = await RawMaterial.findOne({ _id: bomItem.rawMaterialId, userId });
+        for (const bomItem of product.billOfMaterials) {
+            const rawMaterialId = bomItem.rawMaterialId?.toString() || bomItem.rawMaterialId;
+            const rawMaterial = await RawMaterial.findOne({ _id: rawMaterialId, userId });
 
             if (!rawMaterial) {
                 return NextResponse.json(
-                    { message: `Raw material not found: ${bomItem.rawMaterialName}` },
+                    { message: `Raw material not found: ${bomItem.rawMaterialName || 'Unknown'}` },
                     { status: 400 }
                 );
             }
 
-            const requiredQty = bomItem.quantityRequired * quantityToProduce;
+            const requiredQty = (bomItem.quantityRequired || 0) * quantityToProduce;
 
             if (rawMaterial.quantity < requiredQty) {
                 insufficientMaterials.push({
@@ -178,7 +175,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             }
 
             materialsConsumed.push({
-                rawMaterialId: rawMaterial._id,
+                rawMaterialId: rawMaterial._id.toString(),
                 rawMaterialName: rawMaterial.name,
                 rawMaterialSku: rawMaterial.sku,
                 quantityConsumed: requiredQty,
