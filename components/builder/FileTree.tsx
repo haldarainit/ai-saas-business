@@ -62,7 +62,7 @@ function FileTreeNode({ name, path: filePath, type, depth, children }: FileTreeN
 
   const getIcon = () => {
     if (type === 'folder') {
-      return isExpanded ? <FolderOpen className="w-4 h-4 text-blue-400" /> : <Folder className="w-4 h-4 text-blue-400" />;
+      return isExpanded ? <FolderOpen className="w-4 h-4 text-blue-500 dark:text-blue-400" /> : <Folder className="w-4 h-4 text-blue-500 dark:text-blue-400" />;
     }
     
     // File icons based on extension
@@ -72,22 +72,22 @@ function FileTreeNode({ name, path: filePath, type, depth, children }: FileTreeN
       case 'tsx':
       case 'js':
       case 'jsx':
-        return <FileCode className="w-4 h-4 text-yellow-400" />;
+        return <FileCode className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />;
       case 'json':
-        return <FileJson className="w-4 h-4 text-green-400" />;
+        return <FileJson className="w-4 h-4 text-green-500 dark:text-green-400" />;
       case 'css':
       case 'scss':
-        return <FileCode className="w-4 h-4 text-blue-300" />;
+        return <FileCode className="w-4 h-4 text-blue-500 dark:text-blue-300" />;
       case 'md':
-        return <FileText className="w-4 h-4 text-slate-300" />;
+        return <FileText className="w-4 h-4 text-slate-500 dark:text-slate-300" />;
       case 'png':
       case 'jpg': 
       case 'jpeg':
       case 'svg':
       case 'webp':
-        return <Image className="w-4 h-4 text-purple-400" />;
+        return <Image className="w-4 h-4 text-purple-500 dark:text-purple-400" />;
       default:
-        return <File className="w-4 h-4 text-slate-400" />;
+        return <File className="w-4 h-4 text-slate-500 dark:text-slate-400" />;
     }
   };
 
@@ -96,7 +96,7 @@ function FileTreeNode({ name, path: filePath, type, depth, children }: FileTreeN
       <div 
         className={`
           flex items-center gap-1.5 py-1 px-2 cursor-pointer select-none transition-colors
-          ${isSelected ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}
+          ${isSelected ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200'}
         `}
         style={{ paddingLeft: `${depth * 12 + 10}px` }}
         onClick={handleSelect}
@@ -108,7 +108,7 @@ function FileTreeNode({ name, path: filePath, type, depth, children }: FileTreeN
               animate={{ rotate: isExpanded ? 90 : 0 }}
               transition={{ duration: 0.1 }}
             >
-              <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
             </motion.div>
           )}
         </div>
@@ -253,25 +253,25 @@ export function FileTree() {
   const fileCount = Object.values(files).filter(f => f?.type === 'file').length;
 
   return (
-    <div className="h-full flex flex-col bg-[#1e1e1e]">
+    <div className="h-full flex flex-col bg-slate-50 dark:bg-[#1e1e1e]">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700/50 bg-[#1e1e1e]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 dark:border-slate-700/50 bg-white dark:bg-[#1e1e1e]">
         <div className="flex items-center gap-2">
           <Folder className="w-4 h-4 text-blue-400" />
-          <span className="text-sm font-medium text-slate-300">EXPLORER</span>
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">EXPLORER</span>
           <span className="text-xs text-slate-500">({fileCount})</span>
         </div>
         <div className="flex items-center gap-1">
             <button
                 onClick={() => setShowSearch(!showSearch)}
-                className={`p-1 hover:bg-slate-700 rounded transition-colors ${showSearch ? 'bg-slate-700 text-white' : 'text-slate-400'}`}
+                className={`p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors ${showSearch ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}
                 title="Search files"
             >
                 <Search className="w-4 h-4" />
             </button>
             <button
                 onClick={() => collapseAllFolders()}
-                className="p-1 hover:bg-slate-700 rounded transition-colors text-slate-400"
+                className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-500 dark:text-slate-400"
                 title="Collapse all"
             >
                 <ListMinus className="w-4 h-4" />
@@ -285,7 +285,7 @@ export function FileTree() {
                 addFile(cleanName, '', type);
                 }
             }}
-            className="p-1 hover:bg-slate-700 rounded transition-colors text-slate-400"
+            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-500 dark:text-slate-400"
             title="New file"
             >
             <Plus className="w-4 h-4" />
@@ -295,13 +295,13 @@ export function FileTree() {
 
       {/* Search Input */}
       {showSearch && (
-        <div className="px-2 py-2 border-b border-slate-700/50">
+        <div className="px-2 py-2 border-b border-slate-200 dark:border-slate-700/50">
             <input
             type="text"
             placeholder="Search files..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-2 py-1.5 bg-[#2a2a2e] border border-slate-700/50 rounded-md text-sm text-slate-300 placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50"
+            className="w-full px-2 py-1.5 bg-white dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-700/50 rounded-md text-sm text-slate-900 dark:text-slate-300 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50"
             autoFocus
             />
         </div>

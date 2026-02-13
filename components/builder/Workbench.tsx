@@ -142,16 +142,16 @@ export const Workbench = memo(function Workbench({
   ];
 
   return (
-    <div className="h-full flex flex-col bg-slate-900 border-l border-slate-700/50 overflow-hidden">
+    <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700/50 overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-2 py-1.5 bg-slate-800/50 border-b border-slate-700/50 shrink-0 h-10 gap-2">
+      <div className="flex items-center justify-between px-2 py-1.5 bg-white dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50 shrink-0 h-10 gap-2">
         {/* Left Actions */}
         <div className="flex items-center gap-1 shrink-0">
           {/* File Explorer Toggle */}
           <button
             onClick={() => setSidebarVisible(!sidebarVisible)}
             className={`p-1.5 rounded-lg transition-colors mr-1 ${
-              sidebarVisible ? 'bg-slate-700 text-white' : 'hover:bg-slate-700/50 text-slate-400 hover:text-slate-300'
+              sidebarVisible ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
             }`}
             title={sidebarVisible ? 'Hide Files' : 'Show Files'}
           >
@@ -161,22 +161,22 @@ export const Workbench = memo(function Workbench({
           {/* Chat Toggle */}
           <button
             onClick={() => setShowChat(!showChat)}
-            className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-300 transition-colors mr-2"
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors mr-2"
             title={showChat ? 'Hide chat' : 'Show chat'}
           >
             {showChat ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
           </button>
 
           {/* View Switcher */}
-          <div className="flex bg-slate-800 rounded-lg p-0.5">
+          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
             {views.map((view) => (
               <button
                 key={view.id}
                 onClick={() => setActiveView(view.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   activeView === view.id
-                    ? 'bg-slate-700 text-white'
-                    : 'text-slate-400 hover:text-slate-300'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
                 {view.icon}
@@ -196,8 +196,8 @@ export const Workbench = memo(function Workbench({
             onClick={() => setShowTerminal(!showTerminal)}
             className={`p-1.5 rounded-lg transition-colors ${
               showTerminal
-                ? 'bg-green-500/20 text-green-400'
-                : 'hover:bg-slate-700/50 text-slate-400 hover:text-slate-300'
+                ? 'bg-green-500/10 dark:bg-green-500/20 text-green-600 dark:text-green-400'
+                : 'hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
             }`}
             title={showTerminal ? 'Hide terminal' : 'Show terminal'}
           >
@@ -215,7 +215,7 @@ export const Workbench = memo(function Workbench({
         {/* Sidebar (No Activity Bar) */}
         {sidebarVisible && (
           <div 
-            className="flex flex-col bg-[#1e1e1e] overflow-hidden shrink-0 relative"
+            className="flex flex-col bg-white dark:bg-[#1e1e1e] overflow-hidden shrink-0 relative"
             style={{ width: `${sidebarWidth}px` }}
           >
             {sidebarTab === 'files' && <FileTree />}
@@ -227,7 +227,7 @@ export const Workbench = memo(function Workbench({
         {sidebarVisible && (
           <div 
             className={`w-1 shrink-0 cursor-col-resize transition-colors z-30 ${
-              isSidebarResizing ? 'bg-orange-500' : 'bg-slate-800 hover:bg-orange-500'
+              isSidebarResizing ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-800 hover:bg-orange-500'
             }`}
             onMouseDown={startSidebarResize}
           />
@@ -240,7 +240,7 @@ export const Workbench = memo(function Workbench({
         >
           {/* Main View */}
           <div 
-            className="relative bg-[#1e1e1e] overflow-hidden"
+            className="relative bg-white dark:bg-[#1e1e1e] overflow-hidden"
             style={{ flex: showTerminal ? '1 1 0' : '1 1 100%', minHeight: 0 }}
           >
             {/* Code View */}
@@ -283,7 +283,7 @@ export const Workbench = memo(function Workbench({
             {showTerminal && (
               <div 
                 className={`h-1 shrink-0 cursor-row-resize transition-colors z-30 ${
-                  isTerminalResizing ? 'bg-orange-500' : 'bg-slate-800 hover:bg-orange-500'
+                  isTerminalResizing ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-800 hover:bg-orange-500'
                 }`}
                 onMouseDown={startTerminalResize}
               />

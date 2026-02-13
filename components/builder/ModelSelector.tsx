@@ -72,13 +72,13 @@ export function ModelSelector({ compact = false }: ModelSelectorProps) {
       <div className="relative">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700"
         >
           {getModelIcon(currentModel)}
-          <span className="text-sm text-slate-300 truncate max-w-[120px]">
+          <span className="text-sm text-slate-700 dark:text-slate-300 truncate max-w-[120px]">
             {currentModel}
           </span>
-          <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
 
         <AnimatePresence>
@@ -92,24 +92,24 @@ export function ModelSelector({ compact = false }: ModelSelectorProps) {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute right-0 top-full mt-2 w-72 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden"
+                className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden dark:bg-slate-800 dark:border-slate-700"
               >
                 {/* Search */}
-                <div className="p-2 border-b border-slate-700">
+                <div className="p-2 border-b border-slate-200 dark:border-slate-700">
                   <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
                     <input
                       type="text"
                       placeholder="Search models..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-300 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-orange-500 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:placeholder:text-slate-500"
                     />
                   </div>
                 </div>
 
                 {/* Provider Tabs */}
-                <div className="flex border-b border-slate-700 overflow-x-auto scrollbar-hide">
+                <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-hide dark:border-slate-700">
                   {PROVIDERS.map((provider) => (
                     <button
                       key={provider.name}
@@ -117,16 +117,16 @@ export function ModelSelector({ compact = false }: ModelSelectorProps) {
                       disabled={!provider.enabled}
                       className={`flex-1 px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors relative ${
                         currentProvider === provider.name
-                          ? 'bg-orange-500/10 text-orange-400 border-b-2 border-orange-500'
+                          ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-500 dark:bg-orange-500/10 dark:text-orange-400'
                           : provider.enabled 
-                            ? 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/50'
-                            : 'text-slate-600 cursor-not-allowed opacity-60'
+                            ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:bg-slate-700/50'
+                            : 'text-slate-400 cursor-not-allowed opacity-60 dark:text-slate-600'
                       }`}
                     >
                       <div className="flex flex-col items-center gap-0.5">
                         <span>{provider.displayName}</span>
                         {!provider.enabled && (
-                          <span className="text-[9px] uppercase tracking-wider bg-slate-700/50 px-1 rounded text-slate-500">Coming Soon</span>
+                          <span className="text-[9px] uppercase tracking-wider bg-slate-200 px-1 rounded text-slate-500 dark:bg-slate-700/50 dark:text-slate-500">Coming Soon</span>
                         )}
                       </div>
                     </button>
@@ -145,14 +145,14 @@ export function ModelSelector({ compact = false }: ModelSelectorProps) {
                         onClick={() => handleSelectModel(model)}
                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors ${
                           currentModel === model
-                            ? 'bg-orange-500/20 text-orange-300'
-                            : 'hover:bg-slate-700/50 text-slate-300'
+                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'
+                            : 'hover:bg-slate-100 text-slate-700 dark:hover:bg-slate-700/50 dark:text-slate-300'
                         }`}
                       >
                         {getModelIcon(model)}
                         <span className="text-sm flex-1">{model}</span>
                         {currentModel === model && (
-                          <Check className="w-4 h-4 text-orange-400" />
+                          <Check className="w-4 h-4 text-orange-500 dark:text-orange-400" />
                         )}
                       </button>
                     ))
@@ -177,7 +177,7 @@ export function ModelSelector({ compact = false }: ModelSelectorProps) {
         <select
           value={currentProvider}
           onChange={(e) => handleSelectProvider(e.target.value)}
-          className="appearance-none px-3 py-2 pr-8 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+          className="appearance-none px-3 py-2 pr-8 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
         >
           {PROVIDERS.map((provider) => (
             <option 
@@ -189,7 +189,7 @@ export function ModelSelector({ compact = false }: ModelSelectorProps) {
             </option>
           ))}
         </select>
-        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
       </div>
 
       {/* Model Selector */}
@@ -197,7 +197,7 @@ export function ModelSelector({ compact = false }: ModelSelectorProps) {
         <select
           value={currentModel}
           onChange={(e) => setCurrentModel(e.target.value)}
-          className="appearance-none px-3 py-2 pr-8 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+          className="appearance-none px-3 py-2 pr-8 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
         >
           {currentProviderInfo.models.map((model) => (
             <option key={model} value={model}>
@@ -205,7 +205,7 @@ export function ModelSelector({ compact = false }: ModelSelectorProps) {
             </option>
           ))}
         </select>
-        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
       </div>
     </div>
   );

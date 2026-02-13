@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, memo } from 'react';
 import { Terminal as TerminalIcon, X, Maximize2, Minimize2 } from 'lucide-react';
 import { Terminal as TerminalComponent } from './terminal/Terminal';
 import { useWorkbenchStore } from '@/lib/stores/workbench';
+import { useTheme } from 'next-themes';
 
 interface TerminalProps {
   onClose?: () => void;
@@ -12,47 +13,48 @@ interface TerminalProps {
 export const Terminal = memo(function Terminal({ onClose }: TerminalProps) {
   const [isMaximized, setIsMaximized] = useState(false);
   const workbenchStore = useWorkbenchStore();
+  const { resolvedTheme } = useTheme();
   
   // Use a ref to track if we've attached to avoid re-attaching unnecessarily
   const attachedRef = useRef(false);
 
   return (
     <div 
-      className={`flex flex-col bg-[#1a1a1a] border-t border-slate-700/50 w-full ${
+      className={`flex flex-col bg-white dark:bg-[#1a1a1a] border-t border-slate-200 dark:border-slate-700/50 w-full ${
         isMaximized ? 'fixed inset-0 z-50 h-full' : 'h-full'
       }`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800/50 border-b border-slate-700/50 shrink-0">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50 shrink-0">
         <div className="flex items-center gap-2">
-          <TerminalIcon className="w-4 h-4 text-green-400" />
-          <span className="text-sm text-slate-300">Terminal</span>
+          <TerminalIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
+          <span className="text-sm text-slate-700 dark:text-slate-300">Terminal</span>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setIsMaximized(!isMaximized)}
-            className="p-1 hover:bg-slate-700 rounded transition-colors"
+            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
           >
             {isMaximized ? (
-              <Minimize2 className="w-3.5 h-3.5 text-slate-400" />
+              <Minimize2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
             ) : (
-              <Maximize2 className="w-3.5 h-3.5 text-slate-400" />
+              <Maximize2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
             )}
           </button>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-slate-700 rounded transition-colors"
+            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
           >
-            <X className="w-3.5 h-3.5 text-slate-400" />
+            <X className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
           </button>
         </div>
       </div>
 
       {/* Terminal Content */}
-      <div className="flex-1 overflow-hidden relative bg-[#0f172a]">
+      <div className="flex-1 overflow-hidden relative bg-white dark:bg-[#0f172a]">
         <TerminalComponent
           className="absolute inset-0"
-          theme="dark"
+          theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
           readonly={false}
           onTerminalReady={(terminal) => {
              if (!attachedRef.current) {

@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic';
 // Dynamic import for CodeMirror to avoid SSR issues
 const CodeMirrorEditor = dynamic(
   () => import('./CodeMirrorEditor'),
-  { ssr: false, loading: () => <div className="h-full bg-[#1e1e1e] flex items-center justify-center text-slate-500">Loading editor...</div> }
+  { ssr: false, loading: () => <div className="h-full bg-white dark:bg-[#1e1e1e] flex items-center justify-center text-slate-500 dark:text-slate-400">Loading editor...</div> }
 );
 
 interface EditorPanelProps {
@@ -19,17 +19,17 @@ function FileBreadcrumb({ path }: { path: string }) {
   const segments = path.split('/');
   
   return (
-    <div className="flex items-center text-sm text-slate-400">
+    <div className="flex items-center text-sm text-slate-500 dark:text-slate-400">
       {segments.map((segment, index) => (
         <div key={index} className="flex items-center">
-          {index > 0 && <ChevronRight className="w-4 h-4 mx-1 text-slate-600" />}
+          {index > 0 && <ChevronRight className="w-4 h-4 mx-1 text-slate-400 dark:text-slate-600" />}
           {index === segments.length - 1 ? (
-            <span className="flex items-center gap-1.5 text-slate-200 font-medium">
+            <span className="flex items-center gap-1.5 text-slate-900 dark:text-slate-200 font-medium">
               <File className="w-3.5 h-3.5" />
               {segment}
             </span>
           ) : (
-            <span className="hover:text-slate-300 transition-colors cursor-pointer">
+            <span className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors cursor-pointer">
               {segment}
             </span>
           )}
@@ -110,7 +110,7 @@ export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPane
 
   if (!selectedFile) {
     return (
-      <div className="h-full flex items-center justify-center bg-[#1e1e1e] text-slate-500">
+      <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-[#1e1e1e] text-slate-600 dark:text-slate-500">
         <div className="text-center">
           <div className="bg-transparent mb-4 flex justify-center opacity-20">
              <svg width="120" height="120" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -119,30 +119,30 @@ export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPane
                <path d="M14 4L10 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
              </svg>
           </div>
-          <p className="text-lg font-medium text-slate-400">No file selected</p>
-          <p className="text-sm mt-1 text-slate-600">Select a file from the tree to edit</p>
+          <p className="text-lg font-medium text-slate-700 dark:text-slate-400">No file selected</p>
+          <p className="text-sm mt-1 text-slate-500 dark:text-slate-600">Select a file from the tree to edit</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#1e1e1e]">
+    <div className="h-full flex flex-col bg-white dark:bg-[#1e1e1e]">
       {/* Editor Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-[#1e1e1e] border-b border-slate-700/50">
+      <div className="flex items-center justify-between px-4 py-2 bg-white dark:bg-[#1e1e1e] border-b border-slate-200 dark:border-slate-700/50">
         <div className="flex items-center gap-4 overflow-hidden">
           {/* Breadcrumbs */}
           <FileBreadcrumb path={selectedFile} />
           
           {isUnsaved && (
-            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-orange-500/10 text-orange-400 text-xs rounded-full border border-orange-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 text-xs rounded-full border border-orange-200 dark:border-orange-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 dark:bg-orange-400" />
               Unsaved
             </span>
           )}
           
           {isStreaming && (
-            <span className="px-2 py-0.5 text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-md animate-pulse">
+            <span className="px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 rounded-md animate-pulse">
               Generating...
             </span>
           )}
@@ -153,7 +153,7 @@ export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPane
           {isUnsaved && (
              <button
               onClick={handleReset}
-              className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-700/50 rounded-md text-slate-400 hover:text-slate-200 transition-colors text-xs font-medium mr-2"
+              className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors text-xs font-medium mr-2"
               title="Revert to original"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -166,7 +166,7 @@ export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPane
             disabled={!isUnsaved}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors text-xs font-medium ${
               isUnsaved 
-                ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30' 
+                ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-600/20 dark:text-green-400 dark:hover:bg-green-600/30' 
                 : 'text-slate-500 cursor-not-allowed opacity-50'
             }`}
             title="Save (Ctrl+S)"
@@ -175,25 +175,25 @@ export const EditorPanel = memo(function EditorPanel({ isStreaming }: EditorPane
             Save
           </button>
           
-          <div className="w-px h-4 bg-slate-700/50 mx-2" />
+          <div className="w-px h-4 bg-slate-200 dark:bg-slate-700/50 mx-2" />
           
           <button
             onClick={handleCopy}
-            className="p-1.5 hover:bg-slate-700/50 rounded-md transition-colors text-slate-400 hover:text-slate-200"
+            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-md transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
             title="Copy to clipboard"
           >
             <Copy className="w-4 h-4" />
           </button>
           <button
             onClick={handleDownload}
-            className="p-1.5 hover:bg-slate-700/50 rounded-md transition-colors text-slate-400 hover:text-slate-200"
+            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-md transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
             title="Download file"
           >
             <Download className="w-4 h-4" />
           </button>
           <button
             onClick={() => selectFile(undefined)}
-            className="p-1.5 hover:bg-slate-700/50 rounded-md transition-colors text-slate-400 hover:text-slate-200 ml-1"
+            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-md transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 ml-1"
             title="Close file"
           >
             <X className="w-4 h-4" />

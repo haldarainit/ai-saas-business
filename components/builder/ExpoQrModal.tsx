@@ -51,7 +51,7 @@ export function ExpoQrModal({ open, onClose }: ExpoQrModalProps) {
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 py-2">
           {qrDataUrl ? (
-            <img src={qrDataUrl} alt="Expo QR" className="h-[220px] w-[220px] rounded-lg border border-slate-700/50 bg-white p-2" />
+            <img src={qrDataUrl} alt="Expo QR" className="h-[220px] w-[220px] rounded-lg border border-slate-200 dark:border-slate-700/50 bg-white p-2" />
           ) : (
             <div className="text-sm text-slate-500">No Expo URL detected.</div>
           )}
@@ -65,4 +65,3 @@ export function ExpoQrModal({ open, onClose }: ExpoQrModalProps) {
 }
 
 export default ExpoQrModal;
-

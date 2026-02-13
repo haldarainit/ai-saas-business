@@ -41,7 +41,7 @@ export const Terminal = memo(
           cursorBlink: true,
           convertEol: true,
           disableStdin: readonly,
-          theme: getTerminalTheme(readonly ? { cursor: '#00000000' } : {}),
+          theme: getTerminalTheme(readonly ? { cursor: '#00000000' } : {}, theme),
           fontSize: 12,
           fontFamily: 'Menlo, courier-new, courier, monospace',
           allowProposedApi: true,
@@ -107,7 +107,7 @@ export const Terminal = memo(
         if (!terminal) return;
 
         // we render a transparent cursor in case the terminal is readonly
-        terminal.options.theme = getTerminalTheme(readonly ? { cursor: '#00000000' } : {});
+        terminal.options.theme = getTerminalTheme(readonly ? { cursor: '#00000000' } : {}, theme);
 
         terminal.options.disableStdin = readonly;
       }, [theme, readonly]);

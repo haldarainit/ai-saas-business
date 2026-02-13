@@ -100,7 +100,7 @@ function ArtifactCard({ artifact, isStreaming }: { artifact: ParsedArtifact; isS
   const totalActions = fileActions.length + shellActions.length;
 
   return (
-    <div className="mt-3 rounded-lg border border-slate-700/50 bg-slate-800/30 overflow-hidden">
+    <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/30 overflow-hidden">
       {/* Header row */}
       <div className="flex items-center gap-2.5 px-3 py-2.5">
         <div className="w-7 h-7 rounded-md bg-purple-500/15 flex items-center justify-center shrink-0">
@@ -111,7 +111,7 @@ function ArtifactCard({ artifact, isStreaming }: { artifact: ParsedArtifact; isS
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-medium text-slate-100 truncate">{artifact.title}</div>
+          <div className="text-[13px] font-medium text-slate-900 dark:text-slate-100 truncate">{artifact.title}</div>
           <div className="text-[11px] text-slate-500 mt-0.5">
             {fileActions.length} file{fileActions.length !== 1 ? 's' : ''}
             {shellActions.length > 0 && ` · ${shellActions.length} command${shellActions.length !== 1 ? 's' : ''}`}
@@ -119,14 +119,14 @@ function ArtifactCard({ artifact, isStreaming }: { artifact: ParsedArtifact; isS
         </div>
         <button
           onClick={() => setShowWorkbench(true)}
-          className="shrink-0 text-[11px] font-medium text-blue-400 hover:text-blue-300 px-2 py-1 rounded-md hover:bg-blue-400/10 transition-colors"
+          className="shrink-0 text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 px-2 py-1 rounded-md hover:bg-blue-50 dark:hover:bg-blue-400/10 transition-colors"
         >
           Open
         </button>
         {totalActions > 0 && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors"
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
           >
             {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
@@ -143,7 +143,7 @@ function ArtifactCard({ artifact, isStreaming }: { artifact: ParsedArtifact; isS
             transition={{ duration: 0.15, ease: 'easeOut' }}
             className="overflow-hidden"
           >
-            <div className="border-t border-slate-700/30 px-3 py-2 space-y-0.5 max-h-52 overflow-y-auto scrollbar-hide">
+            <div className="border-t border-slate-200 dark:border-slate-700/30 px-3 py-2 space-y-0.5 max-h-52 overflow-y-auto scrollbar-hide">
               {fileActions.map((action, i) => (
                 <button
                   key={`f-${i}`}
@@ -155,16 +155,16 @@ function ArtifactCard({ artifact, isStreaming }: { artifact: ParsedArtifact; isS
                       );
                     }
                   }}
-                  className="w-full flex items-center gap-2 px-2 py-1 text-left rounded hover:bg-slate-700/40 transition-colors group"
+                  className="w-full flex items-center gap-2 px-2 py-1 text-left rounded hover:bg-slate-100 dark:hover:bg-slate-700/40 transition-colors group"
                 >
-                  <FileCode className="w-3 h-3 text-blue-400/60 group-hover:text-blue-400 shrink-0" />
-                  <span className="text-[12px] text-slate-400 group-hover:text-slate-200 font-mono truncate">{action.filePath}</span>
+                  <FileCode className="w-3 h-3 text-blue-500/60 dark:text-blue-400/60 group-hover:text-blue-600 dark:group-hover:text-blue-400 shrink-0" />
+                  <span className="text-[12px] text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 font-mono truncate">{action.filePath}</span>
                 </button>
               ))}
               {shellActions.map((action, i) => (
-                <div key={`s-${i}`} className="flex items-center gap-2 px-2 py-1.5 border-t border-slate-700/30 first:border-0">
-                  <Terminal className="w-3.5 h-3.5 text-green-400 shrink-0" />
-                  <code className="text-[12px] text-green-300 font-mono truncate bg-transparent flex-1">{action.content.trim()}</code>
+                <div key={`s-${i}`} className="flex items-center gap-2 px-2 py-1.5 border-t border-slate-200 dark:border-slate-700/30 first:border-0">
+                  <Terminal className="w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0" />
+                  <code className="text-[12px] text-green-700 dark:text-green-300 font-mono truncate bg-transparent flex-1">{action.content.trim()}</code>
                 </div>
               ))}
             </div>
@@ -180,16 +180,16 @@ function ArtifactCard({ artifact, isStreaming }: { artifact: ParsedArtifact; isS
 function RestoredArtifactCard() {
   const { setShowWorkbench } = useWorkbenchStore();
   return (
-    <div className="mt-3 rounded-lg border border-slate-700/50 bg-slate-800/30 overflow-hidden">
+    <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/30 overflow-hidden">
       <button
         onClick={() => setShowWorkbench(true)}
-        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-700/20 transition-colors"
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-700/20 transition-colors"
       >
         <div className="w-7 h-7 rounded-md bg-green-500/15 flex items-center justify-center shrink-0">
           <CheckCircle className="w-3.5 h-3.5 text-green-400" />
         </div>
         <div className="flex-1 text-left">
-          <div className="text-[13px] font-medium text-slate-100">Project Files</div>
+          <div className="text-[13px] font-medium text-slate-900 dark:text-slate-100">Project Files</div>
           <div className="text-[11px] text-slate-500">Click to open in Workbench</div>
         </div>
         <Eye className="w-3.5 h-3.5 text-slate-500" />
@@ -248,7 +248,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
       return (
         <>
           {parsed.textBefore && (
-            <div className="prose prose-sm max-w-none prose-slate prose-invert leading-relaxed">
+            <div className="prose prose-sm max-w-none prose-slate dark:prose-invert leading-relaxed">
               <Markdown html>{parsed.textBefore}</Markdown>
             </div>
           )}
@@ -256,12 +256,12 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
             <ArtifactCard artifact={parsed.artifact} isStreaming={isLast && isStreaming && parsed.isPartialArtifact} />
           )}
           {parsed.textAfter && (
-            <div className="prose prose-sm max-w-none prose-slate prose-invert leading-relaxed mt-2">
+            <div className="prose prose-sm max-w-none prose-slate dark:prose-invert leading-relaxed mt-2">
               <Markdown html>{parsed.textAfter}</Markdown>
             </div>
           )}
           {!parsed.artifact && !parsed.textBefore && (
-            <div className="prose prose-sm max-w-none prose-slate prose-invert leading-relaxed">
+            <div className="prose prose-sm max-w-none prose-slate dark:prose-invert leading-relaxed">
               <Markdown html>
                 {(isLast && isStreaming) ? `${effectiveContent}<span class="cursor-blink"></span>` : effectiveContent}
               </Markdown>
@@ -275,7 +275,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
     if (contentType === 'parsed_artifact') {
       if (hasWorkbenchArtifacts) {
         return (
-          <div className="prose prose-sm max-w-none prose-slate prose-invert leading-relaxed">
+          <div className="prose prose-sm max-w-none prose-slate dark:prose-invert leading-relaxed">
             <Markdown html>
               {(isLast && isStreaming) ? `${message.content}<span class="cursor-blink"></span>` : message.content}
             </Markdown>
@@ -289,7 +289,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
             {parts.map((part, i) => (
               <div key={i}>
                 {part.trim() && (
-                  <div className="prose prose-sm max-w-none prose-slate prose-invert leading-relaxed">
+                  <div className="prose prose-sm max-w-none prose-slate dark:prose-invert leading-relaxed">
                     <Markdown html>{part.trim()}</Markdown>
                   </div>
                 )}
@@ -303,7 +303,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
 
     // Case 3: Plain markdown
     return (
-      <div className="prose prose-sm max-w-none prose-slate prose-invert leading-relaxed">
+      <div className="prose prose-sm max-w-none prose-slate dark:prose-invert leading-relaxed">
         <Markdown html>
           {(isLast && isStreaming) ? `${message.content}<span class="cursor-blink"></span>` : message.content}
         </Markdown>
@@ -324,7 +324,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
           <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-2xl rounded-br-md px-4 py-2.5 text-[13px] leading-relaxed shadow-sm">
             <p className="m-0 whitespace-pre-wrap">{message.content}</p>
           </div>
-          <div className="text-[10px] text-slate-600 mt-1 text-right">
+          <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 text-right">
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
@@ -343,9 +343,9 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
         animate={{ opacity: 1 }}
         className="flex justify-center"
       >
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/30">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/30">
           <AlertCircle className="w-3 h-3 text-amber-400/70" />
-          <span className="text-[11px] text-slate-400">{message.content}</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">{message.content}</span>
         </div>
       </motion.div>
     );
@@ -375,7 +375,7 @@ const Message = memo(function Message({ message, isLast, isStreaming }: MessageP
         {renderAIContent()}
 
         {/* Footer - model + time */}
-        <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-600">
+        <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-500 dark:text-slate-400">
           {message.metadata?.model && (
             <>
               <span className="uppercase tracking-wider font-medium">{message.metadata.model}</span>
@@ -420,9 +420,9 @@ export function ChatMessages() {
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center max-w-sm px-6">
           <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-            <Sparkles className="w-6 h-6 text-blue-400" />
+            <Sparkles className="w-6 h-6 text-blue-500 dark:text-blue-400" />
           </div>
-          <h2 className="text-lg font-semibold text-white mb-1.5">What do you want to build?</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1.5">What do you want to build?</h2>
           <p className="text-sm text-slate-500 mb-5">
             Describe your idea or paste a URL to clone.
           </p>
@@ -431,7 +431,7 @@ export function ChatMessages() {
               <button
                 key={s}
                 onClick={() => setInput(s)}
-                className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-full text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-700/60 hover:border-slate-600 transition-all cursor-pointer"
+                className="px-3 py-1.5 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50 rounded-full text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 transition-all cursor-pointer"
               >
                 {s}
               </button>
@@ -460,19 +460,19 @@ export function ChatMessages() {
               <div className="ml-9 mt-0.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => rewindChat(message.id)}
-                  className="px-1.5 py-0.5 rounded text-[10px] text-slate-500 hover:text-slate-300 hover:bg-slate-800/60 transition-colors"
+                  className="px-1.5 py-0.5 rounded text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
                 >
                   Rewind
                 </button>
                 <button
                   onClick={() => forkChat(message.id)}
-                  className="px-1.5 py-0.5 rounded text-[10px] text-slate-500 hover:text-slate-300 hover:bg-slate-800/60 transition-colors"
+                  className="px-1.5 py-0.5 rounded text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
                 >
                   Fork
                 </button>
                 <button
                   onClick={() => restoreLatestSnapshot()}
-                  className="px-1.5 py-0.5 rounded text-[10px] text-slate-500 hover:text-slate-300 hover:bg-slate-800/60 transition-colors"
+                  className="px-1.5 py-0.5 rounded text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
                 >
                   Restore
                 </button>

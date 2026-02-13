@@ -60,13 +60,13 @@ export default function ChatHistory({ onNewChat, onSelectChat }: ChatHistoryProp
   const groupOrder = ['Today', 'Yesterday', 'Previous 7 Days', 'Older'];
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 overflow-hidden">
-      <div className="p-3 border-b border-slate-800/50 space-y-3">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800/50 space-y-3">
         {/* New Chat Button */}
         {onNewChat && (
           <button
             onClick={onNewChat}
-            className="w-full flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg transition-colors border border-slate-700/50 shadow-sm"
+            className="w-full flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors border border-slate-200 dark:border-slate-700/50 shadow-sm"
           >
             <Plus className="w-4 h-4" />
             <span className="text-sm font-medium">New Chat</span>
@@ -74,8 +74,8 @@ export default function ChatHistory({ onNewChat, onSelectChat }: ChatHistoryProp
         )}
 
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-sm font-semibold text-slate-200">History</h2>
-          <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{chats.length}</span>
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">History</h2>
+          <span className="text-xs text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full">{chats.length}</span>
         </div>
       </div>
       
@@ -114,28 +114,28 @@ export default function ChatHistory({ onNewChat, onSelectChat }: ChatHistoryProp
                         }}
                         className={`w-full text-left p-3 rounded-xl transition-all duration-200 border border-transparent flex items-start gap-3 ${
                           currentChatId === chat.id
-                            ? 'bg-slate-800/80 text-white border-slate-700/50 shadow-lg shadow-black/20'
-                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 hover:border-slate-700/30'
+                            ? 'bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white border-slate-200 dark:border-slate-700/50 shadow-sm dark:shadow-lg dark:shadow-black/20'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:border-slate-200 dark:hover:border-slate-700/30'
                         }`}
                       >
                         <MessageSquare className={`w-4 h-4 mt-0.5 shrink-0 transition-colors ${
-                          currentChatId === chat.id ? 'text-orange-400' : 'text-slate-500 group-hover:text-slate-400'
+                          currentChatId === chat.id ? 'text-orange-500 dark:text-orange-400' : 'text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-400'
                         }`} />
                         <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-medium truncate ${
-                             currentChatId === chat.id ? 'text-slate-100' : 'text-slate-300'
+                          <div className={`text-sm font-medium truncate ${
+                             currentChatId === chat.id ? 'text-slate-900 dark:text-slate-100' : 'text-slate-700 dark:text-slate-300'
                           }`}>
                             {chat.title || 'Untitled Chat'}
                           </div>
 
-                          <div className="text-xs text-slate-500 truncate mt-1 group-hover:text-slate-400 transition-colors">
+                          <div className="text-xs text-slate-500 truncate mt-1 group-hover:text-slate-600 dark:group-hover:text-slate-400 transition-colors">
                             {format(new Date(chat.timestamp), 'h:mm a')}
                           </div>
                         </div>
                       </button>
                       
                       <button
-                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-slate-700 rounded-lg text-slate-500 hover:text-red-400"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 hover:text-red-600 dark:hover:text-red-400"
                         onClick={(e) => handleDeleteClick(e, chat.id)}
                         title="Delete chat"
                         tabIndex={0}
@@ -153,15 +153,15 @@ export default function ChatHistory({ onNewChat, onSelectChat }: ChatHistoryProp
       )}
 
       <AlertDialog open={!!chatToDelete} onOpenChange={(open) => !open && setChatToDelete(null)}>
-        <AlertDialogContent className="bg-slate-900 border-slate-700 text-slate-200">
+        <AlertDialogContent className="bg-white border-slate-200 text-slate-900 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Chat</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
+            <AlertDialogTitle className="text-slate-900 dark:text-white">Delete Chat</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600 dark:text-slate-400">
               Are you sure you want to delete this chat? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700 dark:hover:text-white">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-500 hover:bg-red-600 text-white border-red-600">
               Delete
             </AlertDialogAction>

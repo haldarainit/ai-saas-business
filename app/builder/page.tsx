@@ -1,5 +1,7 @@
 'use client';
 
+import { ThemeToggle } from '@/components/theme-toggle';
+
 import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthModal } from '@/components/auth-modal';
@@ -662,32 +664,32 @@ function BuilderContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-slate-950 overflow-hidden">
+    <div className="h-screen flex flex-col bg-slate-50 dark:bg-slate-950 overflow-hidden">
       {/* Header */}
-      <header className="shrink-0 flex items-center justify-between px-4 h-14 bg-slate-950 border-b border-slate-800 z-50">
+      <header className="shrink-0 flex items-center justify-between px-4 h-14 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 z-50">
         {/* Left Section */}
         <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm hidden sm:inline">Back</span>
           </Link>
 
-          <div className="h-6 w-px bg-slate-800 hidden sm:block" />
+          <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowHistory(!showHistory)}
               className={`p-2 rounded-lg transition-colors ${
-                showHistory ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                showHistory ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
               title="Toggle History"
             >
               <PanelLeft className="w-5 h-5" />
             </button>
-            <span className="font-semibold text-white hidden sm:inline">Website Builder</span>
+            <span className="font-semibold text-slate-900 dark:text-white hidden sm:inline">Website Builder</span>
           </div>
         </div>
 
@@ -698,6 +700,8 @@ function BuilderContent() {
 
         {/* Right Section */}
         <div className="flex items-center gap-3">
+          <ThemeToggle />
+          
           {/* Model Selector */}
           <div className="hidden sm:block">
             <ModelSelector compact />
@@ -708,7 +712,7 @@ function BuilderContent() {
           {/* Download */}
           <button
             onClick={handleDownload}
-            className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
             title="Download project"
           >
             <Download className="w-5 h-5" />
@@ -717,7 +721,7 @@ function BuilderContent() {
           {/* Deploy */}
           <button
             onClick={() => setShowDeploy(true)}
-            className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
             title="Deploy project"
           >
             <Rocket className="w-5 h-5" />
@@ -737,7 +741,7 @@ function BuilderContent() {
               document.body.removeChild(a);
               URL.revokeObjectURL(url);
             }}
-            className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
             title="Export chat"
           >
             <FileDown className="w-5 h-5" />
@@ -746,7 +750,7 @@ function BuilderContent() {
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors md:hidden"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors md:hidden"
           >
             {showMobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -760,7 +764,7 @@ function BuilderContent() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-slate-800 border-b border-slate-700/50 px-4 py-3"
+            className="md:hidden bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700/50 px-4 py-3"
           >
             <div className="flex flex-col gap-3">
               <ModelSelector />
@@ -781,7 +785,7 @@ function BuilderContent() {
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: 260, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
-              className="bg-slate-900 border-r border-slate-700/50 overflow-hidden hidden md:block"
+              className="bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700/50 overflow-hidden hidden md:block"
             >
               <div className="w-[260px] h-full">
                 <ChatHistory onSelectChat={handleSelectChat} onNewChat={async () => {
@@ -820,7 +824,7 @@ function BuilderContent() {
         {showChat && (
           <>
             <div 
-              className="hidden md:flex flex-col bg-slate-900/50 border-r border-slate-700/50 shrink-0 overflow-hidden min-h-0"
+              className="hidden md:flex flex-col bg-white dark:bg-slate-900/50 border-r border-slate-200 dark:border-slate-700/50 shrink-0 overflow-hidden min-h-0"
               style={{ width: `${chatWidth}px` }}
             >
               <ChatMessages />
@@ -834,7 +838,7 @@ function BuilderContent() {
             {/* Resize Handle */}
             <div 
               className={`hidden md:block w-1.5 shrink-0 cursor-col-resize transition-colors ${
-                isResizing ? 'bg-orange-500' : 'bg-slate-800 hover:bg-orange-500'
+                isResizing ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-800 hover:bg-orange-500'
               }`}
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -856,7 +860,7 @@ function BuilderContent() {
 
         {/* Mobile Chat (Full Screen Overlay) */}
         <div className="md:hidden fixed inset-x-0 bottom-0 z-40">
-          <div className="bg-slate-900 border-t border-slate-700/50 max-h-[60vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700/50 max-h-[60vh] flex flex-col">
             <div className="flex-1 overflow-y-auto">
               <ChatMessages />
             </div>
@@ -879,10 +883,10 @@ function BuilderContent() {
 export default function BuilderPage() {
   return (
     <Suspense fallback={
-      <div className="h-screen flex items-center justify-center bg-slate-900">
+      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
-          <p className="text-slate-400">Loading AI Builder...</p>
+          <p className="text-slate-600 dark:text-slate-400">Loading AI Builder...</p>
         </div>
       </div>
     }>

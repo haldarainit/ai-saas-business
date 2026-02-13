@@ -1,12 +1,39 @@
 import type { ITheme } from '@xterm/xterm';
 
-export function getTerminalTheme(overrides?: ITheme): ITheme {
+type TerminalMode = 'light' | 'dark';
+
+function getThemeStyle(mode?: TerminalMode): CSSStyleDeclaration | null {
+  if (typeof window === 'undefined') return null;
+
+  const root = document.documentElement;
+
+  if (!mode) {
+    return getComputedStyle(root);
+  }
+
+  const probe = document.createElement('div');
+  if (mode === 'dark') {
+    probe.classList.add('dark');
+  }
+  probe.style.display = 'none';
+  root.appendChild(probe);
+
+  const style = getComputedStyle(probe);
+  root.removeChild(probe);
+
+  return style;
+}
+
+export function getTerminalTheme(overrides?: ITheme, mode?: TerminalMode): ITheme {
   if (typeof window === 'undefined') {
     return { ...overrides };
   }
 
-  const style = getComputedStyle(document.documentElement);
-  const cssVar = (token: string) => style.getPropertyValue(token) || undefined;
+  const style = getThemeStyle(mode);
+  if (!style) {
+    return { ...overrides };
+  }
+  const cssVar = (token: string) => style.getPropertyValue(token).trim() || undefined;
 
   return {
     cursor: cssVar('--bolt-elements-terminal-cursorColor'),

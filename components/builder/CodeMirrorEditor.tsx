@@ -52,6 +52,8 @@ const getLanguageExtension = (language: string) => {
   }
 };
 
+import { useTheme } from 'next-themes';
+
 export function CodeMirrorEditor({
   value,
   onChange,
@@ -64,6 +66,7 @@ export function CodeMirrorEditor({
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const isInternalUpdate = useRef(false);
+  const { resolvedTheme } = useTheme();
 
   // Handle save with Ctrl+S
   const handleSave = useCallback(() => {
@@ -96,6 +99,9 @@ export function CodeMirrorEditor({
         run: () => handleSave()
       }
     ]);
+    
+    // Theme compartmentalization
+    const themeCompartment = new Compartment();
 
     const state = EditorState.create({
       doc: value,
@@ -128,7 +134,7 @@ export function CodeMirrorEditor({
         ]),
         customKeymap,
         languageCompartment.of(getLanguageExtension(language)),
-        vscodeDark,
+        themeCompartment.of(resolvedTheme === 'dark' ? vscodeDark : []),
         updateListener,
         scrollListener,
         EditorView.lineWrapping,
@@ -144,10 +150,14 @@ export function CodeMirrorEditor({
           },
           '.cm-gutters': {
             backgroundColor: 'transparent',
-            borderRight: '1px solid rgba(255, 255, 255, 0.1)'
+            borderRight: '1px solid transparent',
+            color: resolvedTheme === 'dark' ? '#4b5563' : '#9ca3af'
           },
           '.cm-activeLineGutter': {
-            backgroundColor: 'rgba(255, 255, 255, 0.05)'
+            backgroundColor: resolvedTheme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'
+          },
+          '.cm-lineNumbers': {
+            fontSize: '12px'
           }
         })
       ]
@@ -164,7 +174,7 @@ export function CodeMirrorEditor({
       view.destroy();
       viewRef.current = null;
     };
-  }, []);
+  }, [resolvedTheme]); // Re-initialize when theme changes
 
   // Update content when value changes externally
   useEffect(() => {
@@ -196,7 +206,7 @@ export function CodeMirrorEditor({
   return (
     <div 
       ref={editorRef} 
-      className={`h-full w-full overflow-hidden bg-[#1e1e1e] ${className}`}
+      className={`h-full w-full overflow-hidden bg-white dark:bg-[#1e1e1e] ${className}`}
     />
   );
 }

@@ -213,27 +213,27 @@ export function Preview({ sandboxUrl }: PreviewProps) {
 
   if (!activePreview?.baseUrl) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-950 text-slate-500">
+      <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-500">
         <div className="text-center">
           {hasProject ? (
             <>
               <Loader2 className="w-8 h-8 mx-auto mb-3 text-orange-500 animate-spin" />
-              <p className="text-lg font-medium text-slate-300">Starting preview...</p>
-              <p className="text-sm mt-1 text-slate-500">
+              <p className="text-lg font-medium text-slate-700 dark:text-slate-300">Starting preview...</p>
+              <p className="text-sm mt-1 text-slate-500 dark:text-slate-500">
                 Installing dependencies and launching the dev server.
               </p>
               <button
                 onClick={() => ensureDevServerRunning()}
-                className="mt-4 px-4 py-2 text-sm rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200"
+                className="mt-4 px-4 py-2 text-sm rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200"
               >
                 Retry start
               </button>
             </>
           ) : (
             <>
-              <Globe className="w-16 h-16 mx-auto mb-4 text-slate-700" />
-              <p className="text-lg font-medium">No preview available</p>
-              <p className="text-sm mt-1">Generate code to see a live preview</p>
+              <Globe className="w-16 h-16 mx-auto mb-4 text-slate-400 dark:text-slate-700" />
+              <p className="text-lg font-medium text-slate-700 dark:text-slate-300">No preview available</p>
+              <p className="text-sm mt-1 text-slate-500 dark:text-slate-500">Generate code to see a live preview</p>
               {isStreaming && (
                 <div className="mt-4 flex items-center justify-center gap-2 text-orange-400">
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -248,11 +248,11 @@ export function Preview({ sandboxUrl }: PreviewProps) {
   }
 
   return (
-    <div className="h-full flex flex-col bg-slate-950">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-800/60 bg-slate-900/60">
+    <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-200 dark:border-slate-800/60 bg-white dark:bg-slate-900/60">
         <button
           onClick={handleRefresh}
-          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white"
+          className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
           title="Refresh preview"
         >
           <RefreshCw className="w-4 h-4" />
@@ -260,8 +260,8 @@ export function Preview({ sandboxUrl }: PreviewProps) {
 
         <button
           onClick={() => setIsSelectionMode(!isSelectionMode)}
-          className={`p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white ${
-            isSelectionMode ? 'bg-slate-800 text-white' : ''
+          className={`p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${
+            isSelectionMode ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white' : ''
           }`}
           title={isSelectionMode ? 'Exit selection' : 'Select screenshot area'}
         >
@@ -274,8 +274,8 @@ export function Preview({ sandboxUrl }: PreviewProps) {
             setIsInspectorMode(next);
             if (next) setShowInspectorPanel(true);
           }}
-          className={`p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white ${
-            isInspectorMode ? 'bg-slate-800 text-white' : ''
+          className={`p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${
+            isInspectorMode ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white' : ''
           }`}
           title={isInspectorMode ? 'Disable inspector' : 'Enable inspector'}
         >
@@ -291,11 +291,11 @@ export function Preview({ sandboxUrl }: PreviewProps) {
           previews={previews}
         />
 
-        <div className="flex-1 flex items-center gap-1 bg-slate-900/50 border border-slate-700/50 rounded-full px-2 py-1 text-xs">
+        <div className="flex-1 flex items-center gap-1 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/50 rounded-full px-2 py-1 text-xs">
           <span className="i-ph:globe text-sm text-slate-400" />
           <input
             title="URL Path"
-            className="w-full bg-transparent outline-none text-slate-300"
+            className="w-full bg-transparent outline-none text-slate-600 dark:text-slate-300"
             type="text"
             value={displayPath}
             onChange={(event) => setDisplayPath(event.target.value)}
@@ -312,8 +312,8 @@ export function Preview({ sandboxUrl }: PreviewProps) {
 
         <button
           onClick={() => setPreviewDevice(DEVICES[0])}
-          className={`p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white ${
-            previewDevice.name === 'Responsive' ? 'bg-slate-800 text-white' : ''
+          className={`p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${
+            previewDevice.name === 'Responsive' ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white' : ''
           }`}
           title="Responsive"
         >
@@ -321,8 +321,8 @@ export function Preview({ sandboxUrl }: PreviewProps) {
         </button>
         <button
           onClick={() => setPreviewDevice(DEVICES.find((d) => d.type === 'tablet') || DEVICES[0])}
-          className={`p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white ${
-            previewDevice.type === 'tablet' ? 'bg-slate-800 text-white' : ''
+          className={`p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${
+            previewDevice.type === 'tablet' ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white' : ''
           }`}
           title="Tablet"
         >
@@ -330,8 +330,8 @@ export function Preview({ sandboxUrl }: PreviewProps) {
         </button>
         <button
           onClick={() => setPreviewDevice(DEVICES.find((d) => d.type === 'mobile') || DEVICES[0])}
-          className={`p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white ${
-            previewDevice.type === 'mobile' ? 'bg-slate-800 text-white' : ''
+          className={`p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${
+            previewDevice.type === 'mobile' ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white' : ''
           }`}
           title="Mobile"
         >
@@ -339,15 +339,15 @@ export function Preview({ sandboxUrl }: PreviewProps) {
         </button>
         <button
           onClick={() => setPreviewIsLandscape(!previewIsLandscape)}
-          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white"
+          className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
           title="Toggle landscape"
         >
           <RotateCw className="w-4 h-4" />
         </button>
         <button
           onClick={() => setPreviewShowFrame(!previewShowFrame)}
-          className={`p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white ${
-            previewShowFrame ? 'bg-slate-800 text-white' : ''
+          className={`p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${
+            previewShowFrame ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white' : ''
           }`}
           title="Toggle device frame"
         >
@@ -355,39 +355,39 @@ export function Preview({ sandboxUrl }: PreviewProps) {
         </button>
         <button
           onClick={openInNewTab}
-          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white"
+          className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
           title="Open in new tab"
         >
           <ExternalLink className="w-4 h-4" />
         </button>
         <button
           onClick={toggleFullscreen}
-          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white"
+          className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
           title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>
       </div>
 
-      <div ref={containerRef} className="flex-1 relative overflow-hidden flex items-center justify-center bg-[#1e1e1e]">
+      <div ref={containerRef} className="flex-1 relative overflow-hidden flex items-center justify-center bg-slate-100 dark:bg-[#1e1e1e]">
         {isLoading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/80 rounded-lg">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 dark:bg-slate-950/80 rounded-lg">
             <div className="text-center">
               <Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto mb-2" />
-              <p className="text-sm text-slate-400">Loading preview...</p>
+              <p className="text-sm text-slate-700 dark:text-slate-400">Loading preview...</p>
               {retryCount > 0 && (
-                <p className="text-xs text-slate-500 mt-1">Retry {retryCount}/3</p>
+                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">Retry {retryCount}/3</p>
               )}
             </div>
           </div>
         )}
 
         {hasError && !isLoading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950 rounded-lg">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white dark:bg-slate-950 rounded-lg">
             <div className="text-center">
               <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-              <p className="text-lg font-medium text-slate-300">Preview unavailable</p>
-              <p className="text-sm text-slate-500 mt-1">The sandbox might still be starting up</p>
+              <p className="text-lg font-medium text-slate-800 dark:text-slate-300">Preview unavailable</p>
+              <p className="text-sm text-slate-500 dark:text-slate-500 mt-1">The sandbox might still be starting up</p>
               <button
                 onClick={() => {
                   setRetryCount(0);
@@ -404,8 +404,8 @@ export function Preview({ sandboxUrl }: PreviewProps) {
 
         <div style={getContainerStyle()} className={`relative ${previewDevice.name !== 'Responsive' ? 'shadow-2xl' : ''}`}>
           {previewDevice.hasFrame && previewShowFrame && (
-            <div className="absolute inset-0 pointer-events-none z-20 border-[12px] border-[#2a2a2e] rounded-[2.5rem] shadow-xl">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-[#2a2a2e] rounded-b-xl" />
+            <div className="absolute inset-0 pointer-events-none z-20 border-[12px] border-slate-300 dark:border-[#2a2a2e] rounded-[2.5rem] shadow-xl">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-slate-300 dark:bg-[#2a2a2e] rounded-b-xl" />
             </div>
           )}
 
@@ -414,7 +414,7 @@ export function Preview({ sandboxUrl }: PreviewProps) {
             src={iframeUrl}
             className={`w-full h-full bg-white ${
               previewDevice.hasFrame && previewShowFrame ? 'rounded-[1.8rem]' : 'rounded-lg'
-            } ${previewDevice.name === 'Responsive' ? '' : 'border border-slate-700/50'}`}
+            } ${previewDevice.name === 'Responsive' ? '' : 'border border-slate-200 dark:border-slate-700/50'}`}
             title="Preview"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
             onLoad={handleLoad}

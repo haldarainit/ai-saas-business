@@ -146,7 +146,7 @@ export function ChatInput({
   };
 
   return (
-    <div className="border-t border-slate-800 p-4 bg-slate-950">
+    <div className="border-t border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-950">
       <div className="relative max-w-4xl mx-auto">
         
         {/* Selected element label */}
@@ -155,13 +155,13 @@ export function ChatInput({
             {inspectorSelections.map((selection) => (
               <span
                 key={selection}
-                className="flex items-center gap-1 text-[11px] text-slate-300 bg-slate-900/60 border border-slate-800 rounded-full px-2 py-0.5 max-w-[240px]"
+                className="flex items-center gap-1 text-[11px] text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-full px-2 py-0.5 max-w-[240px]"
               >
                 <span className="i-ph:cursor-click text-xs text-slate-400" />
                 <span className="truncate">{selection}</span>
                 <button
                   onClick={() => removeInspectorSelection(selection)}
-                  className="ml-1 text-slate-500 hover:text-slate-200"
+                  className="ml-1 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-200"
                   title="Remove selection"
                 >
                   ×
@@ -170,7 +170,7 @@ export function ChatInput({
             ))}
             <button
               onClick={clearInspectorSelections}
-              className="text-[11px] px-2 py-0.5 rounded-full border border-slate-800 text-slate-400 hover:text-slate-200"
+              className="text-[11px] px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
               title="Clear selections"
             >
               Clear
@@ -183,7 +183,7 @@ export function ChatInput({
              <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={disabled || isLoading || isStreaming}
-                className="text-xs flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors"
+                className="text-xs flex items-center gap-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
                 title="Attach file"
               >
                 <Paperclip className="w-4 h-4" />
@@ -193,7 +193,7 @@ export function ChatInput({
              <button
                 onClick={handleEnhancePrompt}
                 disabled={!input.trim() || showEnhancePrompt || disabled || isLoading || isStreaming}
-                className="text-xs flex items-center gap-1.5 text-slate-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="text-xs flex items-center gap-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 title="Enhance prompt with AI"
               >
                 {showEnhancePrompt ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -215,11 +215,11 @@ export function ChatInput({
                     <img
                       src={src}
                       alt={`Upload ${index + 1}`}
-                      className="h-16 w-16 object-cover rounded-lg border border-slate-800"
+                      className="h-16 w-16 object-cover rounded-lg border border-slate-200 dark:border-slate-800"
                     />
                     <button
                       onClick={() => removeFile(index)}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-slate-800 text-slate-400 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white/90 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -232,7 +232,7 @@ export function ChatInput({
         <div className="flex items-end gap-2">
           {/* Main Input */}
           <div className="flex-1 relative">
-            <div className="flex items-center gap-2 px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus-within:border-blue-500/50 transition-all">
+            <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus-within:border-blue-500/50 transition-all">
               {/* URL indicator */}
               {isUrl(input) && (
                 <Link2 className="w-4 h-4 text-blue-400 shrink-0" />
@@ -246,7 +246,7 @@ export function ChatInput({
                 placeholder={placeholder}
                 disabled={disabled || isLoading || isStreaming}
                 rows={1}
-                className="flex-1 bg-transparent text-white placeholder:text-slate-500 resize-none outline-none min-h-[24px] max-h-[200px] scrollbar-hide overflow-y-auto"
+                className="flex-1 bg-transparent text-slate-900 dark:text-white placeholder:text-slate-500 resize-none outline-none min-h-[24px] max-h-[200px] scrollbar-hide overflow-y-auto"
               />
             </div>
           </div>

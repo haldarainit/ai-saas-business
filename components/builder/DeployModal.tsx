@@ -262,7 +262,9 @@ export function DeployModal({ open, onClose }: DeployModalProps) {
               key={p}
               onClick={() => setProvider(p)}
               className={`px-3 py-1.5 rounded-md border ${
-                provider === p ? 'bg-slate-800 border-slate-600 text-white' : 'border-slate-700 text-slate-300'
+                provider === p
+                  ? 'bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-800 dark:border-slate-600 dark:text-white'
+                  : 'bg-white border-slate-200 text-slate-600 dark:bg-transparent dark:border-slate-700 dark:text-slate-300'
               }`}
             >
               {p.charAt(0).toUpperCase() + p.slice(1)}
@@ -277,13 +279,13 @@ export function DeployModal({ open, onClose }: DeployModalProps) {
                 value={vercelToken}
                 onChange={(e) => setVercelToken(e.target.value)}
                 placeholder="Vercel Token"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-slate-200"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-slate-700 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
               />
               <input
                 value={vercelProjectId}
                 onChange={(e) => setVercelProjectId(e.target.value)}
                 placeholder="Project ID (optional)"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-slate-200"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-slate-700 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
               />
             </>
           )}
@@ -293,13 +295,13 @@ export function DeployModal({ open, onClose }: DeployModalProps) {
                 value={netlifyToken}
                 onChange={(e) => setNetlifyToken(e.target.value)}
                 placeholder="Netlify Token"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-slate-200"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-slate-700 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
               />
               <input
                 value={netlifySiteId}
                 onChange={(e) => setNetlifySiteId(e.target.value)}
                 placeholder="Site ID (optional)"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-slate-200"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-slate-700 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
               />
             </>
           )}
@@ -309,25 +311,25 @@ export function DeployModal({ open, onClose }: DeployModalProps) {
                 value={githubToken}
                 onChange={(e) => setGithubToken(e.target.value)}
                 placeholder="GitHub Token"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-slate-200"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-slate-700 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
               />
               <input
                 value={githubRepo}
                 onChange={(e) => setGithubRepo(e.target.value)}
                 placeholder="Repo name (e.g. my-project)"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-slate-200"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-slate-700 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
               />
             </>
           )}
         </div>
 
-        {status && <div className="mt-3 text-xs text-slate-400">{status}</div>}
-        {error && <div className="mt-2 text-xs text-red-400">{error}</div>}
+        {status && <div className="mt-3 text-xs text-slate-600 dark:text-slate-400">{status}</div>}
+        {error && <div className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</div>}
 
         <div className="mt-4 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 rounded-md border border-slate-700 text-slate-300"
+            className="px-3 py-1.5 rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             Close
           </button>
