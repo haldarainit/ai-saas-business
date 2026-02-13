@@ -21,7 +21,6 @@ import {
   Sparkles,
   Menu,
   X,
-  AlertTriangle,
   Zap,
   PanelLeft
 } from 'lucide-react';
@@ -44,7 +43,6 @@ import { path as pathUtils } from '@/utils/path';
 import { WORK_DIR } from '@/utils/constants';
 
 // WebContainer
-import { isWebContainerSupported } from '@/lib/webcontainer';
 
 function BuilderContent() {
   const { user, loading: authLoading } = useAuth();
@@ -110,7 +108,6 @@ function BuilderContent() {
   const [statusMessage, setStatusMessage] = useState('');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showDeploy, setShowDeploy] = useState(false);
-  const [webcontainerSupported, setWebcontainerSupported] = useState(true);
   const messageIdRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastAutoFixSignature = useRef<string>('');
@@ -149,26 +146,12 @@ function BuilderContent() {
     };
   }, [isResizing]);
 
-  // Check WebContainer support and initialize
-  // Check WebContainer support and initialize
+  // Initialize WebContainer
   useEffect(() => {
     // Only initialize if we have a user
     if (user && !authLoading) {
       console.log('User authenticated, initializing chat store');
       initialize();
-      
-      const supported = isWebContainerSupported();
-      setWebcontainerSupported(supported);
-
-      if (!supported) {
-        setStatus('error');
-        setStatusMessage('WebContainer requires SharedArrayBuffer. Please ensure your browser supports it.');
-        addMessage({
-          role: 'system',
-          content: '⚠️ WebContainer is not supported in this browser. The live preview feature requires SharedArrayBuffer support. Please try using Chrome or Edge with the correct headers.'
-        });
-        return;
-      }
 
       // Initialize WebContainer
       initializeWebContainer();
@@ -639,29 +622,6 @@ function BuilderContent() {
         return null;
     }
   };
-
-  // WebContainer not supported warning
-  if (!webcontainerSupported) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <div className="max-w-md text-center p-8">
-          <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">Browser Not Supported</h1>
-          <p className="text-slate-400 mb-6">
-            The AI Builder requires WebContainer which needs SharedArrayBuffer support. 
-            This is typically available in Chrome or Edge with the correct security headers.
-          </p>
-          <Link 
-            href="/"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Go Back Home
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-screen flex flex-col bg-slate-50 dark:bg-slate-950 overflow-hidden">

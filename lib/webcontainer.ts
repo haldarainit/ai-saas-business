@@ -18,10 +18,42 @@ export let webcontainer: Promise<WebContainer> = new Promise(() => {
   // noop for ssr
 });
 
+function createWebContainerStub(): WebContainer {
+  const emptyStream = new ReadableStream({
+    start(controller) {
+      controller.close();
+    },
+  });
+
+  const stubProcess = {
+    output: emptyStream,
+    exit: Promise.resolve(0),
+    kill() {},
+    resize() {},
+  } as any;
+
+  const fs = {
+    readdir: async () => [],
+    readFile: async (_path: string, encoding?: string) => (encoding ? '' : new Uint8Array()),
+    writeFile: async () => {},
+    mkdir: async () => {},
+    rm: async () => {},
+  } as unknown as WebContainer['fs'];
+
+  return {
+    workdir: '/home/project',
+    fs,
+    on: () => {},
+    spawn: async () => stubProcess,
+    setPreviewScript: async () => {},
+    internal: {},
+  } as unknown as WebContainer;
+}
+
 if (typeof window !== 'undefined') {
   // Use window as backup storage for the WebContainer promise to survive HMR where hot.data might be lost
   if (!(window as any).__WEBCONTAINER_PROMISE__) {
-    (window as any).__WEBCONTAINER_PROMISE__ = (import.meta as any).hot?.data.webcontainer ??
+    (window as any).__WEBCONTAINER_PROMISE__ = ((import.meta as any).hot?.data.webcontainer ??
       Promise.resolve()
         .then(() => {
           return WebContainer.boot({
@@ -61,7 +93,11 @@ if (typeof window !== 'undefined') {
           });
 
           return webcontainer;
-        });
+        }))
+      .catch((error) => {
+        console.warn('[WebContainer] Boot failed, falling back to stub:', error);
+        return createWebContainerStub();
+      });
   }
   
   webcontainer = (window as any).__WEBCONTAINER_PROMISE__;
@@ -72,5 +108,9 @@ if (typeof window !== 'undefined') {
 }
 
 export function isWebContainerSupported() {
-  return typeof window !== 'undefined' && (window as any).SharedArrayBuffer !== undefined;
+  return (
+    typeof window !== 'undefined' &&
+    (window as any).SharedArrayBuffer !== undefined &&
+    (window as any).crossOriginIsolated === true
+  );
 }
