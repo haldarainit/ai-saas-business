@@ -5,8 +5,6 @@ import UserProfile from "@/lib/models/UserProfile";
 // Type definitions
 interface GoogleCalendarSettings {
     connected: boolean;
-    clientId: string;
-    clientSecret: string;
     connectedEmail: string;
 }
 
@@ -105,6 +103,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         console.log("🔵 [API] Found profile for user:", userProfile.userId);
         console.log("🔵 [API] Profile emailSettings from DB:", JSON.stringify(userProfile.emailSettings, null, 2));
+        // Remove legacy Google OAuth credentials stored on the profile
+        const legacyGoogleCreds =
+            (userProfile as any)?.googleCalendar?.clientId ||
+            (userProfile as any)?.googleCalendar?.clientSecret;
+        if (legacyGoogleCreds) {
+            await UserProfile.updateOne(
+                { userId: userProfile.userId },
+                { $unset: { "googleCalendar.clientId": "", "googleCalendar.clientSecret": "" } }
+            );
+        }
 
         const profileResponse: ProfileResponse = {
             userId: userProfile.userId,
@@ -119,8 +127,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             welcomeMessage: userProfile.welcomeMessage,
             googleCalendar: {
                 connected: userProfile.googleCalendar?.connected || false,
-                clientId: userProfile.googleCalendar?.clientId || "",
-                clientSecret: userProfile.googleCalendar?.clientSecret || "",
                 connectedEmail: userProfile.googleCalendar?.connectedEmail || "",
             },
             outlookCalendar: {
@@ -290,6 +296,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         if (updates.googleCalendar) {
             console.log("🟢 [API] Updating googleCalendar...");
             Object.keys(updates.googleCalendar).forEach(key => {
+                if (key === "clientId" || key === "clientSecret") return;
                 updateOps[`googleCalendar.${key}`] = (updates.googleCalendar as Record<string, unknown>)[key];
             });
             delete updates.googleCalendar;
