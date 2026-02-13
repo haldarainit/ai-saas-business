@@ -9,8 +9,6 @@ import {
 // Type definitions
 interface GoogleCredentialsBody {
   userId: string;
-  clientId?: string;
-  clientSecret?: string;
 }
 
 interface ConnectionStatus {
@@ -38,14 +36,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // If action is "connect", generate OAuth URL
     if (action === "connect") {
-      // Check if user has configured their own credentials
-      const clientId = userProfile?.googleCalendar?.clientId;
-      const clientSecret = userProfile?.googleCalendar?.clientSecret;
+      const envClientId = process.env.GOOGLE_CLIENT_ID;
+      const envClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      const clientId = envClientId;
+      const clientSecret = envClientSecret;
 
       if (!clientId || !clientSecret) {
         return NextResponse.json({
           success: false,
-          error: "Please save your Google API credentials first",
+          error: "Google API credentials not configured",
           needsCredentials: true,
         });
       }
@@ -69,14 +68,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Otherwise, return connection status
+    const hasCredentials = !!(
+      process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    );
+
     if (!userProfile?.googleCalendar?.connected) {
       return NextResponse.json({
         success: true,
         connected: false,
-        hasCredentials: !!(
-          userProfile?.googleCalendar?.clientId &&
-          userProfile?.googleCalendar?.clientSecret
-        ),
+        hasCredentials,
         message: "Google Calendar not connected",
       });
     }
@@ -95,14 +95,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           email:
             connectionStatus.email || userProfile.googleCalendar.connectedEmail,
           calendarName: connectionStatus.summary,
-          hasCredentials: true,
+          hasCredentials,
         });
       } else {
         return NextResponse.json({
           success: true,
           connected: false,
           expired: true,
-          hasCredentials: true,
+          hasCredentials,
           message: "Google Calendar connection expired. Please reconnect.",
         });
       }
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         success: true,
         connected: userProfile.googleCalendar.connected,
         expired: true,
-        hasCredentials: true,
+        hasCredentials,
         message: "Unable to verify connection status",
       });
     }
@@ -123,22 +123,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-// POST - Save Google API credentials
+// POST - Legacy endpoint (credentials are managed via env vars)
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body: GoogleCredentialsBody = await request.json();
-    const { userId, clientId, clientSecret } = body;
+    const { userId } = body;
 
     if (!userId) {
       return NextResponse.json(
         { error: "User ID is required" },
-        { status: 400 },
-      );
-    }
-
-    if (!clientId || !clientSecret) {
-      return NextResponse.json(
-        { error: "Client ID and Client Secret are required" },
         { status: 400 },
       );
     }
@@ -158,34 +151,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Initialize googleCalendar if it doesn't exist
-    if (!profile.googleCalendar) {
-      profile.googleCalendar = {
-        connected: false,
-        clientId: "",
-        clientSecret: "",
-        connectedEmail: "",
-      };
-    }
-
-    // Update the credentials
-    profile.googleCalendar.clientId = clientId.trim();
-    profile.googleCalendar.clientSecret = clientSecret.trim();
-
-    // Mark the nested object as modified (required for Mongoose to detect changes)
-    profile.markModified("googleCalendar");
-
-    // Save the profile
-    await profile.save();
+    // Credentials are managed via environment variables now. Clear any stored values.
+    await UserProfile.updateOne(
+      { userId },
+      { $unset: { "googleCalendar.clientId": "", "googleCalendar.clientSecret": "" } },
+    );
 
     return NextResponse.json({
       success: true,
       message:
-        "Google API credentials saved. You can now connect your calendar.",
-      credentials: {
-        clientId: profile.googleCalendar.clientId || "",
-        hasSecret: !!profile.googleCalendar.clientSecret,
-      },
+        "Google API credentials are managed in server settings. You can now connect your calendar.",
     });
   } catch (error) {
     console.error("Error saving Google credentials:", error);

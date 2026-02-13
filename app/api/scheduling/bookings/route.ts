@@ -88,10 +88,7 @@ async function ensureGoogleAccessToken(
   }
 
   try {
-    const refreshed = await refreshAccessToken(tokens.refreshToken, {
-      clientId: tokens.clientId || undefined,
-      clientSecret: tokens.clientSecret || undefined,
-    });
+    const refreshed = await refreshAccessToken(tokens.refreshToken);
 
     profile.googleCalendar.accessToken = refreshed.accessToken;
     profile.googleCalendar.tokenExpiry = new Date(refreshed.expiresAt);
@@ -276,8 +273,6 @@ export async function POST(request: NextRequest) {
           const meeting = await createGoogleMeetEvent({
             accessToken,
             refreshToken: hostProfile.googleCalendar?.refreshToken || undefined,
-            clientId: hostProfile.googleCalendar?.clientId || undefined,
-            clientSecret: hostProfile.googleCalendar?.clientSecret || undefined,
             title: eventType.name,
             description: eventType.description,
             date,
