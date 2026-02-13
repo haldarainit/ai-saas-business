@@ -38,7 +38,7 @@ export async function POST(request: Request): Promise<Response> {
         });
 
         // Generate the email template using Gemini AI
-        const geminiModule = await import("../../../utils/gemini.js");
+        const geminiModule = await import("../../../utils/gemini");
         const gemini = geminiModule.default || geminiModule;
         const result: TemplateResult = await gemini.generateEmailTemplate(
             prompt.trim(),

@@ -402,7 +402,7 @@ export default function Navbar() {
                 >
                   {/* Shimmer effect */}
                   <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/25 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                  <Sparkles className="h-4 w-4 text-white transition-all group-hover:rotate-12 group-hover:scale-110" />
+                  <ArrowRight className="h-4 w-4 text-white transition-all group-hover:rotate-12 group-hover:scale-110" />
                   <span className="text-sm font-semibold tracking-wide">Explore</span>
                 </Button>
                 <Link href="/profile" aria-label="Go to profile">
@@ -425,7 +425,7 @@ export default function Navbar() {
               >
                 {/* Shimmer effect */}
                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/25 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                <Zap className="h-4 w-4 text-white transition-all group-hover:scale-110" />
+                <Users className="h-4 w-4 text-white transition-all group-hover:scale-110" />
                 <span className="text-sm font-semibold tracking-wide">Join Now</span>
               </Button>
             )}

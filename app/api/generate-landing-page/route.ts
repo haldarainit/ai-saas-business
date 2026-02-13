@@ -67,7 +67,7 @@ export async function POST(request: Request): Promise<Response> {
         });
 
         // Generate the landing page using Gemini AI
-        const geminiModule = await import("../../../utils/gemini.js");
+        const geminiModule = await import("../../../utils/gemini");
         const gemini = geminiModule.default || geminiModule;
 
         // Build the prompt with conversation context

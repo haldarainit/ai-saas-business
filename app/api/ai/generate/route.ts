@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
         console.log('AI Generate API called with type:', type);
 
         // Import the Gemini utility
-        const geminiModule = await import('../../../../utils/gemini.js');
+        const geminiModule = await import('../../../../utils/gemini');
         const gemini = geminiModule.default || geminiModule;
 
         // Enhanced prompt for quotation generation

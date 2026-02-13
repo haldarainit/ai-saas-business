@@ -46,7 +46,7 @@ export async function POST(request: Request): Promise<Response> {
         });
 
         // Generate the sales script using Gemini AI
-        const geminiModule = await import("../../../utils/gemini.js");
+        const geminiModule = await import("../../../utils/gemini");
         const gemini = geminiModule.default || geminiModule;
 
         const prompt = `
@@ -86,9 +86,36 @@ Generate the sales script now:`;
         const result = await gemini.generateAIResponse(prompt);
 
         if (result && !result.includes("Error")) {
+            // Try to parse the response as JSON to extract the script
+            let scriptContent = result;
+
+            try {
+                // Try to extract JSON from the response
+                const jsonMatch = result.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    if (parsed.script) {
+                        scriptContent = parsed.script;
+                    }
+                }
+            } catch (parseError) {
+                // If JSON parsing fails, clean up the raw response
+                console.log('Could not parse JSON, using raw response');
+
+                // Remove any JSON wrapper artifacts
+                scriptContent = result
+                    .replace(/^```json\s*/i, '')
+                    .replace(/```\s*$/i, '')
+                    .replace(/^\s*\{\s*"script"\s*:\s*"/, '')
+                    .replace(/"\s*\}\s*$/, '')
+                    .replace(/\\n/g, '\n')
+                    .replace(/\\"/g, '"')
+                    .trim();
+            }
+
             return Response.json({
                 success: true,
-                script: result,
+                script: scriptContent,
             });
         } else {
             return Response.json(

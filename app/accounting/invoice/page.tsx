@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { ArrowLeft, Sparkles, FileEdit, Plus, Loader2, Banknote, IndianRupee, Trash2, FileText, ArrowRight, Check, Wand2 } from "lucide-react";
+import { ArrowLeft, Lightbulb, FileEdit, Plus, Loader2, Banknote, IndianRupee, Trash2, FileText, ArrowRight, Check, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from 'next/navigation';
@@ -267,7 +267,7 @@ export default function InvoiceDashboard() {
                             {/* Header */}
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 shadow-lg">
-                                    <Sparkles className="w-6 h-6 text-white animate-pulse" />
+                                    <Lightbulb className="w-6 h-6 text-white animate-pulse" />
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-bold text-white">AI Processing</h3>
@@ -418,7 +418,7 @@ export default function InvoiceDashboard() {
 
                                     {/* AI Badge */}
                                     <div className="absolute top-4 right-4 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-bold flex items-center gap-1">
-                                        <Sparkles className="w-3 h-3" />
+                                        <Lightbulb className="w-3 h-3" />
                                         AI Powered
                                     </div>
 
@@ -449,7 +449,7 @@ export default function InvoiceDashboard() {
                                             className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 group-hover:shadow-lg transition-all"
                                             disabled={isCreating}
                                         >
-                                            <Wand2 className="w-4 h-4 mr-2" />
+                                            <RefreshCw className="w-4 h-4 mr-2" />
                                             Use Quotation
                                         </Button>
                                     </div>
@@ -626,14 +626,21 @@ export default function InvoiceDashboard() {
                                             <SelectTrigger className="border-purple-200 focus:border-purple-500 focus:ring-purple-500">
                                                 <SelectValue placeholder="Choose a quotation..." />
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent 
+                                                className="max-w-[400px] max-h-[300px] z-[100]" 
+                                                position="popper"
+                                                side="bottom"
+                                                sideOffset={4}
+                                            >
                                                 {quotations.map((q) => (
                                                     <SelectItem key={q._id} value={q._id}>
-                                                        <div className="flex items-center gap-2">
-                                                            <FileText className="w-4 h-4 text-purple-500" />
-                                                            <div>
-                                                                <span className="font-medium">{q.title}</span>
-                                                                <span className="text-xs text-muted-foreground ml-2">
+                                                        <div className="flex items-center gap-2 max-w-[350px]">
+                                                            <FileText className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                                                            <div className="min-w-0 flex-1">
+                                                                <span className="font-medium block truncate" title={q.title}>
+                                                                    {q.title.length > 40 ? q.title.substring(0, 40) + '...' : q.title}
+                                                                </span>
+                                                                <span className="text-xs text-muted-foreground">
                                                                     ({new Date(q.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })})
                                                                 </span>
                                                             </div>
@@ -652,11 +659,13 @@ export default function InvoiceDashboard() {
                                         animate={{ opacity: 1, height: 'auto' }}
                                         className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800"
                                     >
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Check className="w-4 h-4 text-purple-600" />
-                                            <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Selected: {selectedQuotation.title}</span>
+                                        <div className="flex items-center gap-2 mb-1 min-w-0">
+                                            <Check className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                                            <span className="text-sm font-medium text-purple-700 dark:text-purple-300 truncate" title={selectedQuotation.title}>
+                                                Selected: {selectedQuotation.title.length > 35 ? selectedQuotation.title.substring(0, 35) + '...' : selectedQuotation.title}
+                                            </span>
                                         </div>
-                                        <p className="text-xs text-purple-600/70 dark:text-purple-400/70">
+                                        <p className="text-xs text-purple-600/70 dark:text-purple-400/70 truncate">
                                             {selectedQuotation.companyDetails?.name || 'Company details will be imported'}
                                         </p>
                                     </motion.div>
@@ -665,7 +674,7 @@ export default function InvoiceDashboard() {
                                 {/* AI Toggle */}
                                 <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border border-purple-200 dark:border-purple-800">
                                     <div className="flex items-center gap-2">
-                                        <Sparkles className="w-5 h-5 text-purple-600" />
+                                        <Lightbulb className="w-5 h-5 text-purple-600" />
                                         <div>
                                             <Label htmlFor="use-ai" className="text-sm font-medium cursor-pointer">
                                                 Use AI Enhancement
@@ -702,7 +711,7 @@ export default function InvoiceDashboard() {
                         >
                             {creationMode === 'from-quotation' ? (
                                 <>
-                                    <Wand2 className="w-4 h-4 mr-2" />
+                                    <RefreshCw className="w-4 h-4 mr-2" />
                                     Transform & Create
                                 </>
                             ) : (

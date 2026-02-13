@@ -86,6 +86,9 @@ export interface IInvoiceItem {
 export interface IFinancials {
     shippingCharges: number;
     otherCharges: number;
+    totalTaxable?: number;
+    totalGst?: number;
+    grandTotal?: number;
 }
 
 export interface IBankDetails {
@@ -243,7 +246,10 @@ const InvoiceSchema = new Schema<IInvoice>({
     // Financials
     financials: {
         shippingCharges: { type: Number, default: 0 },
-        otherCharges: { type: Number, default: 0 }
+        otherCharges: { type: Number, default: 0 },
+        totalTaxable: { type: Number, default: 0 },
+        totalGst: { type: Number, default: 0 },
+        grandTotal: { type: Number, default: 0 }
     },
 
     // Bank Details

@@ -10,7 +10,7 @@ import Footer from "@/components/footer";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Target,
-  Sparkles,
+  Lightbulb,
   ArrowLeft,
   Link2,
   X,
@@ -28,15 +28,17 @@ import {
   LineChart,
   Globe,
   ShoppingCart,
-  Lightbulb,
+  Brain,
   Calendar,
   CheckCircle2,
   Clock,
   FileText,
   Code,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
+import { jsPDF } from "jspdf";
 
 interface CampaignStrategy {
   id: number;
@@ -66,12 +68,16 @@ export default function CampaignPlannerAI() {
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [actionPlanData, setActionPlanData] = useState<any>(null);
+  // Cache for action plans - persists across modal open/close
+  const [actionPlanCache, setActionPlanCache] = useState<Record<number, any>>({});
+  // Cache for analysis data - persists across modal open/close
+  const [analysisCache, setAnalysisCache] = useState<Record<number, any>>({});
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
 
   const loadingStages = [
-    { icon: <Sparkles className="w-8 h-8" />, text: "Analyzing your prompt" },
+    { icon: <Lightbulb className="w-8 h-8" />, text: "Analyzing your prompt" },
     { icon: <Globe className="w-8 h-8" />, text: "Scraping your website" },
     { icon: <Zap className="w-8 h-8" />, text: "Understanding your business" },
     {
@@ -203,11 +209,27 @@ export default function CampaignPlannerAI() {
     setActionPlanStrategy(null);
     setActionPlanData(null);
     setActionPlanLoading(false);
+    // Clear caches when starting over
+    setActionPlanCache({});
+    setAnalysisCache({});
   };
 
   const handleReviewSolution = async (strategy: CampaignStrategy) => {
     setSelectedStrategy(strategy);
     setShowModal(true);
+
+    // Check if we already have cached analysis for this strategy
+    const cachedAnalysis = analysisCache[strategy.id];
+    if (cachedAnalysis) {
+      // Set cached data and ensure loading is false
+      setAnalysisData(cachedAnalysis);
+      setAnalysisLoading(false);
+      console.log(`✅ Using cached analysis for strategy: ${strategy.title}`);
+      return;
+    }
+
+    // No cache - fetch from API
+    console.log(`🔄 Fetching analysis for strategy: ${strategy.title}`);
     setAnalysisLoading(true);
     setAnalysisData(null);
 
@@ -228,6 +250,12 @@ export default function CampaignPlannerAI() {
 
       if (data.success && data.analysis) {
         setAnalysisData(data.analysis);
+        // Cache the analysis for this strategy
+        setAnalysisCache(prev => ({
+          ...prev,
+          [strategy.id]: data.analysis
+        }));
+        console.log(`✅ Cached analysis for strategy: ${strategy.title}`);
       } else {
         console.error("Failed to fetch analysis:", data.error);
       }
@@ -241,13 +269,25 @@ export default function CampaignPlannerAI() {
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedStrategy(null);
-    setAnalysisData(null);
+    // Don't clear analysisData - it stays in cache
     setAnalysisLoading(false);
   };
 
   const handleGeneratePlan = async (strategy: CampaignStrategy) => {
     setActionPlanStrategy(strategy);
     setShowActionPlan(true);
+
+    // Check if we already have cached data for this strategy
+    const cachedPlan = actionPlanCache[strategy.id];
+    if (cachedPlan) {
+      setActionPlanData(cachedPlan);
+      setActionPlanLoading(false);
+      console.log(`✅ Using cached action plan for strategy: ${strategy.title}`);
+      return;
+    }
+
+    // No cache - fetch from API
+    console.log(`🔄 Fetching action plan for strategy: ${strategy.title}`);
     setActionPlanLoading(true);
     setActionPlanData(null);
 
@@ -268,6 +308,12 @@ export default function CampaignPlannerAI() {
 
       if (data.success && data.actionPlan) {
         setActionPlanData(data.actionPlan);
+        // Cache the action plan for this strategy
+        setActionPlanCache(prev => ({
+          ...prev,
+          [strategy.id]: data.actionPlan
+        }));
+        console.log(`✅ Cached action plan for strategy: ${strategy.title}`);
       } else {
         console.error("Failed to fetch action plan:", data.error);
       }
@@ -282,7 +328,7 @@ export default function CampaignPlannerAI() {
     setShowActionPlan(false);
     setActionPlanStrategy(null);
     setActionPlanLoading(false);
-    setActionPlanData(null);
+    // Don't clear actionPlanData - it stays in cache
     setEmailSent(false);
     setEmailError(null);
   };
@@ -324,6 +370,319 @@ export default function CampaignPlannerAI() {
     } finally {
       setEmailSending(false);
     }
+  };
+
+  const generatePDF = () => {
+    if (!actionPlanData || !actionPlanStrategy) return;
+
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    let yPosition = 20;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = doc.internal.pageSize.getWidth() - 2 * margin;
+
+    // Helper function to add text and handle line breaks
+    const addText = (text: string, options: any = {}) => {
+      const { fontSize = 12, isBold = false, color = [0, 0, 0] } = options;
+      doc.setFontSize(fontSize);
+      const [r, g, b] = color;
+      doc.setTextColor(r, g, b);
+      if (isBold) {
+        doc.setFont("Helvetica", "bold");
+      } else {
+        doc.setFont("Helvetica", "normal");
+      }
+      const lines = doc.splitTextToSize(text, contentWidth);
+      doc.text(lines, margin, yPosition);
+      yPosition += lines.length * 6;
+    };
+
+    const checkPageBreak = (extraSpace = 10) => {
+      if (yPosition + extraSpace > pageHeight - margin) {
+        doc.addPage();
+        yPosition = margin;
+      }
+    };
+
+    const addSectionTitle = (title: string) => {
+      checkPageBreak(12);
+      addText(title, { fontSize: 14, isBold: true, color: [36, 101, 237] });
+      yPosition += 3;
+    };
+
+    // Title
+    doc.setFontSize(20);
+    doc.setFont("Helvetica", "bold");
+    doc.setTextColor(36, 101, 237);
+    doc.text("Campaign Plan & Strategy Guide", margin, yPosition);
+    yPosition += 15;
+
+    // Strategy Title
+    addText(actionPlanStrategy.title, { fontSize: 16, isBold: true, color: [0, 0, 0] });
+    yPosition += 3;
+
+    // Strategy Description
+    addText(actionPlanStrategy.description, {
+      fontSize: 10,
+      color: [80, 80, 80],
+    });
+    yPosition += 8;
+
+    // Project Brief Section
+    if (actionPlanData.projectBrief) {
+      addSectionTitle("PROJECT BRIEF");
+      yPosition += 2;
+
+      if (actionPlanData.projectBrief.keyObjectives) {
+        addText("Key Objectives:", { fontSize: 11, isBold: true });
+        actionPlanData.projectBrief.keyObjectives.forEach((obj: string) => {
+          checkPageBreak(6);
+          addText(`• ${obj}`, { fontSize: 10 });
+        });
+        yPosition += 3;
+      }
+
+      if (actionPlanData.projectBrief.successMetrics) {
+        checkPageBreak(10);
+        addText("Success Metrics:", { fontSize: 11, isBold: true });
+        actionPlanData.projectBrief.successMetrics.forEach((metric: string) => {
+          checkPageBreak(6);
+          addText(`• ${metric}`, { fontSize: 10 });
+        });
+        yPosition += 3;
+      }
+    }
+
+    // Strategic Analysis
+    if (actionPlanData.strategicAnalysis) {
+      addSectionTitle("STRATEGIC ANALYSIS");
+      yPosition += 2;
+
+      if (actionPlanData.strategicAnalysis.marketOpportunity) {
+        checkPageBreak(8);
+        addText("Market Opportunity:", { fontSize: 11, isBold: true });
+        addText(actionPlanData.strategicAnalysis.marketOpportunity, { fontSize: 10 });
+        yPosition += 3;
+      }
+
+      if (actionPlanData.strategicAnalysis.competitiveAdvantage) {
+        checkPageBreak(8);
+        addText("Competitive Advantage:", { fontSize: 11, isBold: true });
+        const advantages = actionPlanData.strategicAnalysis.competitiveAdvantage;
+        if (typeof advantages === "string") {
+          addText(advantages, { fontSize: 10 });
+        }
+        yPosition += 3;
+      }
+
+      if (actionPlanData.strategicAnalysis.riskAssessment) {
+        checkPageBreak(8);
+        addText("Risk Assessment:", { fontSize: 11, isBold: true });
+        const risks = actionPlanData.strategicAnalysis.riskAssessment;
+        if (typeof risks === "string") {
+          addText(risks, { fontSize: 10 });
+        }
+        yPosition += 3;
+      }
+
+      if (actionPlanData.strategicAnalysis.resourceRequirements) {
+        checkPageBreak(8);
+        addText("Resource Requirements:", { fontSize: 11, isBold: true });
+        const resources = actionPlanData.strategicAnalysis.resourceRequirements;
+        if (typeof resources === "string") {
+          addText(resources, { fontSize: 10 });
+        }
+        yPosition += 3;
+      }
+    }
+
+    // Implementation Timeline with detailed phases
+    if (actionPlanData.implementationTimeline || actionPlanData.executionPlan || actionPlanData.executionPhases) {
+      addSectionTitle("EXECUTION PLAN: PHASED IMPLEMENTATION TIMELINE");
+      yPosition += 2;
+
+      const phases = actionPlanData.executionPhases || actionPlanData.executionPlan || actionPlanData.implementationTimeline;
+      const phaseList = Array.isArray(phases) ? phases : (phases && typeof phases === 'object' ? Object.values(phases) : []);
+
+      phaseList.forEach((phase: any, index: number) => {
+        checkPageBreak(12);
+        
+        if (typeof phase === "object" && phase !== null) {
+          // Handle both phaseNumber and index-based numbering
+          const phaseNum = phase.phaseNumber || (index + 1);
+          const phaseName = phase.title || phase.phase || phase.name || `Phase ${phaseNum}`;
+          const duration = phase.duration ? ` - ${phase.duration}` : "";
+          addText(`${phaseNum}. ${phaseName}${duration}`, { fontSize: 11, isBold: true });
+          yPosition += 1;
+
+          if (phase.description) {
+            addText(phase.description, { fontSize: 10, color: [80, 80, 80] });
+            yPosition += 2;
+          }
+
+          if (phase.deliverables && Array.isArray(phase.deliverables)) {
+            checkPageBreak(6);
+            addText("Deliverables:", { fontSize: 10, isBold: true });
+            phase.deliverables.forEach((item: string) => {
+              checkPageBreak(5);
+              addText(`• ${item}`, { fontSize: 9 });
+            });
+            yPosition += 2;
+          }
+
+          if (phase.milestones && Array.isArray(phase.milestones)) {
+            checkPageBreak(6);
+            addText("Milestones:", { fontSize: 10, isBold: true });
+            phase.milestones.forEach((item: string) => {
+              checkPageBreak(5);
+              addText(`• ${item}`, { fontSize: 9 });
+            });
+            yPosition += 3;
+          }
+        }
+      });
+    }
+
+    // Action Items / Priority Tasks
+    if (actionPlanData.actionItems || actionPlanData.priorityTasks) {
+      addSectionTitle("ACTION ITEMS CHECKLIST - PRIORITIZED TASKS");
+      yPosition += 2;
+
+      const items = actionPlanData.actionItems || actionPlanData.priorityTasks;
+      if (Array.isArray(items)) {
+        items.forEach((item: any) => {
+          checkPageBreak(7);
+          
+          let itemText = "";
+          if (typeof item === "object" && item !== null) {
+            const priority = item.priority ? `[${item.priority}] ` : "";
+            const timing = item.timing ? ` - ${item.timing}` : "";
+            const description = item.description || item.text || item.title || "";
+            itemText = `${priority}${description}${timing}`;
+          } else {
+            itemText = String(item);
+          }
+          
+          addText(itemText, { fontSize: 10 });
+        });
+        yPosition += 3;
+      }
+    }
+
+    // Ready-to-Use Resources
+    if (actionPlanData.readyToUseResources) {
+      addSectionTitle("READY-TO-USE RESOURCES");
+      const resources = actionPlanData.readyToUseResources;
+
+      // Content & Templates
+      if (resources.contentTemplates || resources.content) {
+        checkPageBreak(10);
+        addText("Content & Templates:", { fontSize: 11, isBold: true, color: [0, 0, 0] });
+        yPosition += 2;
+
+        const templates = resources.contentTemplates || resources.content || [];
+        const templateList = Array.isArray(templates) ? templates : Object.values(templates);
+
+        templateList.forEach((template: any) => {
+          checkPageBreak(8);
+          
+          if (typeof template === "object" && template !== null) {
+            if (template.name || template.title) {
+              addText(template.name || template.title, { fontSize: 10, isBold: true });
+            }
+            if (template.description) {
+              addText(template.description, { fontSize: 9, color: [80, 80, 80] });
+            }
+            yPosition += 1;
+          }
+        });
+        yPosition += 2;
+      }
+
+      // Recommended Tools
+      if (resources.recommendedTools || resources.tools) {
+        checkPageBreak(10);
+        addText("Recommended Tools:", { fontSize: 11, isBold: true, color: [0, 0, 0] });
+        yPosition += 2;
+
+        const tools = resources.recommendedTools || resources.tools || [];
+        const toolList = Array.isArray(tools) ? tools : Object.values(tools);
+
+        toolList.forEach((tool: any) => {
+          checkPageBreak(8);
+          
+          if (typeof tool === "object" && tool !== null) {
+            if (tool.name || tool.title) {
+              addText(tool.name || tool.title, { fontSize: 10, isBold: true });
+            }
+            if (tool.description) {
+              addText(tool.description, { fontSize: 9, color: [80, 80, 80] });
+            }
+            yPosition += 1;
+          }
+        });
+        yPosition += 2;
+      }
+    }
+
+    // Next Steps
+    if (actionPlanData.nextSteps) {
+      addSectionTitle("NEXT STEPS TIMELINE - YOUR ROADMAP TO GETTING STARTED");
+      yPosition += 2;
+
+      if (actionPlanData.nextSteps.immediate) {
+        checkPageBreak(8);
+        addText("Immediate (Today):", { fontSize: 11, isBold: true });
+        (Array.isArray(actionPlanData.nextSteps.immediate) ? actionPlanData.nextSteps.immediate : [actionPlanData.nextSteps.immediate]).forEach((step: string) => {
+          checkPageBreak(5);
+          addText(`• ${step}`, { fontSize: 10 });
+        });
+        yPosition += 3;
+      }
+
+      if (actionPlanData.nextSteps.week1) {
+        checkPageBreak(8);
+        addText("Week 1:", { fontSize: 11, isBold: true });
+        (Array.isArray(actionPlanData.nextSteps.week1) ? actionPlanData.nextSteps.week1 : [actionPlanData.nextSteps.week1]).forEach((step: string) => {
+          checkPageBreak(5);
+          addText(`• ${step}`, { fontSize: 10 });
+        });
+        yPosition += 3;
+      }
+
+      if (actionPlanData.nextSteps.month1) {
+        checkPageBreak(8);
+        addText("Month 1:", { fontSize: 11, isBold: true });
+        (Array.isArray(actionPlanData.nextSteps.month1) ? actionPlanData.nextSteps.month1 : [actionPlanData.nextSteps.month1]).forEach((step: string) => {
+          checkPageBreak(5);
+          addText(`• ${step}`, { fontSize: 10 });
+        });
+        yPosition += 3;
+      }
+    }
+
+    // Add footer with page numbers
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(
+        `Page ${i} of ${pageCount}`,
+        doc.internal.pageSize.getWidth() / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: "center" }
+      );
+    }
+
+    // Save the PDF
+    const filename = `${actionPlanStrategy.title.replace(/\s+/g, "_")}_Campaign_Plan.pdf`;
+    doc.save(filename);
   };
 
   return (
@@ -382,7 +741,7 @@ export default function CampaignPlannerAI() {
                       className="min-h-[150px] bg-background border-border text-lg resize-none focus:border-primary"
                     />
                     <p className="text-sm text-muted-foreground mt-2 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" />
+                      <Lightbulb className="w-4 h-4" />
                       The more detail, the better. Add your website URL below
                       for AI to learn about your business.
                     </p>
@@ -461,8 +820,8 @@ export default function CampaignPlannerAI() {
                     disabled={!userPrompt.trim()}
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-6 shadow-lg dark:shadow-[0_0_15px_rgba(36,101,237,0.5)]"
                   >
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    Unlock Campaign 
+                    <Lightbulb className="w-5 h-5 mr-2" />
+                    Unlock Campaign
                   </Button>
                 </form>
               </Card>
@@ -531,7 +890,7 @@ export default function CampaignPlannerAI() {
               </div>
 
               <p className="text-sm text-muted-foreground mt-12 text-center">
-                <Sparkles className="w-4 h-4 inline mr-2" />
+                <Lightbulb className="w-4 h-4 inline mr-2" />
                 {urls.length > 0
                   ? `Analyzing ${urls.length} website${urls.length > 1 ? "s" : ""
                   } to understand your business and create personalized strategies...`
@@ -737,7 +1096,7 @@ export default function CampaignPlannerAI() {
                         {actionPlanData.projectBrief.keyObjectives.map(
                           (objective: string, index: number) => (
                             <li key={index} className="flex items-start gap-2">
-                              <Sparkles className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                              <Lightbulb className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
                               <span>{objective}</span>
                             </li>
                           )
@@ -892,7 +1251,7 @@ export default function CampaignPlannerAI() {
                                             key={idx}
                                             className="flex items-center gap-2"
                                           >
-                                            <Sparkles className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
+                                            <Lightbulb className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
                                             <span>{milestone}</span>
                                           </li>
                                         )
@@ -1066,7 +1425,7 @@ export default function CampaignPlannerAI() {
                         {actionPlanData.nextSteps.immediate.map(
                           (step: string, index: number) => (
                             <li key={index} className="flex items-start gap-2">
-                              <Sparkles className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
+                              <Lightbulb className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
                               <span>{step}</span>
                             </li>
                           )
@@ -1158,6 +1517,14 @@ export default function CampaignPlannerAI() {
                         Email Action Plan
                       </>
                     )}
+                  </Button>
+                  <Button
+                    onClick={generatePDF}
+                    disabled={!actionPlanData}
+                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
                   </Button>
                   <Button
                     onClick={handleCloseActionPlan}
@@ -1278,7 +1645,7 @@ export default function CampaignPlannerAI() {
                     Innovation Category
                   </h3>
                   <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-full font-semibold">
-                    <Sparkles className="w-4 h-4" />
+                    <Lightbulb className="w-4 h-4" />
                     {analysisData.innovationCategory.name}{" "}
                     {analysisData.innovationCategory.description && (
                       <span className="text-emerald-100 text-sm">
@@ -1293,7 +1660,7 @@ export default function CampaignPlannerAI() {
               <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                    <Sparkles className="w-6 h-6 text-white" />
+                    <Lightbulb className="w-6 h-6 text-white" />
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-white">
@@ -1560,12 +1927,21 @@ export default function CampaignPlannerAI() {
                 Solution #{selectedStrategy.id} • Generated through 8-stage AI
                 synthesis • Full transparency view
               </p>
-              <Button
-                onClick={handleCloseModal}
-                className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white"
-              >
-                Close Solution Review
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={generatePDF}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download PDF
+                </Button>
+                <Button
+                  onClick={handleCloseModal}
+                  className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white"
+                >
+                  Close Solution Review
+                </Button>
+              </div>
             </div>
           </motion.div>
         </motion.div>

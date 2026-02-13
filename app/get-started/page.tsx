@@ -231,58 +231,51 @@ export default function Features() {
                                 {features.map((feature, index) => (
                                     <motion.div key={index} variants={cardVariants}>
                                         <Link href={feature.link} className="block h-full">
-                                            <Card className={`group relative h-full overflow-hidden bg-card/80 backdrop-blur-sm border border-border/50 p-0 transition-all duration-500 hover:shadow-2xl ${feature.shadowColor} hover:border-border hover:-translate-y-1`}>
+                                            <Card className="group relative h-full overflow-hidden bg-card border border-border transition-all duration-300 hover:shadow-xl hover:border-border/80">
                                                 {/* Popular Badge */}
                                                 {feature.popular && (
                                                     <div className="absolute top-4 right-4 z-20">
-                                                        <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 shadow-lg">
-                                                            <Star className="w-3 h-3 mr-1 fill-current" />
+                                                        <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 shadow-md">
                                                             Popular
                                                         </Badge>
                                                     </div>
                                                 )}
 
-                                                {/* Top Gradient Bar */}
-                                                <div className={`h-1.5 w-full bg-gradient-to-r ${feature.gradient}`} />
-
-                                                <div className="p-6">
-                                                    {/* Icon */}
-                                                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} p-3.5 text-white mb-5 shadow-lg ${feature.shadowColor} group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
+                                                <div className="p-6 flex flex-col h-full">
+                                                    {/* Icon Container with gradient background */}
+                                                    <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 text-white shadow-md group-hover:shadow-lg transition-shadow`}>
                                                         {feature.icon}
                                                     </div>
 
                                                     {/* Title */}
-                                                    <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors duration-300">
+                                                    <h3 className="text-lg font-bold mb-2 text-foreground group-hover:text-primary transition-colors">
                                                         {feature.title}
                                                     </h3>
 
                                                     {/* Description */}
-                                                    <p className="text-muted-foreground text-sm leading-relaxed mb-5">
+                                                    <p className="text-muted-foreground text-sm leading-relaxed mb-5 flex-grow">
                                                         {feature.description}
                                                     </p>
 
-                                                    {/* Benefits */}
-                                                    <div className="flex flex-wrap gap-2 mb-6">
+                                                    {/* Benefits Grid */}
+                                                    <div className="grid grid-cols-2 gap-3 mb-6">
                                                         {feature.benefits.map((benefit, idx) => (
-                                                            <span
-                                                                key={idx}
-                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/80 text-xs font-medium text-muted-foreground"
-                                                            >
-                                                                <CheckCircle className="w-3 h-3 text-primary" />
-                                                                {benefit}
-                                                            </span>
+                                                            <div key={idx} className="flex items-start gap-2">
+                                                                <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{color: `hsl(var(--primary))`}} />
+                                                                <span className="text-xs text-muted-foreground leading-tight">{benefit}</span>
+                                                            </div>
                                                         ))}
                                                     </div>
 
-                                                    {/* CTA */}
-                                                    <div className={`flex items-center justify-between pt-4 border-t border-border/50`}>
-                                                        <span className="text-sm font-semibold text-primary group-hover:underline">
-                                                            Open Tool
-                                                        </span>
-                                                        <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${feature.gradient} flex items-center justify-center text-white opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 shadow-md`}>
-                                                            <ArrowRight className="w-4 h-4" />
-                                                        </div>
-                                                    </div>
+                                                    {/* CTA Button */}
+                                                    <Button 
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="w-full gap-2 group/btn hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                                                    >
+                                                        <span>Open Tool</span>
+                                                        <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                                                    </Button>
                                                 </div>
                                             </Card>
                                         </Link>
@@ -300,7 +293,6 @@ export default function Features() {
                             >
                                 <div className="inline-flex flex-col sm:flex-row items-center gap-4 bg-card/50 backdrop-blur-sm rounded-2xl p-6 border border-border/50 shadow-xl">
                                     <div className="flex items-center gap-2">
-                                        <Zap className="w-5 h-5 text-primary" />
                                         <span className="font-medium">Need help getting started?</span>
                                     </div>
                                     <Link href="/guide">

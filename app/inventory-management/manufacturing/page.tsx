@@ -9,7 +9,7 @@ import {
     Plus, Search, Edit, Trash2, AlertTriangle, Package2, DollarSign,
     TrendingUp, Activity, Factory, Boxes, Cog, ArrowRight, ArrowLeft,
     ClipboardList, RefreshCcw, ShoppingCart, History, Clock, Calendar,
-    ChevronDown, ChevronUp, Eye, BarChart3, Package, ScanLine, Receipt, CreditCard, Wallet, Loader2
+    ChevronDown, ChevronUp, Eye, BarChart3, Package, ScanLine, Receipt, CreditCard, Wallet, Loader2, CheckCircle2
 } from 'lucide-react';
 import InvoiceScanner from '@/components/inventory/InvoiceScanner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -362,8 +362,18 @@ export default function ManufacturingInventory() {
             const gstAmount = parseFloat(item.gstAmount) || 0;
             const calculatedCostPerUnit = basePrice + gstAmount;
 
-            // Use costPerUnit from item if available, otherwise use calculated value
-            const costPerUnit = parseFloat(item.costPerUnit) || calculatedCostPerUnit || 0;
+            // Also try to derive from totalCost if available
+            const quantity = parseFloat(item.quantity) || 1;
+            const totalCost = parseFloat(item.totalCost) || 0;
+            const derivedFromTotal = (totalCost > 0 && quantity > 0) ? (totalCost / quantity) : 0;
+
+            // Use costPerUnit from item if available, otherwise use calculated value, then derived from total
+            const costPerUnit = parseFloat(item.costPerUnit) || calculatedCostPerUnit || derivedFromTotal || 0;
+
+            // Log warning if costPerUnit is still 0 but we have totalCost
+            if (costPerUnit === 0 && totalCost > 0) {
+                console.warn(`Item ${item.name} (${item.sku}): costPerUnit is 0 but totalCost is ${totalCost}`);
+            }
 
             return {
                 name: item.name || '',
@@ -826,6 +836,7 @@ export default function ManufacturingInventory() {
             resetProductForm();
             setIsProductModalOpen(false);
             fetchManufacturingProducts();
+            fetchRawMaterials(); // Refresh raw materials to show updated quantities after deduction
         } catch (error) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
         } finally {
@@ -1776,7 +1787,6 @@ export default function ManufacturingInventory() {
                                         <Button
                                             className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
                                             onClick={() => openProductionModal(product)}
-                                            disabled={!product.billOfMaterials || product.billOfMaterials.length === 0}
                                         >
                                             <Factory className="mr-2 h-4 w-4" />
                                             Produce
@@ -1895,7 +1905,7 @@ export default function ManufacturingInventory() {
                                                                 </div>
                                                                 <div className="text-right">
                                                                     <div className="font-medium">
-                                                                        {material.quantityUsed || material.quantityRequired} {material.unit}
+                                                                        {material.quantityConsumed || material.quantityUsed || material.quantityRequired || 0} {material.unit}
                                                                     </div>
                                                                     <div className="text-xs text-muted-foreground">
                                                                         @ ₹{(material.costPerUnit || 0).toFixed(2)}/{material.unit}
@@ -1903,7 +1913,7 @@ export default function ManufacturingInventory() {
                                                                 </div>
                                                                 <div className="text-right min-w-[80px]">
                                                                     <div className="font-bold text-amber-600 dark:text-amber-400">
-                                                                        ₹{((material.quantityUsed || material.quantityRequired || 0) * (material.costPerUnit || 0)).toFixed(2)}
+                                                                        ₹{(material.totalCost || ((material.quantityConsumed || material.quantityUsed || material.quantityRequired || 0) * (material.costPerUnit || 0))).toFixed(2)}
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -2230,57 +2240,142 @@ export default function ManufacturingInventory() {
                             <h4 className="font-medium">Bill of Materials (Recipe)</h4>
 
                             {/* Add BOM Item */}
-                            <div className="flex gap-2 items-end">
-                                <div className="flex-1">
-                                    <Label className="text-xs">Raw Material</Label>
-                                    <select
-                                        value={selectedBomRawMaterial}
-                                        onChange={(e) => setSelectedBomRawMaterial(e.target.value)}
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                    >
-                                        <option value="">Select material...</option>
-                                        {rawMaterials.map(rm => (
-                                            <option key={rm._id} value={rm._id}>
-                                                {rm.name} (₹{rm.costPerUnit}/{rm.unit})
-                                            </option>
-                                        ))}
-                                    </select>
+                            <div className="space-y-2">
+                                <div className="flex gap-2 items-end">
+                                    <div className="flex-1">
+                                        <Label className="text-xs">Raw Material</Label>
+                                        <select
+                                            value={selectedBomRawMaterial}
+                                            onChange={(e) => setSelectedBomRawMaterial(e.target.value)}
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                        >
+                                            <option value="">Select material...</option>
+                                            {rawMaterials.map(rm => (
+                                                <option
+                                                    key={rm._id}
+                                                    value={rm._id}
+                                                    disabled={rm.quantity === 0}
+                                                >
+                                                    {rm.name} (₹{rm.costPerUnit}/{rm.unit}) - {rm.quantity} {rm.unit} in stock{rm.quantity === 0 ? ' ⚠️' : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="w-32">
+                                        <Label className="text-xs">Quantity</Label>
+                                        <Input
+                                            type="number"
+                                            step="0.001"
+                                            value={bomQuantity}
+                                            onChange={(e) => setBomQuantity(e.target.value)}
+                                            placeholder="Qty"
+                                        />
+                                    </div>
+                                    <Button type="button" onClick={addToBom}>
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
                                 </div>
-                                <div className="w-32">
-                                    <Label className="text-xs">Quantity</Label>
-                                    <Input
-                                        type="number"
-                                        step="0.001"
-                                        value={bomQuantity}
-                                        onChange={(e) => setBomQuantity(e.target.value)}
-                                        placeholder="Qty"
-                                    />
-                                </div>
-                                <Button type="button" onClick={addToBom}>
-                                    <Plus className="h-4 w-4" />
-                                </Button>
+                                {/* Stock info for selected material */}
+                                {selectedBomRawMaterial && (() => {
+                                    const selectedMaterial = rawMaterials.find(rm => rm._id === selectedBomRawMaterial);
+                                    if (!selectedMaterial) return null;
+                                    const qty = parseFloat(bomQuantity) || 0;
+                                    const isInsufficient = qty > selectedMaterial.quantity;
+                                    const isZeroStock = selectedMaterial.quantity === 0;
+
+                                    if (isZeroStock) {
+                                        return (
+                                            <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
+                                                <AlertTriangle className="h-3 w-3" />
+                                                <span>This material has zero stock. Please restock before adding.</span>
+                                            </div>
+                                        );
+                                    } else if (isInsufficient && qty > 0) {
+                                        return (
+                                            <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+                                                <AlertTriangle className="h-3 w-3" />
+                                                <span>Warning: Only {selectedMaterial.quantity} {selectedMaterial.unit} available (you need {qty})</span>
+                                            </div>
+                                        );
+                                    } else if (qty > 0) {
+                                        return (
+                                            <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+                                                <CheckCircle2 className="h-3 w-3" />
+                                                <span>Stock OK: {selectedMaterial.quantity} {selectedMaterial.unit} available</span>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
                             </div>
 
                             {/* BOM List */}
                             {productForm.billOfMaterials.length > 0 && (
                                 <div className="rounded-lg border p-4 space-y-2">
-                                    {productForm.billOfMaterials.map((item, index) => (
-                                        <div key={index} className="flex justify-between items-center p-2 bg-muted rounded">
-                                            <div>
-                                                <span className="font-medium">{item.rawMaterialName}</span>
-                                                <span className="text-muted-foreground ml-2">
-                                                    {item.quantityRequired} {item.unit} × ₹{item.costPerUnit} = ₹{(item.quantityRequired * item.costPerUnit).toFixed(2)}
-                                                </span>
+                                    {productForm.billOfMaterials.map((item, index) => {
+                                        // Find the raw material to check available quantity
+                                        const rawMaterial = rawMaterials.find(rm => rm._id === item.rawMaterialId);
+                                        const availableQty = rawMaterial?.quantity || 0;
+                                        const isInsufficient = item.quantityRequired > availableQty;
+                                        const isZeroStock = availableQty === 0;
+
+                                        return (
+                                            <div
+                                                key={index}
+                                                className={`flex justify-between items-center p-2 rounded ${isZeroStock
+                                                    ? 'bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700'
+                                                    : isInsufficient
+                                                        ? 'bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700'
+                                                        : 'bg-muted'
+                                                    }`}
+                                            >
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium">{item.rawMaterialName}</span>
+                                                        {isZeroStock && (
+                                                            <span className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400 font-medium">
+                                                                <AlertTriangle className="h-3 w-3" />
+                                                                Zero Stock!
+                                                            </span>
+                                                        )}
+                                                        {isInsufficient && !isZeroStock && (
+                                                            <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                                                <AlertTriangle className="h-3 w-3" />
+                                                                Insufficient
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-muted-foreground">
+                                                        {item.quantityRequired} {item.unit} × ₹{item.costPerUnit} = ₹{(item.quantityRequired * item.costPerUnit).toFixed(2)}
+                                                    </span>
+                                                    {isInsufficient && (
+                                                        <div className={`text-xs mt-1 ${isZeroStock ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                                            Available: {availableQty} {item.unit} | Need: {(item.quantityRequired - availableQty).toFixed(2)} {item.unit} more
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeFromBom(index)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
                                             </div>
-                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeFromBom(index)}>
-                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                            </Button>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                     <div className="pt-2 border-t flex justify-between font-bold">
                                         <span>Total Raw Material Cost:</span>
                                         <span>₹{calculateBomCost().toFixed(2)}</span>
                                     </div>
+                                    {/* Warning summary if any materials are insufficient */}
+                                    {productForm.billOfMaterials.some(item => {
+                                        const rm = rawMaterials.find(r => r._id === item.rawMaterialId);
+                                        return item.quantityRequired > (rm?.quantity || 0);
+                                    }) && (
+                                            <div className="mt-2 p-2 rounded bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700">
+                                                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 text-sm">
+                                                    <AlertTriangle className="h-4 w-4" />
+                                                    <span className="font-medium">Warning: Some raw materials have insufficient stock. Product cannot be saved until inventory is restocked.</span>
+                                                </div>
+                                            </div>
+                                        )}
                                 </div>
                             )}
                         </div>

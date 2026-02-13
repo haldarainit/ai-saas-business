@@ -5,83 +5,45 @@ import { Button } from "@/components/ui/button";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import StructuredData from "@/components/structured-data";
-import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import {
   ArrowRight,
-  PenTool,
-  FileText,
-  Sparkles,
   Target,
-  Zap,
+  CheckCircle,
 } from "lucide-react";
 import Link from "next/link";
 
 export default function MarketingAI() {
   const marketingTools = [
-    // {
-    //   icon: <PenTool className="w-8 h-8" />,
-    //   title: "Ads Copy",
-    //   description:
-    //     "Generate compelling ad copy that converts. Our AI analyzes your target audience and creates persuasive copy for Facebook, Google, and Instagram ads.",
-    //   features: [
-    //     "Multi-platform optimization",
-    //     "A/B testing suggestions",
-    //     "Brand voice matching",
-    //   ],
-    //   image:
-    //     "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-    //   accentColor: "rgba(236, 72, 153, 0.5)",
-    //   iconColor: "text-pink-500",
-    //   gradient: "from-pink-500/20 to-rose-500/20",
-    // },
-    // {
-    //   icon: <Sparkles className="w-8 h-8" />,
-    //   title: "Creative Generator",
-    //   description:
-    //     "Create stunning visuals and graphics for your marketing campaigns. From social media posts to email banners, our AI generates professional designs instantly.",
-    //   features: [
-    //     "Brand-consistent designs",
-    //     "Multiple format support",
-    //     "Instant customization",
-    //   ],
-    //   image:
-    //     "https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-    //   accentColor: "rgba(34, 211, 238, 0.5)",
-    //   iconColor: "text-cyan-500",
-    //   gradient: "from-cyan-500/20 to-blue-500/20",
-    // },
     {
-      icon: <Target className="w-8 h-8" />,
+      icon: <Target className="w-6 h-6" />,
       title: "Campaign Planner AI",
       description:
-        "Strategically plan and optimize your marketing campaigns with AI-driven insights. Analyze market trends, set goals, and create comprehensive campaign strategies that maximize ROI.",
+        "Strategically plan and optimize your marketing campaigns with AI-driven insights. Analyze market trends, set goals, and create comprehensive campaign strategies.",
       features: [
         "Strategic planning",
         "Timeline management",
         "Performance tracking",
+        "ROI optimization",
       ],
-      image:
-        "https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-      accentColor: "rgba(168, 85, 247, 0.5)",
-      iconColor: "text-purple-500",
-      gradient: "from-purple-500/20 to-indigo-500/20",
+      gradient: "from-purple-500 to-indigo-600",
+      link: "/marketing-ai/campaign-planner",
     },
   ];
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.3,
+        staggerChildren: 0.15,
       },
     },
   };
 
-  const cardVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: { opacity: 1, y: 0 },
+  const cardVariants: Variants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
   };
 
   return (
@@ -92,200 +54,111 @@ export default function MarketingAI() {
 
         <main className="flex-1">
           {/* Hero Section */}
-          <section className="relative py-24 overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-            {/* Background effects */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(236,72,153,0.1),transparent_70%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(34,211,238,0.1),transparent_70%)]" />
+          <section className="relative py-20 lg:py-28 overflow-hidden">
+            {/* Subtle background */}
+            <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-muted/20" />
 
             <div className="container relative px-4 md:px-6">
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
-                className="text-center max-w-4xl mx-auto"
+                className="flex flex-col items-center text-center max-w-4xl mx-auto"
               >
-                <div className="inline-flex items-center rounded-full bg-primary/10 border border-primary/20 px-4 py-2 text-sm font-medium text-primary mb-8">
-                  <Target className="w-4 h-4 mr-2" />
-                  AI-Powered Marketing
+                {/* Badge */}
+                <div className="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30">
+                  <div className="w-2 h-2 rounded-full bg-purple-500" />
+                  <span className="text-sm font-medium text-purple-600 dark:text-purple-400">Marketing AI Suite</span>
                 </div>
 
-                <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
+                {/* Heading */}
+                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-6">
                   Smart Marketing
-                  <span className="block bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
-                    That Works
+                  <span className="block bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                    That Drives Results
                   </span>
                 </h1>
 
-                <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mb-12 leading-relaxed">
-                  Transform your marketing efforts with AI-powered tools that
-                  create compelling copy and stunning visuals. Boost engagement,
-                  increase conversions, and grow your business faster.
+                {/* Subheading */}
+                <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mb-10 leading-relaxed">
+                  Plan, optimize, and execute your marketing campaigns with AI-powered insights. Analyze trends, set strategic goals, and maximize your ROI.
                 </p>
-
-                {/* <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button size="lg" className="text-lg px-8 py-6 h-auto">
-                    Start Creating
-                    <Zap className="ml-2 w-5 h-5" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="text-lg px-8 py-6 h-auto"
-                  >
-                    View Examples
-                  </Button>
-                </div> */}
               </motion.div>
             </div>
           </section>
 
-          {/* Marketing Tools Grid */}
-          <section className="py-24 bg-muted/30">
+          {/* Marketing Tools Section */}
+          <section className="py-16 lg:py-24 relative">
             <div className="container px-4 md:px-6">
+              {/* Section Header */}
               <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
+                transition={{ duration: 0.6 }}
                 viewport={{ once: true }}
-                className="text-center mb-16"
+                className="text-center mb-14"
               >
-                <h2 className="text-4xl md:text-5xl font-bold mb-4">
+                <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
                   Powerful Marketing Tools
                 </h2>
-                <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                  Choose from our comprehensive suite of AI marketing tools
-                  designed to boost your brand presence and drive results.
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                  Transform your marketing strategy with intelligent campaign planning and AI-powered optimization.
                 </p>
               </motion.div>
 
+              {/* Cards Grid */}
               <motion.div
                 variants={containerVariants}
                 initial="hidden"
                 whileInView="visible"
-                viewport={{ once: true, margin: "-100px" }}
-                className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto"
+                viewport={{ once: true, margin: "-50px" }}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto"
               >
                 {marketingTools.map((tool, index) => (
                   <motion.div key={index} variants={cardVariants}>
-                    <Card
-                      className={`group relative h-full overflow-hidden bg-gradient-to-br ${tool.gradient} backdrop-blur-sm border border-border/50 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 hover:border-primary/20 hover:-translate-y-2 pt-0`}
-                    >
-                      {/* Background gradient on hover */}
-                      <div
-                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                        style={{
-                          background: `linear-gradient(135deg, ${tool.accentColor}, transparent)`,
-                        }}
-                      />
-
-                      <div className="relative h-full flex flex-col">
-                        {/* Large Image Banner */}
-                        <div className="relative w-full h-96 mb-6 overflow-hidden rounded-t-xl">
-                          <Image
-                            src={tool.image}
-                            alt={tool.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-500"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          />
-                          {/* Icon Overlay */}
-                          <div className="absolute top-4 right-4">
-                            <div
-                              className={`p-3 rounded-xl bg-background/90 backdrop-blur-sm shadow-lg ${tool.iconColor} group-hover:scale-110 transition-transform duration-300`}
-                            >
-                              {tool.icon}
-                            </div>
+                    <Link href={tool.link} className="block h-full">
+                      <Card className="group relative h-full overflow-hidden bg-card border border-border transition-all duration-300 hover:shadow-xl hover:border-border/80">
+                        <div className="p-6 flex flex-col h-full">
+                          {/* Icon Container */}
+                          <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${tool.gradient} flex items-center justify-center mb-5 text-white shadow-md group-hover:shadow-lg transition-shadow`}>
+                            {tool.icon}
                           </div>
-                          {/* Gradient Overlay on Hover */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        </div>
 
-                        <div className="px-6 pb-6">
                           {/* Title */}
-                          <h3 className="text-2xl font-bold mb-3 text-foreground group-hover:text-white transition-colors duration-300">
+                          <h3 className="text-lg font-bold mb-2 text-foreground group-hover:text-primary transition-colors">
                             {tool.title}
                           </h3>
 
                           {/* Description */}
-                          <p className="text-muted-foreground text-base leading-relaxed mb-6 flex-grow group-hover:text-white/90 transition-colors duration-300">
+                          <p className="text-muted-foreground text-sm leading-relaxed mb-5 flex-grow">
                             {tool.description}
                           </p>
 
                           {/* Features */}
-                          <div className="space-y-2 mb-6">
+                          <div className="grid grid-cols-2 gap-3 mb-6">
                             {tool.features.map((feature, featureIndex) => (
-                              <div
-                                key={featureIndex}
-                                className="flex items-center text-sm"
-                              >
-                                <div
-                                  className={`w-2 h-2 rounded-full mr-3 ${tool.iconColor.replace(
-                                    "text-",
-                                    "bg-"
-                                  )} group-hover:bg-white/80`}
-                                />
-                                <span className="text-muted-foreground group-hover:text-white/90 transition-colors duration-300">
-                                  {feature}
-                                </span>
+                              <div key={featureIndex} className="flex items-start gap-2">
+                                <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-500" />
+                                <span className="text-xs text-muted-foreground leading-tight">{feature}</span>
                               </div>
                             ))}
                           </div>
 
                           {/* CTA Button */}
-                          <Link
-                            href={
-                              tool.title === "Campaign Planner AI"
-                                ? "/marketing-ai/campaign-planner"
-                                : "#"
-                            }
-                            className="block"
+                          <Button 
+                            variant="outline"
+                            size="sm"
+                            className="w-full gap-2 group/btn hover:bg-primary hover:text-primary-foreground hover:border-primary"
                           >
-                            <Button
-                              variant="ghost"
-                              className="w-full justify-between group/btn hover:bg-primary/10 hover:text-primary transition-all duration-300 text-sm py-2 h-auto"
-                            >
-                              Try {tool.title}
-                              <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform duration-300" />
-                            </Button>
-                          </Link>
+                            <span>Explore</span>
+                            <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                          </Button>
                         </div>
-                      </div>
-                    </Card>
+                      </Card>
+                    </Link>
                   </motion.div>
                 ))}
               </motion.div>
-
-              {/* Interactive Demo Section */}
-              {/* <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-                viewport={{ once: true }}
-                className="text-center mt-20"
-              >
-                <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-3xl p-12 border border-primary/20">
-                  <h3 className="text-3xl font-bold mb-4">See It In Action</h3>
-                  <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                    Experience the power of our AI marketing tools with
-                    interactive demos and real-time generation.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Button size="lg" className="text-lg px-8 py-6 h-auto">
-                      Interactive Demo
-                      <ArrowRight className="ml-2 w-5 h-5" />
-                    </Button>
-                    <Link href="/get-started">
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        className="text-lg px-8 py-6 h-auto"
-                      >
-                        Back to Get Started
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </motion.div> */}
             </div>
           </section>
         </main>
