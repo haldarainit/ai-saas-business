@@ -47,6 +47,30 @@ import { WORK_DIR } from '@/utils/constants';
 function BuilderContent() {
   const { user, loading: authLoading } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [coepChecked, setCoepChecked] = useState(false);
+  const [coepReady, setCoepReady] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // WebContainer requires a crossOriginIsolated document. Client-side navigation
+    // won't update COOP/COEP headers, so force a one-time reload on /builder.
+    if (!window.crossOriginIsolated) {
+      const reloadKey = 'builder-coep-reload';
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, '1');
+        window.location.reload();
+        return;
+      }
+
+      toast.error('Terminal requires a full page reload to enable WebContainer.');
+    } else {
+      sessionStorage.removeItem('builder-coep-reload');
+    }
+
+    setCoepReady(window.crossOriginIsolated === true);
+    setCoepChecked(true);
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -148,15 +172,25 @@ function BuilderContent() {
 
   // Initialize WebContainer
   useEffect(() => {
-    // Only initialize if we have a user
-    if (user && !authLoading) {
+    // Only initialize if we have a user and COEP check completed
+    if (user && !authLoading && coepChecked) {
       console.log('User authenticated, initializing chat store');
       initialize();
 
       // Initialize WebContainer
-      initializeWebContainer();
+      if (coepReady) {
+        initializeWebContainer();
+      } else {
+        setStatus('error');
+        setStatusMessage('WebContainer requires a full reload (COOP/COEP).');
+        addMessage({
+          role: 'system',
+          content:
+            'Warning: WebContainer is unavailable because the page is not crossOriginIsolated. Please reload this page to enable the terminal and preview.',
+        });
+      }
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, coepChecked, coepReady]);
 
   // Check for URL param
   useEffect(() => {

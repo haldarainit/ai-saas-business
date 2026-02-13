@@ -2,6 +2,7 @@ import type { WebContainer, WebContainerProcess } from '@webcontainer/api';
 import { atom, type WritableAtom } from 'nanostores';
 import type { ITerminal } from '@/types/terminal';
 import { newBoltShellProcess, newShellProcess } from '@/utils/shell';
+import { isWebContainerSupported } from '@/lib/webcontainer';
 import { coloredText } from '@/utils/terminal';
 
 export class TerminalStore {
@@ -27,6 +28,14 @@ export class TerminalStore {
   }
   async attachBoltTerminal(terminal: ITerminal) {
     try {
+      if (!isWebContainerSupported()) {
+        terminal.write(
+          coloredText.red(
+            'WebContainer is unavailable. Please reload the Builder page to enable the terminal.\n\n',
+          ),
+        );
+        return;
+      }
       const wc = await this.#webcontainer;
       await this.#boltTerminal.init(wc, terminal);
     } catch (error: any) {
@@ -37,6 +46,14 @@ export class TerminalStore {
 
   async attachTerminal(terminal: ITerminal) {
     try {
+      if (!isWebContainerSupported()) {
+        terminal.write(
+          coloredText.red(
+            'WebContainer is unavailable. Please reload the Builder page to enable the terminal.\n\n',
+          ),
+        );
+        return;
+      }
       const shellProcess = await newShellProcess(await this.#webcontainer, terminal);
       this.#terminals.push({ terminal, process: shellProcess });
     } catch (error: any) {

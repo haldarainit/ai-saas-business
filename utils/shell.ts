@@ -15,6 +15,10 @@ export async function newShellProcess(webcontainer: WebContainer, terminal: ITer
     },
   });
 
+  if (!process.input || !process.output) {
+    throw new Error('WebContainer shell is unavailable. Please reload the Builder page.');
+  }
+
   const input = process.input.getWriter();
   const output = process.output;
 
@@ -143,6 +147,10 @@ export class BoltShell {
         rows: terminal.rows ?? 15,
       },
     });
+
+    if (!process.input || !process.output) {
+      throw new Error('WebContainer shell is unavailable. Please reload the Builder page.');
+    }
 
     const input = process.input.getWriter();
     this.#shellInputStream = input;
