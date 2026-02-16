@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +61,18 @@ const REFERRAL_SOURCES = [
     { value: "Other", icon: HelpCircle }
 ];
 
+function buildClientDeploymentUrl(subdomain: string): string {
+    if (typeof window === "undefined" || !subdomain) return "";
+
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim().toLowerCase();
+    if (rootDomain) {
+        const protocol = window.location.protocol === "http:" ? "http" : "https";
+        return `${protocol}://${subdomain}.${rootDomain}`;
+    }
+
+    return `${window.location.origin}/preview/${subdomain}`;
+}
+
 export default function DeploymentModal({
     isOpen,
     onClose,
@@ -70,7 +82,11 @@ export default function DeploymentModal({
 }: DeploymentModalProps) {
     const [subdomain, setSubdomain] = useState(currentSubdomain || "");
     const [isLoading, setIsLoading] = useState(false);
+    const [isCheckingSubdomain, setIsCheckingSubdomain] = useState(false);
+    const [isSubdomainAvailable, setIsSubdomainAvailable] = useState<boolean | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [hint, setHint] = useState<string>("");
+    const [deployedUrl, setDeployedUrl] = useState<string>("");
     const [isDeployed, setIsDeployed] = useState(!!currentSubdomain);
     const [step, setStep] = useState<1 | 2>(currentSubdomain ? 2 : 1);
 
@@ -83,12 +99,6 @@ export default function DeploymentModal({
         country: "",
         referralSource: ""
     });
-
-    if (currentSubdomain && !isDeployed && subdomain === "") {
-        setSubdomain(currentSubdomain);
-        setIsDeployed(true);
-        setStep(2);
-    }
 
     const handleFormChange = (field: keyof UserFormData, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -135,12 +145,112 @@ export default function DeploymentModal({
         }
     };
 
-    const handleDeploy = async () => {
-        if (!subdomain) {
-            setError("Please enter a subdomain");
+    useEffect(() => {
+        if (!isOpen) return;
+
+        if (currentSubdomain) {
+            setSubdomain(currentSubdomain);
+            setIsDeployed(true);
+            setStep(2);
+            setIsSubdomainAvailable(true);
+            setHint("");
+            setDeployedUrl(buildClientDeploymentUrl(currentSubdomain));
             return;
         }
 
+        setIsDeployed(false);
+        setIsSubdomainAvailable(null);
+        setHint("Leave this blank to auto-generate an available subdomain.");
+    }, [isOpen, currentSubdomain]);
+
+    useEffect(() => {
+        if (!isOpen || !workspaceId || currentSubdomain || step !== 2) return;
+        if (subdomain.trim().length > 0) return;
+
+        let active = true;
+
+        const loadSuggestion = async () => {
+            setIsCheckingSubdomain(true);
+            setError(null);
+
+            try {
+                const response = await fetch(`/api/deploy/subdomain?workspaceId=${workspaceId}`);
+                const data = await response.json();
+
+                if (!active) return;
+
+                if (response.ok && data.suggestion) {
+                    setSubdomain(data.suggestion);
+                    setIsSubdomainAvailable(Boolean(data.available));
+                    setHint(data.available ? "This subdomain is available." : "Try another subdomain.");
+                }
+            } catch (err) {
+                console.error("Error loading subdomain suggestion:", err);
+            } finally {
+                if (active) {
+                    setIsCheckingSubdomain(false);
+                }
+            }
+        };
+
+        loadSuggestion();
+
+        return () => {
+            active = false;
+        };
+    }, [isOpen, workspaceId, currentSubdomain, step, subdomain]);
+
+    useEffect(() => {
+        if (!isOpen || !workspaceId || step !== 2) return;
+
+        const normalized = subdomain.trim().toLowerCase();
+        if (!normalized) {
+            setIsSubdomainAvailable(null);
+            setHint("Leave this blank to auto-generate an available subdomain.");
+            return;
+        }
+
+        const timeout = setTimeout(async () => {
+            setIsCheckingSubdomain(true);
+
+            try {
+                const response = await fetch(
+                    `/api/deploy/subdomain?workspaceId=${workspaceId}&value=${encodeURIComponent(normalized)}`,
+                );
+                const data = await response.json();
+
+                if (!response.ok) {
+                    setHint(data.error || "Could not validate subdomain right now.");
+                    setIsSubdomainAvailable(null);
+                    return;
+                }
+
+                if (data.normalized && data.normalized !== normalized) {
+                    setSubdomain(data.normalized);
+                    return;
+                }
+
+                setIsSubdomainAvailable(Boolean(data.available));
+                if (data.available) {
+                    setHint("Subdomain is available.");
+                } else if (data.reason) {
+                    setHint(data.reason);
+                } else {
+                    setHint("Subdomain is not available.");
+                }
+            } catch (err) {
+                console.error("Error validating subdomain:", err);
+                setIsSubdomainAvailable(null);
+                setHint("Could not validate subdomain right now.");
+            } finally {
+                setIsCheckingSubdomain(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(timeout);
+    }, [isOpen, workspaceId, step, subdomain]);
+
+    const handleDeploy = async () => {
         setError(null);
         setIsLoading(true);
 
@@ -150,7 +260,7 @@ export default function DeploymentModal({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     workspaceId,
-                    subdomain,
+                    subdomain: subdomain.trim() || undefined,
                     userData: formData
                 }),
             });
@@ -158,10 +268,25 @@ export default function DeploymentModal({
             const data = await response.json();
 
             if (response.ok) {
+                const assignedSubdomain = data.subdomain || subdomain;
+                const siteUrl = data.url || buildClientDeploymentUrl(assignedSubdomain);
+
+                setSubdomain(assignedSubdomain);
+                setDeployedUrl(siteUrl);
                 setIsDeployed(true);
-                onDeploySuccess(subdomain);
-                toast.success("Site deployed successfully!");
+                setIsSubdomainAvailable(true);
+                setHint("Live and auto-updating from this workspace.");
+                onDeploySuccess(assignedSubdomain);
+                toast.success(
+                    data.autoAssigned
+                        ? `Site deployed as ${assignedSubdomain}`
+                        : "Site deployed successfully!"
+                );
             } else {
+                if (response.status === 409 && data.suggestion) {
+                    setSubdomain(data.suggestion);
+                    setHint(`"${data.suggestion}" is available.`);
+                }
                 setError(data.error || "Failed to deploy site");
             }
         } catch (err) {
@@ -172,13 +297,29 @@ export default function DeploymentModal({
         }
     };
 
-    const domain = typeof window !== 'undefined' ? window.location.host.split(':')[0] : 'localhost';
-    const port = typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
-    const fullUrl = `http://${subdomain}.${domain}${port}`;
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim().toLowerCase() || "";
+    const hasRootDomain = Boolean(rootDomain);
+    const fullUrl = useMemo(() => {
+        if (!subdomain) return "";
+        if (deployedUrl) return deployedUrl;
+        return buildClientDeploymentUrl(subdomain);
+    }, [subdomain, deployedUrl]);
+    const isSubdomainUnchanged = Boolean(isDeployed && currentSubdomain && subdomain === currentSubdomain);
+    const disableDeployButton =
+        isLoading ||
+        isCheckingSubdomain ||
+        (subdomain.trim().length > 0 && isSubdomainAvailable === false) ||
+        isSubdomainUnchanged;
 
     const handleClose = () => {
+        setError(null);
+
         if (!isDeployed && !currentSubdomain) {
             setStep(1);
+            setSubdomain("");
+            setIsSubdomainAvailable(null);
+            setHint("");
+            setDeployedUrl("");
             setFormData({
                 name: "",
                 email: "",
@@ -421,7 +562,7 @@ export default function DeploymentModal({
                                             className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-gray-700 px-4 py-3 rounded-xl border border-emerald-200 dark:border-emerald-700 font-medium transition-all hover:shadow-md"
                                         >
                                             <Globe className="w-5 h-5" />
-                                            {subdomain}.{domain}
+                                            {fullUrl.replace(/^https?:\/\//, "")}
                                             <ArrowRight className="w-4 h-4 ml-1" />
                                         </a>
                                     </div>
@@ -430,30 +571,49 @@ export default function DeploymentModal({
                                 <div className="space-y-3">
                                     <Label htmlFor="subdomain" className="flex items-center gap-2 text-sm font-medium">
                                         <Globe className="w-4 h-4 text-blue-500" />
-                                        Choose Your Subdomain
+                                        Choose Your Subdomain (optional)
                                     </Label>
                                     <div className="flex items-center gap-0 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
+                                        {!hasRootDomain && (
+                                            <div className="px-4 py-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-700 dark:text-blue-300 font-medium text-sm">
+                                                /preview/
+                                            </div>
+                                        )}
                                         <div className="flex-1">
                                             <Input
                                                 id="subdomain"
                                                 value={subdomain}
                                                 onChange={(e) => {
-                                                    setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+                                                    setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"));
                                                     setError(null);
                                                     if (isDeployed) setIsDeployed(false);
                                                 }}
-                                                placeholder="my-awesome-site"
+                                                placeholder={hasRootDomain ? "my-awesome-site" : "my-awesome-site (or leave blank)"}
                                                 className="h-12 border-0 bg-transparent text-lg font-medium focus:ring-0 focus:outline-none"
                                             />
                                         </div>
-                                        <div className="px-4 py-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-700 dark:text-blue-300 font-medium text-sm">
-                                            .{domain}
-                                        </div>
+                                        {hasRootDomain && (
+                                            <div className="px-4 py-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-700 dark:text-blue-300 font-medium text-sm">
+                                                .{rootDomain}
+                                            </div>
+                                        )}
                                     </div>
-                                    <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                                        <HelpCircle className="w-3.5 h-3.5" />
-                                        Use lowercase letters, numbers, and hyphens only
-                                    </p>
+                                    <div className="space-y-1">
+                                        <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                                            <HelpCircle className="w-3.5 h-3.5" />
+                                            Use lowercase letters, numbers, and hyphens only
+                                        </p>
+                                        <p
+                                            className={`text-xs flex items-center gap-1.5 ${isSubdomainAvailable === false
+                                                    ? "text-amber-600 dark:text-amber-400"
+                                                    : isSubdomainAvailable === true
+                                                        ? "text-emerald-600 dark:text-emerald-400"
+                                                        : "text-gray-500"
+                                                }`}
+                                        >
+                                            {isCheckingSubdomain ? "Checking availability..." : hint || " "}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -493,10 +653,10 @@ export default function DeploymentModal({
                         ) : (
                             <Button
                                 onClick={handleDeploy}
-                                disabled={isLoading || !subdomain || (isDeployed && subdomain === currentSubdomain)}
+                                disabled={disableDeployButton}
                                 className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white px-8 h-11 rounded-xl shadow-lg shadow-blue-500/25 transition-all hover:shadow-xl hover:shadow-blue-500/30 disabled:opacity-50 disabled:shadow-none"
                             >
-                                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {(isLoading || isCheckingSubdomain) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {isDeployed ? (
                                     <>Update Subdomain</>
                                 ) : (
