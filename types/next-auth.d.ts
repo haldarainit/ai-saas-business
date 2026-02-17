@@ -6,6 +6,9 @@ declare module "next-auth" {
     id_token?: string;
     authToken?: string;
     userId?: string;
+    role?: string;
+    planId?: string;
+    sessionVersion?: number;
     user?: {
       id?: string;
       email?: string | null;
@@ -25,6 +28,9 @@ declare module "next-auth/jwt" {
     id_token?: string;
     authToken?: string;
     userId?: string;
+    role?: string;
+    planId?: string;
+    sessionVersion?: number;
     myToken?: string;
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { enforceBillingUsage } from '@/lib/billing/enforce';
 
 interface GenerateImageBody {
     prompt: string;
@@ -7,6 +8,11 @@ interface GenerateImageBody {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
+        const usageCheck = await enforceBillingUsage(request, "image_generate");
+        if (!usageCheck.ok) {
+            return usageCheck.response;
+        }
+
         const { prompt }: GenerateImageBody = await request.json();
 
         // Using Pollinations.ai free API for image generation

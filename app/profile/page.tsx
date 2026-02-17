@@ -31,6 +31,8 @@ import {
   RefreshCw,
   TrendingUp,
   Activity,
+  CreditCard,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -41,6 +43,55 @@ interface ProfileStats {
   emailsSent: number;
   employees: number;
   presentations: number;
+}
+
+interface BillingInfo {
+  billing: {
+    planId: string;
+    planName: string;
+    planDescription: string;
+    monthlyPriceUsd: number;
+    monthlyCompareAtUsd: number | null;
+    yearlyPriceUsd: number;
+    yearlyCompareAtUsd: number | null;
+    currentCyclePriceUsd: number;
+    currentCycleCompareAtUsd: number | null;
+    currentCycleDiscountPercent: number;
+    planBillingCycle: "monthly" | "yearly";
+    planStatus: string;
+    monthlyCreditLimit: number;
+    rateLimitBonusCredits: number;
+    customMonthlyCredits: number | null;
+    isUnlimitedAccess: boolean;
+    developerModeEnabled: boolean;
+    accountStatus: "active" | "suspended";
+    planStartedAt: string | null;
+    planRenewalAt: string | null;
+  };
+  usage: {
+    periodKey: string;
+    creditsUsed: number;
+    remainingCredits: number;
+    monthlyLimit: number;
+    totalRequests: number;
+    featureRequests: Record<string, number>;
+  };
+  featureCreditCost: Record<string, number>;
+}
+
+interface PaymentHistoryItem {
+  _id: string;
+  planId: string;
+  planName?: string;
+  amount: number;
+  currency: string;
+  metadata?: {
+    billingCycle?: "monthly" | "yearly";
+  };
+  status: "initiated" | "pending" | "success" | "failed" | "cancelled";
+  txnId?: string;
+  createdAt: string;
+  activatedAt?: string;
 }
 
 export default function Profile() {
@@ -56,6 +107,8 @@ export default function Profile() {
   });
   const [loadingStats, setLoadingStats] = useState(true);
   const [daysActive, setDaysActive] = useState(0);
+  const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -90,6 +143,8 @@ export default function Profile() {
         emailsRes,
         employeesRes,
         presentationsRes,
+        billingRes,
+        paymentsRes,
       ] = await Promise.allSettled([
         fetch("/api/invoice"),
         fetch("/api/techno-quotation"),
@@ -97,6 +152,8 @@ export default function Profile() {
         fetch("/api/email-analytics"),
         fetch("/api/employee"),
         fetch("/api/presentation-workspace"),
+        fetch("/api/billing/usage"),
+        fetch("/api/billing/payments"),
       ]);
 
       const newStats: ProfileStats = {
@@ -142,6 +199,16 @@ export default function Profile() {
       if (presentationsRes.status === "fulfilled" && presentationsRes.value.ok) {
         const data = await presentationsRes.value.json();
         newStats.presentations = data.workspaces?.length || 0;
+      }
+
+      if (billingRes.status === "fulfilled" && billingRes.value.ok) {
+        const data = await billingRes.value.json();
+        setBillingInfo(data);
+      }
+
+      if (paymentsRes.status === "fulfilled" && paymentsRes.value.ok) {
+        const data = await paymentsRes.value.json();
+        setPaymentHistory((data.transactions || []) as PaymentHistoryItem[]);
       }
 
       setStats(newStats);
@@ -199,6 +266,24 @@ export default function Profile() {
     });
   };
 
+  const formatDateTime = (dateString?: string | null) => {
+    if (!dateString) return "Not set";
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "Invalid date";
+    return date.toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatFeatureName = (featureKey: string) =>
+    featureKey
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
   const statCards = [
     { label: "Invoices", value: stats.invoices, icon: Receipt, href: "/accounting/invoice", color: "text-blue-500" },
     { label: "Quotations", value: stats.quotations, icon: FileText, href: "/accounting/techno-quotation", color: "text-emerald-500" },
@@ -209,6 +294,11 @@ export default function Profile() {
   ];
 
   const totalActivity = stats.invoices + stats.quotations + stats.workspaces + stats.emailsSent + stats.presentations;
+  const featureUsageEntries = billingInfo
+    ? Object.entries(billingInfo.usage.featureRequests || {}).sort(
+        (a, b) => b[1] - a[1]
+      )
+    : [];
 
   return (
     <>
@@ -374,6 +464,65 @@ export default function Profile() {
                           <span className="text-sm">{user.name || "No name set"}</span>
                         </div>
                       </div>
+                      {billingInfo && (
+                        <>
+                          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                            <div className="flex items-center gap-3">
+                              <CreditCard className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm">
+                                {billingInfo.billing.planName} ({billingInfo.billing.planBillingCycle} - ${billingInfo.billing.currentCyclePriceUsd})
+                              </span>
+                            </div>
+                          </div>
+                          {billingInfo.billing.currentCycleCompareAtUsd ? (
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                              <div className="flex items-center gap-3">
+                                <CreditCard className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm">
+                                  Discount: <span className="line-through">${billingInfo.billing.currentCycleCompareAtUsd}</span>
+                                  {" "}({billingInfo.billing.currentCycleDiscountPercent}% off)
+                                </span>
+                              </div>
+                            </div>
+                          ) : null}
+                          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                            <div className="flex items-center gap-3">
+                              <Shield className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm">
+                                Credits: {billingInfo.usage.creditsUsed}/{billingInfo.usage.monthlyLimit}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                            <div className="flex items-center gap-3">
+                              <Shield className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm">
+                                Access: {billingInfo.billing.isUnlimitedAccess ? "Unlimited" : "Plan-limited"} | Account: {billingInfo.billing.accountStatus}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                            <div className="flex items-center gap-3">
+                              <Calendar className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm">
+                                Renewal: {formatDateTime(billingInfo.billing.planRenewalAt)}
+                              </span>
+                            </div>
+                          </div>
+                          <Link href="/pricing">
+                            <Button variant="outline" className="w-full">
+                              Manage Billing
+                            </Button>
+                          </Link>
+                          {user.role === "admin" && (
+                            <Link href="/admin/billing">
+                              <Button variant="outline" className="w-full">
+                                Open Admin Billing Panel
+                              </Button>
+                            </Link>
+                          )}
+                        </>
+                      )}
                       <Button
                         onClick={handleLogout}
                         variant="destructive"
@@ -385,6 +534,101 @@ export default function Profile() {
                     </CardContent>
                   </Card>
                 </div>
+
+                {billingInfo && (
+                  <div className="grid md:grid-cols-2 gap-4 mt-8">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Billing Usage</CardTitle>
+                        <CardDescription>
+                          Track current cycle usage across AI tools.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground">Period</p>
+                            <p className="font-medium">{billingInfo.usage.periodKey}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground">Total Requests</p>
+                            <p className="font-medium">{billingInfo.usage.totalRequests}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground">Remaining Credits</p>
+                            <p className="font-medium">{billingInfo.usage.remainingCredits}</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground">Bonus Credits</p>
+                            <p className="font-medium">{billingInfo.billing.rateLimitBonusCredits}</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">AI Tool Usage</p>
+                          {featureUsageEntries.length > 0 ? (
+                            featureUsageEntries.map(([featureKey, count]) => (
+                              <div
+                                key={featureKey}
+                                className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-sm"
+                              >
+                                <span>{formatFeatureName(featureKey)}</span>
+                                <span className="text-muted-foreground">
+                                  {count} req
+                                  {billingInfo.featureCreditCost?.[featureKey] !== undefined
+                                    ? ` x ${billingInfo.featureCreditCost[featureKey]} credits`
+                                    : ""}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-muted-foreground">
+                              No AI usage tracked yet in this billing cycle.
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Payment History</CardTitle>
+                        <CardDescription>
+                          Recent billing transactions.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {paymentHistory.length > 0 ? (
+                          paymentHistory.slice(0, 8).map((payment) => (
+                            <div
+                              key={payment._id}
+                              className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2"
+                            >
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {(payment.planName || payment.planId.toUpperCase())} - {payment.currency} {payment.amount}
+                                  {payment.metadata?.billingCycle
+                                    ? ` (${payment.metadata.billingCycle})`
+                                    : ""}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatDateTime(payment.createdAt)}
+                                </p>
+                              </div>
+                              <Badge variant={payment.status === "success" ? "default" : "secondary"}>
+                                {payment.status}
+                              </Badge>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            No payment transactions found.
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
               </div>
             </div>
           </section>

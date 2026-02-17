@@ -4,7 +4,7 @@ import { extractUserFromRequest } from "@/lib/auth-utils";
 export async function POST(request: NextRequest) {
   try {
     // Extract user information from authentication
-    const authResult = extractUserFromRequest(request);
+    const authResult = await extractUserFromRequest(request);
 
     if (!authResult.success || !authResult.user) {
       return NextResponse.json(

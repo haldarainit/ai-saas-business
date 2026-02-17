@@ -33,7 +33,7 @@ export async function GET(
         await dbConnect();
 
         // Extract authenticated user
-        const authResult = extractUserFromRequest(request);
+        const authResult = await extractUserFromRequest(request);
         if (!authResult.success) {
             return NextResponse.json(
                 { success: false, error: 'Authentication required' },
@@ -80,9 +80,9 @@ export async function GET(
             'clockOut.faceImage': 0,
         };
 
-        const attendanceRecords: AttendanceRecord[] = await Attendance.find(query, projection)
+        const attendanceRecords = (await Attendance.find(query, projection)
             .sort({ date: 1 })
-            .lean();
+            .lean()) as unknown as AttendanceRecord[];
 
         // Calculate summary statistics
         const totalWorkingHours = attendanceRecords.reduce((sum, a) => sum + (a.workingHours || 0), 0);

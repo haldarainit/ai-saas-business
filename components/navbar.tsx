@@ -168,11 +168,17 @@ export default function Navbar() {
   const logoSrc =
     mounted && theme === "light" ? "/logo-white.png" : "/logo.png";
 
-  const navItems = [
+  const baseNavItems = [
     { label: "Home", href: "/" },
+    { label: "Pricing", href: "/pricing" },
     { label: "About", href: "/about" },
     { label: "Guide", href: "/guide" },
   ];
+
+  const navItems =
+    user?.role === "admin"
+      ? [...baseNavItems, { label: "Admin", href: "/admin/billing" }]
+      : baseNavItems;
 
   const getInitials = (name?: string, email?: string) => {
     if (name) {
@@ -396,6 +402,13 @@ export default function Navbar() {
 
             {user ? (
               <>
+                {user.role === "admin" && (
+                  <Link href="/admin/billing">
+                    <Button variant="outline" className="rounded-xl">
+                      Admin
+                    </Button>
+                  </Link>
+                )}
                 <Button
                   onClick={handleGetStartedClick}
                   className="relative overflow-hidden flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-primary via-primary to-primary/90 hover:from-primary/90 hover:via-primary/80 hover:to-primary/70 text-white rounded-xl border-0 h-auto shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/35 transition-all duration-300 group hover:-translate-y-0.5"

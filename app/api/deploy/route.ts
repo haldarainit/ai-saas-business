@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Workspace from '@/models/Workspace';
 import nodemailer from 'nodemailer';
+import { getCurrentUser } from '@/lib/auth/current-user';
+import { enforceSystemAccess } from '@/lib/system/enforce';
 
 interface UserData {
     name: string;
@@ -85,7 +87,7 @@ async function sendDeploymentNotification(userData: UserData, subdomain: string,
 
     await transporter.sendMail({
         from: `"Landing Page Builder" <${process.env.EMAIL_USER}>`,
-        to: "haldarainit@gmail.com",
+        to: process.env.DEPLOYMENT_NOTIFICATION_TO || process.env.EMAIL_USER,
         replyTo: email,
         subject: `🚀 New Deployment: ${projectName} by ${name}`,
         html: emailHtml,
@@ -94,6 +96,23 @@ async function sendDeploymentNotification(userData: UserData, subdomain: string,
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
+        const user = await getCurrentUser(request);
+        if (!user) {
+            return NextResponse.json(
+                { error: 'Authentication required' },
+                { status: 401 }
+            );
+        }
+
+        const systemAccess = await enforceSystemAccess({
+            user,
+            capability: "deployments",
+        });
+
+        if (!systemAccess.ok) {
+            return systemAccess.response;
+        }
+
         await dbConnect();
         const { workspaceId, subdomain, userData } = await request.json() as RequestBody;
 

@@ -47,6 +47,9 @@ export const authOptions: AuthOptions = {
                             id_token: account.id_token,
                             authToken: resParsed.authToken,
                             userId: resParsed.user.id,
+                            role: resParsed.user.role,
+                            planId: resParsed.user.billing?.planId,
+                            sessionVersion: resParsed.user.sessionVersion ?? 1,
                         });
                     } else {
                         console.error("Backend verification failed:", res.status, await res.text());
@@ -54,6 +57,7 @@ export const authOptions: AuthOptions = {
                         token = Object.assign({}, token, {
                             id_token: account.id_token,
                             userId: user.email,
+                            sessionVersion: 1,
                         });
                     }
                 } catch (error) {
@@ -62,6 +66,7 @@ export const authOptions: AuthOptions = {
                     token = Object.assign({}, token, {
                         id_token: account.id_token,
                         userId: user.email,
+                        sessionVersion: 1,
                     });
                 }
             }
@@ -74,7 +79,14 @@ export const authOptions: AuthOptions = {
                     id_token: token.id_token,
                     authToken: token.authToken,
                     userId: token.userId,
+                    role: (token as any).role,
+                    planId: (token as any).planId,
+                    sessionVersion: (token as any).sessionVersion ?? 1,
                 });
+
+                if (session.user) {
+                    session.user.id = (token.userId as string) || session.user.id;
+                }
             }
             return session;
         },

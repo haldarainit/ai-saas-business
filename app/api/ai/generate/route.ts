@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { enforceBillingUsage } from '@/lib/billing/enforce';
 
 export async function POST(request: NextRequest) {
     try {
+        const usageCheck = await enforceBillingUsage(request, "ai_generate");
+        if (!usageCheck.ok) {
+            return usageCheck.response;
+        }
+
         const { prompt, type } = await request.json();
 
         if (!prompt) {

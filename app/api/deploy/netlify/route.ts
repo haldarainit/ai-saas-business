@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import crypto from 'crypto';
+import { getCurrentUser } from '@/lib/auth/current-user';
+import { enforceSystemAccess } from '@/lib/system/enforce';
 
 export const runtime = 'nodejs';
 
@@ -56,6 +58,20 @@ async function getSite(token: string, siteId: string, chatId?: string): Promise<
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const systemAccess = await enforceSystemAccess({
+      user,
+      capability: "deployments",
+    });
+
+    if (!systemAccess.ok) {
+      return systemAccess.response;
+    }
+
     const { token, siteId, files = {}, chatId } = (await request.json()) as DeployRequestBody;
 
     if (!token) {
@@ -66,9 +82,11 @@ export async function POST(request: NextRequest) {
     let siteInfo: NetlifySiteInfo | undefined;
 
     if (targetSiteId) {
-      siteInfo = await getSite(token, targetSiteId, chatId);
-      if (!siteInfo) {
+      const existingSite = await getSite(token, targetSiteId, chatId);
+      if (!existingSite) {
         targetSiteId = undefined;
+      } else {
+        siteInfo = existingSite;
       }
     }
 

@@ -1,4 +1,5 @@
 // Using dynamic import to avoid module resolution issues
+import { enforceBillingUsage } from "@/lib/billing/enforce";
 
 interface GenerateSalesScriptBody {
     prospectName: string;
@@ -13,6 +14,11 @@ interface GenerateSalesScriptBody {
 
 export async function POST(request: Request): Promise<Response> {
     try {
+        const usageCheck = await enforceBillingUsage(request, "sales_script");
+        if (!usageCheck.ok) {
+            return usageCheck.response;
+        }
+
         const {
             prospectName,
             prospectCompany,

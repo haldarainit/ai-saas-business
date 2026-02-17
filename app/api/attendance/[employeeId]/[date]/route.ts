@@ -15,7 +15,7 @@ export async function GET(
         await dbConnect();
 
         // Extract authenticated user
-        const authResult = extractUserFromRequest(request);
+        const authResult = await extractUserFromRequest(request);
         if (!authResult.success) {
             return NextResponse.json(
                 { success: false, error: 'Authentication required' },

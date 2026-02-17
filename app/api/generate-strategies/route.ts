@@ -1,3 +1,5 @@
+import { enforceBillingUsage } from "@/lib/billing/enforce";
+
 interface GenerateStrategiesBody {
     prompt: string;
     urls?: string[];
@@ -21,6 +23,11 @@ interface Strategy {
 
 export async function POST(request: Request): Promise<Response> {
     try {
+        const usageCheck = await enforceBillingUsage(request, "strategy_generate");
+        if (!usageCheck.ok) {
+            return usageCheck.response;
+        }
+
         const { prompt, urls = [] }: GenerateStrategiesBody = await request.json();
 
         if (!prompt || !prompt.trim()) {

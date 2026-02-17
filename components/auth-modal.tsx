@@ -17,9 +17,16 @@ import Link from "next/link";
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  redirectTo?: string;
+  stayOnSuccess?: boolean;
 }
 
-export function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export function AuthModal({
+  isOpen,
+  onClose,
+  redirectTo,
+  stayOnSuccess = false,
+}: AuthModalProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -41,6 +48,15 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       }
 
       onClose();
+
+      if (stayOnSuccess) {
+        return;
+      }
+
+      if (redirectTo) {
+        router.push(redirectTo);
+        return;
+      }
 
       const hasSeenOnboarding = localStorage.getItem("hasSeenOnboarding");
       if (hasSeenOnboarding) {
@@ -160,11 +176,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
-                    placeholder="Create a password (min 6 characters)"
+                    placeholder="Create a password (min 8 characters)"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    minLength={6}
+                    minLength={8}
                     className="h-12 px-4 pr-12 bg-background border-2 border-border focus:border-primary rounded-lg"
                   />
                   <button

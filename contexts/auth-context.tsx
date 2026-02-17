@@ -12,6 +12,30 @@ interface User {
   createdAt?: string;
   isEmployee?: boolean;
   onboardingCompleted?: boolean;
+  role?: "user" | "admin";
+  billing?: {
+    planId: string;
+    planName: string;
+    planDescription: string;
+    monthlyPriceUsd: number;
+    monthlyCompareAtUsd: number | null;
+    yearlyPriceUsd: number;
+    yearlyCompareAtUsd: number | null;
+    currentCyclePriceUsd: number;
+    currentCycleCompareAtUsd: number | null;
+    currentCycleDiscountPercent: number;
+    planStatus: string;
+    planBillingCycle: "monthly" | "yearly";
+    monthlyCreditLimit: number;
+    rateLimitBonusCredits: number;
+    customMonthlyCredits: number | null;
+    isUnlimitedAccess: boolean;
+    developerModeEnabled: boolean;
+    accountStatus: "active" | "suspended";
+    sessionVersion: number;
+    planStartedAt: string | null;
+    planRenewalAt: string | null;
+  };
 }
 
 interface AuthContextType {
@@ -37,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isCheckingAuth, setIsCheckingAuth] = useState(false);
 
   // Fetch complete user data for Google OAuth users
-  const fetchGoogleUserData = async (email: string, sessionData: any) => {
+  const fetchGoogleUserData = async (sessionData: any) => {
     try {
       // Fetch complete user data from API to get onboardingCompleted
       const response = await fetch("/api/auth/me");
@@ -50,25 +74,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           onboardingCompleted: data.user.onboardingCompleted || false,
         });
       } else {
-        // Fallback to session data if API fails
-        console.log("API failed, using session data for Google user");
-        setUser({
-          id: sessionData.userId || "",
-          email: email,
-          name: sessionData.user?.name || "",
-          image: sessionData.user?.image || "",
-          onboardingCompleted: false, // Default to false, will show onboarding
-        });
+        // If server-side session validation fails, treat it as logged out.
+        setUser(null);
+        setAuthToken(null);
       }
     } catch (error) {
       console.error("Error fetching Google user data:", error);
-      setUser({
-        id: sessionData.userId || "",
-        email: email,
-        name: sessionData.user?.name || "",
-        image: sessionData.user?.image || "",
-        onboardingCompleted: false,
-      });
+      setUser(null);
+      setAuthToken(null);
     } finally {
       setLoading(false);
     }
@@ -80,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("Google OAuth authenticated, fetching user data...");
       setAuthToken((session as any).authToken || null);
       // Fetch complete user data from API
-      fetchGoogleUserData(session.user?.email || "", session);
+      fetchGoogleUserData(session);
     } else if (status === "unauthenticated") {
       // Check for traditional auth
       checkAuthStatus();
@@ -152,8 +165,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
       }
+
+      setUser(null);
+      setAuthToken(null);
     } catch (error) {
-      // Silent fail - user will remain logged out
+      setUser(null);
+      setAuthToken(null);
     } finally {
       setLoading(false);
       setIsCheckingAuth(false);
@@ -245,9 +262,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ...data.user,
           onboardingCompleted: data.user.onboardingCompleted || false,
         });
+      } else {
+        setUser(null);
+        setAuthToken(null);
       }
     } catch (error) {
       console.error("Error refreshing user:", error);
+      setUser(null);
+      setAuthToken(null);
     }
   }, []);
 

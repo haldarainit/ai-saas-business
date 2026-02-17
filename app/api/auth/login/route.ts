@@ -3,20 +3,34 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
+import { getUserBillingSummary } from "@/lib/billing/subscription";
+import { isAdminEmail } from "@/lib/auth/admin";
+import { enforceRateLimit, getClientIpAddress } from "@/lib/security/rate-limit";
+import { enforceSystemAccess } from "@/lib/system/enforce";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("Login API called");
+    const ipAddress = getClientIpAddress(request);
+    const rateLimit = enforceRateLimit({
+      key: `login:${ipAddress}`,
+      windowMs: 10 * 60 * 1000,
+      maxRequests: 30,
+    });
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     await dbConnect();
-    console.log("Database connected");
 
     const { email, password } = await request.json();
-    console.log("Login attempt for email:", email);
 
     if (!email || !password) {
-      console.log("Missing email or password");
       return NextResponse.json(
         { error: "Email and password are required" },
         { status: 400 }
@@ -25,48 +39,96 @@ export async function POST(request: NextRequest) {
 
     // Find user by email
     const user = await User.findOne({ email: email.toLowerCase() });
-    console.log("User found:", !!user);
-    console.log("Searching for email:", email.toLowerCase());
-
-    // Debug: Check total users in database
-    const totalUsers = await User.countDocuments();
-    console.log("Total users in database:", totalUsers);
-
-    if (totalUsers > 0) {
-      const allUsers = await User.find({}, "email name");
-      console.log(
-        "All users in database:",
-        allUsers.map((u) => ({ email: u.email, name: u.name }))
-      );
-    }
 
     if (user) {
-      console.log("Found user email:", user.email);
-      console.log(
-        "Stored password hash:",
-        user.password.substring(0, 10) + "..."
-      );
+      let shouldSave = false;
+
+      if (!user.role) {
+        user.role = "user";
+        shouldSave = true;
+      }
+
+      if (!user.planId) {
+        user.planId = "free";
+        shouldSave = true;
+      }
+
+      if (!user.planStatus) {
+        user.planStatus = "active";
+        shouldSave = true;
+      }
+
+      if (!user.planBillingCycle) {
+        user.planBillingCycle = "monthly";
+        shouldSave = true;
+      }
+
+      if (!user.accountStatus) {
+        user.accountStatus = "active";
+        shouldSave = true;
+      }
+
+      if (typeof user.sessionVersion !== "number" || user.sessionVersion < 1) {
+        user.sessionVersion = 1;
+        shouldSave = true;
+      }
+
+      if (typeof user.rateLimitBonusCredits !== "number") {
+        user.rateLimitBonusCredits = 0;
+        shouldSave = true;
+      }
+
+      if (isAdminEmail(user.email) && user.role !== "admin") {
+        user.role = "admin";
+        shouldSave = true;
+      }
+
+      if (shouldSave) {
+        await user.save();
+      }
     }
 
     if (!user) {
-      console.log("User not found");
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
+      );
+    }
+
+    if (!user.password) {
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 }
+      );
+    }
+
+    if (user.accountStatus === "suspended") {
+      return NextResponse.json(
+        {
+          error:
+            user.suspendedReason ||
+            "Your account is suspended. Please contact support.",
+        },
+        { status: 403 }
       );
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      console.log("Invalid password");
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
       );
     }
 
-    console.log("Login successful for user:", user.email);
+    const systemAccess = await enforceSystemAccess({ user });
+    if (!systemAccess.ok) {
+      return systemAccess.response;
+    }
+
+    user.lastLoginAt = new Date();
+    await user.save();
 
     // Create JWT token
     const token = jwt.sign(
@@ -74,6 +136,9 @@ export async function POST(request: NextRequest) {
         userId: user._id,
         email: user.email,
         name: user.name,
+        role: user.role,
+        planId: user.planId,
+        sv: user.sessionVersion ?? 1,
       },
       JWT_SECRET,
       { expiresIn: "7d" }
@@ -86,6 +151,8 @@ export async function POST(request: NextRequest) {
       name: user.name,
       createdAt: user.createdAt,
       onboardingCompleted: user.onboardingCompleted || false,
+      role: user.role,
+      billing: await getUserBillingSummary(user),
     };
 
     const response = NextResponse.json({
@@ -107,7 +174,6 @@ export async function POST(request: NextRequest) {
       })
     });
 
-    console.log("Login response sent");
     return response;
   } catch (error) {
     console.error("Login error:", error);

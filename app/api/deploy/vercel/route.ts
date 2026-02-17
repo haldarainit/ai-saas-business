@@ -1,4 +1,6 @@
 import { NextRequest } from 'next/server';
+import { getCurrentUser } from '@/lib/auth/current-user';
+import { enforceSystemAccess } from '@/lib/system/enforce';
 
 export const runtime = 'nodejs';
 
@@ -81,6 +83,20 @@ const detectFramework = (files: Record<string, string>): string => {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const systemAccess = await enforceSystemAccess({
+      user,
+      capability: "deployments",
+    });
+
+    if (!systemAccess.ok) {
+      return systemAccess.response;
+    }
+
     const { projectId, files = {}, sourceFiles = {}, token, chatId, framework } =
       (await request.json()) as DeployRequestBody;
 

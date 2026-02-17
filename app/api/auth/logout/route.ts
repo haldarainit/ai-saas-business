@@ -12,6 +12,10 @@ export async function POST() {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 0, // Expire immediately
+      path: "/",
+      ...(process.env.NODE_ENV === "production" && process.env.COOKIE_DOMAIN && {
+        domain: process.env.COOKIE_DOMAIN,
+      }),
     });
 
     return response;

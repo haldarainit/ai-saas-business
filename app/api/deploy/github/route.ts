@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { Octokit } from '@octokit/rest';
+import { getCurrentUser } from '@/lib/auth/current-user';
+import { enforceSystemAccess } from '@/lib/system/enforce';
 
 export const runtime = 'nodejs';
 
@@ -15,6 +17,20 @@ function normalizePath(path: string) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const systemAccess = await enforceSystemAccess({
+      user,
+      capability: "deployments",
+    });
+
+    if (!systemAccess.ok) {
+      return systemAccess.response;
+    }
+
     const { token, repo, files = {} } = (await request.json()) as DeployRequestBody;
 
     if (!token) {
@@ -74,7 +90,7 @@ export async function POST(request: NextRequest) {
     const tree = Object.entries(files)
       .map(([filePath, content]) => ({
         path: normalizePath(filePath),
-        mode: '100644',
+        mode: '100644' as const,
         type: 'blob' as const,
         content,
       }))

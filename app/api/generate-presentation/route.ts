@@ -1,9 +1,15 @@
 
 import { NextResponse } from 'next/server';
 import { generatePresentationContent } from '@/lib/geminiService';
+import { enforceBillingUsage } from '@/lib/billing/enforce';
 
 export async function POST(req: Request) {
     try {
+        const usageCheck = await enforceBillingUsage(req, "presentation_generate");
+        if (!usageCheck.ok) {
+            return usageCheck.response;
+        }
+
         const body = await req.json();
         const { prompt, slideCount = 8, outlineOnly = false, existingOutline } = body;
 

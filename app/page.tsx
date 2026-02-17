@@ -11,6 +11,7 @@ import ServiceTabs from "@/components/service-tabs"
 import StructuredData from "@/components/structured-data"
 import HeroButtons from "@/components/hero-buttons"
 import OnboardingTour from "@/components/onboarding-tour"
+import Link from "next/link"
 
 export default function Home() {
   return (
@@ -106,6 +107,44 @@ export default function Home() {
 
         {/* Testimonials */}
         {/* <Testimonials /> */}
+
+        {/* Pricing Preview */}
+        <section className="py-16 md:py-20 bg-muted/30" id="pricing">
+          <div className="container px-4 md:px-6">
+            <div className="max-w-5xl mx-auto">
+              <div className="text-center mb-10">
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Simple Pricing</h2>
+                <p className="text-muted-foreground">
+                  Free to start, affordable paid plans, and custom enterprise limits.
+                </p>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-3">
+                <div className="rounded-xl border bg-background p-6">
+                  <p className="text-sm text-muted-foreground mb-2">Free</p>
+                  <p className="text-3xl font-bold mb-3">$0</p>
+                  <p className="text-sm text-muted-foreground">40 AI credits / month</p>
+                </div>
+                <div className="rounded-xl border-2 border-primary bg-background p-6 shadow-lg">
+                  <p className="text-sm text-primary mb-2">Starter</p>
+                  <p className="text-3xl font-bold mb-3">$4</p>
+                  <p className="text-sm text-muted-foreground">250 AI credits / month</p>
+                </div>
+                <div className="rounded-xl border bg-background p-6">
+                  <p className="text-sm text-muted-foreground mb-2">Pro</p>
+                  <p className="text-3xl font-bold mb-3">$15</p>
+                  <p className="text-sm text-muted-foreground">1200 AI credits / month</p>
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-center">
+                <Button asChild size="lg">
+                  <Link href="/pricing">View Full Pricing & Plans</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <Footer />
         <OnboardingTour />

@@ -1,3 +1,5 @@
+import { enforceBillingUsage } from "@/lib/billing/enforce";
+
 interface Strategy {
     title: string;
     description: string;
@@ -71,6 +73,11 @@ interface ActionPlan {
 
 export async function POST(request: Request): Promise<Response> {
     try {
+        const usageCheck = await enforceBillingUsage(request, "action_plan_generate");
+        if (!usageCheck.ok) {
+            return usageCheck.response;
+        }
+
         const { strategy, prompt, websiteContext }: GenerateActionPlanBody = await request.json();
 
         if (!strategy || !strategy.title) {

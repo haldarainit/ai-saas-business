@@ -1,18 +1,29 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+function applySecurityHeaders(response: NextResponse, request: NextRequest) {
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set(
+        "Permissions-Policy",
+        "camera=(), microphone=(), geolocation=()"
+    );
+
+    if (request.nextUrl.protocol === "https:") {
+        response.headers.set(
+            "Strict-Transport-Security",
+            "max-age=31536000; includeSubDomains"
+        );
+    }
+}
+
 export function middleware(req: NextRequest) {
     const url = req.nextUrl;
     const hostname = req.headers.get("host") || "";
 
-    // Define allowed domains (including localhost for development)
-    const allowedDomains = ["localhost:3000", "your-production-domain.com"];
-
     // Initialize response
     let response = NextResponse.next();
-
-    // Check if the current hostname is a subdomain
-    const isSubdomain = !allowedDomains.some(domain => hostname === domain || hostname.endsWith(`.${domain}`));
 
     // Rewrite logic
     let currentHost = hostname;
@@ -35,6 +46,8 @@ export function middleware(req: NextRequest) {
         response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
         response.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
     }
+
+    applySecurityHeaders(response, req);
 
     return response;
 }

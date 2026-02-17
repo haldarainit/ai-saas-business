@@ -3,6 +3,10 @@ import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
 import connectDB from "@/lib/mongodb";
 import User from "@/lib/models/User";
+import { isAdminEmail } from "@/lib/auth/admin";
+import { getUserBillingSummary } from "@/lib/billing/subscription";
+import { enforceRateLimit, getClientIpAddress } from "@/lib/security/rate-limit";
+import { enforceSystemAccess } from "@/lib/system/enforce";
 
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -11,6 +15,20 @@ const client = new OAuth2Client(
 
 export async function POST(req: NextRequest) {
   try {
+    const ipAddress = getClientIpAddress(req);
+    const rateLimit = enforceRateLimit({
+      key: `google-verify:${ipAddress}`,
+      windowMs: 10 * 60 * 1000,
+      maxRequests: 60,
+    });
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many authentication attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const authHeader = req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
@@ -53,28 +71,103 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const normalizedEmail = email.toLowerCase();
+
     // Connect to database
     await connectDB();
 
     // Find or create user
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
       // Create new user
       user = await User.create({
-        email,
+        email: normalizedEmail,
         name: name || body.name,
         googleId,
         image: picture || body.image,
         authProvider: "google",
+        role: isAdminEmail(normalizedEmail) ? "admin" : "user",
+        planBillingCycle: "monthly",
       });
-    } else if (!user.googleId) {
-      // Link existing user with Google
-      user.googleId = googleId;
-      user.authProvider = "google";
-      if (picture) user.image = picture;
-      await user.save();
+    } else {
+      let shouldSave = false;
+
+      if (!user.googleId) {
+        // Link existing user with Google
+        user.googleId = googleId;
+        user.authProvider = "google";
+        shouldSave = true;
+      }
+
+      if (picture && !user.image) {
+        user.image = picture;
+        shouldSave = true;
+      }
+
+      if (!user.role) {
+        user.role = "user";
+        shouldSave = true;
+      }
+
+      if (!user.planId) {
+        user.planId = "free";
+        shouldSave = true;
+      }
+
+      if (!user.planStatus) {
+        user.planStatus = "active";
+        shouldSave = true;
+      }
+
+      if (!user.planBillingCycle) {
+        user.planBillingCycle = "monthly";
+        shouldSave = true;
+      }
+
+      if (!user.accountStatus) {
+        user.accountStatus = "active";
+        shouldSave = true;
+      }
+
+      if (typeof user.sessionVersion !== "number" || user.sessionVersion < 1) {
+        user.sessionVersion = 1;
+        shouldSave = true;
+      }
+
+      if (typeof user.rateLimitBonusCredits !== "number") {
+        user.rateLimitBonusCredits = 0;
+        shouldSave = true;
+      }
+
+      if (isAdminEmail(normalizedEmail) && user.role !== "admin") {
+        user.role = "admin";
+        shouldSave = true;
+      }
+
+      if (shouldSave) {
+        await user.save();
+      }
     }
+
+    if (user.accountStatus === "suspended") {
+      return NextResponse.json(
+        {
+          error:
+            user.suspendedReason ||
+            "Your account is suspended. Please contact support.",
+        },
+        { status: 403 }
+      );
+    }
+
+    const systemAccess = await enforceSystemAccess({ user });
+    if (!systemAccess.ok) {
+      return systemAccess.response;
+    }
+
+    user.lastLoginAt = new Date();
+    await user.save();
 
     // Create auth token with user info and permissions
     const authToken = jwt.sign(
@@ -82,6 +175,9 @@ export async function POST(req: NextRequest) {
         userId: user._id.toString(),
         email: user.email,
         name: user.name,
+        role: user.role,
+        planId: user.planId,
+        sv: user.sessionVersion ?? 1,
       },
       process.env.NEXTAUTH_SECRET ||
         process.env.JWT_SECRET ||
@@ -96,6 +192,9 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         image: user.image,
+        role: user.role,
+        billing: await getUserBillingSummary(user),
+        sessionVersion: user.sessionVersion ?? 1,
       },
     });
   } catch (error) {
