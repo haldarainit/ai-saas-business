@@ -7,11 +7,11 @@ import { getUserBillingSummary } from "@/lib/billing/subscription";
 import { isAdminEmail } from "@/lib/auth/admin";
 import { enforceRateLimit, getClientIpAddress } from "@/lib/security/rate-limit";
 import { enforceSystemAccess } from "@/lib/system/enforce";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+import { getRequiredAuthJwtSecret } from "@/lib/auth/jwt-secret";
 
 export async function POST(request: NextRequest) {
   try {
+    const jwtSecret = getRequiredAuthJwtSecret();
     const ipAddress = getClientIpAddress(request);
     const rateLimit = enforceRateLimit({
       key: `login:${ipAddress}`,
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
         planId: user.planId,
         sv: user.sessionVersion ?? 1,
       },
-      JWT_SECRET,
+      jwtSecret,
       { expiresIn: "7d" }
     );
 

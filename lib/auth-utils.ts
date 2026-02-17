@@ -3,8 +3,7 @@ import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+import { getAuthJwtSecret } from "@/lib/auth/jwt-secret";
 
 interface DecodedToken extends JwtPayload {
   userId: string;
@@ -46,13 +45,18 @@ export async function extractUserFromRequest(
   request: NextRequest
 ): Promise<AuthResult> {
   try {
+    const jwtSecret = getAuthJwtSecret();
+    if (!jwtSecret) {
+      return { success: false, error: "Server authentication is not configured" };
+    }
+
     const token = getTokenFromRequest(request);
 
     if (!token) {
       return { success: false, error: "No authentication token found" };
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as DecodedToken;
+    const decoded = jwt.verify(token, jwtSecret) as DecodedToken;
     if (!decoded?.userId) {
       return { success: false, error: "Invalid authentication token" };
     }

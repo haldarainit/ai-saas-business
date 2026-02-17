@@ -6,8 +6,7 @@ import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import type { Session } from "next-auth";
-
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || "your-secret-key";
+import { getAuthJwtSecret } from "@/lib/auth/jwt-secret";
 
 interface DecodedTokenPayload {
   userId: string;
@@ -98,49 +97,24 @@ export async function getAuthenticatedUser(request?: Request): Promise<{ userId:
         console.error("Error getting NextAuth session:", error);
     }
 
-    // Second, try custom JWT token from auth-token cookie (email/password login)
-    try {
-        let cookieStore;
+    const jwtSecret = getAuthJwtSecret();
+    if (jwtSecret) {
+        // Second, try custom JWT token from auth-token cookie (email/password login)
         try {
-            cookieStore = await cookies();
-        } catch (cookieError) {
-            // cookies() can fail in certain edge cases in Next.js 15
-            console.warn("Could not access cookies from next/headers:", cookieError);
-            cookieStore = null;
-        }
-
-        if (cookieStore) {
-            const authToken = cookieStore.get("auth-token");
-
-            if (authToken?.value) {
-                const decoded = jwt.verify(authToken.value, JWT_SECRET) as DecodedTokenPayload;
-
-                if (decoded && decoded.userId) {
-                    const validated = await resolveAndValidateUser({
-                        userId: decoded.userId,
-                        email: decoded.email || null,
-                        name: decoded.name || null,
-                        sessionVersion: decoded.sv ?? 1,
-                    });
-
-                    if (validated) {
-                        return validated;
-                    }
-                }
+            let cookieStore;
+            try {
+                cookieStore = await cookies();
+            } catch (cookieError) {
+                // cookies() can fail in certain edge cases in Next.js 15
+                console.warn("Could not access cookies from next/headers:", cookieError);
+                cookieStore = null;
             }
-        }
-    } catch (error) {
-        console.error("Error verifying JWT token:", error);
-    }
 
-    // Also check request cookies if request is provided
-    if (request) {
-        try {
-            const cookieHeader = request.headers.get("cookie");
-            if (cookieHeader) {
-                const tokenMatch = cookieHeader.match(/auth-token=([^;]+)/);
-                if (tokenMatch && tokenMatch[1]) {
-                    const decoded = jwt.verify(tokenMatch[1], JWT_SECRET) as DecodedTokenPayload;
+            if (cookieStore) {
+                const authToken = cookieStore.get("auth-token");
+
+                if (authToken?.value) {
+                    const decoded = jwt.verify(authToken.value, jwtSecret) as DecodedTokenPayload;
 
                     if (decoded && decoded.userId) {
                         const validated = await resolveAndValidateUser({
@@ -157,7 +131,35 @@ export async function getAuthenticatedUser(request?: Request): Promise<{ userId:
                 }
             }
         } catch (error) {
-            console.error("Error verifying JWT from request:", error);
+            console.error("Error verifying JWT token:", error);
+        }
+
+        // Also check request cookies if request is provided
+        if (request) {
+            try {
+                const cookieHeader = request.headers.get("cookie");
+                if (cookieHeader) {
+                    const tokenMatch = cookieHeader.match(/auth-token=([^;]+)/);
+                    if (tokenMatch && tokenMatch[1]) {
+                        const decoded = jwt.verify(tokenMatch[1], jwtSecret) as DecodedTokenPayload;
+
+                        if (decoded && decoded.userId) {
+                            const validated = await resolveAndValidateUser({
+                                userId: decoded.userId,
+                                email: decoded.email || null,
+                                name: decoded.name || null,
+                                sessionVersion: decoded.sv ?? 1,
+                            });
+
+                            if (validated) {
+                                return validated;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Error verifying JWT from request:", error);
+            }
         }
     }
 

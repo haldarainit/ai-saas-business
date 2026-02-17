@@ -7,7 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import {
+  BadgeDollarSign,
+  LayoutDashboard,
+  Loader2,
+  Settings2,
+  Users,
+} from "lucide-react";
 
 type PlanId = "free" | "starter" | "pro" | "custom";
 type BillingCycle = "monthly" | "yearly";
@@ -16,6 +22,7 @@ interface AdminUserRow {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   role: "user" | "admin";
   billing: {
     planId: PlanId;
@@ -104,6 +111,8 @@ interface PlanEditState {
   isContactSales: boolean;
 }
 
+type AdminSectionId = "overview" | "users" | "settings";
+
 const PLAN_OPTIONS: PlanId[] = ["free", "starter", "pro", "custom"];
 
 const SYSTEM_CONTROL_FIELDS: Array<{
@@ -143,6 +152,27 @@ const SYSTEM_CONTROL_FIELDS: Array<{
   },
 ];
 
+const ADMIN_SECTIONS = [
+  {
+    id: "overview",
+    title: "Overview",
+    description: "Dashboard summary and shortcuts",
+    icon: LayoutDashboard,
+  },
+  {
+    id: "users",
+    title: "Users",
+    description: "Manage user plans and access",
+    icon: Users,
+  },
+  {
+    id: "settings",
+    title: "Settings",
+    description: "Pricing and system configuration",
+    icon: Settings2,
+  },
+] as const;
+
 function formatDate(value?: string | null) {
   if (!value) return "Never";
 
@@ -157,6 +187,8 @@ export default function AdminBillingPage() {
   const [savingSystem, setSavingSystem] = useState(false);
   const [savingPlanConfig, setSavingPlanConfig] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<AdminSectionId>("overview");
+  const [userSearch, setUserSearch] = useState("");
   const [response, setResponse] = useState<AdminBillingResponse | null>(null);
   const [planConfig, setPlanConfig] = useState<AdminPlanConfigResponse | null>(
     null
@@ -170,6 +202,36 @@ export default function AdminBillingPage() {
   const [edits, setEdits] = useState<Record<string, EditState>>({});
 
   const users = useMemo(() => response?.users || [], [response?.users]);
+  const filteredUsers = useMemo(() => {
+    const normalizedQuery = userSearch.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return users;
+    }
+
+    return users.filter((user) => {
+      const targets = [user.name, user.email, user.phone || ""];
+      return targets.some((value) =>
+        value.toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [users, userSearch]);
+  const overviewStats = useMemo(() => {
+    const totalUsers = users.length;
+    const totalAdmins = users.filter((user) => user.role === "admin").length;
+    const suspendedUsers = users.filter(
+      (user) => user.billing.accountStatus === "suspended"
+    ).length;
+    const unlimitedUsers = users.filter(
+      (user) => user.billing.isUnlimitedAccess
+    ).length;
+
+    return {
+      totalUsers,
+      totalAdmins,
+      suspendedUsers,
+      unlimitedUsers,
+    };
+  }, [users]);
 
   const loadUsers = async () => {
     const res = await fetch("/api/admin/billing/users");
@@ -476,243 +538,386 @@ export default function AdminBillingPage() {
                 Loading admin data...
               </div>
             ) : (
-              <>
-                <Card>
+              <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+                <Card className="h-fit lg:sticky lg:top-24">
                   <CardHeader>
-                    <CardTitle className="text-lg">Pricing Configuration</CardTitle>
+                    <CardTitle className="text-lg">Dashboard Menu</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-3 md:grid-cols-4">
-                      <div>
-                        <Label>Currency</Label>
-                        <Input
-                          value={planConfig?.currency || "USD"}
-                          onChange={(e) =>
-                            setPlanConfig((prev) =>
-                              prev
-                                ? { ...prev, currency: e.target.value.toUpperCase() }
-                                : prev
-                            )
-                          }
-                          placeholder="USD"
-                        />
-                      </div>
-                    </div>
+                  <CardContent className="space-y-2">
+                    {ADMIN_SECTIONS.map((section) => {
+                      const Icon = section.icon;
+                      const isActive = activeSection === section.id;
 
-                    <div className="grid gap-4">
-                      {(Object.keys(planEdits || {}) as PlanId[]).map((planId) => {
-                        const plan = planEdits?.[planId];
-                        if (!plan) return null;
+                      return (
+                        <button
+                          key={section.id}
+                          type="button"
+                          onClick={() => setActiveSection(section.id)}
+                          className={`w-full rounded-md border px-3 py-3 text-left transition ${
+                            isActive
+                              ? "border-primary bg-primary/10"
+                              : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <Icon className="mt-1 h-4 w-4 text-primary" />
+                            <div>
+                              <p className="text-sm font-medium">{section.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {section.description}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
 
-                        return (
-                          <div key={planId} className="rounded-md border p-4 space-y-3">
-                            <p className="text-sm font-semibold uppercase">{planId}</p>
-                            <div className="grid gap-3 md:grid-cols-2">
-                              <div>
-                                <Label>Name</Label>
-                                <Input
-                                  value={plan.name}
-                                  onChange={(e) =>
-                                    setPlanEditField(planId, "name", e.target.value)
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <Label>Description</Label>
-                                <Input
-                                  value={plan.description}
-                                  onChange={(e) =>
-                                    setPlanEditField(planId, "description", e.target.value)
-                                  }
-                                />
-                              </div>
+                <div className="space-y-6">
+                  {activeSection === "overview" ? (
+                    <>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">Dashboard Overview</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            <div className="rounded-md border p-4">
+                              <p className="text-xs text-muted-foreground">
+                                Total Users
+                              </p>
+                              <p className="text-2xl font-semibold">
+                                {overviewStats.totalUsers}
+                              </p>
                             </div>
-                            <div className="grid gap-3 md:grid-cols-5">
-                              <div>
-                                <Label>Monthly Credits</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  value={plan.monthlyCredits}
-                                  onChange={(e) =>
-                                    setPlanEditField(
-                                      planId,
-                                      "monthlyCredits",
-                                      Number(e.target.value || 0)
-                                    )
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <Label>Monthly Price</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={plan.monthlyPriceUsd}
-                                  onChange={(e) =>
-                                    setPlanEditField(
-                                      planId,
-                                      "monthlyPriceUsd",
-                                      Number(e.target.value || 0)
-                                    )
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <Label>Monthly Compare At</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  placeholder="optional"
-                                  value={plan.monthlyCompareAtUsd}
-                                  onChange={(e) =>
-                                    setPlanEditField(
-                                      planId,
-                                      "monthlyCompareAtUsd",
-                                      e.target.value
-                                    )
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <Label>Yearly Price</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={plan.yearlyPriceUsd}
-                                  onChange={(e) =>
-                                    setPlanEditField(
-                                      planId,
-                                      "yearlyPriceUsd",
-                                      Number(e.target.value || 0)
-                                    )
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <Label>Yearly Compare At</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  placeholder="optional"
-                                  value={plan.yearlyCompareAtUsd}
-                                  onChange={(e) =>
-                                    setPlanEditField(
-                                      planId,
-                                      "yearlyCompareAtUsd",
-                                      e.target.value
-                                    )
-                                  }
-                                />
-                              </div>
+                            <div className="rounded-md border p-4">
+                              <p className="text-xs text-muted-foreground">
+                                Admin Accounts
+                              </p>
+                              <p className="text-2xl font-semibold">
+                                {overviewStats.totalAdmins}
+                              </p>
                             </div>
-                            <label className="inline-flex items-center gap-2 text-sm">
+                            <div className="rounded-md border p-4">
+                              <p className="text-xs text-muted-foreground">
+                                Suspended Users
+                              </p>
+                              <p className="text-2xl font-semibold">
+                                {overviewStats.suspendedUsers}
+                              </p>
+                            </div>
+                            <div className="rounded-md border p-4">
+                              <p className="text-xs text-muted-foreground">
+                                Unlimited Access
+                              </p>
+                              <p className="text-2xl font-semibold">
+                                {overviewStats.unlimitedUsers}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">Quick Actions</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex flex-wrap gap-2">
+                          <Button onClick={() => setActiveSection("users")}>
+                            <Users className="mr-2 h-4 w-4" />
+                            Open User Management
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setActiveSection("settings")}
+                          >
+                            <BadgeDollarSign className="mr-2 h-4 w-4" />
+                            Open Billing & Settings
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </>
+                  ) : null}
+                  {activeSection === "settings" ? (
+                  <>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Pricing Configuration</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-4">
+                          <div>
+                            <Label>Currency</Label>
+                            <Input
+                              value={planConfig?.currency || "USD"}
+                              onChange={(e) =>
+                                setPlanConfig((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        currency: e.target.value.toUpperCase(),
+                                      }
+                                    : prev
+                                )
+                              }
+                              placeholder="USD"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4">
+                          {(Object.keys(planEdits || {}) as PlanId[]).map((planId) => {
+                            const plan = planEdits?.[planId];
+                            if (!plan) return null;
+
+                            return (
+                              <div
+                                key={planId}
+                                className="rounded-md border p-4 space-y-3"
+                              >
+                                <p className="text-sm font-semibold uppercase">
+                                  {planId}
+                                </p>
+                                <div className="grid gap-3 md:grid-cols-2">
+                                  <div>
+                                    <Label>Name</Label>
+                                    <Input
+                                      value={plan.name}
+                                      onChange={(e) =>
+                                        setPlanEditField(
+                                          planId,
+                                          "name",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Description</Label>
+                                    <Input
+                                      value={plan.description}
+                                      onChange={(e) =>
+                                        setPlanEditField(
+                                          planId,
+                                          "description",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <div className="grid gap-3 md:grid-cols-5">
+                                  <div>
+                                    <Label>Monthly Credits</Label>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      value={plan.monthlyCredits}
+                                      onChange={(e) =>
+                                        setPlanEditField(
+                                          planId,
+                                          "monthlyCredits",
+                                          Number(e.target.value || 0)
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Monthly Price</Label>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step="0.01"
+                                      value={plan.monthlyPriceUsd}
+                                      onChange={(e) =>
+                                        setPlanEditField(
+                                          planId,
+                                          "monthlyPriceUsd",
+                                          Number(e.target.value || 0)
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Monthly Compare At</Label>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step="0.01"
+                                      placeholder="optional"
+                                      value={plan.monthlyCompareAtUsd}
+                                      onChange={(e) =>
+                                        setPlanEditField(
+                                          planId,
+                                          "monthlyCompareAtUsd",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Yearly Price</Label>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step="0.01"
+                                      value={plan.yearlyPriceUsd}
+                                      onChange={(e) =>
+                                        setPlanEditField(
+                                          planId,
+                                          "yearlyPriceUsd",
+                                          Number(e.target.value || 0)
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Yearly Compare At</Label>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step="0.01"
+                                      placeholder="optional"
+                                      value={plan.yearlyCompareAtUsd}
+                                      onChange={(e) =>
+                                        setPlanEditField(
+                                          planId,
+                                          "yearlyCompareAtUsd",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <label className="inline-flex items-center gap-2 text-sm">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4"
+                                    checked={plan.isContactSales}
+                                    onChange={(e) =>
+                                      setPlanEditField(
+                                        planId,
+                                        "isContactSales",
+                                        e.target.checked
+                                      )
+                                    }
+                                  />
+                                  Contact sales plan
+                                </label>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <Button
+                          onClick={savePlanConfiguration}
+                          disabled={!planConfig || !planEdits || savingPlanConfig}
+                        >
+                          {savingPlanConfig ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            "Save Pricing Configuration"
+                          )}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          Pricing updated: {formatDate(planConfig?.updatedAt || null)}
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">System Controls</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {SYSTEM_CONTROL_FIELDS.map((field) => (
+                            <label
+                              key={field.key}
+                              className="flex items-start justify-between gap-3 rounded-md border p-3"
+                            >
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium">{field.title}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {field.description}
+                                </p>
+                              </div>
                               <input
                                 type="checkbox"
-                                className="h-4 w-4"
-                                checked={plan.isContactSales}
+                                className="mt-1 h-4 w-4"
+                                checked={!!systemControl?.[field.key]}
                                 onChange={(e) =>
-                                  setPlanEditField(
-                                    planId,
-                                    "isContactSales",
-                                    e.target.checked
-                                  )
+                                  setSystemField(field.key, e.target.checked)
                                 }
                               />
-                              Contact sales plan
                             </label>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          ))}
+                        </div>
 
-                    <Button
-                      onClick={savePlanConfiguration}
-                      disabled={!planConfig || !planEdits || savingPlanConfig}
-                    >
-                      {savingPlanConfig ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        "Save Pricing Configuration"
-                      )}
-                    </Button>
-                    <p className="text-xs text-muted-foreground">
-                      Pricing updated: {formatDate(planConfig?.updatedAt || null)}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">System Controls</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {SYSTEM_CONTROL_FIELDS.map((field) => (
-                        <label
-                          key={field.key}
-                          className="flex items-start justify-between gap-3 rounded-md border p-3"
-                        >
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium">{field.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {field.description}
-                            </p>
-                          </div>
-                          <input
-                            type="checkbox"
-                            className="mt-1 h-4 w-4"
-                            checked={!!systemControl?.[field.key]}
-                            onChange={(e) =>
-                              setSystemField(field.key, e.target.checked)
-                            }
-                          />
-                        </label>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Button
-                        onClick={saveSystemControl}
-                        disabled={!systemControl || savingSystem}
-                      >
-                        {savingSystem ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          "Save System Controls"
-                        )}
-                      </Button>
-                      <p className="text-xs text-muted-foreground">
-                        Last updated: {formatDate(systemControl?.updatedAt)}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <div className="grid gap-4">
-                  {users.map((user) => {
-                    const edit = edits[user.id];
-                    return (
-                      <Card key={user.id}>
-                        <CardHeader>
-                          <CardTitle className="text-lg">
-                            {user.name || "Unnamed User"}
-                          </CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            {user.email}
+                        <div className="flex items-center gap-3">
+                          <Button
+                            onClick={saveSystemControl}
+                            disabled={!systemControl || savingSystem}
+                          >
+                            {savingSystem ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              "Save System Controls"
+                            )}
+                          </Button>
+                          <p className="text-xs text-muted-foreground">
+                            Last updated: {formatDate(systemControl?.updatedAt)}
                           </p>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                ) : activeSection === "users" ? (
+                  <>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Users</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div>
+                            <Label>Search User</Label>
+                            <Input
+                              value={userSearch}
+                              onChange={(e) => setUserSearch(e.target.value)}
+                              placeholder="Search by name, email, or mobile number"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Showing {filteredUsers.length} of {users.length} users.
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <div className="grid gap-4">
+                      {filteredUsers.map((user) => {
+                        const edit = edits[user.id];
+                        return (
+                          <Card key={user.id}>
+                            <CardHeader>
+                              <CardTitle className="text-lg">
+                                {user.name || "Unnamed User"}
+                              </CardTitle>
+                              <p className="text-sm text-muted-foreground">
+                                {user.email}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Mobile: {user.phone || "Not set"}
+                              </p>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
                           <div className="grid gap-3 md:grid-cols-5">
                             <div>
                               <Label>Plan</Label>
@@ -916,25 +1121,35 @@ export default function AdminBillingPage() {
                             </p>
                           </div>
 
-                          <Button
-                            onClick={() => saveUser(user.id)}
-                            disabled={savingUserId === user.id}
-                          >
-                            {savingUserId === user.id ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Saving...
-                              </>
-                            ) : (
-                              "Save User Changes"
-                            )}
-                          </Button>
+                              <Button
+                                onClick={() => saveUser(user.id)}
+                                disabled={savingUserId === user.id}
+                              >
+                                {savingUserId === user.id ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  "Save User Changes"
+                                )}
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                    {filteredUsers.length === 0 ? (
+                      <Card>
+                        <CardContent className="py-8 text-sm text-muted-foreground">
+                          No users found for this search.
                         </CardContent>
                       </Card>
-                    );
-                  })}
+                    ) : null}
+                  </>
+                ) : null}
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>

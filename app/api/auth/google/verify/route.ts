@@ -7,6 +7,7 @@ import { isAdminEmail } from "@/lib/auth/admin";
 import { getUserBillingSummary } from "@/lib/billing/subscription";
 import { enforceRateLimit, getClientIpAddress } from "@/lib/security/rate-limit";
 import { enforceSystemAccess } from "@/lib/system/enforce";
+import { getRequiredAuthJwtSecret } from "@/lib/auth/jwt-secret";
 
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -15,6 +16,7 @@ const client = new OAuth2Client(
 
 export async function POST(req: NextRequest) {
   try {
+    const jwtSecret = getRequiredAuthJwtSecret();
     const ipAddress = getClientIpAddress(req);
     const rateLimit = enforceRateLimit({
       key: `google-verify:${ipAddress}`,
@@ -179,9 +181,7 @@ export async function POST(req: NextRequest) {
         planId: user.planId,
         sv: user.sessionVersion ?? 1,
       },
-      process.env.NEXTAUTH_SECRET ||
-        process.env.JWT_SECRET ||
-        "fallback-secret",
+      jwtSecret,
       { expiresIn: "7d" }
     );
 

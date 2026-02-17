@@ -8,8 +8,8 @@ import { createAdminAuditLog } from "@/lib/admin/audit";
 import { enforceRateLimit, getClientIpAddress } from "@/lib/security/rate-limit";
 import { enforceSystemAccess } from "@/lib/system/enforce";
 import { ensureBootstrapAdminAccount } from "@/lib/auth/admin-bootstrap";
+import { getRequiredAuthJwtSecret } from "@/lib/auth/jwt-secret";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 12; // 12 hours
 
 function invalidAdminCredentialsResponse() {
@@ -66,6 +66,7 @@ async function logAdminAuthEvent(params: {
 
 export async function POST(request: NextRequest) {
   try {
+    const jwtSecret = getRequiredAuthJwtSecret();
     const ipAddress = getClientIpAddress(request);
     const body = (await request.json()) as { email?: string; password?: string };
 
@@ -184,7 +185,7 @@ export async function POST(request: NextRequest) {
         planId: user.planId,
         sv: user.sessionVersion ?? 1,
       },
-      JWT_SECRET,
+      jwtSecret,
       { expiresIn: ADMIN_SESSION_MAX_AGE_SECONDS }
     );
 

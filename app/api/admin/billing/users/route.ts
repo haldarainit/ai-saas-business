@@ -27,7 +27,7 @@ export async function GET(request: Request) {
 
     const users = await User.find({})
       .select(
-        "name email role planId planBillingCycle planStatus rateLimitBonusCredits customMonthlyCredits isUnlimitedAccess developerModeEnabled accountStatus suspendedReason sessionVersion lastLoginAt planStartedAt planRenewalAt createdAt"
+        "name email phone role planId planBillingCycle planStatus rateLimitBonusCredits customMonthlyCredits isUnlimitedAccess developerModeEnabled accountStatus suspendedReason sessionVersion lastLoginAt planStartedAt planRenewalAt createdAt"
       )
       .sort({ createdAt: -1 })
       .limit(300);
@@ -50,6 +50,7 @@ export async function GET(request: Request) {
           id: String(user._id),
           name: user.name || "",
           email: user.email,
+          phone: user.phone || null,
           role: user.role || "user",
           billing,
           security: {
@@ -270,7 +271,7 @@ export async function PATCH(request: Request) {
     }
 
     const userSelection =
-      "name email role planId planBillingCycle planStatus rateLimitBonusCredits customMonthlyCredits isUnlimitedAccess developerModeEnabled accountStatus suspendedReason sessionVersion lastLoginAt planStartedAt planRenewalAt createdAt";
+      "name email phone role planId planBillingCycle planStatus rateLimitBonusCredits customMonthlyCredits isUnlimitedAccess developerModeEnabled accountStatus suspendedReason sessionVersion lastLoginAt planStartedAt planRenewalAt createdAt";
 
     const user =
       Object.keys(mongoUpdate).length > 0
@@ -311,6 +312,7 @@ export async function PATCH(request: Request) {
         id: String(user._id),
         name: user.name || "",
         email: user.email,
+        phone: user.phone || null,
         role: user.role || "user",
         billing,
         security: {
