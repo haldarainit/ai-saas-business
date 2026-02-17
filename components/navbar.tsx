@@ -177,7 +177,7 @@ export default function Navbar() {
 
   const navItems =
     user?.role === "admin"
-      ? [...baseNavItems, { label: "Admin", href: "/admin/billing" }]
+      ? [...baseNavItems, { label: "Admin", href: "/admin" }]
       : baseNavItems;
 
   const getInitials = (name?: string, email?: string) => {
@@ -403,7 +403,7 @@ export default function Navbar() {
             {user ? (
               <>
                 {user.role === "admin" && (
-                  <Link href="/admin/billing">
+                  <Link href="/admin">
                     <Button variant="outline" className="rounded-xl">
                       Admin
                     </Button>

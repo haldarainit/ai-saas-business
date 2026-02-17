@@ -105,13 +105,14 @@ export async function POST(request: NextRequest) {
       user: userResponse,
       token,
     });
+    const isAdminSession = savedUser.role === "admin";
 
     // Set HTTP-only cookie with the token
     response.cookies.set("auth-token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      sameSite: isAdminSession ? "strict" : "lax",
+      maxAge: isAdminSession ? 60 * 60 * 12 : 60 * 60 * 24 * 7,
       path: "/",
       ...(process.env.NODE_ENV === "production" && process.env.COOKIE_DOMAIN && {
         domain: process.env.COOKIE_DOMAIN,
