@@ -763,37 +763,64 @@ Return the response as JSON with this structure:
             if (result.success && result.data) {
                 const aiData = result.data
 
+                // Build content blocks from AI response
+                let generatedBlocks: any[] = aiData.contentBlocks?.map((block: any, index: number) => ({
+                    id: `ai-${Date.now()}-${index}`,
+                    type: block.type || 'paragraph',
+                    content: block.content || '',
+                    items: block.items || undefined,
+                    tableData: block.tableData ? {
+                        headers: block.tableData.headers || ['Column 1', 'Column 2'],
+                        rows: block.tableData.rows || [['', '']],
+                        style: {
+                            headerBgColor: '#f97316',
+                            headerTextColor: '#ffffff',
+                            borderColor: '#1a1a1a',
+                            borderWidth: 1,
+                            textColor: '#1a1a1a',
+                            alternateRowColor: '#f9fafb',
+                            fontSize: 10
+                        }
+                    } : undefined,
+                    style: {
+                        fontSize: block.type === 'heading' ? 14 : 11,
+                        fontWeight: block.type === 'heading' ? 'bold' : 'normal',
+                        textAlign: block.type === 'paragraph' ? 'justify' : 'left',
+                        lineHeight: 1.5,
+                        color: '#1a1a1a'
+                    }
+                })) || []
+
+                // If user provided Terms & Conditions but AI didn't include them, inject the section
+                const hasTermsBlock = generatedBlocks.some(
+                    b => b.type === 'heading' && /terms/i.test(b.content || '')
+                )
+                if (aiFormData.termsConditions.trim() && !hasTermsBlock) {
+                    const termsItems = aiFormData.termsConditions
+                        .split(/[\n,]/)
+                        .map((s: string) => s.trim())
+                        .filter(Boolean)
+                    generatedBlocks.push({
+                        id: `ai-terms-heading-${Date.now()}`,
+                        type: 'heading',
+                        content: 'Terms & Conditions',
+                        style: { fontSize: 14, fontWeight: 'bold', textAlign: 'left', lineHeight: 1.5, color: '#1a1a1a' }
+                    })
+                    generatedBlocks.push({
+                        id: `ai-terms-list-${Date.now()}`,
+                        type: 'list',
+                        content: 'Terms',
+                        items: termsItems.length > 0 ? termsItems : [aiFormData.termsConditions.trim()],
+                        style: { fontSize: 11, fontWeight: 'normal', textAlign: 'left', lineHeight: 1.5, color: '#1a1a1a' }
+                    })
+                }
+
                 // Update quotation data with AI-generated content
                 setQuotationData(prev => ({
                     ...prev,
                     subject: aiData.subject || aiFormData.subjectTitle,
                     greeting: aiData.greeting || prev.greeting,
-                    contentBlocks: aiData.contentBlocks?.map((block: any, index: number) => ({
-                        id: `ai-${Date.now()}-${index}`,
-                        type: block.type || 'paragraph',
-                        content: block.content || '',
-                        items: block.items || undefined,
-                        tableData: block.tableData ? {
-                            headers: block.tableData.headers || ['Column 1', 'Column 2'],
-                            rows: block.tableData.rows || [['', '']],
-                            style: {
-                                headerBgColor: '#f97316',
-                                headerTextColor: '#ffffff',
-                                borderColor: '#1a1a1a',
-                                borderWidth: 1,
-                                textColor: '#1a1a1a',
-                                alternateRowColor: '#f9fafb',
-                                fontSize: 10
-                            }
-                        } : undefined,
-                        style: {
-                            fontSize: block.type === 'heading' ? 14 : 11,
-                            fontWeight: block.type === 'heading' ? 'bold' : 'normal',
-                            textAlign: block.type === 'paragraph' ? 'justify' : 'left',
-                            lineHeight: 1.5,
-                            color: '#1a1a1a'
-                        }
-                    })) || prev.contentBlocks
+                    contentBlocks: generatedBlocks.length > 0 ? generatedBlocks : prev.contentBlocks
                 }))
 
                 setIsAIDialogOpen(false)

@@ -4,6 +4,88 @@ import TechnoQuotation from '@/models/TechnoQuotation';
 import CompanyProfile from '@/models/CompanyProfile';
 import { getAuthenticatedUser } from '@/lib/get-auth-user';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Convert old pages/sections format → contentBlocks format used by the editor
+// ─────────────────────────────────────────────────────────────────────────────
+function sectionsToContentBlocks(pages: any[]): any[] {
+    const blocks: any[] = [];
+    let idx = 0;
+
+    const baseStyle = {
+        fontSize: 11, fontWeight: 'normal', fontStyle: 'normal',
+        textDecoration: 'none', textAlign: 'left', lineHeight: 1.5, color: '#1a1a1a'
+    };
+    const headingStyle = {
+        ...baseStyle, fontSize: 13, fontWeight: 'bold', textDecoration: 'underline'
+    };
+
+    for (const page of (pages || [])) {
+        for (const section of (page.sections || [])) {
+            if (!section || !section.type) continue;
+
+            if (section.type === 'heading') {
+                if (section.heading?.trim()) {
+                    blocks.push({ id: `block-${++idx}`, type: 'heading', content: section.heading, style: headingStyle });
+                }
+            } else if (section.type === 'text') {
+                // Only add paragraph if there's actual content
+                if (section.content?.trim()) {
+                    blocks.push({ id: `block-${++idx}`, type: 'paragraph', content: section.content, style: baseStyle });
+                }
+            } else if (section.type === 'list') {
+                const items = (section.items || []).filter((i: string) => i?.trim());
+                if (items.length > 0) {
+                    blocks.push({ id: `block-${++idx}`, type: 'list', content: section.heading || '', items, style: baseStyle });
+                }
+            } else if (section.type === 'table' && section.table) {
+                const cols = section.table.columns || [];
+                const headers = cols.map((c: any) => c.name || c.id || '');
+                const rows = (section.table.rows || []).map((row: any) =>
+                    cols.map((col: any) => row.cells?.[col.id] || '')
+                );
+                blocks.push({
+                    id: `block-${++idx}`,
+                    type: 'table',
+                    content: section.heading || section.table.name || '',
+                    tableData: {
+                        headers: headers.length > 0 ? headers : ['Column 1', 'Column 2'],
+                        rows: rows.length > 0 ? rows : [['', '']],
+                        style: {
+                            headerBgColor: '#1a5276',
+                            headerTextColor: '#ffffff',
+                            borderColor: '#cccccc',
+                            borderWidth: 1,
+                            textColor: '#1a1a1a',
+                            alternateRowColor: '#f9fafb',
+                            fontSize: 10
+                        }
+                    },
+                    style: baseStyle
+                });
+            }
+        }
+    }
+    return blocks;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ensure Terms & Conditions block exists when user provided terms in answers
+// ─────────────────────────────────────────────────────────────────────────────
+function ensureTermsBlock(blocks: any[], termsRaw: string): any[] {
+    if (!termsRaw?.trim()) return blocks;
+    const hasTerms = blocks.some(b => b.type === 'heading' && /terms/i.test(b.content || ''));
+    if (hasTerms) return blocks;
+
+    const termItems = termsRaw.split(/[\n,]/).map((s: string) => s.trim()).filter(Boolean);
+    const baseStyle = { fontSize: 11, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none', textAlign: 'left', lineHeight: 1.5, color: '#1a1a1a' };
+    return [
+        ...blocks,
+        { id: `terms-h-${Date.now()}`, type: 'heading', content: 'Terms & Conditions', style: { ...baseStyle, fontSize: 13, fontWeight: 'bold', textDecoration: 'underline' } },
+        { id: `terms-l-${Date.now()}`, type: 'list', content: 'Terms', items: termItems.length > 0 ? termItems : [termsRaw.trim()], style: baseStyle }
+    ];
+}
+
+
 export async function GET(req: Request) {
     try {
         const { userId } = await getAuthenticatedUser(req);
@@ -122,6 +204,23 @@ export async function POST(req: Request) {
         // Use AI data if available, otherwise use defaults
         const pagesData = aiData?.pages || body.pages || defaultPages;
 
+        // ── Convert pages/sections → contentBlocks ──────────────────────────
+        // The wizard flow (generate-quotation) returns pages/sections format.
+        // The editor only renders contentBlocks. Convert here so content is never lost.
+        let contentBlocks: any[] = [];
+        if (body.contentBlocks?.length > 0) {
+            // Direct contentBlocks supplied (in-editor AI dialog)
+            contentBlocks = body.contentBlocks;
+        } else if (aiData?.contentBlocks?.length > 0) {
+            // aiData already has contentBlocks format
+            contentBlocks = aiData.contentBlocks;
+        } else if (aiData?.pages?.length > 0) {
+            // Wizard flow: convert sections → contentBlocks
+            contentBlocks = sectionsToContentBlocks(aiData.pages);
+        }
+        // Always guarantee T&C block if user provided terms
+        contentBlocks = ensureTermsBlock(contentBlocks, answers.terms_conditions || '');
+
         // Determine Company Details
         // Priority: 1. AI Answers (if automated), 2. AI Data (company details), 3. User Profile (DB), 4. Fallback defaults
         let companyDetails;
@@ -178,12 +277,13 @@ export async function POST(req: Request) {
             companyDetails: companyDetails,
             clientDetails: body.clientDetails || clientDetails,
             subject: answers.project_subject || body.subject || userTitle,
+            greeting: aiData?.greeting || body.greeting || 'Dear Sir,',
             projectDescription: answers.project_description || '',
             scopeOfWork: answers.scope_of_work || '',
             itemsBoq: answers.items_boq || '',
             technicalSpecs: answers.technical_specs || '',
             termsConditions: answers.terms_conditions || '',
-            contentBlocks: body.contentBlocks || [],
+            contentBlocks: contentBlocks,
             footer: {
                 line1: userProfile?.footerLine1 || 'Your Products | Your Services | Your Solutions',
                 line2: userProfile?.footerLine2 || 'Additional Services | Customized Solutions',
