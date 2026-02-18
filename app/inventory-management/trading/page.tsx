@@ -826,32 +826,7 @@ export default function TradingInventory() {
                                     )}
                                 </div>
                             </TableHead>
-                            <TableHead
-                                className="cursor-pointer hover:bg-accent transition-colors text-center"
-                                onClick={() => requestSort('price')}
-                            >
-                                <div className="flex items-center justify-center">
-                                    Selling Price
-                                    {sortConfig.key === 'price' && (
-                                        <span className="ml-1">
-                                            {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                                        </span>
-                                    )}
-                                </div>
-                            </TableHead>
-                            <TableHead
-                                className="cursor-pointer hover:bg-accent transition-colors text-center"
-                                onClick={() => requestSort('profit')}
-                            >
-                                <div className="flex items-center justify-center">
-                                    Profit
-                                    {sortConfig.key === 'profit' && (
-                                        <span className="ml-1">
-                                            {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                                        </span>
-                                    )}
-                                </div>
-                            </TableHead>
+
                             <TableHead
                                 className="cursor-pointer hover:bg-accent transition-colors text-center"
                                 onClick={() => requestSort('quantity')}
@@ -937,22 +912,7 @@ export default function TradingInventory() {
                                         <div className="text-xs text-muted-foreground">Cost</div>
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-center">
-                                    <div className="inline-block text-left">
-                                        <div>₹{product.price?.toFixed(2)}</div>
-                                        <div className="text-xs text-muted-foreground">Selling</div>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    <div className="inline-block text-left">
-                                        <div className={product.price - product.cost >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                                            ₹{((product.price - product.cost) * product.quantity).toFixed(2)}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                            {product.price - product.cost >= 0 ? '+' : ''}₹{(product.price - product.cost).toFixed(2)} per unit
-                                        </div>
-                                    </div>
-                                </TableCell>
+
                                 <TableCell className="text-center">{product.quantity}</TableCell>
                                 <TableCell className="text-center">
                                     <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary border border-primary/20">
@@ -1040,7 +1000,7 @@ export default function TradingInventory() {
 
     // Calculate inventory metrics
     const totalProducts = products.length;
-    const totalValue = products.reduce((sum, product) => sum + (product.price * product.quantity), 0);
+    const totalValue = products.reduce((sum, product) => sum + (product.cost * product.quantity), 0);
     const totalProfit = products.reduce((sum, product) => sum + ((product.price - product.cost) * product.quantity), 0);
 
     const aboutToExpire = products.filter(product => {
