@@ -66,8 +66,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       throw new Error("User profile not found");
     }
 
-    const clientId = userProfile.googleCalendar?.clientId;
-    const clientSecret = userProfile.googleCalendar?.clientSecret;
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
       throw new Error("Google API credentials not configured");

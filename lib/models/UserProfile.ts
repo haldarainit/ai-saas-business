@@ -3,8 +3,6 @@ import mongoose from "mongoose";
 // Type definitions for nested objects
 export interface IGoogleCalendar {
     connected: boolean;
-    clientId?: string;
-    clientSecret?: string;
     accessToken?: string;
     refreshToken?: string;
     tokenExpiry?: Date;
@@ -89,9 +87,6 @@ const userProfileSchema = new mongoose.Schema<IUserProfile>({
     // Calendar connections
     googleCalendar: {
         connected: { type: Boolean, default: false },
-        // User's own Google API credentials
-        clientId: String,
-        clientSecret: String,
         // OAuth tokens
         accessToken: String,
         refreshToken: String,

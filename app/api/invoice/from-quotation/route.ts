@@ -152,19 +152,31 @@ function extractQuotationDataComprehensive(quotation: any) {
                 }
 
                 // Convert table rows to readable format with headers as keys
+                // CRITICAL FIX: Store original rows for fallback AND ensure all columns are captured
+                tableData.originalRows = tableRows; // Store for fallback
+                
                 if (tableRows.length > 0) {
-                    tableRows.forEach((row: string[]) => {
+                    console.log(`[extractQuotationData] Processing table "${tableData.name}" with ${tableRows.length} rows`);
+                    
+                    tableRows.forEach((row: string[], rowIndex: number) => {
                         const rowData: any = {};
                         // Ensure we have enough headers, or generate generic ones
                         const maxCols = Math.max(tableHeaders.length, row.length);
+                        
+                        // CRITICAL FIX: Always include ALL columns, even if value is empty/undefined
                         for (let colIndex = 0; colIndex < maxCols; colIndex++) {
                             const header = tableHeaders[colIndex] || `Col-${colIndex + 1}`;
-                            if (row[colIndex] !== undefined) {
-                                rowData[header] = row[colIndex];
-                            }
+                            // Always set the value - use empty string if undefined to preserve column position
+                            rowData[header] = row[colIndex] !== undefined ? row[colIndex] : '';
                         }
+                        
+                        // Debug: Log each row being processed
+                        console.log(`[extractQuotationData] Row ${rowIndex}: ${JSON.stringify(rowData)}`);
+                        
                         tableData.rawData.push(rowData);
                     });
+                    
+                    console.log(`[extractQuotationData] Total rawData rows: ${tableData.rawData.length}`);
                 }
                 
                 data.allTables.push(tableData);
@@ -350,6 +362,9 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
                 // Get the original headers as keys (they determine the row object keys)
                 const headerKeys = table.headers || [];
                 
+                // ALSO keep the original rows array if available for fallback
+                const originalRows = table.originalRows || [];
+                
                 table.rawData.forEach((row: any, rowIdx: number) => {
                     const rowKeys = Object.keys(row);
                     
@@ -359,23 +374,40 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
                     let hsnsac = '';
                     let taxRate = 18;
                     let quantityWasEmpty = false; // Track if quantity was actually found
-
+                    
+                    // FIX: Check if row has actual data - if not, try to get from original rows
+                    const rowHasData = rowKeys.length > 0 && Object.values(row).some(v => v !== undefined && v !== null && String(v).trim() !== '');
+                    
+                    // FALLBACK: If row processing failed, try to rebuild from originalRows
+                    let effectiveRow = row;
+                    if (!rowHasData && originalRows[rowIdx]) {
+                        console.log(`[ManualExtraction] Row ${rowIdx} appears empty, rebuilding from originalRows`);
+                        const origRow = originalRows[rowIdx];
+                        effectiveRow = {};
+                        for (let ci = 0; ci < Math.max(headerKeys.length, origRow.length); ci++) {
+                            const hkey = headerKeys[ci] || `Col-${ci + 1}`;
+                            effectiveRow[hkey] = origRow[ci] !== undefined ? origRow[ci] : '';
+                        }
+                        console.log(`[ManualExtraction] Rebuilt row: ${JSON.stringify(effectiveRow)}`);
+                    }
+                    
                     // Debug: Log the row structure
-                    console.log(`[ManualExtraction] Row ${rowIdx}: ${JSON.stringify(row)}`);
+                    console.log(`[ManualExtraction] Row ${rowIdx}: ${JSON.stringify(effectiveRow)}`);
                     console.log(`[ManualExtraction] Headers: ${JSON.stringify(headerKeys)}`);
                     console.log(`[ManualExtraction] Indices - descIdx:${descIdx}, qtyIdx:${qtyIdx}, rateIdx:${rateIdx}`);
+                    console.log(`[ManualExtraction] Row has data: ${rowHasData}, rowKeys: ${rowKeys.length}`);
 
                     // STEP 1: Extract description - use header key directly
                     if (descIdx !== -1 && headerKeys[descIdx]) {
                         const headerKey = headerKeys[descIdx];
-                        const val = row[headerKey];
+                        const val = effectiveRow[headerKey];
                         if (val !== undefined && val !== null) {
                             description = String(val).trim();
                         }
                     }
                     // If descIdx is -1, try first column
-                    if (!description && headerKeys[0] && row[headerKeys[0]]) {
-                        const firstVal = String(row[headerKeys[0]]).trim();
+                    if (!description && headerKeys[0] && effectiveRow[headerKeys[0]]) {
+                        const firstVal = String(effectiveRow[headerKeys[0]]).trim();
                         // Check if first column is NOT a number (likely description)
                         if (firstVal && isNaN(parseFloat(firstVal.replace(/[,₹$]/g, '')))) {
                             description = firstVal;
@@ -385,7 +417,7 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
                     // STEP 2: Extract quantity - use header key directly
                     if (qtyIdx !== -1 && headerKeys[qtyIdx]) {
                         const headerKey = headerKeys[qtyIdx];
-                        const qtyVal = row[headerKey];
+                        const qtyVal = effectiveRow[headerKey];
                         console.log(`[ManualExtraction] Quantity value at "${headerKey}": "${qtyVal}"`);
                         
                         if (qtyVal !== null && qtyVal !== undefined && String(qtyVal).trim() !== '') {
@@ -408,7 +440,7 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
                     // STEP 3: Extract rate/price - use header key directly
                     if (rateIdx !== -1 && headerKeys[rateIdx]) {
                         const headerKey = headerKeys[rateIdx];
-                        const rateVal = row[headerKey];
+                        const rateVal = effectiveRow[headerKey];
                         console.log(`[ManualExtraction] Rate value at "${headerKey}": "${rateVal}"`);
                         
                         if (rateVal !== null && rateVal !== undefined && String(rateVal).trim() !== '') {
@@ -422,7 +454,7 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
                     // If rate still 0, try amount column using header key
                     if (rate === 0 && amountIdx !== -1 && headerKeys[amountIdx]) {
                         const headerKey = headerKeys[amountIdx];
-                        const amtVal = row[headerKey];
+                        const amtVal = effectiveRow[headerKey];
                         if (amtVal !== null && amtVal !== undefined && String(amtVal).trim() !== '') {
                             const amtStr = String(amtVal).replace(/[^0-9.]/g, '');
                             if (amtStr) {
@@ -433,18 +465,19 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
                     }
                     
                     // STEP 4: HSN/SAC and Tax Rate using header keys
-                    if (hsnIdx !== -1 && headerKeys[hsnIdx] && row[headerKeys[hsnIdx]]) {
-                        hsnsac = String(row[headerKeys[hsnIdx]]).trim();
+                    if (hsnIdx !== -1 && headerKeys[hsnIdx] && effectiveRow[headerKeys[hsnIdx]]) {
+                        hsnsac = String(effectiveRow[headerKeys[hsnIdx]]).trim();
                     }
-                    if (taxIdx !== -1 && headerKeys[taxIdx] && row[headerKeys[taxIdx]]) {
-                        const taxStr = String(row[headerKeys[taxIdx]]).replace(/[^0-9.]/g, '');
+                    if (taxIdx !== -1 && headerKeys[taxIdx] && effectiveRow[headerKeys[taxIdx]]) {
+                        const taxStr = String(effectiveRow[headerKeys[taxIdx]]).replace(/[^0-9.]/g, '');
                         if (taxStr) taxRate = parseFloat(taxStr) || 18;
                     }
 
                     // STEP 5: Second pass - scan by key pattern if we don't have values
-                    rowKeys.forEach((key) => {
+                    const effectiveRowKeys = Object.keys(effectiveRow);
+                    effectiveRowKeys.forEach((key) => {
                         const k = key.toLowerCase();
-                        const val = row[key];
+                        const val = effectiveRow[key];
                         
                         if (!description && (k.includes('desc') || k.includes('item') || k.includes('partic') || 
                             k.includes('product') || k.includes('service') || k.includes('name') || k.includes('detail') ||
@@ -476,7 +509,7 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
                     if (rate === 0 && (table.hasFinance || hasFinancialHeader)) {
                         // Collect ALL numeric values from the row with their column positions
                         const numericValuesWithPos: { value: number; pos: number }[] = [];
-                        const rowValuesArr = Object.values(row);
+                        const rowValuesArr = Object.values(effectiveRow);
                         rowValuesArr.forEach((val: any, idx: number) => {
                             if (val !== null && val !== undefined && String(val).trim() !== '') {
                                 // 1. Remove text in parentheses (often technical specs like "(900A DC)")
@@ -534,7 +567,7 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
 
                     // STEP 7: If STILL no description, find any text value
                     if (!description) {
-                        const rowValuesArr = Object.values(row);
+                        const rowValuesArr = Object.values(effectiveRow);
                         for (const val of rowValuesArr) {
                             const strVal = String(val).trim();
                             // Accept string if it's not purely numeric and has some substance
@@ -545,6 +578,33 @@ function manualTableExtraction(quotationData: any, invoiceNumber: string): any {
                                     description = strVal;
                                     break;
                                 }
+                            }
+                        }
+                    }
+
+                    // STEP 8.5: LAST RESORT FALLBACK - Direct access to originalRows if rate still 0
+                    // This specifically fixes the "last row not getting values" bug
+                    if (rate === 0 && originalRows[rowIdx] && rateIdx !== -1) {
+                        const directValue = originalRows[rowIdx][rateIdx];
+                        console.log(`[ManualExtraction] Last resort: Direct originalRows[${rowIdx}][${rateIdx}] = "${directValue}"`);
+                        if (directValue !== undefined && directValue !== null && String(directValue).trim() !== '') {
+                            const directRate = parseFloat(String(directValue).replace(/[^0-9.]/g, ''));
+                            if (!isNaN(directRate) && directRate > 0) {
+                                rate = directRate;
+                                console.log(`[ManualExtraction] Last resort succeeded! Rate = ${rate}`);
+                            }
+                        }
+                    }
+                    
+                    // Also try amount column as last resort if rate still 0
+                    if (rate === 0 && originalRows[rowIdx] && amountIdx !== -1) {
+                        const directValue = originalRows[rowIdx][amountIdx];
+                        console.log(`[ManualExtraction] Last resort amount: Direct originalRows[${rowIdx}][${amountIdx}] = "${directValue}"`);
+                        if (directValue !== undefined && directValue !== null && String(directValue).trim() !== '') {
+                            const directAmount = parseFloat(String(directValue).replace(/[^0-9.]/g, ''));
+                            if (!isNaN(directAmount) && directAmount > 0) {
+                                rate = quantity > 0 ? directAmount / quantity : directAmount;
+                                console.log(`[ManualExtraction] Last resort amount succeeded! Rate = ${rate}`);
                             }
                         }
                     }
