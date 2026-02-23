@@ -663,6 +663,26 @@ export default function TradingInventory() {
                     type: 'paragraph',
                     content: `Payment Method: ${completedSaleData.paymentMethod.charAt(0).toUpperCase() + completedSaleData.paymentMethod.slice(1).replace('_', ' ')}${completedSaleData.notes ? `\nNotes: ${completedSaleData.notes}` : ''}`,
                     style: { fontSize: 11, textAlign: 'left' }
+                },
+                {
+                    id: 'block-11',
+                    type: 'heading',
+                    content: 'Terms & Conditions',
+                    style: { fontSize: 12, fontWeight: 'bold', textAlign: 'left' }
+                },
+                {
+                    id: 'block-12',
+                    type: 'list',
+                    content: 'Terms & Conditions',
+                    items: [
+                        'Prices are valid for 30 days from the date of this quotation.',
+                        'Payment: As per agreed terms.',
+                        'GST/Taxes: As applicable, extra at actuals.',
+                        'Delivery: As per agreed schedule.',
+                        'Warranty: As per manufacturer warranty terms.',
+                        'This is a computer-generated quotation.'
+                    ],
+                    style: { fontSize: 10, textAlign: 'left', lineHeight: 1.5 }
                 }
             ];
 
@@ -703,6 +723,21 @@ export default function TradingInventory() {
             }
 
             const result = await response.json();
+
+            // Auto-save client details for future use (fire-and-forget)
+            if (completedSaleData.customer.name) {
+                fetch('/api/saved-clients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        company: completedSaleData.customer.name,
+                        name: completedSaleData.customer.name,
+                        phone: completedSaleData.customer.phone || '',
+                        email: completedSaleData.customer.email || ''
+                    })
+                }).catch(err => console.error('Auto-save client error:', err));
+            }
 
             // Open quotation in new tab
             const quotationUrl = `/accounting/techno-quotation/${result.quotation._id}`;

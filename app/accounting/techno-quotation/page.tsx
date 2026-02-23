@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { ArrowLeft, Lightbulb, FileEdit, Cpu, Plus, Loader2, Trash2, Check } from "lucide-react";
+import { ArrowLeft, Lightbulb, FileEdit, Cpu, Plus, Loader2, Trash2, Check, Users, FileCheck, ChevronDown, Save, BookOpen, X, Copy, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from 'next/navigation';
@@ -33,6 +33,17 @@ export default function TechnoQuotationDashboard() {
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Search + Pagination
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchInput, setSearchInput] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const ITEMS_PER_PAGE = 12;
+
+    // Duplicate state
+    const [isDuplicating, setIsDuplicating] = useState<string | null>(null);
+
     // AI Wizard State
     const [showAIWizard, setShowAIWizard] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
@@ -56,6 +67,35 @@ export default function TechnoQuotationDashboard() {
     const [selectedCompanyForWizard, setSelectedCompanyForWizard] = useState<string>('');
     const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
 
+    // Saved Clients State
+    interface SavedClient {
+        _id: string;
+        name: string;
+        company: string;
+        designation: string;
+        address: string;
+        phone: string;
+        email: string;
+        gstin: string;
+    }
+    const [savedClients, setSavedClients] = useState<SavedClient[]>([]);
+    const [selectedClientForWizard, setSelectedClientForWizard] = useState<string>('');
+    const [isLoadingClients, setIsLoadingClients] = useState(false);
+
+    // Saved T&C Presets State
+    interface TermsPreset {
+        _id: string;
+        label: string;
+        terms: string[];
+        category: string;
+        isSystemPreset: boolean;
+    }
+    const [termsPresets, setTermsPresets] = useState<TermsPreset[]>([]);
+    const [selectedTermsPreset, setSelectedTermsPreset] = useState<string>('');
+    const [isLoadingTerms, setIsLoadingTerms] = useState(false);
+    const [showSaveTermsDialog, setShowSaveTermsDialog] = useState(false);
+    const [newTermsLabel, setNewTermsLabel] = useState('');
+
     // Fetch company profiles on mount
     useEffect(() => {
         const fetchProfiles = async () => {
@@ -74,6 +114,156 @@ export default function TechnoQuotationDashboard() {
         };
         fetchProfiles();
     }, []);
+
+    // Fetch saved clients on mount
+    useEffect(() => {
+        const fetchClients = async () => {
+            setIsLoadingClients(true);
+            try {
+                const res = await fetch('/api/saved-clients');
+                if (res.ok) {
+                    const data = await res.json();
+                    setSavedClients(data.clients || []);
+                }
+            } catch (error) {
+                console.error('Error fetching saved clients:', error);
+            } finally {
+                setIsLoadingClients(false);
+            }
+        };
+        fetchClients();
+    }, []);
+
+    // Fetch T&C presets on mount
+    useEffect(() => {
+        const fetchTermsPresets = async () => {
+            setIsLoadingTerms(true);
+            try {
+                const res = await fetch('/api/saved-terms');
+                if (res.ok) {
+                    const data = await res.json();
+                    setTermsPresets(data.presets || []);
+                }
+            } catch (error) {
+                console.error('Error fetching T&C presets:', error);
+            } finally {
+                setIsLoadingTerms(false);
+            }
+        };
+        fetchTermsPresets();
+    }, []);
+
+    // Apply saved client to wizard (toggle select/deselect)
+    const applyClientToWizard = (clientId: string) => {
+        if (selectedClientForWizard === clientId) {
+            setSelectedClientForWizard('');
+            setAiAnswers(prev => ({
+                ...prev,
+                client_name: '',
+                client_contact: '',
+                client_address: ''
+            }));
+            return;
+        }
+
+        const client = savedClients.find(c => c._id === clientId);
+        if (!client) return;
+
+        setSelectedClientForWizard(clientId);
+        setAiAnswers(prev => ({
+            ...prev,
+            client_name: client.company || client.name,
+            client_contact: `${client.name}${client.designation ? ', ' + client.designation : ''}`,
+            client_address: client.address || ''
+        }));
+    };
+
+    // Apply T&C preset to wizard (append mode: adds to existing terms)
+    const applyTermsPreset = (presetId: string) => {
+        if (selectedTermsPreset === presetId) {
+            setSelectedTermsPreset('');
+            return;
+        }
+
+        const preset = termsPresets.find(p => p._id === presetId);
+        if (!preset) return;
+
+        setSelectedTermsPreset(presetId);
+        setAiAnswers(prev => {
+            const existing = (prev.terms_conditions || '').trim();
+            const newTerms = preset.terms.join('\n');
+            return {
+                ...prev,
+                terms_conditions: existing ? existing + '\n' + newTerms : newTerms
+            };
+        });
+    };
+
+    // Auto-save client details after quotation generation
+    const autoSaveClient = async (answers: Record<string, string>) => {
+        const clientName = answers.client_name?.trim();
+        const clientContact = answers.client_contact?.trim();
+        const clientAddress = answers.client_address?.trim();
+
+        if (!clientName) return;
+
+        try {
+            // Parse contact person and designation
+            const contactParts = (clientContact || '').split(',').map(s => s.trim());
+            const contactPerson = contactParts[0] || '';
+            const designation = contactParts.slice(1).join(', ') || '';
+
+            await fetch('/api/saved-clients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    company: clientName,
+                    name: contactPerson,
+                    designation,
+                    address: clientAddress
+                })
+            });
+            // Refresh clients list
+            const res = await fetch('/api/saved-clients');
+            if (res.ok) {
+                const data = await res.json();
+                setSavedClients(data.clients || []);
+            }
+        } catch (error) {
+            console.error('Error auto-saving client:', error);
+        }
+    };
+
+    // Save current terms as custom preset
+    const saveCurrentTermsAsPreset = async () => {
+        const termsText = aiAnswers.terms_conditions?.trim();
+        if (!termsText || !newTermsLabel.trim()) return;
+
+        try {
+            const termsItems = termsText.split('\n').map((s: string) => s.trim()).filter(Boolean);
+            const res = await fetch('/api/saved-terms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    label: newTermsLabel.trim(),
+                    terms: termsItems,
+                    category: 'custom'
+                })
+            });
+            if (res.ok) {
+                // Refresh presets
+                const fetchRes = await fetch('/api/saved-terms');
+                if (fetchRes.ok) {
+                    const data = await fetchRes.json();
+                    setTermsPresets(data.presets || []);
+                }
+                setShowSaveTermsDialog(false);
+                setNewTermsLabel('');
+            }
+        } catch (error) {
+            console.error('Error saving T&C preset:', error);
+        }
+    };
 
     // Apply selected company to wizard answers (toggle select/deselect)
     const applyCompanyToWizard = (profileId: string) => {
@@ -195,23 +385,56 @@ export default function TechnoQuotationDashboard() {
     const [progressPercent, setProgressPercent] = useState(0);
     const [progressStatus, setProgressStatus] = useState('');
 
-    useEffect(() => {
-        const fetchQuotations = async () => {
-            try {
-                const response = await fetch('/api/techno-quotation');
-                if (response.ok) {
-                    const data = await response.json();
-                    setQuotations(data.quotations);
-                }
-            } catch (error) {
-                console.error("Error fetching quotations:", error);
-            } finally {
-                setIsLoading(false);
+    const fetchQuotations = async (page = 1, search = '') => {
+        setIsLoading(true);
+        try {
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(ITEMS_PER_PAGE),
+                search
+            });
+            const response = await fetch(`/api/techno-quotation?${params}`);
+            if (response.ok) {
+                const data = await response.json();
+                setQuotations(data.quotations || []);
+                setTotalPages(data.pagination?.pages || 1);
+                setTotalCount(data.pagination?.total || 0);
+                setCurrentPage(page);
             }
-        };
+        } catch (error) {
+            console.error("Error fetching quotations:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        fetchQuotations();
-    }, []);
+    useEffect(() => { fetchQuotations(1, ''); }, []);
+
+    // Debounce search input by 400ms
+    useEffect(() => {
+        const t = setTimeout(() => {
+            setSearchQuery(searchInput);
+            fetchQuotations(1, searchInput);
+        }, 400);
+        return () => clearTimeout(t);
+    }, [searchInput]);
+
+    const duplicateQuotation = async (e: React.MouseEvent, id: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDuplicating(id);
+        try {
+            const res = await fetch(`/api/techno-quotation/${id}`, { method: 'POST' });
+            if (res.ok) {
+                const data = await res.json();
+                router.push(`/accounting/techno-quotation/${data.quotation._id}`);
+            }
+        } catch (error) {
+            console.error('Error duplicating quotation:', error);
+        } finally {
+            setIsDuplicating(null);
+        }
+    };
 
     const handleCreateClick = (type: 'manual' | 'automated') => {
         if (type === 'automated') {
@@ -301,6 +524,8 @@ export default function TechnoQuotationDashboard() {
 
                     if (createResponse.ok) {
                         const data = await createResponse.json();
+                        // Auto-save client details for future use
+                        autoSaveClient(aiAnswers);
                         setShowProgress(false);
                         router.push(`/accounting/techno-quotation/${data.quotation._id}`);
                     } else {
@@ -433,7 +658,7 @@ export default function TechnoQuotationDashboard() {
             });
 
             if (response.ok) {
-                setQuotations(prev => prev.filter(q => q._id !== deleteId));
+                fetchQuotations(currentPage, searchQuery);
             } else {
                 console.error("Failed to delete", response.status);
             }
@@ -633,6 +858,149 @@ export default function TechnoQuotationDashboard() {
                                                 <p className="text-xs text-muted-foreground mt-2">
                                                     {selectedCompanyForWizard ? 'Company selected! Click again to deselect and enter manually.' : 'Or enter new company details below:'}
                                                 </p>
+                                            </div>
+                                        )}
+
+                                        {/* Saved clients selector on client_name step */}
+                                        {aiQuestions[currentStep].id === 'client_name' && savedClients.length > 0 && (
+                                            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                                <p className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2 flex items-center gap-1.5">
+                                                    <Users className="w-4 h-4" />
+                                                    Select from saved clients (auto-fills client details):
+                                                </p>
+                                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                                    {savedClients.map((client) => (
+                                                        <button
+                                                            key={client._id}
+                                                            onClick={() => applyClientToWizard(client._id)}
+                                                            className={`px-3 py-1.5 text-sm rounded-lg border transition-all flex items-center gap-1.5 ${selectedClientForWizard === client._id
+                                                                ? 'bg-blue-600 text-white border-blue-600'
+                                                                : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-blue-500'
+                                                                }`}
+                                                        >
+                                                            {selectedClientForWizard === client._id && (
+                                                                <Check className="w-3.5 h-3.5" />
+                                                            )}
+                                                            <span>{client.company || client.name}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-2">
+                                                    {selectedClientForWizard
+                                                        ? 'Client selected! Contact & address auto-filled. Click again to deselect.'
+                                                        : 'Or enter new client details below (will be saved automatically):'}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {/* T&C Presets selector on terms_conditions step */}
+                                        {aiQuestions[currentStep].id === 'terms_conditions' && (
+                                            <div className="mb-4 space-y-3">
+                                                {/* Presets dropdown */}
+                                                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                                                    <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-2 flex items-center gap-1.5">
+                                                        <BookOpen className="w-4 h-4" />
+                                                        Select from pre-built Terms & Conditions:
+                                                    </p>
+                                                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                                                        {isLoadingTerms ? (
+                                                            <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                                                Loading presets...
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                {/* Group by category */}
+                                                                {['payment', 'delivery', 'warranty', 'general', 'custom'].map(category => {
+                                                                    const categoryPresets = termsPresets.filter(p => p.category === category);
+                                                                    if (categoryPresets.length === 0) return null;
+                                                                    return (
+                                                                        <div key={category}>
+                                                                            <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide mt-2 mb-1">
+                                                                                {category === 'custom' ? 'Your Saved Presets' : category}
+                                                                            </p>
+                                                                            <div className="flex flex-wrap gap-1.5">
+                                                                                {categoryPresets.map((preset) => (
+                                                                                    <button
+                                                                                        key={preset._id}
+                                                                                        onClick={() => applyTermsPreset(preset._id)}
+                                                                                        className={`px-2.5 py-1 text-xs rounded-lg border transition-all flex items-center gap-1 ${selectedTermsPreset === preset._id
+                                                                                            ? 'bg-amber-600 text-white border-amber-600'
+                                                                                            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-amber-500'
+                                                                                            }`}
+                                                                                    >
+                                                                                        {selectedTermsPreset === preset._id && (
+                                                                                            <Check className="w-3 h-3" />
+                                                                                        )}
+                                                                                        {preset.label}
+                                                                                    </button>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-xs text-muted-foreground mt-2">
+                                                            Click presets to add terms. Click multiple to combine. Edit in textarea below.
+                                                        </p>
+                                                        {(aiAnswers.terms_conditions || '').trim() && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setAiAnswers(prev => ({ ...prev, terms_conditions: '' }));
+                                                                    setSelectedTermsPreset('');
+                                                                }}
+                                                                className="text-xs text-red-400 hover:text-red-600 mt-2 flex items-center gap-0.5"
+                                                            >
+                                                                <X className="w-3 h-3" /> Clear all
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Save current terms as preset button */}
+                                                {(aiAnswers.terms_conditions || '').trim() && (
+                                                    <div className="flex items-center gap-2">
+                                                        {!showSaveTermsDialog ? (
+                                                            <button
+                                                                onClick={() => setShowSaveTermsDialog(true)}
+                                                                className="text-xs text-teal-600 hover:text-teal-700 dark:text-teal-400 flex items-center gap-1 hover:underline"
+                                                            >
+                                                                <Save className="w-3 h-3" />
+                                                                Save current terms as preset
+                                                            </button>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2 w-full">
+                                                                <Input
+                                                                    value={newTermsLabel}
+                                                                    onChange={(e) => setNewTermsLabel(e.target.value)}
+                                                                    placeholder="Preset name, e.g. 'My Standard T&C'"
+                                                                    className="h-8 text-sm flex-1"
+                                                                    autoFocus
+                                                                />
+                                                                <Button
+                                                                    size="sm"
+                                                                    onClick={saveCurrentTermsAsPreset}
+                                                                    disabled={!newTermsLabel.trim()}
+                                                                    className="h-8 bg-teal-600 hover:bg-teal-700 text-white text-xs"
+                                                                >
+                                                                    <Save className="w-3 h-3 mr-1" />
+                                                                    Save
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() => { setShowSaveTermsDialog(false); setNewTermsLabel(''); }}
+                                                                    className="h-8 text-xs"
+                                                                >
+                                                                    Cancel
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
 
@@ -847,89 +1215,174 @@ export default function TechnoQuotationDashboard() {
                             </motion.div>
                         </div>
 
-                        {/* Recent Quotations */}
-                        <h2 className="text-xl font-semibold mb-4">Recent Quotations</h2>
+                        {/* All Quotations — Search + Grid + Pagination */}
+                        <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-xl font-semibold">All Quotations</h2>
+                                {!isLoading && (
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        {totalCount} quotation{totalCount !== 1 ? 's' : ''} found
+                                        {searchQuery && ` for "${searchQuery}"`}
+                                    </p>
+                                )}
+                            </div>
+                            {/* Search */}
+                            <div className="relative w-full sm:w-72">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <input
+                                    type="text"
+                                    value={searchInput}
+                                    onChange={e => setSearchInput(e.target.value)}
+                                    placeholder="Search by quotation name..."
+                                    className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                                />
+                                {searchInput && (
+                                    <button
+                                        onClick={() => { setSearchInput(''); }}
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
 
                         {isLoading ? (
                             <div className="flex justify-center py-12">
                                 <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
                             </div>
                         ) : quotations.length === 0 ? (
-                            <div className="text-center py-12 border-2 border-dashed rounded-lg bg-background/50">
-                                <p className="text-muted-foreground">No quotations found. Create your first one!</p>
+                            <div className="text-center py-16 border-2 border-dashed rounded-xl bg-background/50">
+                                {searchQuery ? (
+                                    <>
+                                        <Search className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
+                                        <p className="text-muted-foreground font-medium">No quotations matching &ldquo;{searchQuery}&rdquo;</p>
+                                        <button onClick={() => setSearchInput('')} className="mt-2 text-sm text-emerald-600 hover:underline">Clear search</button>
+                                    </>
+                                ) : (
+                                    <p className="text-muted-foreground">No quotations found. Create your first one!</p>
+                                )}
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-                                {quotations.map((q) => (
-                                    <Link key={q._id} href={`/accounting/techno-quotation/${q._id}`}>
-                                        <Card className="group h-full hover:shadow-lg hover:border-emerald-400/50 transition-all duration-200 cursor-pointer overflow-hidden">
-                                            {/* Preview Thumbnail - Real Document Preview */}
-                                            <div className="relative h-32 bg-white dark:bg-gray-900 border-b overflow-hidden">
-                                                {/* Mini Document */}
-                                                <div className="absolute inset-1 bg-gray-50 dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 p-2 text-[6px] leading-tight overflow-hidden">
-                                                    {/* Header */}
-                                                    <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-gray-200 dark:border-gray-600">
-                                                        {q.companyDetails?.logo ? (
-                                                            <img src={q.companyDetails.logo} alt="" className="w-4 h-4 object-contain rounded" />
-                                                        ) : (
-                                                            <div className="w-4 h-4 rounded bg-emerald-400 dark:bg-emerald-600" />
-                                                        )}
-                                                        <div className="flex-1 truncate font-bold text-gray-700 dark:text-gray-300">
-                                                            {q.companyDetails?.name || 'Company'}
-                                                        </div>
-                                                    </div>
-                                                    {/* Title */}
-                                                    <div className="text-center font-bold text-emerald-600 dark:text-emerald-400 mb-1.5 truncate text-[7px]">
-                                                        {q.title}
-                                                    </div>
-                                                    {/* Content Preview - Show first sections */}
-                                                    <div className="space-y-0.5 text-gray-500 dark:text-gray-400">
-                                                        {q.pages?.[0]?.sections?.slice(0, 3).map((section: any, idx: number) => (
-                                                            <div key={idx} className="truncate">
-                                                                {section.heading && <span className="font-medium">{section.heading}</span>}
-                                                                {section.content && <span className="text-gray-400">: {section.content}</span>}
-                                                            </div>
-                                                        )) || (
-                                                                <>
-                                                                    <div className="h-1.5 w-full rounded bg-gray-200 dark:bg-gray-700" />
-                                                                    <div className="h-1.5 w-4/5 rounded bg-gray-200 dark:bg-gray-700" />
-                                                                    <div className="h-1.5 w-3/5 rounded bg-gray-200 dark:bg-gray-700" />
-                                                                </>
+                            <>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                    {quotations.map((q) => (
+                                        <Link key={q._id} href={`/accounting/techno-quotation/${q._id}`}>
+                                            <Card className="group h-full hover:shadow-lg hover:border-emerald-400/50 transition-all duration-200 cursor-pointer overflow-hidden">
+                                                {/* Preview Thumbnail */}
+                                                <div className="relative h-28 bg-white dark:bg-gray-900 border-b overflow-hidden">
+                                                    <div className="absolute inset-1 bg-gray-50 dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 p-2 text-[6px] leading-tight overflow-hidden">
+                                                        <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-gray-200 dark:border-gray-600">
+                                                            {q.companyDetails?.logo ? (
+                                                                <img src={q.companyDetails.logo} alt="" className="w-4 h-4 object-contain rounded" />
+                                                            ) : (
+                                                                <div className="w-4 h-4 rounded bg-emerald-400 dark:bg-emerald-600 shrink-0" />
                                                             )}
-                                                    </div>
-                                                </div>
-                                                {/* Type Badge */}
-                                                <div className={`absolute top-2 right-2 p-1.5 rounded-md shadow-sm ${q.quotationType === 'automated' ? 'bg-teal-500' : 'bg-emerald-500'}`}>
-                                                    {q.quotationType === 'automated' ? <Lightbulb className="w-3 h-3 text-white" /> : <FileEdit className="w-3 h-3 text-white" />}
-                                                </div>
-                                            </div>
-
-                                            {/* Card Content */}
-                                            <div className="p-4">
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <div className="flex-1 min-w-0">
-                                                        <h3 className="font-semibold text-sm mb-1.5 line-clamp-1 group-hover:text-emerald-600 transition-colors">{q.title}</h3>
-                                                        <p className="text-xs text-muted-foreground mb-3 line-clamp-1">
-                                                            {q.companyDetails?.name || 'No company set'}
-                                                        </p>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {new Date(q.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                            <div className="flex-1 truncate font-bold text-gray-700 dark:text-gray-300">
+                                                                {q.companyDetails?.name || 'Company'}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-center font-bold text-emerald-600 dark:text-emerald-400 mb-1 truncate text-[7px]">
+                                                            {q.title}
+                                                        </div>
+                                                        <div className="space-y-0.5 text-gray-500 dark:text-gray-400">
+                                                            <div className="h-1.5 w-full rounded bg-gray-200 dark:bg-gray-700" />
+                                                            <div className="h-1.5 w-4/5 rounded bg-gray-200 dark:bg-gray-700" />
+                                                            <div className="h-1.5 w-3/5 rounded bg-gray-200 dark:bg-gray-700" />
                                                         </div>
                                                     </div>
-                                                    {/* Delete Button */}
-                                                    <button
-                                                        onClick={(e) => handleDeleteClick(e, q._id)}
-                                                        className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-all"
-                                                        title="Delete quotation"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                    {/* Type badge */}
+                                                    <div className={`absolute top-1.5 right-1.5 p-1 rounded shadow-sm ${q.quotationType === 'automated' ? 'bg-teal-500' : 'bg-emerald-500'}`}>
+                                                        {q.quotationType === 'automated' ? <Lightbulb className="w-2.5 h-2.5 text-white" /> : <FileEdit className="w-2.5 h-2.5 text-white" />}
+                                                    </div>
+                                                    {/* Action buttons on hover */}
+                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all flex items-end justify-between p-1.5 opacity-0 group-hover:opacity-100">
+                                                        {/* Duplicate */}
+                                                        <button
+                                                            onClick={(e) => duplicateQuotation(e, q._id)}
+                                                            className="p-1.5 rounded-md bg-white/90 dark:bg-gray-800/90 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-600 shadow-sm transition-all"
+                                                            title="Duplicate quotation"
+                                                        >
+                                                            {isDuplicating === q._id
+                                                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                                : <Copy className="w-3.5 h-3.5" />}
+                                                        </button>
+                                                        {/* Delete */}
+                                                        <button
+                                                            onClick={(e) => handleDeleteClick(e, q._id)}
+                                                            className="p-1.5 rounded-md bg-white/90 dark:bg-gray-800/90 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 shadow-sm transition-all"
+                                                            title="Delete quotation"
+                                                        >
+                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </Card>
-                                    </Link>
-                                ))}
-                            </div>
+
+                                                {/* Card Content */}
+                                                <div className="p-2.5">
+                                                    <h3 className="font-semibold text-xs mb-0.5 line-clamp-1 group-hover:text-emerald-600 transition-colors">{q.title}</h3>
+                                                    <p className="text-[11px] text-muted-foreground line-clamp-1 mb-1">
+                                                        {q.companyDetails?.name || 'No company'}
+                                                    </p>
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[10px] text-muted-foreground">
+                                                            {new Date(q.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        </span>
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${q.quotationType === 'automated' ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'}`}>
+                                                            {q.quotationType === 'automated' ? 'AI' : 'Manual'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        </Link>
+                                    ))}
+                                </div>
+
+                                {/* Pagination */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-center gap-2 mt-8">
+                                        <button
+                                            onClick={() => fetchQuotations(currentPage - 1, searchQuery)}
+                                            disabled={currentPage === 1}
+                                            className="p-2 rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                        </button>
+
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                            .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                                            .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                                                if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...');
+                                                acc.push(p);
+                                                return acc;
+                                            }, [])
+                                            .map((item, idx) =>
+                                                item === '...' ? (
+                                                    <span key={`dots-${idx}`} className="px-1 text-muted-foreground text-sm">…</span>
+                                                ) : (
+                                                    <button
+                                                        key={item}
+                                                        onClick={() => fetchQuotations(item as number, searchQuery)}
+                                                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${currentPage === item
+                                                            ? 'bg-emerald-600 text-white shadow-sm'
+                                                            : 'border border-border hover:bg-muted'
+                                                        }`}
+                                                    >
+                                                        {item}
+                                                    </button>
+                                                )
+                                            )}
+
+                                        <button
+                                            onClick={() => fetchQuotations(currentPage + 1, searchQuery)}
+                                            disabled={currentPage === totalPages}
+                                            className="p-2 rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                        >
+                                            <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </section>

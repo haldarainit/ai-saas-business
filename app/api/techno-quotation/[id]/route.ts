@@ -82,6 +82,35 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 }
 
+// POST /api/techno-quotation/[id] → Duplicate/Copy a quotation
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+    try {
+        const { userId } = await getAuthenticatedUser(req);
+        if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const { id } = await params;
+        await dbConnect();
+
+        const original = await TechnoQuotation.findOne({ _id: id, userId });
+        if (!original) return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
+
+        const originalObj = original.toObject();
+        delete originalObj._id;
+        delete originalObj.__v;
+        originalObj.title = `Copy of ${original.title}`;
+        originalObj.userId = userId;
+        originalObj.createdAt = new Date();
+        originalObj.updatedAt = new Date();
+        originalObj.status = 'draft';
+
+        const copy = await TechnoQuotation.create(originalObj);
+        return NextResponse.json({ quotation: copy });
+    } catch (error) {
+        console.error('Error duplicating quotation:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
+
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { userId } = await getAuthenticatedUser(req);
