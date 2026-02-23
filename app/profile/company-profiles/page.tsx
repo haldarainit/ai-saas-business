@@ -36,9 +36,12 @@ import {
     ChevronUp,
     Upload,
     ImageIcon,
+    Lock,
+    FolderOpen,
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import LegalDocumentStore from "@/components/legal-document-store";
 
 interface CompanyProfile {
     _id: string;
@@ -124,6 +127,11 @@ export default function CompanyProfilesPage() {
         footer: false,
     });
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+    const [expandedVaults, setExpandedVaults] = useState<Record<string, boolean>>({});
+
+    const toggleVault = (profileId: string) => {
+        setExpandedVaults(prev => ({ ...prev, [profileId]: !prev[profileId] }));
+    };
 
     // Upload logo to Cloudinary
     const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -653,6 +661,32 @@ export default function CompanyProfilesPage() {
                         Last updated: {new Date(profile.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </p>
                 )}
+
+                {/* DigiVault Toggle Button */}
+                <button
+                    onClick={() => toggleVault(profile._id)}
+                    className="w-full mt-4 flex items-center justify-between p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 hover:bg-amber-500/10 transition-colors"
+                >
+                    <div className="flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-amber-500" />
+                        <span className="text-sm font-medium">Legal & Statutory DigiVault</span>
+                        <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-600">Secure Storage</Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <FolderOpen className="w-4 h-4 text-muted-foreground" />
+                        {expandedVaults[profile._id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </div>
+                </button>
+
+                {/* Per-Company DigiVault */}
+                {expandedVaults[profile._id] && (
+                    <div className="mt-3">
+                        <LegalDocumentStore
+                            companyProfileId={profile._id}
+                            companyName={profile.name}
+                        />
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
@@ -735,6 +769,8 @@ export default function CompanyProfilesPage() {
                                     {profiles.map(renderProfileCard)}
                                 </div>
                             )}
+
+
                         </div>
                     </div>
                 </section>
