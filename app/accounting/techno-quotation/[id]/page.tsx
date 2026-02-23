@@ -53,7 +53,12 @@ import {
     Lightbulb,
     RefreshCw as RefreshIcon,
     Eraser,
-    FileCheck
+    FileCheck,
+    Pencil,
+    Users,
+    Check,
+    Save,
+    BookOpen
 } from "lucide-react"
 import {
     Dialog,
@@ -588,6 +593,42 @@ export default function QuotationPage() {
     const [showSaveCompanyDialog, setShowSaveCompanyDialog] = useState(false)
     const [isSavingCompany, setIsSavingCompany] = useState(false)
 
+    // Saved Client State
+    interface SavedClientData {
+        _id: string
+        name: string
+        company: string
+        designation: string
+        address: string
+        phone: string
+        email: string
+    }
+    const [savedClients, setSavedClients] = useState<SavedClientData[]>([])
+    const [selectedSavedClientId, setSelectedSavedClientId] = useState<string>('')
+    const [isLoadingClients, setIsLoadingClients] = useState(false)
+
+    // T&C Presets State
+    interface TermsPresetData {
+        _id: string
+        label: string
+        terms: string[]
+        category: string
+        isSystemPreset: boolean
+    }
+    const [termsPresets, setTermsPresets] = useState<TermsPresetData[]>([])
+    const [isLoadingTermsPresets, setIsLoadingTermsPresets] = useState(false)
+    const [showTermsPresetPicker, setShowTermsPresetPicker] = useState(false)
+    const [showSaveTermsDialog, setShowSaveTermsDialog] = useState(false)
+    const [newTermsPresetLabel, setNewTermsPresetLabel] = useState('')
+
+    // Editable T&C state
+    const [editableTermsList, setEditableTermsList] = useState<string[]>([])
+    const [editableTermsHeading, setEditableTermsHeading] = useState('Terms & Conditions')
+    const [isSavingTermsPreset, setIsSavingTermsPreset] = useState(false)
+    const [loadedPresetId, setLoadedPresetId] = useState<string | null>(null)
+    const [isUpdatingPreset, setIsUpdatingPreset] = useState(false)
+    const [editablePresetName, setEditablePresetName] = useState('')
+
     // Fetch company profiles
     useEffect(() => {
         const fetchProfiles = async () => {
@@ -611,6 +652,245 @@ export default function QuotationPage() {
         }
         fetchProfiles()
     }, [])
+
+    // Fetch saved clients
+    useEffect(() => {
+        const fetchClients = async () => {
+            setIsLoadingClients(true)
+            try {
+                const res = await fetch('/api/saved-clients')
+                if (res.ok) {
+                    const data = await res.json()
+                    setSavedClients(data.clients || [])
+                }
+            } catch (error) {
+                console.error('Error fetching saved clients:', error)
+            } finally {
+                setIsLoadingClients(false)
+            }
+        }
+        fetchClients()
+    }, [])
+
+    // Fetch T&C presets
+    useEffect(() => {
+        const fetchTermsPresets = async () => {
+            setIsLoadingTermsPresets(true)
+            try {
+                const res = await fetch('/api/saved-terms')
+                if (res.ok) {
+                    const data = await res.json()
+                    setTermsPresets(data.presets || [])
+                }
+            } catch (error) {
+                console.error('Error fetching T&C presets:', error)
+            } finally {
+                setIsLoadingTermsPresets(false)
+            }
+        }
+        fetchTermsPresets()
+    }, [])
+
+    // Apply saved client to quotation
+    const applySavedClient = (clientId: string) => {
+        if (selectedSavedClientId === clientId) {
+            setSelectedSavedClientId('')
+            setQuotationData(prev => ({
+                ...prev,
+                clientName: '',
+                clientCompany: '',
+                clientDesignation: '',
+                clientAddress: ''
+            }))
+            return
+        }
+        const client = savedClients.find(c => c._id === clientId)
+        if (!client) return
+        setSelectedSavedClientId(clientId)
+        setQuotationData(prev => ({
+            ...prev,
+            clientName: client.name || '',
+            clientCompany: client.company || '',
+            clientDesignation: client.designation || '',
+            clientAddress: client.address || ''
+        }))
+    }
+
+    // Load T&C preset into editable area (does NOT insert yet)
+    const loadTermsPresetForEditing = (presetId: string) => {
+        const preset = termsPresets.find(p => p._id === presetId)
+        if (!preset) return
+        setEditableTermsList([...preset.terms])
+        setEditableTermsHeading('Terms & Conditions')
+        setLoadedPresetId(presetId)
+        setEditablePresetName(preset.label)
+    }
+
+    // Add more terms from another preset into the editable list
+    const appendTermsPreset = (presetId: string) => {
+        const preset = termsPresets.find(p => p._id === presetId)
+        if (!preset) return
+        setEditableTermsList(prev => [...prev, ...preset.terms])
+        // If appending after a fresh load, clear the single-preset tracking
+        if (loadedPresetId !== presetId) setLoadedPresetId(null)
+    }
+
+    // Update (overwrite) an existing custom preset with current editable terms
+    const updateExistingPreset = async () => {
+        if (!loadedPresetId || loadedPresetId.startsWith('system-')) return
+        const validTerms = editableTermsList.filter(t => t.trim())
+        if (validTerms.length === 0) return
+        const preset = termsPresets.find(p => p._id === loadedPresetId)
+        setIsUpdatingPreset(true)
+        try {
+            const labelToUse = editablePresetName.trim() || preset?.label || 'Custom Preset'
+            const res = await fetch('/api/saved-terms', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: loadedPresetId, terms: validTerms, label: labelToUse, category: preset?.category })
+            })
+            if (res.ok) {
+                const fetchRes = await fetch('/api/saved-terms')
+                if (fetchRes.ok) {
+                    const data = await fetchRes.json()
+                    setTermsPresets(data.presets || [])
+                }
+                toast({ title: '✅ Preset Updated!', description: `"${labelToUse}" saved with ${validTerms.length} terms.` })
+            }
+        } catch (error) {
+            console.error('Error updating preset:', error)
+        } finally {
+            setIsUpdatingPreset(false)
+        }
+    }
+
+    // Insert the current editable terms into the document as content blocks
+    const insertEditableTerms = () => {
+        const validTerms = editableTermsList.filter(t => t.trim())
+        if (validTerms.length === 0) return
+
+        const newBlocks: ContentBlock[] = [
+            {
+                id: `tc-heading-${Date.now()}`,
+                type: 'heading',
+                content: editableTermsHeading || 'Terms & Conditions',
+                style: { fontSize: 14, fontWeight: 'bold', textAlign: 'left', lineHeight: 1.5, color: '#1a1a1a' }
+            },
+            {
+                id: `tc-list-${Date.now()}`,
+                type: 'list',
+                content: editableTermsHeading || 'Terms & Conditions',
+                items: validTerms,
+                style: { fontSize: 11, fontWeight: 'normal', textAlign: 'left', lineHeight: 1.5, color: '#1a1a1a' }
+            }
+        ]
+
+        setQuotationData(prev => ({
+            ...prev,
+            contentBlocks: [...prev.contentBlocks, ...newBlocks]
+        }))
+        setActiveTab('content')
+        // Clear the editable area after insert
+        setEditableTermsList([])
+        setEditableTermsHeading('Terms & Conditions')
+        setLoadedPresetId(null)
+        setEditablePresetName('')
+        toast({
+            title: "✅ Terms Inserted!",
+            description: `${validTerms.length} terms added to your quotation.`,
+        })
+    }
+
+    // Update a single term in the editable list
+    const updateEditableTerm = (index: number, value: string) => {
+        setEditableTermsList(prev => prev.map((t, i) => i === index ? value : t))
+    }
+
+    // Remove a term from the editable list
+    const removeEditableTerm = (index: number) => {
+        setEditableTermsList(prev => prev.filter((_, i) => i !== index))
+    }
+
+    // Add a blank new term to the editable list
+    const addBlankTerm = () => {
+        setEditableTermsList(prev => [...prev, ''])
+    }
+
+    // Save editable terms as a new custom preset
+    const saveEditableTermsAsPreset = async () => {
+        const validTerms = editableTermsList.filter(t => t.trim())
+        if (!newTermsPresetLabel.trim() || validTerms.length === 0) return
+
+        setIsSavingTermsPreset(true)
+        try {
+            const res = await fetch('/api/saved-terms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    label: newTermsPresetLabel.trim(),
+                    terms: validTerms,
+                    category: 'custom'
+                })
+            })
+            if (res.ok) {
+                const fetchRes = await fetch('/api/saved-terms')
+                if (fetchRes.ok) {
+                    const data = await fetchRes.json()
+                    setTermsPresets(data.presets || [])
+                }
+                setShowSaveTermsDialog(false)
+                setNewTermsPresetLabel('')
+                toast({
+                    title: "✅ T&C Preset Saved!",
+                    description: `"${newTermsPresetLabel}" saved with ${validTerms.length} terms for future use.`,
+                })
+            }
+        } catch (error) {
+            console.error('Error saving T&C preset:', error)
+        } finally {
+            setIsSavingTermsPreset(false)
+        }
+    }
+
+    // Delete a custom T&C preset
+    const deleteTermsPreset = async (presetId: string) => {
+        if (presetId.startsWith('system-')) return
+        try {
+            await fetch(`/api/saved-terms?id=${presetId}`, { method: 'DELETE' })
+            setTermsPresets(prev => prev.filter(p => p._id !== presetId))
+        } catch (error) {
+            console.error('Error deleting T&C preset:', error)
+        }
+    }
+
+    // Auto-save client details (called after save)
+    const autoSaveClientDetails = async () => {
+        const { clientCompany, clientName, clientDesignation, clientAddress } = quotationData
+        if (!clientCompany && !clientName) return
+
+        try {
+            await fetch('/api/saved-clients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    company: clientCompany,
+                    name: clientName,
+                    designation: clientDesignation,
+                    address: clientAddress
+                })
+            })
+            // Refresh saved clients
+            const res = await fetch('/api/saved-clients')
+            if (res.ok) {
+                const data = await res.json()
+                setSavedClients(data.clients || [])
+            }
+        } catch (error) {
+            console.error('Error auto-saving client:', error)
+        }
+    }
+
+    // (saveTermsFromBlocks removed — replaced by saveEditableTermsAsPreset above)
 
     // Apply selected company to quotation (toggle select/deselect)
     const applyCompanyProfile = (profileId: string) => {
@@ -1121,6 +1401,9 @@ Return the response as JSON with this structure:
                 previousDataRef.current = currentDataString
                 setLastSaved(new Date())
                 setHasChanges(false)
+
+                // Auto-save client details for future use (fire-and-forget)
+                autoSaveClientDetails()
             } catch (error) {
                 console.error("Error saving:", error)
                 setSaveError('Failed to save. Will retry...')
@@ -1746,6 +2029,32 @@ Return the response as JSON with this structure:
                         {/* Terms & Conditions */}
                         <div className="space-y-2">
                             <Label>Terms & Conditions</Label>
+                            {/* T&C Presets Quick-Select */}
+                            {termsPresets.length > 0 && (
+                                <div className="p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                                    <p className="text-xs font-medium text-amber-700 dark:text-amber-300 mb-1.5 flex items-center gap-1">
+                                        <BookOpen className="w-3 h-3" />
+                                        Quick-select from presets:
+                                    </p>
+                                    <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+                                        {termsPresets.slice(0, 15).map(preset => (
+                                            <button
+                                                key={preset._id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setAiFormData(prev => ({
+                                                        ...prev,
+                                                        termsConditions: preset.terms.join('\n')
+                                                    }))
+                                                }}
+                                                className="px-2 py-0.5 text-xs rounded border border-gray-300 dark:border-gray-600 hover:border-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all"
+                                            >
+                                                {preset.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                             <Textarea
                                 value={aiFormData.termsConditions}
                                 onChange={e => setAiFormData({ ...aiFormData, termsConditions: e.target.value })}
@@ -1901,6 +2210,308 @@ Return the response as JSON with this structure:
                                 <Table className="w-5 h-5" />
                                 <span className="text-xs">Table</span>
                             </Button>
+                        </div>
+
+                        {/* Insert Terms & Conditions - Editable Panel */}
+                        <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-800">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setShowTermsPresetPicker(!showTermsPresetPicker)}
+                                className="w-full gap-2 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                            >
+                                <FileCheck className="w-4 h-4" />
+                                Terms &amp; Conditions Builder
+                                <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${showTermsPresetPicker ? 'rotate-180' : ''}`} />
+                            </Button>
+
+                            {showTermsPresetPicker && (
+                                <div className="mt-2 rounded-xl border border-amber-200 dark:border-amber-800 overflow-hidden shadow-sm">
+
+                                    {/* ── SECTION A: Preset Library ── */}
+                                    <div className="bg-amber-50/80 dark:bg-amber-900/20">
+
+                                        {/* Header */}
+                                        <div className="flex items-center justify-between px-3 pt-3 pb-2">
+                                            <p className="text-xs font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                                                <BookOpen className="w-3.5 h-3.5" />
+                                                Preset Library
+                                            </p>
+                                            <button
+                                                onClick={() => { setEditableTermsList(['']); setEditableTermsHeading('Terms & Conditions'); setLoadedPresetId(null); setEditablePresetName('') }}
+                                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors flex items-center gap-1"
+                                                title="Start a blank T&C from scratch"
+                                            >
+                                                <Plus className="w-3 h-3" /> New Blank
+                                            </button>
+                                        </div>
+
+                                        {isLoadingTermsPresets ? (
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground px-3 pb-3">
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading presets...
+                                            </div>
+                                        ) : (
+                                            <div className="px-3 pb-3 space-y-3 max-h-52 overflow-y-auto">
+
+                                                {/* ── My Saved: card list ── */}
+                                                {termsPresets.filter(p => p.category === 'custom').length > 0 && (
+                                                    <div>
+                                                        <p className="text-[10px] font-extrabold uppercase tracking-widest mb-1.5 text-teal-700 dark:text-teal-400 flex items-center gap-1">
+                                                            <Save className="w-3 h-3" /> My Saved Presets
+                                                        </p>
+                                                        <div className="space-y-1">
+                                                            {termsPresets.filter(p => p.category === 'custom').map(preset => {
+                                                                const isLoaded = loadedPresetId === preset._id
+                                                                return (
+                                                                    <div
+                                                                        key={preset._id}
+                                                                        className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-all ${isLoaded
+                                                                            ? 'bg-teal-50 dark:bg-teal-900/40 border-teal-400 dark:border-teal-600 ring-1 ring-teal-400/50'
+                                                                            : 'bg-white dark:bg-gray-800 border-teal-200 dark:border-teal-800 hover:border-teal-400 dark:hover:border-teal-600 hover:bg-teal-50/50 dark:hover:bg-teal-900/20'
+                                                                        }`}
+                                                                    >
+                                                                        {isLoaded && <Check className="w-3 h-3 text-teal-500 shrink-0" />}
+                                                                        {/* Label — full text, no truncation */}
+                                                                        <span className="flex-1 text-xs font-medium text-gray-800 dark:text-gray-200 leading-snug min-w-0">
+                                                                            {preset.label}
+                                                                        </span>
+                                                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-800 text-teal-700 dark:text-teal-300 shrink-0">
+                                                                            {preset.terms.length} terms
+                                                                        </span>
+                                                                        {/* Edit (load) */}
+                                                                        <button
+                                                                            onClick={() => editableTermsList.length > 0 && !isLoaded
+                                                                                ? appendTermsPreset(preset._id)
+                                                                                : loadTermsPresetForEditing(preset._id)
+                                                                            }
+                                                                            className={`shrink-0 p-1 rounded text-xs transition-all ${isLoaded
+                                                                                ? 'bg-teal-200 dark:bg-teal-700 text-teal-800 dark:text-teal-200'
+                                                                                : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-800'
+                                                                            }`}
+                                                                            title={isLoaded ? 'Loaded — click to reload' : editableTermsList.length > 0 ? 'Append to current' : 'Load & edit'}
+                                                                        >
+                                                                            {isLoaded ? <Check className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
+                                                                        </button>
+                                                                        {/* Delete */}
+                                                                        <button
+                                                                            onClick={() => deleteTermsPreset(preset._id)}
+                                                                            className="shrink-0 p-1 rounded bg-red-50 dark:bg-red-900/30 text-red-400 hover:bg-red-100 dark:hover:bg-red-900/60 hover:text-red-600 transition-all"
+                                                                            title="Delete this preset"
+                                                                        >
+                                                                            <Trash2 className="w-3 h-3" />
+                                                                        </button>
+                                                                    </div>
+                                                                )
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* ── System presets: compact chips by category ── */}
+                                                {[
+                                                    { key: 'payment',  label: 'Payment',  color: 'text-blue-700 dark:text-blue-300',   border: 'border-blue-200 dark:border-blue-700',   bg: 'bg-blue-50 dark:bg-blue-900/30',   badge: 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300' },
+                                                    { key: 'delivery', label: 'Delivery', color: 'text-green-700 dark:text-green-300',  border: 'border-green-200 dark:border-green-700',  bg: 'bg-green-50 dark:bg-green-900/30', badge: 'bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300' },
+                                                    { key: 'warranty', label: 'Warranty', color: 'text-violet-700 dark:text-violet-300',border: 'border-violet-200 dark:border-violet-700',bg: 'bg-violet-50 dark:bg-violet-900/30',badge: 'bg-violet-100 dark:bg-violet-800 text-violet-700 dark:text-violet-300' },
+                                                    { key: 'general',  label: 'General',  color: 'text-gray-700 dark:text-gray-300',    border: 'border-gray-200 dark:border-gray-600',    bg: 'bg-gray-50 dark:bg-gray-800/40',   badge: 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300' },
+                                                ].map(cat => {
+                                                    const presets = termsPresets.filter(p => p.category === cat.key)
+                                                    if (presets.length === 0) return null
+                                                    return (
+                                                        <div key={cat.key}>
+                                                            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${cat.color}`}>{cat.label}</p>
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {presets.map(preset => {
+                                                                    const isLoaded = loadedPresetId === preset._id
+                                                                    return (
+                                                                        <button
+                                                                            key={preset._id}
+                                                                            onClick={() => editableTermsList.length > 0 && !isLoaded
+                                                                                ? appendTermsPreset(preset._id)
+                                                                                : loadTermsPresetForEditing(preset._id)
+                                                                            }
+                                                                            title={`${preset.terms.length} terms — ${editableTermsList.length > 0 && !isLoaded ? 'append' : 'load'}`}
+                                                                            className={`flex items-center gap-1 px-2 py-1 text-xs rounded-lg border transition-all ${isLoaded
+                                                                                ? `${cat.bg} ${cat.border} ring-1 ring-amber-400/60 font-semibold`
+                                                                                : `bg-white dark:bg-gray-800 ${cat.border} hover:${cat.bg}`
+                                                                            }`}
+                                                                        >
+                                                                            {isLoaded && <Check className="w-3 h-3 text-amber-500 shrink-0" />}
+                                                                            <span className="truncate max-w-[100px]">{preset.label}</span>
+                                                                            <span className={`text-[10px] rounded-full px-1 shrink-0 ${cat.badge}`}>{preset.terms.length}</span>
+                                                                        </button>
+                                                                    )
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {editableTermsList.length > 0 && (
+                                            <p className="text-[10px] text-amber-600 dark:text-amber-400 px-3 pb-2 italic">
+                                                💡 Clicking a preset will <strong>append</strong> its terms to your current list.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* ── SECTION B: Live Editor ── */}
+                                    <div className="bg-white dark:bg-gray-900 border-t border-amber-200 dark:border-amber-800">
+
+                                        {editableTermsList.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-6 text-center px-4 gap-2">
+                                                <FileCheck className="w-9 h-9 text-amber-200 dark:text-amber-700" />
+                                                <p className="text-sm font-medium text-muted-foreground">No terms loaded yet</p>
+                                                <p className="text-xs text-muted-foreground">Pick a preset above, or start from scratch:</p>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => { setEditableTermsList(['']); setEditableTermsHeading('Terms & Conditions'); setLoadedPresetId(null); setEditablePresetName('') }}
+                                                    className="gap-1.5 text-xs border-dashed border-amber-400 text-amber-700 hover:bg-amber-50"
+                                                >
+                                                    <Plus className="w-3.5 h-3.5" /> Start Blank
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="p-3 space-y-2.5">
+
+                                                {/* Preset name field — only for custom loaded presets */}
+                                                {loadedPresetId && !loadedPresetId.startsWith('system-') && (
+                                                    <div className="flex items-center gap-2 p-2 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-800">
+                                                        <Save className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+                                                        <Input
+                                                            value={editablePresetName}
+                                                            onChange={e => setEditablePresetName(e.target.value)}
+                                                            className="h-7 text-xs flex-1 border-teal-200 dark:border-teal-700 focus:border-teal-400 bg-white dark:bg-gray-900"
+                                                            placeholder="Preset name..."
+                                                        />
+                                                        <span className="text-[10px] text-teal-600 dark:text-teal-400 whitespace-nowrap">Preset Name</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Heading row */}
+                                                <div className="flex items-center gap-2">
+                                                    <Label className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 shrink-0">Heading:</Label>
+                                                    <Input
+                                                        value={editableTermsHeading}
+                                                        onChange={e => setEditableTermsHeading(e.target.value)}
+                                                        className="h-7 text-xs flex-1 border-amber-200 dark:border-amber-800 focus:border-amber-400"
+                                                        placeholder="Terms & Conditions"
+                                                    />
+                                                    <button
+                                                        onClick={() => { setEditableTermsList([]); setEditableTermsHeading('Terms & Conditions'); setLoadedPresetId(null); setEditablePresetName('') }}
+                                                        className="text-[10px] font-medium text-muted-foreground hover:text-red-500 border border-gray-200 dark:border-gray-700 rounded px-1.5 py-0.5 transition-colors whitespace-nowrap"
+                                                    >
+                                                        ✕ Clear
+                                                    </button>
+                                                </div>
+
+                                                {/* Terms list — delete button always visible */}
+                                                <div className="space-y-1.5 max-h-52 overflow-y-auto pr-0.5">
+                                                    {editableTermsList.map((term, idx) => (
+                                                        <div key={idx} className="flex items-start gap-2">
+                                                            <span className="mt-2 text-[11px] font-bold text-amber-500 dark:text-amber-400 min-w-[20px] text-right shrink-0">{idx + 1}.</span>
+                                                            <Textarea
+                                                                value={term}
+                                                                onChange={e => updateEditableTerm(idx, e.target.value)}
+                                                                placeholder={`Term ${idx + 1}...`}
+                                                                className="flex-1 min-h-[34px] text-xs resize-none border-gray-200 dark:border-gray-700 focus:border-amber-400 py-1.5 px-2.5 rounded-lg leading-snug"
+                                                                rows={1}
+                                                                onInput={(e) => {
+                                                                    const t = e.target as HTMLTextAreaElement
+                                                                    t.style.height = 'auto'
+                                                                    t.style.height = t.scrollHeight + 'px'
+                                                                }}
+                                                            />
+                                                            {/* Always-visible delete button */}
+                                                            <button
+                                                                onClick={() => removeEditableTerm(idx)}
+                                                                className="mt-1.5 p-1 rounded-md bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 transition-all shrink-0"
+                                                                title="Delete this term"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                {/* Add term */}
+                                                <button
+                                                    onClick={addBlankTerm}
+                                                    className="w-full py-2 text-xs font-medium text-amber-700 dark:text-amber-400 border-2 border-dashed border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all flex items-center justify-center gap-1.5"
+                                                >
+                                                    <Plus className="w-3.5 h-3.5" /> Add Another Term
+                                                </button>
+
+                                                {/* Primary action: Insert */}
+                                                <Button
+                                                    onClick={insertEditableTerms}
+                                                    disabled={editableTermsList.filter(t => t.trim()).length === 0}
+                                                    className="w-full h-9 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold gap-2 shadow-sm"
+                                                >
+                                                    <FileCheck className="w-4 h-4" />
+                                                    Insert into Quotation
+                                                    <span className="ml-auto text-xs bg-amber-500 px-2 py-0.5 rounded-full">
+                                                        {editableTermsList.filter(t => t.trim()).length} terms
+                                                    </span>
+                                                </Button>
+
+                                                {/* Secondary: Update preset OR Save new */}
+                                                <div className="space-y-1.5 pt-0.5">
+                                                    {/* Update existing custom preset */}
+                                                    {loadedPresetId && !loadedPresetId.startsWith('system-') && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={updateExistingPreset}
+                                                            disabled={isUpdatingPreset || editableTermsList.filter(t => t.trim()).length === 0}
+                                                            className="w-full h-8 text-xs gap-1.5 border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20"
+                                                        >
+                                                            {isUpdatingPreset
+                                                                ? <Loader2 className="w-3 h-3 animate-spin" />
+                                                                : <Save className="w-3 h-3" />}
+                                                            Update Saved Preset
+                                                        </Button>
+                                                    )}
+
+                                                    {/* Save as new preset */}
+                                                    {!showSaveTermsDialog ? (
+                                                        <button
+                                                            onClick={() => setShowSaveTermsDialog(true)}
+                                                            className="w-full text-[11px] text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-200 border border-dashed border-teal-200 dark:border-teal-800 rounded-lg py-1.5 hover:bg-teal-50 dark:hover:bg-teal-900/20 flex items-center justify-center gap-1 transition-colors"
+                                                        >
+                                                            <Save className="w-3 h-3" />
+                                                            Save as New Preset
+                                                        </button>
+                                                    ) : (
+                                                        <div className="flex items-center gap-1">
+                                                            <Input
+                                                                value={newTermsPresetLabel}
+                                                                onChange={e => setNewTermsPresetLabel(e.target.value)}
+                                                                placeholder="Preset name..."
+                                                                className="h-7 text-xs flex-1"
+                                                                autoFocus
+                                                                onKeyDown={e => e.key === 'Enter' && saveEditableTermsAsPreset()}
+                                                            />
+                                                            <Button
+                                                                size="sm"
+                                                                onClick={saveEditableTermsAsPreset}
+                                                                disabled={!newTermsPresetLabel.trim() || isSavingTermsPreset}
+                                                                className="h-7 text-xs bg-teal-600 hover:bg-teal-700 text-white px-2"
+                                                            >
+                                                                {isSavingTermsPreset ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                                            </Button>
+                                                            <Button size="sm" variant="ghost" onClick={() => { setShowSaveTermsDialog(false); setNewTermsPresetLabel('') }} className="h-7 text-xs px-1.5">
+                                                                <X className="w-3 h-3" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </Card>
 
@@ -2239,6 +2850,36 @@ Return the response as JSON with this structure:
 
                         {/* Client Tab */}
                         <TabsContent value="client" className="space-y-4">
+                            {/* Saved Clients Selector */}
+                            {savedClients.length > 0 && (
+                                <Card className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800">
+                                    <h4 className="text-sm font-semibold mb-2 flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                                        <Users className="w-4 h-4" /> Load from Saved Clients
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground mb-2">
+                                        Select a previously used client to auto-fill details. Click again to deselect.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+                                        {savedClients.map(client => (
+                                            <button
+                                                key={client._id}
+                                                onClick={() => applySavedClient(client._id)}
+                                                className={`px-3 py-1.5 text-sm rounded-lg border transition-all flex items-center gap-1.5 ${
+                                                    selectedSavedClientId === client._id
+                                                        ? 'bg-blue-600 text-white border-blue-600'
+                                                        : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-blue-500'
+                                                }`}
+                                            >
+                                                {selectedSavedClientId === client._id && (
+                                                    <Check className="w-3.5 h-3.5" />
+                                                )}
+                                                <span>{client.company || client.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </Card>
+                            )}
+
                             <Card className="p-4 border-l-4 border-l-blue-500">
                                 <h3 className="font-semibold text-lg mb-4">Client Details</h3>
                                 <div className="space-y-3">
@@ -3574,7 +4215,8 @@ Return the response as JSON with this structure:
                 .quotation-preview .page {
                     width: 210mm;
                     min-height: 297mm;
-                    padding: 15mm;
+                    /* Bottom padding must exceed footer height (≈ 30mm) + its own bottom:15mm offset */
+                    padding: 15mm 15mm 58mm 15mm;
                     margin: 0 auto;
                     background: white;
                     box-shadow: 0 0 10px rgba(0,0,0,0.1);
@@ -3709,6 +4351,7 @@ Return the response as JSON with this structure:
                     margin: 8px 0;
                     word-wrap: break-word;
                     overflow-wrap: break-word;
+                    overflow-x: auto;
                 }
                 
                 .quotation-preview .block-heading {
@@ -3743,11 +4386,16 @@ Return the response as JSON with this structure:
                     width: 100%;
                     border-collapse: collapse;
                     margin: 10px 0;
+                    table-layout: fixed;
                 }
                 
                 .quotation-preview .block-table th,
                 .quotation-preview .block-table td {
                     text-align: left;
+                    word-break: break-word;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                    max-width: 0;
                 }
                 
                 .quotation-preview .block-table th {
@@ -3756,6 +4404,7 @@ Return the response as JSON with this structure:
                 
                 .quotation-preview .signature-section {
                     margin-top: 30px;
+                    margin-bottom: 12px;
                     /* font-size controlled by inline styles */
                 }
                 
@@ -3770,6 +4419,7 @@ Return the response as JSON with this structure:
                     right: 15mm;
                     border-top: 2px solid #000000;
                     padding-top: 10px;
+                    background: white; /* mask any content that reaches this zone */
                     /* font-size, text-align, color controlled by inline styles */
                 }
                 

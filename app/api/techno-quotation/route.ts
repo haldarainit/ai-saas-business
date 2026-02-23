@@ -102,13 +102,19 @@ export async function GET(req: Request) {
         const limit = parseInt(searchParams.get('limit') || '10');
         const skip = (page - 1) * limit;
 
-        const quotations = await TechnoQuotation.find({ userId })
+        const search = searchParams.get('search') || '';
+        const query: any = { userId };
+        if (search.trim()) {
+            query.title = { $regex: search.trim(), $options: 'i' };
+        }
+
+        const quotations = await TechnoQuotation.find(query)
             .select('id title updatedAt status quotationType companyDetails pages')
             .sort({ updatedAt: -1 })
             .skip(skip)
             .limit(limit);
 
-        const total = await TechnoQuotation.countDocuments({ userId });
+        const total = await TechnoQuotation.countDocuments(query);
 
         return NextResponse.json({ 
             quotations,
