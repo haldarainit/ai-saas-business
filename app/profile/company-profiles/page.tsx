@@ -34,6 +34,8 @@ import {
     Check,
     ChevronDown,
     ChevronUp,
+    Upload,
+    ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -121,6 +123,34 @@ export default function CompanyProfilesPage() {
         bank: false,
         footer: false,
     });
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
+    // Upload logo to Cloudinary
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsUploadingLogo(true);
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await fetch('/api/upload-file', { method: 'POST', body: fd });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.file?.url) {
+                    setFormData(prev => ({ ...prev, logo: data.file.url }));
+                    toast({ title: 'Logo uploaded successfully' });
+                } else {
+                    toast({ title: 'Upload failed', variant: 'destructive' });
+                }
+            } else {
+                toast({ title: 'Upload failed', variant: 'destructive' });
+            }
+        } catch (error) {
+            toast({ title: 'Error uploading logo', variant: 'destructive' });
+        } finally {
+            setIsUploadingLogo(false);
+        }
+    };
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -352,6 +382,42 @@ export default function CompanyProfilesPage() {
                             />
                             <Label htmlFor="isDefault" className="cursor-pointer">Set as Default Profile (auto-fills in new invoices & quotations)</Label>
                         </div>
+                        {/* Company Logo Upload */}
+                        <div className="md:col-span-2">
+                            <Label>Company Logo</Label>
+                            <div className="flex items-center gap-3 mt-1">
+                                {isUploadingLogo ? (
+                                    <div className="w-16 h-16 border rounded flex flex-col items-center justify-center bg-muted animate-pulse">
+                                        <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                                        <span className="text-[10px] text-muted-foreground mt-1">Uploading...</span>
+                                    </div>
+                                ) : formData.logo ? (
+                                    <img src={formData.logo} alt="Logo" className="w-16 h-16 object-contain border rounded" />
+                                ) : (
+                                    <div className="w-16 h-16 border rounded flex items-center justify-center bg-muted">
+                                        <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                                    </div>
+                                )}
+                                <label className={`cursor-pointer ${isUploadingLogo ? 'pointer-events-none opacity-50' : ''}`}>
+                                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" disabled={isUploadingLogo} />
+                                    <Button variant="outline" size="sm" asChild disabled={isUploadingLogo}>
+                                        <span>
+                                            {isUploadingLogo ? (
+                                                <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Uploading...</>
+                                            ) : (
+                                                <><Upload className="w-4 h-4 mr-1" /> Upload Logo</>
+                                            )}
+                                        </span>
+                                    </Button>
+                                </label>
+                                {formData.logo && !isUploadingLogo && (
+                                    <Button variant="outline" size="sm" onClick={() => setFormData({ ...formData, logo: '' })}>
+                                        <Trash2 className="w-4 h-4 mr-1" /> Remove
+                                    </Button>
+                                )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">Logo appears on invoices & quotations. Stored securely in the cloud.</p>
+                        </div>
                     </div>
                 )}
 
@@ -470,19 +536,27 @@ export default function CompanyProfilesPage() {
         <Card key={profile._id} className={`relative ${profile.isDefault ? 'border-primary/50 bg-primary/5' : ''}`}>
             <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-cyan-500" />
-                            {profile.name}
-                            {profile.isDefault && (
-                                <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30 text-[10px]">
-                                    <Star className="w-3 h-3 mr-1" /> Default
-                                </Badge>
-                            )}
-                        </CardTitle>
-                        <CardDescription className="mt-1">
-                            {[profile.address1, profile.address2].filter(Boolean).join(', ') || 'No address set'}
-                        </CardDescription>
+                    <div className="flex items-start gap-3 flex-1">
+                        {profile.logo ? (
+                            <img src={profile.logo} alt="" className="w-10 h-10 object-contain border rounded shrink-0" />
+                        ) : (
+                            <div className="w-10 h-10 border rounded flex items-center justify-center bg-muted shrink-0">
+                                <Building2 className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                        )}
+                        <div className="flex-1">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                {profile.name}
+                                {profile.isDefault && (
+                                    <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30 text-[10px]">
+                                        <Star className="w-3 h-3 mr-1" /> Default
+                                    </Badge>
+                                )}
+                            </CardTitle>
+                            <CardDescription className="mt-1">
+                                {[profile.address1, profile.address2].filter(Boolean).join(', ') || 'No address set'}
+                            </CardDescription>
+                        </div>
                     </div>
                     <div className="flex gap-1">
                         {!profile.isDefault && (
