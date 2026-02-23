@@ -21,6 +21,7 @@ import {
     Calendar,
     Zap,
     Star,
+    Shield,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -108,6 +109,16 @@ export default function Features() {
             gradient: "from-sky-500 to-cyan-600",
             shadowColor: "shadow-sky-500/20",
             link: "/sales-ai",
+        },
+        {
+            icon: <Shield className="w-6 h-6" />,
+            title: "Legal DigiVault",
+            description: "Secure cloud storage for all legal & statutory documents. Per-company vault with instant retrieval.",
+            benefits: ["Certificate of Inc.", "PAN / TAN / CIN", "MOA & AOA", "GST & MSME Cert.", "Statutory Registers", "Minutes Book"],
+            gradient: "from-amber-500 to-yellow-600",
+            shadowColor: "shadow-amber-500/20",
+            link: "/profile/company-profiles",
+            popular: true,
         },
     ];
 

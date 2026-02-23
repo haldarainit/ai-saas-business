@@ -28,7 +28,11 @@ export interface ICompanyDetails {
     email?: string;
     phone?: string;
     gstin?: string;
+    pan?: string;
+    cin?: string;
+    tan?: string;
     stateCode?: string;
+    msmeNumber?: string;
     logo?: string;
 }
 
@@ -184,7 +188,11 @@ const InvoiceSchema = new Schema<IInvoice>({
         email: String,
         phone: String,
         gstin: String,
+        pan: String,
+        cin: String,
+        tan: String,
         stateCode: String,
+        msmeNumber: String,
         logo: String // Base64 or URL
     },
 

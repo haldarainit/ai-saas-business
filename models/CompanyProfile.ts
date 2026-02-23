@@ -12,6 +12,18 @@ export interface ICompanyProfile extends Document {
     gstin?: string;
     pan?: string;
     website?: string;
+    // Legal & Statutory Fields
+    cin?: string;                    // Corporate Identification Number (21-char, issued by ROC)
+    tan?: string;                    // Tax Deduction Account Number (for TDS compliance)
+    msmeNumber?: string;             // Udyam Registration Number (e.g., UDYAM-XX-00-0000000)
+    msmeCategory?: string;           // Micro / Small / Medium
+    incorporationDate?: Date;        // Date of company incorporation from Certificate
+    incorporationCertUrl?: string;   // Uploaded Certificate of Incorporation file URL
+    moaUrl?: string;                 // Uploaded MOA document URL
+    aoaUrl?: string;                 // Uploaded AOA document URL
+    gstCertUrl?: string;             // Uploaded GST Registration Certificate URL
+    msmeCertUrl?: string;            // Uploaded MSME/Udyam Certificate URL
+    stateCode?: string;              // State code for GST (e.g., 27 for Maharashtra)
     // Bank Details
     bankName?: string;
     bankAccountNo?: string;
@@ -51,6 +63,18 @@ const CompanyProfileSchema = new Schema<ICompanyProfile>({
     gstin: String,
     pan: String,
     website: String,
+    // Legal & Statutory Fields
+    cin: String,
+    tan: String,
+    msmeNumber: String,
+    msmeCategory: { type: String, enum: ['Micro', 'Small', 'Medium', ''], default: '' },
+    incorporationDate: Date,
+    incorporationCertUrl: String,
+    moaUrl: String,
+    aoaUrl: String,
+    gstCertUrl: String,
+    msmeCertUrl: String,
+    stateCode: String,
     // Bank Details
     bankName: String,
     bankAccountNo: String,

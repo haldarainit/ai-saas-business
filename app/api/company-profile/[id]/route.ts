@@ -17,7 +17,16 @@ export async function PUT(
         }
 
         const body = await request.json();
-        const { name, address1, address2, phone, email, logo, isDefault } = body;
+        const {
+            name, address1, address2, phone, email, logo, isDefault,
+            gstin, pan, website,
+            cin, tan, msmeNumber, msmeCategory, incorporationDate,
+            incorporationCertUrl, moaUrl, aoaUrl, gstCertUrl, msmeCertUrl, stateCode,
+            bankName, bankAccountNo, bankIFSC, bankBranch,
+            authorizedSignatory, signatoryDesignation,
+            footerLine1, footerLine2, footerLine3,
+            headerLineColor, headerValueColor, footerLineColor, footerTextColor
+        } = body;
 
         await dbConnect();
 
@@ -48,6 +57,35 @@ export async function PUT(
                 phone,
                 email,
                 logo,
+                gstin,
+                pan,
+                website,
+                // Legal & Statutory
+                cin,
+                tan,
+                msmeNumber,
+                msmeCategory,
+                incorporationDate,
+                incorporationCertUrl,
+                moaUrl,
+                aoaUrl,
+                gstCertUrl,
+                msmeCertUrl,
+                stateCode,
+                // Bank
+                bankName,
+                bankAccountNo,
+                bankIFSC,
+                bankBranch,
+                authorizedSignatory,
+                signatoryDesignation,
+                footerLine1,
+                footerLine2,
+                footerLine3,
+                headerLineColor: headerLineColor || existingProfile.headerLineColor,
+                headerValueColor: headerValueColor || existingProfile.headerValueColor,
+                footerLineColor: footerLineColor || existingProfile.footerLineColor,
+                footerTextColor: footerTextColor || existingProfile.footerTextColor,
                 isDefault: isDefault || false
             },
             { new: true }

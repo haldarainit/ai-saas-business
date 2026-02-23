@@ -31,6 +31,7 @@ import {
   RefreshCw,
   TrendingUp,
   Activity,
+  Building2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -330,6 +331,12 @@ export default function Profile() {
                       <CardTitle className="text-lg">Quick Actions</CardTitle>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-3">
+                      <Link href="/profile/company-profiles">
+                        <Button variant="outline" className="w-full h-auto py-3 flex flex-col gap-1 border-primary/30 bg-primary/5">
+                          <Building2 className="w-5 h-5 text-primary" />
+                          <span className="text-xs">Company Profiles</span>
+                        </Button>
+                      </Link>
                       <Link href="/accounting/invoice">
                         <Button variant="outline" className="w-full h-auto py-3 flex flex-col gap-1">
                           <Receipt className="w-5 h-5" />
@@ -357,6 +364,31 @@ export default function Profile() {
                     </CardContent>
                   </Card>
 
+                  {/* Company Profiles Card */}
+                  <Card className="border-primary/20">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Building2 className="w-5 h-5 text-primary" />
+                        Company Profiles
+                      </CardTitle>
+                      <CardDescription>Manage company details for invoices & quotations</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Link href="/profile/company-profiles">
+                        <Button className="w-full">
+                          <Building2 className="w-4 h-4 mr-2" />
+                          Manage Company Profiles
+                        </Button>
+                      </Link>
+                      <p className="text-xs text-muted-foreground mt-3">
+                        Your company details (GSTIN, PAN, CIN, TAN, MSME, Bank details) are saved here and auto-fill in all invoices & quotations.
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Account Section */}
+                <div className="grid md:grid-cols-1 gap-4 mt-4">
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">Account</CardTitle>

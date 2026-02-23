@@ -85,16 +85,21 @@ export async function POST(req: Request) {
             userId: userId,
             invoiceNumber: invoiceNumber,
             title: body.title || "TAX INVOICE",
-            // Populate from Company Profile if available
+            // Populate from Company Profile if available (including legal & statutory details)
             companyDetails: companyProfile ? {
                 name: companyProfile.name,
                 address: [companyProfile.address1, companyProfile.address2].filter(Boolean).join(', '),
-                city: '', // You might want to parse this from address if structured
+                city: '',
                 state: '', 
                 pincode: '', 
                 email: companyProfile.email || '',
                 phone: companyProfile.phone || '',
                 gstin: companyProfile.gstin || '',
+                pan: companyProfile.pan || '',
+                cin: companyProfile.cin || '',
+                tan: companyProfile.tan || '',
+                stateCode: companyProfile.stateCode || '',
+                msmeNumber: companyProfile.msmeNumber || '',
                 logo: companyProfile.logo || ''
             } : {
                 name: 'Your Company Name'

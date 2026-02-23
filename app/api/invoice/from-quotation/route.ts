@@ -62,13 +62,18 @@ function extractText(result: any): string {
 // Extract ALL data from quotation comprehensively
 function extractQuotationDataComprehensive(quotation: any) {
     const data: any = {
-        // Company details from quotation
+        // Company details from quotation (including legal & statutory)
         companyDetails: {
             name: quotation.companyDetails?.name || '',
             address: quotation.companyDetails?.address || '',
             phone: quotation.companyDetails?.phone || '',
             email: quotation.companyDetails?.email || '',
             gstin: quotation.companyDetails?.gstin || '',
+            pan: quotation.companyDetails?.pan || '',
+            cin: quotation.companyDetails?.cin || '',
+            tan: quotation.companyDetails?.tan || '',
+            msmeNumber: quotation.companyDetails?.msmeNumber || '',
+            stateCode: quotation.companyDetails?.stateCode || '',
             logo: quotation.companyDetails?.logo || ''
         },
         // Client details
@@ -1126,7 +1131,7 @@ export async function POST(req: Request) {
             extractionMethodUsed = 'basic';
         }
 
-        // Merge company details
+        // Merge company details (including legal & statutory fields)
         const finalCompanyDetails = {
             name: transformedData.companyDetails?.name || quotation.companyDetails?.name || '',
             address: transformedData.companyDetails?.address || quotation.companyDetails?.address || '',
@@ -1135,8 +1140,12 @@ export async function POST(req: Request) {
             pincode: transformedData.companyDetails?.pincode || '',
             email: transformedData.companyDetails?.email || quotation.companyDetails?.email || '',
             phone: transformedData.companyDetails?.phone || quotation.companyDetails?.phone || '',
-            gstin: transformedData.companyDetails?.gstin || '',
-            stateCode: transformedData.companyDetails?.stateCode || '',
+            gstin: transformedData.companyDetails?.gstin || quotation.companyDetails?.gstin || '',
+            pan: transformedData.companyDetails?.pan || quotation.companyDetails?.pan || '',
+            cin: transformedData.companyDetails?.cin || quotation.companyDetails?.cin || '',
+            tan: transformedData.companyDetails?.tan || quotation.companyDetails?.tan || '',
+            stateCode: transformedData.companyDetails?.stateCode || quotation.companyDetails?.stateCode || '',
+            msmeNumber: transformedData.companyDetails?.msmeNumber || quotation.companyDetails?.msmeNumber || '',
             logo: quotation.companyDetails?.logo || ''
         };
 
