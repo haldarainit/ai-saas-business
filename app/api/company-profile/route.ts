@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
         const {
             name, address1, address2, phone, email, logo, isDefault,
             gstin, pan, website,
+            cin, tan, msmeNumber, msmeCategory, incorporationDate,
+            incorporationCertUrl, moaUrl, aoaUrl, gstCertUrl, msmeCertUrl, stateCode,
             bankName, bankAccountNo, bankIFSC, bankBranch,
             authorizedSignatory, signatoryDesignation,
             footerLine1, footerLine2, footerLine3,
@@ -73,6 +75,19 @@ export async function POST(request: NextRequest) {
             gstin,
             pan,
             website,
+            // Legal & Statutory
+            cin,
+            tan,
+            msmeNumber,
+            msmeCategory,
+            incorporationDate,
+            incorporationCertUrl,
+            moaUrl,
+            aoaUrl,
+            gstCertUrl,
+            msmeCertUrl,
+            stateCode,
+            // Bank
             bankName,
             bankAccountNo,
             bankIFSC,

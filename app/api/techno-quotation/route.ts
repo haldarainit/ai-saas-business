@@ -236,14 +236,20 @@ export async function POST(req: Request) {
                 logo: aiData?.companyLogo || userProfile?.logo || ''
             };
         } else if (userProfile) {
-            // Case 2: Use Saved Profile
+            // Case 2: Use Saved Profile (includes legal & statutory details)
             companyDetails = {
                 name: userProfile.name,
                 address1: userProfile.address1 || '',
                 address2: userProfile.address2 || '',
                 phone: userProfile.phone || '',
                 email: userProfile.email || '',
-                logo: userProfile.logo || ''
+                logo: userProfile.logo || '',
+                gstin: userProfile.gstin || '',
+                pan: userProfile.pan || '',
+                cin: userProfile.cin || '',
+                tan: userProfile.tan || '',
+                msmeNumber: userProfile.msmeNumber || '',
+                stateCode: userProfile.stateCode || '',
             };
         } else {
             // Case 3: Fallback / AI Defaults

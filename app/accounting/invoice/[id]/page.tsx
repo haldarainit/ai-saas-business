@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
 import Navbar from "@/components/navbar"
 import {
     Plus,
@@ -25,7 +26,8 @@ import Link from "next/link"
 import { useReactToPrint } from 'react-to-print';
 import { convertNumberToWords } from "@/lib/utils"
 import { useDebounce } from "@/hooks/use-debounce"
-import { Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { Loader2, Save } from "lucide-react"
 
 interface InvoiceItem {
     id: string
@@ -69,6 +71,10 @@ interface InvoiceData {
     companyPhone: string
     companyGSTIN: string
     companyStateCode: string
+    companyPAN: string
+    companyCIN: string
+    companyTAN: string
+    companyMSME: string
 
     // Client Info (Bill To)
     clientName: string
@@ -164,6 +170,10 @@ const defaultInvoiceData: InvoiceData = {
     companyPhone: "",
     companyGSTIN: "",
     companyStateCode: "",
+    companyPAN: "",
+    companyCIN: "",
+    companyTAN: "",
+    companyMSME: "",
 
     clientName: "",
     clientAddress: "",
@@ -237,6 +247,135 @@ export default function InvoicePage() {
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [hasChanges, setHasChanges] = useState(false);
 
+    // Company Profile Selector State
+    interface CompanyProfile {
+        _id: string
+        name: string
+        address1?: string
+        address2?: string
+        phone?: string
+        email?: string
+        logo?: string
+        gstin?: string
+        pan?: string
+        cin?: string
+        tan?: string
+        msmeNumber?: string
+        stateCode?: string
+        website?: string
+        bankName?: string
+        bankAccountNo?: string
+        bankIFSC?: string
+        bankBranch?: string
+        authorizedSignatory?: string
+        signatoryDesignation?: string
+        isDefault?: boolean
+    }
+    const [companyProfiles, setCompanyProfiles] = useState<CompanyProfile[]>([])
+    const [selectedProfileId, setSelectedProfileId] = useState<string>('')
+    const [isLoadingProfiles, setIsLoadingProfiles] = useState(false)
+    const [isSavingProfile, setIsSavingProfile] = useState(false)
+    const { toast } = useToast()
+
+    // Fetch company profiles on mount
+    useEffect(() => {
+        const fetchProfiles = async () => {
+            setIsLoadingProfiles(true)
+            try {
+                const res = await fetch('/api/company-profile')
+                if (res.ok) {
+                    const data = await res.json()
+                    setCompanyProfiles(data.profiles || [])
+                }
+            } catch (error) {
+                console.error('Error fetching company profiles:', error)
+            } finally {
+                setIsLoadingProfiles(false)
+            }
+        }
+        fetchProfiles()
+    }, [])
+
+    // Apply company profile to invoice
+    const applyCompanyProfile = (profileId: string) => {
+        if (selectedProfileId === profileId) {
+            setSelectedProfileId('')
+            return
+        }
+        const profile = companyProfiles.find(p => p._id === profileId)
+        if (!profile) return
+
+        setInvoiceData(prev => ({
+            ...prev,
+            companyName: profile.name || '',
+            companyAddress: [profile.address1, profile.address2].filter(Boolean).join(', '),
+            companyPhone: profile.phone || '',
+            companyEmail: profile.email || '',
+            companyGSTIN: profile.gstin || '',
+            companyPAN: profile.pan || '',
+            companyCIN: profile.cin || '',
+            companyTAN: profile.tan || '',
+            companyMSME: profile.msmeNumber || '',
+            companyStateCode: profile.stateCode || '',
+            // Bank details
+            bankName: profile.bankName || prev.bankName,
+            accountNumber: profile.bankAccountNo || prev.accountNumber,
+            ifscCode: profile.bankIFSC || prev.ifscCode,
+            // Signatory
+            authorizedSignatory: profile.authorizedSignatory || prev.authorizedSignatory,
+        }))
+        setSelectedProfileId(profileId)
+    }
+
+    // Save current invoice company details as a new company profile
+    const saveAsCompanyProfile = async () => {
+        if (!invoiceData.companyName?.trim()) {
+            toast({ title: "Company name is required to save profile", variant: "destructive" })
+            return
+        }
+        setIsSavingProfile(true)
+        try {
+            const res = await fetch('/api/company-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: invoiceData.companyName,
+                    address1: invoiceData.companyAddress?.split(',')[0]?.trim() || invoiceData.companyAddress || '',
+                    address2: [invoiceData.companyCity, invoiceData.companyState, invoiceData.companyPincode].filter(Boolean).join(', '),
+                    phone: invoiceData.companyPhone,
+                    email: invoiceData.companyEmail,
+                    gstin: invoiceData.companyGSTIN,
+                    pan: invoiceData.companyPAN,
+                    cin: invoiceData.companyCIN,
+                    tan: invoiceData.companyTAN,
+                    msmeNumber: invoiceData.companyMSME,
+                    stateCode: invoiceData.companyStateCode,
+                    bankName: invoiceData.bankName,
+                    bankAccountNo: invoiceData.accountNumber,
+                    bankIFSC: invoiceData.ifscCode,
+                    authorizedSignatory: invoiceData.authorizedSignatory,
+                    isDefault: companyProfiles.length === 0
+                })
+            })
+            if (res.ok) {
+                const data = await res.json()
+                setCompanyProfiles(prev => [...prev, data.profile])
+                setSelectedProfileId(data.profile._id)
+                toast({
+                    title: "\u2705 Company Profile Saved!",
+                    description: `"${invoiceData.companyName}" saved. It will auto-fill in new invoices & quotations.`,
+                })
+            } else {
+                const err = await res.json()
+                toast({ title: "Failed to save profile", description: err.error || 'Unknown error', variant: "destructive" })
+            }
+        } catch (error) {
+            toast({ title: "Error saving profile", variant: "destructive" })
+        } finally {
+            setIsSavingProfile(false)
+        }
+    }
+
     // Fetch Invoice
     useEffect(() => {
         const fetchInvoice = async () => {
@@ -287,6 +426,10 @@ export default function InvoicePage() {
                         companyPhone: inv.companyDetails?.phone || "",
                         companyGSTIN: inv.companyDetails?.gstin || "",
                         companyStateCode: inv.companyDetails?.stateCode || "",
+                        companyPAN: inv.companyDetails?.pan || "",
+                        companyCIN: inv.companyDetails?.cin || "",
+                        companyTAN: inv.companyDetails?.tan || "",
+                        companyMSME: inv.companyDetails?.msmeNumber || "",
 
                         // Client
                         clientName: inv.clientDetails?.name || "",
@@ -417,7 +560,11 @@ export default function InvoicePage() {
                         email: debouncedInvoiceData.companyEmail,
                         phone: debouncedInvoiceData.companyPhone,
                         gstin: debouncedInvoiceData.companyGSTIN,
-                        stateCode: debouncedInvoiceData.companyStateCode
+                        stateCode: debouncedInvoiceData.companyStateCode,
+                        pan: debouncedInvoiceData.companyPAN,
+                        cin: debouncedInvoiceData.companyCIN,
+                        tan: debouncedInvoiceData.companyTAN,
+                        msmeNumber: debouncedInvoiceData.companyMSME
                     },
                     clientDetails: {
                         name: debouncedInvoiceData.clientName,
@@ -741,6 +888,29 @@ export default function InvoicePage() {
 
                         {/* Seller (Company) Info */}
                         <TabsContent value="company" className="space-y-4">
+                            {/* Company Profile Selector */}
+                            {companyProfiles.length > 0 && (
+                                <Card className="p-4 border-l-4 border-l-violet-500">
+                                    <h3 className="font-semibold text-sm mb-2 text-violet-400">Load from Saved Company Profile</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {companyProfiles.map(profile => (
+                                            <Button
+                                                key={profile._id}
+                                                variant={selectedProfileId === profile._id ? "default" : "outline"}
+                                                size="sm"
+                                                onClick={() => applyCompanyProfile(profile._id)}
+                                                className={selectedProfileId === profile._id ? "bg-violet-600 hover:bg-violet-700" : ""}
+                                            >
+                                                <Building2 className="w-3 h-3 mr-1" />
+                                                {profile.name}
+                                                {profile.isDefault && <Badge className="ml-1 text-[9px] px-1 py-0 bg-emerald-600">Default</Badge>}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                    {selectedProfileId && <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1"><Check className="w-3 h-3" /> Company details loaded from profile</p>}
+                                </Card>
+                            )}
+
                             <Card className="p-4 border-l-4 border-l-cyan-500">
                                 <h3 className="font-semibold text-lg mb-4 flex items-center"><Building2 className="w-4 h-4 mr-2" /> Seller Details</h3>
                                 <div className="space-y-3">
@@ -774,11 +944,42 @@ export default function InvoicePage() {
                                             <Input value={invoiceData.companyPincode} onChange={e => setInvoiceData({ ...invoiceData, companyPincode: e.target.value })} placeholder="123456" />
                                         </div>
                                         <div>
-                                            <Label>GSTIN</Label>
-                                            <Input value={invoiceData.companyGSTIN} onChange={e => setInvoiceData({ ...invoiceData, companyGSTIN: e.target.value })} placeholder="22AAAAA0000A1Z5" />
+                                            <Label>State Code</Label>
+                                            <Input value={invoiceData.companyStateCode} onChange={e => setInvoiceData({ ...invoiceData, companyStateCode: e.target.value })} placeholder="27" />
                                         </div>
                                     </div>
                                 </div>
+                            </Card>
+
+                            {/* Legal & Statutory Details */}
+                            <Card className="p-4 border-l-4 border-l-emerald-500">
+                                <h3 className="font-semibold text-lg mb-4 flex items-center">
+                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    Legal & Tax Details
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <Label>GSTIN</Label>
+                                        <Input value={invoiceData.companyGSTIN} onChange={e => setInvoiceData({ ...invoiceData, companyGSTIN: e.target.value })} placeholder="22AAAAA0000A1Z5" />
+                                    </div>
+                                    <div>
+                                        <Label>PAN</Label>
+                                        <Input value={invoiceData.companyPAN} onChange={e => setInvoiceData({ ...invoiceData, companyPAN: e.target.value })} placeholder="AAAAA0000A" />
+                                    </div>
+                                    <div>
+                                        <Label>CIN</Label>
+                                        <Input value={invoiceData.companyCIN} onChange={e => setInvoiceData({ ...invoiceData, companyCIN: e.target.value })} placeholder="U12345MH2020PTC000000" />
+                                    </div>
+                                    <div>
+                                        <Label>TAN</Label>
+                                        <Input value={invoiceData.companyTAN} onChange={e => setInvoiceData({ ...invoiceData, companyTAN: e.target.value })} placeholder="MUMA00000A" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <Label>MSME / Udyam No.</Label>
+                                        <Input value={invoiceData.companyMSME} onChange={e => setInvoiceData({ ...invoiceData, companyMSME: e.target.value })} placeholder="UDYAM-MH-00-0000000" />
+                                    </div>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">CIN, PAN & GSTIN are legally required on invoices (Companies Act 2013). These auto-print on PDF.</p>
                             </Card>
 
                             <Card className="p-4 border-l-4 border-l-orange-500">
@@ -800,6 +1001,26 @@ export default function InvoicePage() {
                                         <Label>Signatory Name</Label>
                                         <Input value={invoiceData.authorizedSignatory} onChange={e => setInvoiceData({ ...invoiceData, authorizedSignatory: e.target.value })} placeholder="For Authorized Signatory" />
                                     </div>
+                                </div>
+                            </Card>
+
+                            {/* Save as Company Profile */}
+                            <Card className="p-4 border-l-4 border-l-indigo-500 bg-indigo-500/5">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="font-semibold text-sm">Save as Company Profile</h3>
+                                        <p className="text-xs text-muted-foreground">Save these details to reuse in all future invoices & quotations</p>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={saveAsCompanyProfile}
+                                        disabled={isSavingProfile || !invoiceData.companyName?.trim()}
+                                        className="border-indigo-500/30 hover:bg-indigo-500/10"
+                                    >
+                                        {isSavingProfile ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
+                                        Save Profile
+                                    </Button>
                                 </div>
                             </Card>
                         </TabsContent>
@@ -1340,10 +1561,28 @@ export default function InvoicePage() {
                                         <span>{invoiceData.companyPhone}</span>
                                         <span className="font-semibold text-slate-500">Email:</span>
                                         <span className="break-words">{invoiceData.companyEmail}</span>
-                                        <span className="font-semibold text-slate-500">GSTIN:</span>
-                                        <span>{invoiceData.companyGSTIN}</span>
+                                        {invoiceData.companyGSTIN && <>
+                                            <span className="font-semibold text-slate-500">GSTIN:</span>
+                                            <span>{invoiceData.companyGSTIN}</span>
+                                        </>}
+                                        {invoiceData.companyPAN && <>
+                                            <span className="font-semibold text-slate-500">PAN:</span>
+                                            <span>{invoiceData.companyPAN}</span>
+                                        </>}
+                                        {invoiceData.companyCIN && <>
+                                            <span className="font-semibold text-slate-500">CIN:</span>
+                                            <span className="break-words">{invoiceData.companyCIN}</span>
+                                        </>}
+                                        {invoiceData.companyTAN && <>
+                                            <span className="font-semibold text-slate-500">TAN:</span>
+                                            <span>{invoiceData.companyTAN}</span>
+                                        </>}
+                                        {invoiceData.companyMSME && <>
+                                            <span className="font-semibold text-slate-500">MSME:</span>
+                                            <span className="break-words">{invoiceData.companyMSME}</span>
+                                        </>}
                                         <span className="font-semibold text-slate-500">State:</span>
-                                        <span>{invoiceData.companyState}</span>
+                                        <span>{invoiceData.companyState}{invoiceData.companyStateCode ? ` (${invoiceData.companyStateCode})` : ''}</span>
                                         <span className="font-semibold text-slate-500">Pin:</span>
                                         <span>{invoiceData.companyPincode}</span>
                                     </div>

@@ -570,6 +570,10 @@ export default function QuotationPage() {
         logo?: string
         gstin?: string
         pan?: string
+        cin?: string
+        tan?: string
+        msmeNumber?: string
+        stateCode?: string
         website?: string
         authorizedSignatory?: string
         signatoryDesignation?: string
