@@ -59,10 +59,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <ThemeProvider
-          attribute="class"
           defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
         >
           <GoogleSessionProvider>
             <AuthProvider>{children}</AuthProvider>

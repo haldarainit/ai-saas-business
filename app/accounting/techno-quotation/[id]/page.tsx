@@ -4066,6 +4066,11 @@ Return the response as JSON with this structure:
                                                                             padding: '6px 8px',
                                                                             textAlign: 'left',
                                                                             fontWeight: 'bold',
+                                                                            wordWrap: 'break-word',
+                                                                            overflowWrap: 'break-word',
+                                                                            wordBreak: 'break-word',
+                                                                            maxWidth: '200px',
+                                                                            whiteSpace: 'normal'
                                                                         }}
                                                                     >
                                                                         {h}
@@ -4088,6 +4093,11 @@ Return the response as JSON with this structure:
                                                                                 border: `${block.tableData!.style?.borderWidth || 1}px solid ${block.tableData!.style?.borderColor || '#1a1a1a'}`,
                                                                                 color: block.tableData!.style?.textColor || '#1a1a1a',
                                                                                 padding: '6px 8px',
+                                                                                wordWrap: 'break-word',
+                                                                                overflowWrap: 'break-word',
+                                                                                wordBreak: 'break-word',
+                                                                                maxWidth: '200px',
+                                                                                whiteSpace: 'normal'
                                                                             }}
                                                                         >
                                                                             {cell}
@@ -4555,11 +4565,21 @@ Return the response as JSON with this structure:
                     .quotation-preview .block-table th {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                        word-wrap: break-word !important;
+                        overflow-wrap: break-word !important;
+                        word-break: break-word !important;
+                        white-space: normal !important;
+                        max-width: 200px !important;
                     }
                     
                     .quotation-preview .block-table td {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                        word-wrap: break-word !important;
+                        overflow-wrap: break-word !important;
+                        word-break: break-word !important;
+                        white-space: normal !important;
+                        max-width: 200px !important;
                     }
                     
                     /* Footer fixed at bottom of each page */
